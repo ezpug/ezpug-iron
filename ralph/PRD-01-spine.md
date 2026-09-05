@@ -240,7 +240,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   flow will drive them. Determinism test: same seed, same clock, byte-equal event log.
   References: Findings (the engine), `specs/Foundation.md` §5 in the platform.
 
-- [ ] **T6 (fable): The fake orchestrator.** `@ezpug/match-api/fake`:
+- [x] **T6 (fable): The fake orchestrator.** `@ezpug/match-api/fake`:
   `createFakeOrchestrator({clock, prng?, gamemodes?, providers?: {sim: {...}, faults?}})`
   implementing every route from T2 **in-process** (a typed function surface the client
   can call without HTTP) *and* mountable as a Hono app (`fake.handler`) for HTTP tests;
