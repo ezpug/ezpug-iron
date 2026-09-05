@@ -211,7 +211,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   of this repo's code. References: decision 6, the platform's ingestion ack shapes
   (`gameserver.ts:590-650`) for the idempotency vocabulary.
 
-- [ ] **T4 (fable): The gamemode manifest and the four manifests.** `GamemodeManifest`:
+- [x] **T4 (fable): The gamemode manifest and the four manifests.** `GamemodeManifest`:
   `id` (kebab), `game`, `tier` (`config | plugin | sdk`), `title` + `description` (DE+EN
   objects), `slots` `{teamSize, teams, openJoin}`, `flow` (`matchzy | plugin | none`),
   `records` (`demo | events | none`), `ranked: false` always this round (the queue's

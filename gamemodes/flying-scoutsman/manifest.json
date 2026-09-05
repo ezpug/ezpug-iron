@@ -1,0 +1,29 @@
+{
+  "id": "flying-scoutsman",
+  "game": "cs2",
+  "tier": "config",
+  "title": { "de": "Flying Scoutsman", "en": "Flying Scoutsman" },
+  "description": {
+    "de": "CS2s Modus mit Scout und wenig Schwerkraft auf den normalen Karten. Nur Konfiguration, kein Plugin, kein Matchablauf: die Karte läuft, bis der Client das Match beendet.",
+    "en": "CS2's low-gravity Scout mode on the normal maps. Configuration only, no plugin, no match flow: the map runs until the client ends the match."
+  },
+  "slots": { "teamSize": 5, "teams": 2, "openJoin": false },
+  "flow": "none",
+  "records": "events",
+  "ranked": false,
+  "maps": "any",
+  "plugins": [],
+  "cfg": ["ezpug/flying-scoutsman.cfg"],
+  "cvars": {},
+  "capabilities": {
+    "positions": true,
+    "chat": true,
+    "playerCommands": false,
+    "widget": false,
+    "backups": false,
+    "scoreboardRating": false
+  },
+  "commands": [],
+  "version": "0.1.0",
+  "sdkVersion": "0.1.0"
+}

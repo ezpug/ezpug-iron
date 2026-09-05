@@ -1,0 +1,11 @@
+{
+  "name": "@ezpug/gamemodes",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The gamemode manifests EZPug Iron ships, one directory per mode, authored as data (decision 14). Read by the orchestrator, bundled into @ezpug/match-api as the catalog the fake serves, built against by the plugins.",
+  "type": "module",
+  "exports": {
+    "./*/manifest.json": "./*/manifest.json",
+    "./package.json": "./package.json"
+  }
+}

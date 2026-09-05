@@ -1,6 +1,7 @@
 export * from './game'
 export * from './gameserver'
 export * from './locale'
+export * from './maps'
 export * from './naming'
 export * from './radar'
 export * from './steam-id'

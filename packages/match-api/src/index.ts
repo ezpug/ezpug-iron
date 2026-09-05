@@ -7,8 +7,10 @@
  *   server speaks, v1 of the platform's own, byte-compatible; the SteamID64
  *   grammar; games; locales; radar geometry.
  * - **The resources** (`resources/`): what a match request is, what a match
- *   looks like, the commands, player tokens, the gamemode catalog, capacity,
- *   the fleet and its money, API keys.
+ *   looks like, the commands, player tokens, the gamemode manifest and the
+ *   widget host contract, capacity, the fleet and its money, API keys.
+ * - **The gamemodes** (`gamemodes/`): the four manifests this round ships,
+ *   read from `gamemodes/<id>/manifest.json` at the repo root and bundled.
  * - **The routes** (`routes.ts`): the table the orchestrator serves and the
  *   client is generated from; `rpc.ts` is the declaration helper.
  * - **Scopes and errors**: what a key may do, and the one error shape.
@@ -25,6 +27,7 @@
  */
 export * from './closed-set'
 export * from './errors'
+export * from './gamemodes'
 export * from './resources'
 export * from './routes'
 export * from './rpc'

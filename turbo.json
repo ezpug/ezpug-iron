@@ -50,6 +50,11 @@
         // The determinism primitives depend on nothing.
         "dependencies": { "deny": ["app", "published", "internal", "plugins"] }
       },
+      "data": {
+        // Authored data every side reads (the gamemode manifests): no code, no
+        // dependencies; `published` bundles it, the apps and plugins read it.
+        "dependencies": { "deny": ["app", "published", "core", "internal", "plugins", "data"] }
+      },
       "internal": {
         // Internal packages (the protocol, the sim engine): shared by the apps,
         // never reaching into one. Whether the sim engine is `internal` or

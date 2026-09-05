@@ -36,6 +36,8 @@ export const MATCH_API_ERROR_CODES = [
   'unknown_gamemode',
   /** The gamemode does not play the requested `game`. */
   'game_unsupported',
+  /** A planned map is outside the gamemode's allow-list (`manifest.maps`). */
+  'map_not_allowed',
   /** No provider can host the request right now — or ever, for `csgo` this round. */
   'no_capable_server',
   /** The key's concurrent, lifetime or monthly ceiling would be crossed (decision 7). */
@@ -63,6 +65,7 @@ export const MATCH_API_ERROR_STATUS: Readonly<Record<MatchApiErrorCode, number>>
   player_not_in_match: 422,
   unknown_gamemode: 422,
   game_unsupported: 422,
+  map_not_allowed: 422,
   no_capable_server: 503,
   budget_exceeded: 402,
   rate_limited: 429,

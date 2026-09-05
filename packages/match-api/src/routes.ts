@@ -16,7 +16,7 @@ import {
   rconResponseSchema,
   releaseServerRequestSchema,
 } from './resources/fleet'
-import { gamemodeSummarySchema } from './resources/gamemode'
+import { gamemodeCatalogSchema, gamemodeManifestSchema } from './resources/gamemode'
 import {
   apiKeyCreatedSchema,
   apiKeyCreateRequestSchema,
@@ -55,7 +55,15 @@ export const matchApiRoutes = {
       method: 'get',
       path: '/v1/gamemodes',
       scope: 'matches',
-      response: z.object({ gamemodes: z.array(gamemodeSummarySchema) }),
+      response: gamemodeCatalogSchema,
+    }),
+    /** One manifest, whole. `not_found` for an id the orchestrator does not ship. */
+    get: defineRoute({
+      method: 'get',
+      path: '/v1/gamemodes/:gamemodeId',
+      params: z.object({ gamemodeId: kebabNameSchema }),
+      scope: 'matches',
+      response: gamemodeManifestSchema,
     }),
   },
   capacity: {

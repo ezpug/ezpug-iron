@@ -6,6 +6,9 @@ packages:
   # them as `typecheck` and `test` beside the TypeScript packages.
   - plugins
   - gamemode-kit
+  # The manifests, as data (`@ezpug/gamemodes`), so the package that bundles
+  # them and the apps that read them share one source.
+  - gamemodes
 
 # Dependencies whose install scripts are allowed to run (pnpm 10 blocks all
 # build scripts by default).

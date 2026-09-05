@@ -50,7 +50,7 @@ describe('nothing in the package knows a provider', () => {
     const pattern = /dathost|matchzy/i
     // The one word in code: decision 14 names the manifest's flow owner
     // (`matchzy | plugin | none`) — a vocabulary value, not a provider seam.
-    const allowed = [/z\.enum\(\['matchzy', 'plugin', 'none'\]\)/]
+    const allowed = [/GAMEMODE_FLOWS = \['matchzy', 'plugin', 'none'\] as const/]
     for (const file of sourceFiles(root)) {
       const lines = readFileSync(file, 'utf8').split('\n')
       lines.forEach((line, index) => {

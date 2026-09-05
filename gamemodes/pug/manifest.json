@@ -1,0 +1,35 @@
+{
+  "id": "pug",
+  "game": "cs2",
+  "tier": "plugin",
+  "title": { "de": "5v5 Wettkampf", "en": "5v5 competitive" },
+  "description": {
+    "de": "Das Spiel der Warteschlange: fünf gegen fünf, Messerrunde, Overtime, Demo und Rundenbackups – MatchZy führt das Match.",
+    "en": "The queue's game: five against five, a knife round, overtime, a demo and round backups – MatchZy runs the match."
+  },
+  "slots": { "teamSize": 5, "teams": 2, "openJoin": false },
+  "flow": "matchzy",
+  "records": "demo",
+  "ranked": false,
+  "maps": "any",
+  "plugins": ["MatchZy"],
+  "cfg": ["ezpug/pug.cfg"],
+  "cvars": {
+    "matchzy_kick_when_no_match_loaded": "false",
+    "matchzy_demo_recording_enabled": "true",
+    "matchzy_enable_tech_pause": "true",
+    "matchzy_stop_command_available": "true",
+    "matchzy_reset_cvars_on_series_end": "true"
+  },
+  "capabilities": {
+    "positions": true,
+    "chat": true,
+    "playerCommands": false,
+    "widget": false,
+    "backups": true,
+    "scoreboardRating": true
+  },
+  "commands": [],
+  "version": "0.1.0",
+  "sdkVersion": "0.1.0"
+}

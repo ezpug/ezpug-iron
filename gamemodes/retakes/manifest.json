@@ -1,0 +1,41 @@
+{
+  "id": "retakes",
+  "game": "cs2",
+  "tier": "plugin",
+  "title": { "de": "Retakes", "en": "Retakes" },
+  "description": {
+    "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, die Teams werden vom Plugin gemischt. Ereignisse ohne Demo.",
+    "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, teams shuffled by the plugin. Events, no demo."
+  },
+  "slots": { "teamSize": 5, "teams": 2, "openJoin": true },
+  "flow": "plugin",
+  "records": "events",
+  "ranked": false,
+  "maps": {
+    "catalog": [
+      "de_ancient",
+      "de_anubis",
+      "de_dust2",
+      "de_inferno",
+      "de_mirage",
+      "de_nuke",
+      "de_overpass",
+      "de_vertigo"
+    ],
+    "workshop": []
+  },
+  "plugins": ["RetakesPlugin"],
+  "cfg": ["ezpug/retakes.cfg"],
+  "cvars": {},
+  "capabilities": {
+    "positions": true,
+    "chat": true,
+    "playerCommands": false,
+    "widget": false,
+    "backups": false,
+    "scoreboardRating": true
+  },
+  "commands": [],
+  "version": "0.1.0",
+  "sdkVersion": "0.1.0"
+}

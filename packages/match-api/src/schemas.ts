@@ -6,6 +6,8 @@ import {
   apiKeySchema,
   budgetSchema,
   fleetServerSchema,
+  gamemodeCatalogSchema,
+  gamemodeManifestSchema,
   gamemodeSummarySchema,
   gsltPoolSchema,
   loadoutSchema,
@@ -21,6 +23,7 @@ import {
   rosterEntrySchema,
   simStatusSchema,
   webhookSecretsRequestSchema,
+  widgetHostMessageSchema,
 } from './resources'
 import { capacitySchema } from './resources/capacity'
 import { matchCommandResultSchema, matchCommandSchema } from './resources/commands'
@@ -55,6 +58,9 @@ export const matchApiSchemas = {
   PlayerTokenRequest: playerTokenRequestSchema,
   PlayerToken: playerTokenSchema,
   GamemodeSummary: gamemodeSummarySchema,
+  GamemodeManifest: gamemodeManifestSchema,
+  GamemodeCatalog: gamemodeCatalogSchema,
+  WidgetHostMessage: widgetHostMessageSchema,
   Capacity: capacitySchema,
   FleetServer: fleetServerSchema,
   ProviderHealth: providerHealthSchema,

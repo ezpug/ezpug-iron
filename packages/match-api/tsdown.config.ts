@@ -3,9 +3,10 @@ import { defineConfig } from 'tsdown'
 /**
  * The published build: one ESM bundle per entry point with its `.d.ts`.
  * `zod` stays external (a dependency and a peer, so the platform's own zod is
- * the one the schemas run on); `@ezpug/core` is *bundled* — it is private to
- * this repo, and a consumer must never need it (`turbo.json`'s `published`
- * tag says the same thing about the dependency edge).
+ * the one the schemas run on); `@ezpug/core` and `@ezpug/gamemodes` (the
+ * manifests, as data) are *bundled* — they are private to this repo, and a
+ * consumer must never need them (`turbo.json`'s `published` tag says the same
+ * thing about the dependency edge).
  */
 export default defineConfig({
   entry: {
@@ -19,5 +20,5 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  noExternal: [/^@ezpug\/core(\/.*)?$/],
+  noExternal: [/^@ezpug\/(?:core|gamemodes)(\/.*)?$/],
 })

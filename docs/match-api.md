@@ -9,7 +9,8 @@ The base URL is the orchestrator: `https://gs.ezpug.com` in production, `http://
 on a dev box, the in-process fake in tests. Every route lives under `/v1/`. Every request
 carries `Authorization: Bearer <api key>`. Bodies and responses are JSON.
 
-The gamemode manifest is added by PRD-01 T4. This file grows with it.
+The gamemode manifest — what a mode is, what each field means, how to render one — is
+`docs/gamemodes.md`; this file carries its wire shape and its routes only.
 
 ## Authentication and scopes
 
@@ -48,6 +49,7 @@ Every non-2xx response is
 | `player_not_in_match` | 422    | `profile` or `kick` for an unrostered player on a closed-roster mode |
 | `unknown_gamemode`    | 422    | no gamemode of that id in the catalog                                |
 | `game_unsupported`    | 422    | the gamemode does not play the requested `game`                      |
+| `map_not_allowed`     | 422    | a planned map is outside the gamemode's `maps` allow-list            |
 | `no_capable_server`   | 503    | no provider can host the request now; every `csgo` request this round |
 | `budget_exceeded`     | 402    | the key's concurrent, lifetime or monthly ceiling would be crossed   |
 | `rate_limited`        | 429    | back off                                                             |
@@ -72,7 +74,8 @@ recorded files).
 
 Also in the vocabulary: `steamId64Schema` (a 17-digit string, never a number), `game`
 (`cs2 | csgo`), `locale` (`de | en`, German default), `mapRadar` (overview geometry, the
-platform's `map-pools.ts` shape).
+platform's `map-pools.ts` shape), the map identifier grammar (`de_mirage` or
+`workshop/<id>/<name>`, the platform's `map-pools.ts` regex, with `parseMapIdentifier`).
 
 ## Resources
 
@@ -87,7 +90,7 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `game`         | `cs2 \| csgo`                                          | `csgo` is refused `no_capable_server` this round |
 | `gamemode`     | kebab id                                               | from `GET /v1/gamemodes` |
 | `teams`        | `{ teamA, teamB }`, each `{ name, players: RosterEntry[] }` | rosters may be empty for an open-join mode; a SteamID may appear once |
-| `maps`         | `{ map, sides: ct \| t \| knife }[]`, ≥1               | `sides` is where **team A** starts |
+| `maps`         | `{ map, sides: ct \| t \| knife }[]`, ≥1               | `sides` is where **team A** starts; every `map` inside the gamemode's `maps` |
 | `rules?`       | `{ regulationRounds, overtime, warmup, cvars }`        | absent = the gamemode's defaults |
 | `requirements` | `{ region?, lan?, simulated?, provider? }`             | every field narrows; default `{}` |
 | `callbacks`    | `{ webhookUrl, webhookSecretId, demoUploadUrl?, streamAllowedOrigins? }` | `webhookSecretId` names a secret registered on the key; `demoUploadUrl` is a presigned PUT |
@@ -156,12 +159,36 @@ call worked, the command did not; `code` is from the error table.
 matchId, steamId64, expiresAt }`. The token is what a gamemode widget opens its own socket
 with (decision 17). Shown once.
 
-### Gamemode (catalog read side)
+### Gamemode (the manifest)
 
-`{ id, game, tier: config | plugin | sdk, title: {de, en}, description: {de, en}, slots:
-{ teamSize, teams, openJoin }, flow: matchzy | plugin | none, records: demo | events |
-none, ranked: false, version }`. The full manifest (plugins, cfg, cvars, capabilities,
-player commands, widget) is PRD-01 T4's and extends this.
+The whole manifest, as `gamemodes/<id>/manifest.json` in the iron repo and as the catalog
+serves it. `docs/gamemodes.md` explains every field; the wire shape is:
+
+```
+{ id, game, tier: config | plugin | sdk, title: {de, en}, description: {de, en},
+  slots: { teamSize, teams, openJoin }, flow: matchzy | plugin | none,
+  records: demo | events | none, ranked: false,
+  maps: 'any' | { catalog: mapName[], workshop: workshopId[] },
+  plugins: string[], cfg: string[], cvars: { [name]: string },
+  capabilities: { positions, chat, playerCommands, widget, backups, scoreboardRating },
+  commands: [{ name, title: {de, en}, description?: {de, en}, cooldownMs, charges: { count,
+    per: life | round | map | match } | null, args?: <JSON Schema, type object> }],
+  widget?: { entry, needs: (tokens | locale | playerToken)[] },
+  version, sdkVersion }
+```
+
+`GamemodeSummary` is the first line of it (`id … version`), for a client that only renders
+a card. `ranked` is `false` by construction. The tier constrains the rest (a config mode
+has no plugins, only an sdk mode has commands or a widget, capabilities agree with the
+blocks that exist); a manifest that parses is one the loader can act on.
+
+### WidgetHostMessage
+
+The `postMessage` handshake between the platform's host frame and a gamemode's widget
+(`docs/gamemodes.md` "The widget host"): `ezpug.widget.ready` and `ezpug.widget.size` and
+`ezpug.widget.error` from the widget, `ezpug.widget.init` and `ezpug.widget.tokens` from
+the host. `init` carries `{ protocol: 1, orchestratorUrl, matchId, locale, tokens:
+{ '--css-property': value }, playerToken | null }`.
 
 ### Capacity
 
@@ -197,8 +224,14 @@ nextCursor }`; pass `nextCursor` back verbatim, it is opaque.
 
 ### `GET /v1/gamemodes`
 
-Scope `matches`. `{ gamemodes: Gamemode[] }` — the catalog the orchestrator ships. Cache it;
-it changes with a release.
+Scope `matches`. `{ gamemodes: GamemodeManifest[] }` — the catalog the orchestrator ships,
+whole manifests, `pug` first. Cache it; it changes with a release. The package exports the
+same four as `SHIPPED_GAMEMODES`, which is what the fake serves.
+
+### `GET /v1/gamemodes/:gamemodeId`
+
+Scope `matches`. One `GamemodeManifest`; `not_found` for an id the orchestrator does not
+ship.
 
 ### `GET /v1/capacity`
 
@@ -209,7 +242,7 @@ Scope `matches`. `Capacity`.
 Scope `matches`. Body `MatchRequest`, answers `201 Match`. Idempotent on `clientMatchId`:
 the same body again answers `200` with the same match; a different body under a used id
 is `conflict`. Refused at the door with `unknown_gamemode`, `game_unsupported`,
-`no_capable_server` or `budget_exceeded`.
+`map_not_allowed`, `no_capable_server` or `budget_exceeded`.
 
 ### `GET /v1/matches`
 
@@ -472,8 +505,14 @@ reads this list first; everything not on it is a copy.
   aborted`), `endedReason.kind`, `seq`, `fleetServerId`, `expiresAt`, `sim`.
 - `MatchCommand` (the non-sim verbs; the `sim.*` family is the platform's console command
   union with `correlationId` added), `MatchCommandResult`.
-- `PlayerToken`, `Gamemode`, `Capacity`, the whole fleet family, `ApiKey` and webhook
-  secret registration, the scopes, the error code set and its status table.
+- `PlayerToken`, `Capacity`, the whole fleet family, `ApiKey` and webhook secret
+  registration, the scopes, the error code set and its status table.
+- The gamemode manifest, whole (decision 14 named the fields; the platform had none):
+  `tier`, `flow`, `records`, `slots`, `maps` and its `map_not_allowed`, `plugins`, `cfg`,
+  `cvars` and the protected list, `capabilities`, `commands` (cooldown, charges per
+  life/round/map/match, JSON-Schema args), `widget.needs`, `version`, `sdkVersion`; the
+  four shipped manifests; the widget host handshake (`WidgetHostMessage`, protocol 1).
+  The map identifier grammar (`maps.ts`) is the platform's, verbatim.
 - The webhook envelope and its identities (`deliveryId`, `(matchId, seq)`, `occurredAt`);
   the thirteen orchestration facts; the fan-out rule for fleet facts; the signature
   scheme (`t`, `kid`, `v1`), the five-minute window, the retry schedule and the `410`

@@ -1,0 +1,67 @@
+{
+  "id": "powerup-dm",
+  "game": "cs2",
+  "tier": "sdk",
+  "title": { "de": "Power-up Deathmatch", "en": "Power-up deathmatch" },
+  "description": {
+    "de": "Deathmatch mit einem Knopf auf dem Handy: einmal pro Leben ein Power-up. Jeder gegen jeden, offener Beitritt, Ereignisse ohne Demo.",
+    "en": "Deathmatch with a button on your phone: one power-up per life. Free for all, open join, events without a demo."
+  },
+  "slots": { "teamSize": 12, "teams": 1, "openJoin": true },
+  "flow": "plugin",
+  "records": "events",
+  "ranked": false,
+  "maps": {
+    "catalog": [
+      "de_ancient",
+      "de_anubis",
+      "de_dust2",
+      "de_inferno",
+      "de_mirage",
+      "de_nuke",
+      "de_overpass",
+      "de_train",
+      "de_vertigo"
+    ],
+    "workshop": []
+  },
+  "plugins": ["EZPug.PowerupDm"],
+  "cfg": ["ezpug/powerup-dm.cfg"],
+  "cvars": {
+    "mp_respawn_on_death_ct": "1",
+    "mp_respawn_on_death_t": "1",
+    "mp_respawn_immunitytime": "2",
+    "mp_buy_anywhere": "1",
+    "mp_teammates_are_enemies": "1"
+  },
+  "capabilities": {
+    "positions": true,
+    "chat": true,
+    "playerCommands": true,
+    "widget": true,
+    "backups": false,
+    "scoreboardRating": false
+  },
+  "commands": [
+    {
+      "name": "powerup",
+      "title": { "de": "Power-up", "en": "Power-up" },
+      "description": {
+        "de": "Ein Power-up für dieses Leben – zufällig, oder das gewünschte.",
+        "en": "A power-up for this life – random, or the one you ask for."
+      },
+      "cooldownMs": 0,
+      "charges": { "count": 1, "per": "life" },
+      "args": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["haste", "armor", "heal"] }
+        },
+        "additionalProperties": false
+      }
+    }
+  ],
+  "widget": { "entry": "widget/powerup-dm.js", "needs": ["tokens", "locale", "playerToken"] },
+  "version": "0.1.0",
+  "sdkVersion": "0.1.0"
+}
