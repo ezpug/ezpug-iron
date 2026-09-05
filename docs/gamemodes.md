@@ -50,19 +50,27 @@ same data.
 | `game` | `cs2` or `csgo`. One game per manifest; a CS:GO variant would be its own id. Every shipped mode is `cs2` and `csgo` is refused `no_capable_server` this round (decision 18) |
 | `tier` | `config`, `plugin` or `sdk` — see above |
 | `title`, `description` | `{ de, en }`, both always present, German first. The card's headline and its one paragraph |
-| `slots` | `{ teamSize, teams, openJoin }`. `teamSize` is the most a team holds; `teams: 1` is a free-for-all (the request still sends `teamA` and `teamB`, with `teamB.players` empty). `openJoin: true` means people may connect without being rostered: the orchestrator relays `player.joined` with `rostered: false`, and the platform answers with a `profile` command so the server learns their name, locale, rating and loadout |
+| `slots` | how many people play and how they arrive — `teamSize`, `teams`, `openJoin`, below |
 | `flow` | who owns match flow. `matchzy`: MatchZy runs ready-up, knife, live, the series, and its events are translated into the vocabulary once at the edge. `plugin`: the mode's plugin speaks `going_live`, `round_end`, `map_end`, `series_end` itself. `none`: nobody does; the match ends by `force_end`, `cancel` or the TTL |
 | `records` | `demo`: a demo is recorded and uploaded to the request's `demoUploadUrl`, `demo.uploaded` follows, and every durable event flows. `events`: the durable events only. `none`: orchestration facts only; the game's events still stream live but nothing is promised durably. Positions and chat are never records |
 | `ranked` | always `false`. The manifest states what the server records, never what counts |
 | `maps` | `"any"` — the request plans whatever it likes, workshop maps included; the platform's map pool decides. Or an allow-list `{ catalog: [engine names], workshop: [published-file ids] }`; a request planning a map outside it is refused `map_not_allowed` at the door. A plugin that ships spawn files per map lists them; a mode built for one map lists one |
 | `plugins` | folder names under `addons/counterstrikesharp/plugins/`, enabled in this order. Empty for a config mode, non-empty otherwise |
 | `cfg` | files under the server's `cfg/`, exec'd in this order after the map loads and before the match's own rules are applied. A config mode's whole truth is its cfg |
-| `cvars` | at most 64 name → string pairs the mode sets after its cfg. Applied over a request's `rules.cvars` and under what the rules derive (`mp_maxrounds`, overtime, warmup): neither side can undo what the other needs. `hostname`, every password, the log sink and the server account are protected and never a manifest's |
+| `cvars` | at most 64 name → string pairs the mode sets after its cfg. Applied over a request's `rules.cvars` and under what the rules derive (`mp_maxrounds`, overtime, warmup): neither side can undo what the other needs. Twelve are protected and refused at parse time, below |
 | `capabilities` | six booleans, below |
 | `commands` | the player-scoped verbs an `sdk` mode accepts, below. Empty otherwise |
 | `widget` | `{ entry, needs }` for an `sdk` mode with a phone widget, below. Absent otherwise |
 | `version` | the manifest's own semver, bumped with any change to the file |
 | `sdkVersion` | the SDK version the manifest was authored against. A loader older in major refuses it |
+
+### Slots
+
+| Field | Meaning |
+| ----- | ------- |
+| `teamSize` | the most one team holds. The platform's room refuses an eleventh player for a `5` |
+| `teams` | `2` for a sided mode, `1` for a free-for-all. A free-for-all request still sends `teamA` and `teamB`, with `teamB.players` empty |
+| `openJoin` | `true` means people may connect without being rostered: the server lets them in, the orchestrator relays `player.joined` with `rostered: false`, and the platform answers with a `profile` command so the server learns their name, locale, rating and loadout. `false` means the roster is the guest list and nobody else gets past the SteamID check |
 
 ### Capabilities
 
@@ -85,12 +93,38 @@ is answered on the socket, an accepted one becomes whatever the mode does (usual
 | Field | Meaning |
 | ----- | ------- |
 | `name` | the bare lowercase verb, the same grammar as a `chat_command`'s `command` — a widget tap and `!powerup` in chat name the same thing |
-| `title`, `description?` | what the button says and what it does, `{ de, en }` |
+| `title`, `description` | what the button says and what it does, `{ de, en }`. The description is optional; the title is not |
 | `cooldownMs` | the least time between two uses by one player; `0` (the default) is none |
-| `charges` | `{ count, per: life \| round \| map \| match }` or `null` (the default) for unlimited. `powerup-dm`'s button is one per life |
-| `args?` | a JSON Schema (draft 2020-12) with `type: object` describing the tap's arguments. The widget validates before it sends and the plugin before it acts, from the one document. Absent means the verb takes none |
+| `charges` | `{ count, per }` or `null` (the default) for unlimited. `per` is `life`, `round`, `map` or `match` — the window the count refills in. `powerup-dm`'s button is one per `life` |
+| `args` | optional. A JSON Schema (draft 2020-12) with `type: object` describing the tap's arguments. The widget validates before it sends and the plugin before it acts, from the one document. Absent means the verb takes none |
 
 Names are unique within a manifest; at most 32 verbs.
+
+### The widget block
+
+An `sdk` mode's phone widget (decision 17). Only an `sdk` mode may have one, and having one
+turns on `capabilities.widget` and `capabilities.playerCommands`.
+
+| Field | Meaning |
+| ----- | ------- |
+| `entry` | the built bundle's path, relative to the mode's widget output (`gamemode-kit` produces it in PRD-02). The orchestrator serves it as an HTML document; the platform mounts that document in a sandboxed `iframe` and never hosts the code itself |
+| `needs` | what the host must inject, a non-empty subset of `tokens` (the platform's design tokens as CSS custom properties), `locale` (`de` or `en`, the player's) and `playerToken` (the match- and SteamID-scoped token the widget opens its own socket with; a widget that needs it renders a "watching only" state when the host passes `null`) |
+
+Everything under "The widget host" below is how those three arrive.
+
+### Protected cvars
+
+Twelve cvar names are the orchestrator's or the request's, never a manifest's; a manifest
+naming one does not parse:
+
+| Cvar | Whose |
+| ---- | ----- |
+| `hostname` | the request's `branding.hostname`, or the orchestrator's default |
+| `sv_password`, `tv_password`, `tv_relaypassword` | the orchestrator's — they are the connect facts it hands the client |
+| `rcon_password` | the orchestrator's, and never leaves it |
+| `sv_setsteamaccount` | the GSLT the orchestrator leases per running server |
+| `logaddress_add_http`, `logaddress_add`, `logaddress_delall`, `logaddress_delall_http`, `sv_logsecret` | the event sink: a mode that redirected it would silence the match |
+| `sv_downloadurl` | the image's, so a client downloads what the image serves |
 
 ## What the tier allows
 
@@ -132,9 +166,9 @@ same-origin, and injects what `widget.needs` lists. The widget then opens its ow
 the orchestrator with the player token; taps become player commands; gameplay traffic never
 touches the platform.
 
-The transport is a `postMessage` handshake, `WidgetHostMessage` in the package (protocol
-`1`). A URL fragment would put the player token into browser history and referrers; a query
-string would put it into the orchestrator's logs.
+The transport is a `postMessage` handshake at protocol `1`, `WidgetHostMessage` in the
+package. A URL fragment would put the player token into browser history and referrers; a
+query string would put it into the orchestrator's logs.
 
 1. The widget's script runs and posts `{ type: 'ezpug.widget.ready', protocol: 1 }` to its
    parent.

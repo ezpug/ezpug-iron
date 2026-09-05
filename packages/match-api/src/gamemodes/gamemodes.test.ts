@@ -8,13 +8,19 @@ import { MATCH_API_ERROR_CODES } from '../errors'
 import {
   GAMEMODE_CAPABILITIES,
   GAMEMODE_CVARS_MAX,
+  GAMEMODE_FLOWS,
+  GAMEMODE_RECORDS,
+  GAMEMODE_TIERS,
   type GamemodeManifestInput,
   gamemodeAllowsMap,
   gamemodeCatalogSchema,
   gamemodeCvarsSchema,
   gamemodeManifestSchema,
   gamemodeSummarySchema,
+  gamemodeWidgetSchema,
+  PLAYER_COMMAND_CHARGE_PERIODS,
   PROTECTED_CVARS,
+  playerCommandSpecSchema,
   WIDGET_NEEDS,
 } from '../resources/gamemode'
 import {
@@ -270,5 +276,43 @@ describe('the widget host contract', () => {
       widgetHostMessageSchema.safeParse({ type: 'ezpug.widget.tokens', tokens: { primary: 'x' } })
         .success,
     ).toBe(false)
+  })
+})
+
+describe('docs/gamemodes.md', () => {
+  // The reference the platform loop and the next author read instead of this
+  // schema (PRD-01 T10). A field with no row is a field nobody was told about;
+  // a value with no mention is a value nobody can act on.
+  const docs = readFileSync(new URL('../../../../docs/gamemodes.md', import.meta.url), 'utf8')
+  const documents = (name: string) => docs.includes(`\`${name}\``)
+
+  it('has a row for every field of the manifest', () => {
+    const fields = [
+      ...Object.keys(gamemodeManifestSchema.shape),
+      ...Object.keys(gamemodeManifestSchema.shape.slots.shape),
+      ...Object.keys(gamemodeManifestSchema.shape.capabilities.shape),
+      ...Object.keys(gamemodeWidgetSchema.shape),
+      ...Object.keys(playerCommandSpecSchema.shape),
+    ]
+    for (const field of fields) expect(documents(field), field).toBe(true)
+  })
+
+  it('names every value of every closed set the manifest carries', () => {
+    const values = [
+      ...GAMEMODE_TIERS,
+      ...GAMEMODE_FLOWS,
+      ...GAMEMODE_RECORDS,
+      ...GAMEMODE_CAPABILITIES,
+      ...PLAYER_COMMAND_CHARGE_PERIODS,
+      ...WIDGET_NEEDS,
+      ...PROTECTED_CVARS,
+      ...SHIPPED_GAMEMODE_IDS,
+    ]
+    for (const value of values) expect(documents(value), value).toBe(true)
+  })
+
+  it('walks the widget host handshake message by message', () => {
+    for (const type of WIDGET_HOST_MESSAGE_TYPES) expect(docs.includes(type), type).toBe(true)
+    expect(docs).toContain(`protocol \`${WIDGET_HOST_PROTOCOL}\``)
   })
 })

@@ -312,7 +312,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   > Either way the smoke is `npm view @ezpug/match-api version` → `0.1.0`
   > (`node scripts/release.mjs smoke` asserts it).
 
-- [ ] **T10: Docs, pins and the handoff.** `docs/match-api.md` complete and checked
+- [x] **T10: Docs, pins and the handoff.** `docs/match-api.md` complete and checked
   against the route table by a test (every route has a section); `docs/gamemodes.md`
   complete for the manifest; `docs/pins.md` (CounterStrikeSharp 1.0.373, .NET SDK 10.0.400 —
   net10.0 since CounterStrikeSharp 1.0.369, decided in T1 —

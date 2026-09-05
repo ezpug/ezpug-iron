@@ -16,8 +16,10 @@ both. `packages/match-api` (published), `packages/protocol` (plugin↔orchestrat
 C# generated from it), `packages/core` (clock, prng, chaos, `eventually` — a port of the
 platform's, kept structurally identical), `packages/sim` (the simulator engine),
 `apps/orchestrator`, `apps/node`, `apps/cli`, `plugins/` (SDK, core plugin, gamemodes,
-vendored forks), `gamemode-kit/` (widget toolchain), `docker/`, `scripts/`, `references/`
-(reference material, never imported), `ralph/` (the loop).
+vendored forks), `gamemodes/` (`@ezpug/gamemodes`: the manifests as data, bundled into the
+published package and read by the apps and the plugin), `gamemode-kit/` (widget toolchain),
+`docker/`, `scripts/`, `references/` (reference material, never imported), `ralph/` (the
+loop).
 
 ## Invariants (the ones you can't infer from code)
 
@@ -72,7 +74,9 @@ vendored forks), `gamemode-kit/` (widget toolchain), `docker/`, `scripts/`, `ref
 
 `pnpm verify` = strict typecheck + Biome + Vitest across the TS workspace via Turbo, plus
 `dotnet build -warnaserror` and `dotnet test` over `plugins/EZPug.sln` wrapped as Turbo
-tasks. Green means commit, red means fix; a flaky test is a P1 against the spine.
+tasks (net10.0 on the .NET SDK `plugins/global.json` pins — CounterStrikeSharp moved to
+.NET 10 with 1.0.369; `docs/pins.md` holds every pin and a lint check keeps it honest).
+Green means commit, red means fix; a flaky test is a P1 against the spine.
 `pnpm verify:extended` adds the live world: compose up (Postgres, Redis), the orchestrator
 in sim mode driven through the real HTTP surface, the conformance suite against it, the
 fault-injection suite, the dev CS2 lane when its container is up, the Dathost smoke when

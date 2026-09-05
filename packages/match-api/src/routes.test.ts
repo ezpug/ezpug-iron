@@ -63,4 +63,18 @@ describe('the Match API route table', () => {
       expect(docs.includes(heading), heading).toBe(true)
     }
   })
+
+  it('documents no route that does not exist', () => {
+    // The other direction: a section left behind by a rename is a lie the
+    // platform loop would build against.
+    const docs = readFileSync(new URL('../../../docs/match-api.md', import.meta.url), 'utf8')
+    const documented = [...docs.matchAll(/^### `([A-Z]+) (\/v1\/\S*)`$/gm)].map(
+      match => `${match[1]} ${match[2]}`,
+    )
+    const declared = new Set(
+      routes.map(({ route }) => `${route.method.toUpperCase()} ${route.path}`),
+    )
+    expect(documented.length).toBe(routes.length)
+    for (const signature of documented) expect(declared.has(signature), signature).toBe(true)
+  })
 })

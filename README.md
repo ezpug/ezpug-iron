@@ -8,15 +8,27 @@ gamemodes, the node agent and the server image.
 
 - `packages/match-api` — `@ezpug/match-api`, the published contract: schemas, typed
   client, webhook verifier, conformance fixtures and an in-process fake orchestrator.
+- `packages/sim` — the simulator engine: a seeded, clock-driven CS2 match with rounds,
+  deaths, bomb, chat and positions, and no game anywhere near it.
 - `packages/core` — the injected clock, the seeded PRNG, chaos toggles and `eventually()`:
   the determinism primitives everything reproducible is built on.
+- `gamemodes/` — the gamemode manifests as data (`pug`, `flying-scoutsman`, `retakes`,
+  `powerup-dm`); the package bundles them, the orchestrator and the plugin read them.
 - `apps/orchestrator` — the service behind `gs.ezpug.com`.
 - `apps/node` — `ezpug-node`, turns a docker host into capacity.
 - `plugins/` — `EZPug.Sdk`, the core plugin, gamemodes and pinned vendored plugins.
 - `gamemode-kit/` — the toolchain for a gamemode's phone widget.
 - `docs/decisions.md` — why things are the way they are. Start there.
+- `docs/match-api.md` — the contract, written to be read instead of the code.
+  `docs/gamemodes.md` is the manifest, `docs/pins.md` every version we are fixed to.
 
-Status: the spine round (`ralph/PRD-01-spine.md`) is being built.
+Status: **the spine round (`ralph/PRD-01-spine.md`) is done.** `@ezpug/match-api` 0.1.0 —
+the vocabulary, the Match API, the webhooks, the stream, the manifests, a typed client, a
+webhook verifier, an in-process fake orchestrator that plays real matches on the simulator
+engine, and a conformance suite with recorded golden files — is built, verified and tagged
+`match-api@0.1.0`; publishing it to npm is waiting on an `npm login` (see the `> blocked:`
+note under T9 in the PRD). Everything named above that does not exist yet — the
+orchestrator, the node agent, the SDK, the plugins, the image — is `ralph/PRD-02-iron.md`.
 
 ## Running it
 
