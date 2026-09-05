@@ -11,6 +11,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The sample mode's lines, embedded the way docs/sdk.md tells a gamemode to. -->
+    <EmbeddedResource Remove="Modes\*.resx" />
+    <EmbeddedResource Include="Modes\*.resx" Type="Non-Resx" WithCulture="false" LogicalName="EZPug.Sdk.Tests.Modes.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../EZPug.Sdk/EZPug.Sdk.csproj" />
+    <ProjectReference Include="../EZPug.Sdk.Testing/EZPug.Sdk.Testing.csproj" />
   </ItemGroup>
 </Project>

@@ -9,6 +9,12 @@ namespace EZPug.Sdk;
 /// </summary>
 public static class SdkInfo
 {
+    /// <summary>The SDK's own version (the csproj's <c>Version</c>), what a server reports as <c>versions.sdk</c> in its hello.</summary>
+    public static string Version =>
+        (typeof(SdkInfo).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? typeof(SdkInfo).Assembly.GetName().Version?.ToString(3)
+            ?? "0.0.0").Split('+', 2)[0];
+
     /// <summary>The CounterStrikeSharp.API package version the SDK compiles against.</summary>
     public static string CounterStrikeSharpApiVersion =>
         typeof(SdkInfo).Assembly

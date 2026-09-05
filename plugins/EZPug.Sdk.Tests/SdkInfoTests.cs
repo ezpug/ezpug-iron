@@ -7,6 +7,12 @@ namespace EZPug.Sdk.Tests;
 public class SdkInfoTests
 {
     [Fact]
+    public void TheSdkVersionIsASemverWithoutBuildMetadata()
+    {
+        Assert.Matches(@"^\d+\.\d+\.\d+$", SdkInfo.Version);
+    }
+
+    [Fact]
     public void ThePinnedVersionIsTheOneThatWasRestored()
     {
         // Directory.Build.props states one number; the SDK's metadata carries it

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The SDK's own lines, German (the default locale). Every key here has an English
+  twin in Lines.en.resx; a test insists on it. Keys are dotted: <area>.<what>.
+-->
+<root>
+  <data name="command.cooldown" xml:space="preserve">
+    <value>Noch {0} Sekunden.</value>
+  </data>
+  <data name="command.no_charges" xml:space="preserve">
+    <value>Keine Ladung mehr in diesem {0}.</value>
+  </data>
+  <data name="command.unknown_command" xml:space="preserve">
+    <value>Unbekannter Befehl.</value>
+  </data>
+  <data name="command.invalid_args" xml:space="preserve">
+    <value>Ungültige Eingabe: {0}</value>
+  </data>
+  <data name="command.not_in_match" xml:space="preserve">
+    <value>Du bist nicht auf diesem Server.</value>
+  </data>
+  <data name="command.not_alive" xml:space="preserve">
+    <value>Nur lebend möglich.</value>
+  </data>
+  <data name="command.refused" xml:space="preserve">
+    <value>Abgelehnt.</value>
+  </data>
+  <data name="period.life" xml:space="preserve">
+    <value>Leben</value>
+  </data>
+  <data name="period.round" xml:space="preserve">
+    <value>Runde</value>
+  </data>
+  <data name="period.map" xml:space="preserve">
+    <value>Karte</value>
+  </data>
+  <data name="period.match" xml:space="preserve">
+    <value>Match</value>
+  </data>
+  <data name="link.connected" xml:space="preserve">
+    <value>Mit EZPug verbunden.</value>
+  </data>
+  <data name="link.disconnected" xml:space="preserve">
+    <value>Verbindung zu EZPug verloren – wird wiederhergestellt.</value>
+  </data>
+</root>

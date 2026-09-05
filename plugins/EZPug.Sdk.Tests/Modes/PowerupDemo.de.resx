@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="powerup.welcome" xml:space="preserve"><value>Ein Power-up pro Leben – tipp auf dem Handy oder schreib !powerup.</value></data>
+  <data name="powerup.landed" xml:space="preserve"><value>Power-up aktiv: {0}.</value></data>
+  <data name="powerup.kind.haste" xml:space="preserve"><value>Tempo</value></data>
+  <data name="powerup.kind.armor" xml:space="preserve"><value>Rüstung</value></data>
+  <data name="powerup.kind.heal" xml:space="preserve"><value>Heilung</value></data>
+  <data name="powerup.bye" xml:space="preserve"><value>Danke fürs Spielen!</value></data>
+</root>

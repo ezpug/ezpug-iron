@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The harness a gamemode is tested on without CS2 (PRD-02 T7): FakeClock,
+    FakeGameWorld, FakePlatformLink and GamemodeTestHost. Its own assembly so the
+    plugin folders a server loads never carry the fakes.
+  -->
+  <PropertyGroup>
+    <RootNamespace>EZPug.Sdk.Testing</RootNamespace>
+    <AssemblyName>EZPug.Sdk.Testing</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../EZPug.Sdk/EZPug.Sdk.csproj" />
+  </ItemGroup>
+</Project>

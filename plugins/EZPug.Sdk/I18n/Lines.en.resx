@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The SDK's own lines, English. The German file is the master; keep the keys equal. -->
+<root>
+  <data name="command.cooldown" xml:space="preserve">
+    <value>{0} seconds left.</value>
+  </data>
+  <data name="command.no_charges" xml:space="preserve">
+    <value>No charges left this {0}.</value>
+  </data>
+  <data name="command.unknown_command" xml:space="preserve">
+    <value>Unknown command.</value>
+  </data>
+  <data name="command.invalid_args" xml:space="preserve">
+    <value>Invalid input: {0}</value>
+  </data>
+  <data name="command.not_in_match" xml:space="preserve">
+    <value>You are not on this server.</value>
+  </data>
+  <data name="command.not_alive" xml:space="preserve">
+    <value>Only while alive.</value>
+  </data>
+  <data name="command.refused" xml:space="preserve">
+    <value>Refused.</value>
+  </data>
+  <data name="period.life" xml:space="preserve">
+    <value>life</value>
+  </data>
+  <data name="period.round" xml:space="preserve">
+    <value>round</value>
+  </data>
+  <data name="period.map" xml:space="preserve">
+    <value>map</value>
+  </data>
+  <data name="period.match" xml:space="preserve">
+    <value>match</value>
+  </data>
+  <data name="link.connected" xml:space="preserve">
+    <value>Connected to EZPug.</value>
+  </data>
+  <data name="link.disconnected" xml:space="preserve">
+    <value>Lost the link to EZPug – reconnecting.</value>
+  </data>
+</root>

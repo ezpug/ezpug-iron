@@ -1,16 +1,40 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    EZPug.Sdk: the link, the event model, timers, per-player state, player
-    commands, i18n and the test harness a gamemode is written over (CLAUDE.md
-    "The plugin is thin, the SDK is the product"). Empty this round — PRD-01
-    T1 only proves the toolchain; PRD-02 fills it in.
+    EZPug.Sdk: what a gamemode is written over (CLAUDE.md "The plugin is thin, the
+    SDK is the product"). The seams — IGameWorld, IPlatformLink, IClock — keep
+    CounterStrikeSharp out of a gamemode entirely; the link client, the event
+    model, per-player state, player commands with their cooldowns and charges,
+    and the bilingual Localizer live here once. The CounterStrikeSharp-backed
+    implementations of the seams ship with the core plugin (PRD-02 T8); this
+    assembly references the API only so those adapters can be typed against it.
+    EZPug.Sdk.Testing holds the fakes and the harness a gamemode test runs on.
   -->
   <PropertyGroup>
     <RootNamespace>EZPug.Sdk</RootNamespace>
     <AssemblyName>EZPug.Sdk</AssemblyName>
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="CounterStrikeSharp.API" Version="$(CounterStrikeSharpApiVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The SDK's own lines (I18n/Lines.*.resx) are embedded as the raw resx XML and
+      parsed by ResxCatalog at runtime — no resgen, no satellite assembly. A plugin
+      is loaded by CounterStrikeSharp into its own load context from one folder,
+      and a satellite assembly that has to be found in a culture subfolder beside
+      it is one more thing that can silently go missing; one assembly with the
+      German and English text inside it cannot. A gamemode embeds its own the
+      same way (docs/sdk.md).
+    -->
+    <EmbeddedResource Remove="I18n\*.resx" />
+    <EmbeddedResource Include="I18n\*.resx" Type="Non-Resx" WithCulture="false" LogicalName="EZPug.Sdk.I18n.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EZPug.Sdk.Tests" />
+    <InternalsVisibleTo Include="EZPug.Sdk.Testing" />
   </ItemGroup>
 </Project>

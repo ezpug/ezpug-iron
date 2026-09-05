@@ -244,7 +244,7 @@ every offline proof here.
 
 **The SDK and the core plugin**
 
-- [ ] **T7 (fable): `EZPug.Sdk`.** The seams: `IGameWorld` (players with SteamID64, slot,
+- [x] **T7 (fable): `EZPug.Sdk`.** The seams: `IGameWorld` (players with SteamID64, slot,
   team, alive, position; say/print/center/HUD; give/strip; respawn; timers on `IClock`;
   exec cfg; cvar get/set; changelevel and workshop map; entity minimum for a power-up),
   `IPlatformLink` (emit union event, receive assignment/command/player command/profile,
