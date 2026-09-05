@@ -11,7 +11,12 @@
       // Reference material (vendor OpenAPI dumps, upstream clones): read, never linted.
       "!references",
       "!ralph/logs",
-      "!scripts/lint/__fixtures__"
+      "!scripts/lint/__fixtures__",
+      // The conformance suite's golden files (PRD-01 T8): machine-written by
+      // one writer (`stringifyRecording`), compared byte for byte by a test,
+      // never edited by hand. A formatter that reflowed them would only ever
+      // make the comparison fail.
+      "!packages/match-api/fixtures/recorded"
     ]
   },
   "formatter": {

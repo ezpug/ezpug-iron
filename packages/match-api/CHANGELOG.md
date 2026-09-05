@@ -25,10 +25,16 @@ A change to a schema is a release with a line here (decisions 3, 24).
   facts and the retry constants, plus the consumer's half —
   `verifyWebhook({ headers, body, secrets, clock })`, `parseEnvelope` and
   `createDeliveryDeduper(store)` keyed on `deliveryId` and `(matchId, seq)`.
-- `@ezpug/match-api/fixtures`: one valid event per type, one valid fact per type, `envelopeFixture`.
+- `@ezpug/match-api/fixtures`: one valid event per type, one valid fact per type,
+  `envelopeFixture`, and the conformance suite — `runMatchApiConformance({ target, flows? })`
+  over eleven flows (`happy-bo1`, `config-only`, `open-join`, `player-command`,
+  `cancel-allocating`, `crash-restore`, `crash-lost`, `csgo-refused`, `budget-refused`,
+  `webhook-replay`, `stream-hello`), `formatConformanceReport`, `assertConformance`, and the
+  recorded golden exchanges at `@ezpug/match-api/fixtures/recorded/<flow>.json`.
 - `@ezpug/match-api/fake`: `createFakeOrchestrator({ clock, prng?, gamemodes?, providers?,
   webhooks?, fetch? })` — every route in-process (`fake.client`) and as a Hono app
   (`fake.handler`, `fake.listen()` with the stream as a `ws` upgrade), matches played by the
   simulator engine, signed webhooks on the published retry schedule, the stream, ledger and
   budgets that refuse, `sim.*` commands, the fault knobs, `playerCommand` for the widget
-  round trip. `hono` becomes a peer dependency; `ws` and `@hono/node-server` optional.
+  round trip, and `createFakeConformanceTarget()` — the fake wired as a conformance target.
+  `hono` becomes a peer dependency; `ws` and `@hono/node-server` optional.

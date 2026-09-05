@@ -1,0 +1,1945 @@
+{
+  "flow": "open-join",
+  "calls": [
+    {
+      "route": "gamemodes.get",
+      "input": {
+        "params": {
+          "gamemodeId": "retakes"
+        }
+      },
+      "ok": true,
+      "response": {
+        "id": "retakes",
+        "game": "cs2",
+        "tier": "plugin",
+        "title": {
+          "de": "Retakes",
+          "en": "Retakes"
+        },
+        "description": {
+          "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, die Teams werden vom Plugin gemischt. Ereignisse ohne Demo.",
+          "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, teams shuffled by the plugin. Events, no demo."
+        },
+        "slots": {
+          "teamSize": 5,
+          "teams": 2,
+          "openJoin": true
+        },
+        "flow": "plugin",
+        "records": "events",
+        "ranked": false,
+        "version": "0.1.0",
+        "maps": {
+          "catalog": [
+            "de_ancient",
+            "de_anubis",
+            "de_dust2",
+            "de_inferno",
+            "de_mirage",
+            "de_nuke",
+            "de_overpass",
+            "de_vertigo"
+          ],
+          "workshop": []
+        },
+        "plugins": [
+          "RetakesPlugin"
+        ],
+        "cfg": [
+          "ezpug/retakes.cfg"
+        ],
+        "cvars": {},
+        "capabilities": {
+          "positions": true,
+          "chat": true,
+          "playerCommands": false,
+          "widget": false,
+          "backups": false,
+          "scoreboardRating": true
+        },
+        "commands": [],
+        "sdkVersion": "0.1.0"
+      }
+    },
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-open-join",
+          "game": "cs2",
+          "gamemode": "retakes",
+          "teams": {
+            "teamA": {
+              "name": "Alle",
+              "players": []
+            },
+            "teamB": {
+              "name": "Niemand",
+              "players": []
+            }
+          },
+          "maps": [
+            {
+              "map": "de_ancient",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120
+        }
+      },
+      "ok": true,
+      "response": {
+        "id": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-open-join",
+        "state": "allocating",
+        "game": "cs2",
+        "gamemode": "retakes",
+        "provider": null,
+        "serverId": null,
+        "fleetServerId": "990cdab6-9312-4a48-8d63-723add010ec1",
+        "connect": null,
+        "tv": null,
+        "seq": 0,
+        "createdAt": "2026-09-05T18:00:00.000Z",
+        "updatedAt": "2026-09-05T18:00:00.000Z",
+        "readyAt": null,
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-09-05T20:00:00.000Z",
+        "endedReason": null,
+        "sim": null
+      }
+    }
+  ],
+  "envelopes": [
+    {
+      "deliveryId": "da99114f-bd81-477d-b8e3-740ba7f49c70",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 1,
+      "occurredAt": "2026-09-05T18:00:01.000Z",
+      "payload": {
+        "type": "match.allocated",
+        "provider": "sim",
+        "serverId": "sim-1",
+        "fleetServerId": "990cdab6-9312-4a48-8d63-723add010ec1",
+        "region": "sim"
+      }
+    },
+    {
+      "deliveryId": "3524d886-9b43-4179-ae9d-39b5d68fc5d3",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 2,
+      "occurredAt": "2026-09-05T18:00:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 1,
+        "type": "server_ready",
+        "map": "de_ancient"
+      }
+    },
+    {
+      "deliveryId": "133e9148-c1c7-41b7-a436-f298d4da7ef1",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 3,
+      "occurredAt": "2026-09-05T18:00:05.000Z",
+      "payload": {
+        "type": "match.server_ready",
+        "connect": {
+          "host": "sim-1.sim.invalid",
+          "port": 27015,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "sim-1.sim.invalid",
+          "port": 27020,
+          "delaySeconds": 90
+        }
+      }
+    },
+    {
+      "deliveryId": "3f3273f8-3e3f-4750-8213-b9561a012d98",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 4,
+      "occurredAt": "2026-09-05T18:00:08.184Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 2,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561190261743100",
+          "name": "sim-a-3",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "74817744-c666-47df-b182-de784a31edd0",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 5,
+      "occurredAt": "2026-09-05T18:00:08.184Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561190261743100",
+          "name": "sim-a-3",
+          "team": "team_a"
+        },
+        "rostered": false
+      }
+    },
+    {
+      "deliveryId": "ded8c36f-0959-4667-927e-0dfbef94f72f",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 6,
+      "occurredAt": "2026-09-05T18:00:10.886Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 3,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561190779485704",
+          "name": "sim-b-3",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "9255192a-4cfa-43ca-89b3-8f0e6af0177e",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 7,
+      "occurredAt": "2026-09-05T18:00:10.886Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561190779485704",
+          "name": "sim-b-3",
+          "team": "team_b"
+        },
+        "rostered": false
+      }
+    },
+    {
+      "deliveryId": "d4a526af-8edf-4a26-a9d9-d84add4d5d1b",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 8,
+      "occurredAt": "2026-09-05T18:00:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 4,
+        "type": "heartbeat",
+        "playerCount": 2
+      }
+    },
+    {
+      "deliveryId": "be0d348c-ff7e-476b-8f38-9745b1122b8f",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 9,
+      "occurredAt": "2026-09-05T18:00:15.160Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 5,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561190515938941",
+          "name": "sim-b-2",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "717b6665-3d69-416b-a74a-8ff40900842d",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 10,
+      "occurredAt": "2026-09-05T18:00:15.160Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561190515938941",
+          "name": "sim-b-2",
+          "team": "team_b"
+        },
+        "rostered": false
+      }
+    },
+    {
+      "deliveryId": "4cd6cd72-1f50-4793-b070-fab606cdba41",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 11,
+      "occurredAt": "2026-09-05T18:00:19.637Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 6,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561190695024455",
+          "name": "sim-b-1",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "e5691df7-5661-43c9-8edc-545aff5d8d1d",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 12,
+      "occurredAt": "2026-09-05T18:00:19.637Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561190695024455",
+          "name": "sim-b-1",
+          "team": "team_b"
+        },
+        "rostered": false
+      }
+    },
+    {
+      "deliveryId": "da489ae9-8116-49e5-a873-1f1789d2c746",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 13,
+      "occurredAt": "2026-09-05T18:00:23.082Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 7,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "0f1ea117-1b2b-46d4-817d-9e92ddd17d77",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 14,
+      "occurredAt": "2026-09-05T18:00:23.082Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        },
+        "rostered": false
+      }
+    },
+    {
+      "deliveryId": "117a6e2c-648b-4a0f-a24b-e49e6a597755",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 15,
+      "occurredAt": "2026-09-05T18:00:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 8,
+        "type": "heartbeat",
+        "playerCount": 5
+      }
+    },
+    {
+      "deliveryId": "1d7edd81-2d04-4dc2-a16d-f566bf3f7b48",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 16,
+      "occurredAt": "2026-09-05T18:00:29.479Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 9,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561190940959380",
+          "name": "sim-a-1",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "a9ad0d91-c473-4c4b-9a4f-827bebabc939",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 17,
+      "occurredAt": "2026-09-05T18:00:29.479Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561190940959380",
+          "name": "sim-a-1",
+          "team": "team_a"
+        },
+        "rostered": false
+      }
+    },
+    {
+      "deliveryId": "1ba92503-c5d9-4aae-80e2-2eb8a906fb71",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 18,
+      "occurredAt": "2026-09-05T18:00:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 10,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "c2b5dca9-3d78-4578-8906-704d7f3a7084",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 19,
+      "occurredAt": "2026-09-05T18:00:45.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 11,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "1747e8cc-b0b3-4fcc-b865-bc6f09dbee63",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 20,
+      "occurredAt": "2026-09-05T18:00:49.104Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 12,
+        "type": "chat_message",
+        "player": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        },
+        "text": "gl hf",
+        "scope": "all"
+      }
+    },
+    {
+      "deliveryId": "d708a975-3140-42d2-ba11-eb598b8dfe86",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 21,
+      "occurredAt": "2026-09-05T18:00:49.104Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 13,
+        "mapNumber": 1,
+        "type": "going_live",
+        "map": "de_ancient"
+      }
+    },
+    {
+      "deliveryId": "196bc08b-d8d9-44f3-93c8-43ff7ed9e246",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 22,
+      "occurredAt": "2026-09-05T18:00:55.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 14,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "1c3b60d8-b93b-42b4-b4e0-0c2d2d0c1eb1",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 23,
+      "occurredAt": "2026-09-05T18:00:56.104Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 15,
+        "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 1,
+        "filename": "matchzy_backup_map1_round01.cfg"
+      }
+    },
+    {
+      "deliveryId": "18f47667-9f43-4832-853b-2ba1fb48c7b5",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 24,
+      "occurredAt": "2026-09-05T18:00:56.104Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 16,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "round_start",
+        "score": {
+          "teamA": 0,
+          "teamB": 0
+        }
+      }
+    },
+    {
+      "deliveryId": "e77168e4-da1e-48b6-9375-97ac9f7cadb9",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 25,
+      "occurredAt": "2026-09-05T18:01:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 18,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "7b632502-3e57-46ee-a41a-405cce22d574",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 26,
+      "occurredAt": "2026-09-05T18:01:09.266Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 20,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190940959380",
+          "name": "sim-a-1",
+          "team": "team_a"
+        },
+        "killer": {
+          "steamId64": "76561190779485704",
+          "name": "sim-b-3",
+          "team": "team_b"
+        },
+        "assists": [
+          {
+            "player": {
+              "steamId64": "76561190695024455",
+              "name": "sim-b-1",
+              "team": "team_b"
+            },
+            "flash": true
+          }
+        ],
+        "weapon": "deagle",
+        "headshot": false,
+        "roundTimeMs": 13162
+      }
+    },
+    {
+      "deliveryId": "db7c145f-0fcd-4086-b8d5-0a1a3d13ae7a",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 27,
+      "occurredAt": "2026-09-05T18:01:13.576Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 22,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190261743100",
+          "name": "sim-a-3",
+          "team": "team_a"
+        },
+        "killer": {
+          "steamId64": "76561190695024455",
+          "name": "sim-b-1",
+          "team": "team_b"
+        },
+        "assists": [],
+        "weapon": "deagle",
+        "headshot": true,
+        "roundTimeMs": 17472
+      }
+    },
+    {
+      "deliveryId": "43e434c5-f161-45cb-a80d-e033911c7764",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 28,
+      "occurredAt": "2026-09-05T18:01:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 23,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "054ddb32-8103-4d48-a614-0e9a1d42561f",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 29,
+      "occurredAt": "2026-09-05T18:01:15.606Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 24,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190695024455",
+          "name": "sim-b-1",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "usp_silencer",
+        "headshot": true,
+        "throughSmoke": true,
+        "roundTimeMs": 19502
+      }
+    },
+    {
+      "deliveryId": "851eb4cb-107f-4ca0-8878-df00e057c011",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 30,
+      "occurredAt": "2026-09-05T18:01:15.866Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 25,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190515938941",
+          "name": "sim-b-2",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "fiveseven",
+        "headshot": true,
+        "roundTimeMs": 19762
+      }
+    },
+    {
+      "deliveryId": "a89cb524-b0ff-4201-ba3a-bbc0e5b3ae29",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 31,
+      "occurredAt": "2026-09-05T18:01:24.486Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 28,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190779485704",
+          "name": "sim-b-3",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "deagle",
+        "headshot": true,
+        "roundTimeMs": 28382
+      }
+    },
+    {
+      "deliveryId": "d8817408-6c23-4757-8f65-0ff19c9fe232",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 32,
+      "occurredAt": "2026-09-05T18:01:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 29,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "5d7e1244-549b-4a8a-af04-cfff8137dad5",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 33,
+      "occurredAt": "2026-09-05T18:01:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 32,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "e8d7a118-0edd-4ef3-b9d3-93e3321433f1",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 34,
+      "occurredAt": "2026-09-05T18:01:36.124Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 34,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "round_end",
+        "winner": {
+          "team": "team_a",
+          "side": "ct"
+        },
+        "winCondition": "elimination",
+        "score": {
+          "teamA": 1,
+          "teamB": 0
+        },
+        "players": [
+          {
+            "player": {
+              "steamId64": "76561190940959380",
+              "name": "sim-a-1",
+              "team": "team_a"
+            },
+            "kills": 0,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561190376882439",
+              "name": "sim-a-2",
+              "team": "team_a"
+            },
+            "kills": 3,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 305,
+            "flashAssists": 0,
+            "headshotKills": 3,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 1,
+            "score": 6
+          },
+          {
+            "player": {
+              "steamId64": "76561190261743100",
+              "name": "sim-a-3",
+              "team": "team_a"
+            },
+            "kills": 0,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561190695024455",
+              "name": "sim-b-1",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 143,
+            "flashAssists": 1,
+            "headshotKills": 1,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561190515938941",
+              "name": "sim-b-2",
+              "team": "team_b"
+            },
+            "kills": 0,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561190779485704",
+              "name": "sim-b-3",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 93,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          }
+        ],
+        "roundTimeMs": 40020
+      }
+    },
+    {
+      "deliveryId": "4c12bb18-4fc4-406b-9205-61518393e3d6",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 35,
+      "occurredAt": "2026-09-05T18:01:36.124Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 35,
+        "type": "chat_message",
+        "player": {
+          "steamId64": "76561190779485704",
+          "name": "sim-b-3",
+          "team": "team_b"
+        },
+        "text": "zusammen rein",
+        "scope": "team"
+      }
+    },
+    {
+      "deliveryId": "1f3330bf-c053-4719-81bd-ad106aa7c07b",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 36,
+      "occurredAt": "2026-09-05T18:01:45.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 36,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "8363cefd-161a-495a-acd9-c555683ff75e",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 37,
+      "occurredAt": "2026-09-05T18:01:51.124Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 37,
+        "mapNumber": 1,
+        "type": "side_swap",
+        "sides": {
+          "teamA": "t",
+          "teamB": "ct"
+        }
+      }
+    },
+    {
+      "deliveryId": "deaf9cf7-2fd0-48fa-972d-176e030bfec8",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 38,
+      "occurredAt": "2026-09-05T18:01:55.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 38,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "b77d075f-9411-409a-842a-8ec201a157ac",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 39,
+      "occurredAt": "2026-09-05T18:01:58.124Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 39,
+        "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 2,
+        "filename": "matchzy_backup_map1_round02.cfg"
+      }
+    },
+    {
+      "deliveryId": "80db6813-1cc5-4fbd-bb5b-cc81f940d2fd",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 40,
+      "occurredAt": "2026-09-05T18:01:58.124Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 40,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "round_start",
+        "score": {
+          "teamA": 1,
+          "teamB": 0
+        }
+      }
+    },
+    {
+      "deliveryId": "21c0437e-d4d1-40b3-bb5e-ce6a2b31e6c0",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 41,
+      "occurredAt": "2026-09-05T18:02:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 42,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "20f13238-7477-4ed1-af23-ae45e84f95bf",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 42,
+      "occurredAt": "2026-09-05T18:02:14.460Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 45,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190779485704",
+          "name": "sim-b-3",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561190940959380",
+          "name": "sim-a-1",
+          "team": "team_a"
+        },
+        "assists": [
+          {
+            "player": {
+              "steamId64": "76561190376882439",
+              "name": "sim-a-2",
+              "team": "team_a"
+            },
+            "flash": false
+          }
+        ],
+        "weapon": "p250",
+        "headshot": true,
+        "throughSmoke": true,
+        "roundTimeMs": 16336
+      }
+    },
+    {
+      "deliveryId": "2be47f21-668e-4320-bc43-d8ce8e120913",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 43,
+      "occurredAt": "2026-09-05T18:02:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 46,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "83402c31-8044-4369-af25-a6e7e6f3077a",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 44,
+      "occurredAt": "2026-09-05T18:02:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 49,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "f7af60a1-0346-4b13-85ef-56019e8ded36",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 45,
+      "occurredAt": "2026-09-05T18:02:25.273Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 50,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190695024455",
+          "name": "sim-b-1",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        },
+        "assists": [
+          {
+            "player": {
+              "steamId64": "76561190261743100",
+              "name": "sim-a-3",
+              "team": "team_a"
+            },
+            "flash": false
+          }
+        ],
+        "weapon": "tec9",
+        "headshot": true,
+        "roundTimeMs": 27149
+      }
+    },
+    {
+      "deliveryId": "ecf1462e-764a-4769-b91f-5dc431aa9bdd",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 46,
+      "occurredAt": "2026-09-05T18:02:28.053Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 51,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190940959380",
+          "name": "sim-a-1",
+          "team": "team_a"
+        },
+        "killer": {
+          "steamId64": "76561190515938941",
+          "name": "sim-b-2",
+          "team": "team_b"
+        },
+        "assists": [],
+        "weapon": "p250",
+        "headshot": true,
+        "roundTimeMs": 29929
+      }
+    },
+    {
+      "deliveryId": "299b5d51-c5d4-486d-b5e0-728709e6cedb",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 47,
+      "occurredAt": "2026-09-05T18:02:29.563Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 53,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190261743100",
+          "name": "sim-a-3",
+          "team": "team_a"
+        },
+        "killer": {
+          "steamId64": "76561190515938941",
+          "name": "sim-b-2",
+          "team": "team_b"
+        },
+        "assists": [],
+        "weapon": "usp_silencer",
+        "headshot": false,
+        "roundTimeMs": 31439
+      }
+    },
+    {
+      "deliveryId": "40dcb216-76e6-44d4-8407-7875c1ac744c",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 48,
+      "occurredAt": "2026-09-05T18:02:32.053Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 54,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561190515938941",
+          "name": "sim-b-2",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "tec9",
+        "headshot": true,
+        "roundTimeMs": 33929
+      }
+    },
+    {
+      "deliveryId": "ce8e5c2e-a923-4d29-a48a-231e94ed2e02",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 49,
+      "occurredAt": "2026-09-05T18:02:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 56,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "f61ffb8e-497e-4f45-92ba-1a3c06747413",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 50,
+      "occurredAt": "2026-09-05T18:02:45.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 59,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "eeb7092b-239e-4b04-9bcc-b99817c87660",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 51,
+      "occurredAt": "2026-09-05T18:02:47.757Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 60,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "bomb_planted",
+        "player": {
+          "steamId64": "76561190376882439",
+          "name": "sim-a-2",
+          "team": "team_a"
+        },
+        "site": "b",
+        "roundTimeMs": 49633
+      }
+    },
+    {
+      "deliveryId": "4ef8cc4e-8351-4ebf-8171-d47dde53130c",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 52,
+      "occurredAt": "2026-09-05T18:02:55.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 63,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "4e250990-11d3-4a30-b58b-bf5bf441ce83",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 53,
+      "occurredAt": "2026-09-05T18:03:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 66,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "bdfafb2a-1168-4b5f-9b5a-676f176d03e7",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 54,
+      "occurredAt": "2026-09-05T18:03:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 69,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "b312cd8d-e587-4e73-8e6c-1d5adca1868b",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 55,
+      "occurredAt": "2026-09-05T18:03:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 72,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "71dfe4c6-43bd-4b14-9ed7-b7c414ac6a7e",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 56,
+      "occurredAt": "2026-09-05T18:03:27.757Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 73,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "bomb_exploded",
+        "site": "b",
+        "roundTimeMs": 89633
+      }
+    },
+    {
+      "deliveryId": "e91a987e-0ada-4b3c-91c1-9678014287a9",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 57,
+      "occurredAt": "2026-09-05T18:03:28.757Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 75,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "round_end",
+        "winner": {
+          "team": "team_a",
+          "side": "t"
+        },
+        "winCondition": "bomb_exploded",
+        "score": {
+          "teamA": 2,
+          "teamB": 0
+        },
+        "players": [
+          {
+            "player": {
+              "steamId64": "76561190940959380",
+              "name": "sim-a-1",
+              "team": "team_a"
+            },
+            "kills": 1,
+            "deaths": 2,
+            "assists": 0,
+            "damage": 121,
+            "flashAssists": 0,
+            "headshotKills": 1,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561190376882439",
+              "name": "sim-a-2",
+              "team": "team_a"
+            },
+            "kills": 5,
+            "deaths": 0,
+            "assists": 1,
+            "damage": 500,
+            "flashAssists": 0,
+            "headshotKills": 5,
+            "bombPlants": 1,
+            "bombDefuses": 0,
+            "mvps": 2,
+            "score": 13
+          },
+          {
+            "player": {
+              "steamId64": "76561190261743100",
+              "name": "sim-a-3",
+              "team": "team_a"
+            },
+            "kills": 0,
+            "deaths": 2,
+            "assists": 1,
+            "damage": 58,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 1
+          },
+          {
+            "player": {
+              "steamId64": "76561190695024455",
+              "name": "sim-b-1",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 2,
+            "assists": 0,
+            "damage": 143,
+            "flashAssists": 1,
+            "headshotKills": 1,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561190515938941",
+              "name": "sim-b-2",
+              "team": "team_b"
+            },
+            "kills": 2,
+            "deaths": 2,
+            "assists": 0,
+            "damage": 217,
+            "flashAssists": 0,
+            "headshotKills": 1,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 4
+          },
+          {
+            "player": {
+              "steamId64": "76561190779485704",
+              "name": "sim-b-3",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 2,
+            "assists": 0,
+            "damage": 93,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          }
+        ],
+        "roundTimeMs": 90633
+      }
+    },
+    {
+      "deliveryId": "1f775ca8-7df4-4fde-b4bd-a357f0335ce3",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 58,
+      "occurredAt": "2026-09-05T18:03:28.757Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 76,
+        "type": "chat_message",
+        "player": {
+          "steamId64": "76561190261743100",
+          "name": "sim-a-3",
+          "team": "team_a"
+        },
+        "text": "gg wp",
+        "scope": "all"
+      }
+    },
+    {
+      "deliveryId": "efb290aa-164f-4bb9-a841-737ad1d1bc75",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 59,
+      "occurredAt": "2026-09-05T18:03:30.757Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 77,
+        "mapNumber": 1,
+        "type": "map_end",
+        "map": "de_ancient",
+        "score": {
+          "teamA": 2,
+          "teamB": 0
+        },
+        "winner": "team_a"
+      }
+    },
+    {
+      "deliveryId": "8abf0159-8634-46ef-bf31-a351cecfedc2",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 60,
+      "occurredAt": "2026-09-05T18:03:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 78,
+        "type": "heartbeat",
+        "playerCount": 6
+      }
+    },
+    {
+      "deliveryId": "7aad7028-82d3-4f8e-a726-541b74843130",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 61,
+      "occurredAt": "2026-09-05T18:03:36.757Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 79,
+        "mapNumber": 1,
+        "type": "demo_available",
+        "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_ancient.ezpug-sim.json",
+        "sizeBytes": 9832
+      }
+    },
+    {
+      "deliveryId": "8a7e082f-0785-4973-8c9b-d77615ad34b6",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 62,
+      "occurredAt": "2026-09-05T18:03:38.757Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 80,
+        "type": "series_end",
+        "seriesScore": {
+          "teamA": 1,
+          "teamB": 0
+        },
+        "winner": "team_a"
+      }
+    },
+    {
+      "deliveryId": "3e907cdf-ebe1-41a6-94e8-acba9548c092",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-open-join",
+      "seq": 63,
+      "occurredAt": "2026-09-05T18:03:38.757Z",
+      "payload": {
+        "type": "match.ended",
+        "state": "ended",
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    }
+  ],
+  "deliveries": [
+    {
+      "seq": 1,
+      "type": "match.allocated"
+    },
+    {
+      "seq": 2,
+      "type": "server_ready"
+    },
+    {
+      "seq": 3,
+      "type": "match.server_ready"
+    },
+    {
+      "seq": 4,
+      "type": "player_connected"
+    },
+    {
+      "seq": 5,
+      "type": "player.joined"
+    },
+    {
+      "seq": 6,
+      "type": "player_connected"
+    },
+    {
+      "seq": 7,
+      "type": "player.joined"
+    },
+    {
+      "seq": 8,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 9,
+      "type": "player_connected"
+    },
+    {
+      "seq": 10,
+      "type": "player.joined"
+    },
+    {
+      "seq": 11,
+      "type": "player_connected"
+    },
+    {
+      "seq": 12,
+      "type": "player.joined"
+    },
+    {
+      "seq": 13,
+      "type": "player_connected"
+    },
+    {
+      "seq": 14,
+      "type": "player.joined"
+    },
+    {
+      "seq": 15,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 16,
+      "type": "player_connected"
+    },
+    {
+      "seq": 17,
+      "type": "player.joined"
+    },
+    {
+      "seq": 18,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 19,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 20,
+      "type": "chat_message"
+    },
+    {
+      "seq": 21,
+      "type": "going_live"
+    },
+    {
+      "seq": 22,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 23,
+      "type": "backup_written"
+    },
+    {
+      "seq": 24,
+      "type": "round_start"
+    },
+    {
+      "seq": 25,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 26,
+      "type": "player_death"
+    },
+    {
+      "seq": 27,
+      "type": "player_death"
+    },
+    {
+      "seq": 28,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 29,
+      "type": "player_death"
+    },
+    {
+      "seq": 30,
+      "type": "player_death"
+    },
+    {
+      "seq": 31,
+      "type": "player_death"
+    },
+    {
+      "seq": 32,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 33,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 34,
+      "type": "round_end"
+    },
+    {
+      "seq": 35,
+      "type": "chat_message"
+    },
+    {
+      "seq": 36,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 37,
+      "type": "side_swap"
+    },
+    {
+      "seq": 38,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 39,
+      "type": "backup_written"
+    },
+    {
+      "seq": 40,
+      "type": "round_start"
+    },
+    {
+      "seq": 41,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 42,
+      "type": "player_death"
+    },
+    {
+      "seq": 43,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 44,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 45,
+      "type": "player_death"
+    },
+    {
+      "seq": 46,
+      "type": "player_death"
+    },
+    {
+      "seq": 47,
+      "type": "player_death"
+    },
+    {
+      "seq": 48,
+      "type": "player_death"
+    },
+    {
+      "seq": 49,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 50,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 51,
+      "type": "bomb_planted"
+    },
+    {
+      "seq": 52,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 53,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 54,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 55,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 56,
+      "type": "bomb_exploded"
+    },
+    {
+      "seq": 57,
+      "type": "round_end"
+    },
+    {
+      "seq": 58,
+      "type": "chat_message"
+    },
+    {
+      "seq": 59,
+      "type": "map_end"
+    },
+    {
+      "seq": 60,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 61,
+      "type": "demo_available"
+    },
+    {
+      "seq": 62,
+      "type": "series_end"
+    },
+    {
+      "seq": 63,
+      "type": "match.ended"
+    }
+  ],
+  "frames": []
+}

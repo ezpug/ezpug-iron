@@ -14,8 +14,13 @@ import type {
  * against. The union is a closed set, so the table is exhaustive by
  * construction: a type without a fixture does not type-check.
  *
- * The conformance runner and the recorded fixtures join here (PRD-01 T8).
+ * The conformance runner and the recorded fixtures join here (PRD-01 T8):
+ * `runMatchApiConformance` drives an implementation through the flows a
+ * client actually performs, and `fixtures/recorded/<flow>.json` beside this
+ * package holds what the fake produced for each of them.
  */
+
+export * from './conformance'
 
 export const FIXTURE_MATCH_ID = '6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b'
 export const FIXTURE_SOURCE = { provider: 'sim', serverId: 'sim-1' } as const

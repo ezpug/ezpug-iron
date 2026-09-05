@@ -690,6 +690,58 @@ provider has a price); `no_capable_server` for `lan`, another `provider`, anothe
 a drained provider, `allocationRefused` or exhausted capacity; `provider_unavailable` while
 down.
 
+## The conformance suite
+
+`@ezpug/match-api/fixtures` carries the flows every implementation of this document must
+survive, the runner that drives them, and the recorded exchanges they produced. It is the
+seam test: it runs against the fake here, against the real orchestrator in PRD-02, and
+against whatever fake the platform pins. If the three disagree, the recorded fixture
+decides.
+
+```ts
+import { createFakeConformanceTarget } from '@ezpug/match-api/fake'
+import { assertConformance, runMatchApiConformance } from '@ezpug/match-api/fixtures'
+
+// A fresh implementation per flow — the crash flows arm fault knobs.
+assertConformance(await runMatchApiConformance({ target: () => createFakeConformanceTarget() }))
+```
+
+**The target** is what the suite drives. Three things are required: `client` (the typed
+client of the route table, however it was built), `webhooks(handler)` (every delivery the
+implementation made *for this key*, verified, returning the unsubscribe) and `callbacks`
+(the `webhookUrl` and the registered `webhookSecretId` every flow puts in its request, and
+an optional `demoUploadUrl`). Everything else narrows what can be asked of it: `clock`,
+`advance(ms)` (let the implementation's time pass — a fake clock advances, a real one
+sleeps), `settle()`, `faults()`, `playerCommand()`, `stream()`, `budget` (a second key with
+a lower lifetime ceiling), `pollIntervalMs`, `maxWaitMs`, `close()`. A flow that needs a
+capability the target does not offer is **skipped with a reason**, never failed — a
+production orchestrator has no crash knob.
+
+**The flows**, in order: `happy-bo1` (a Bo1 on `pug`: idempotent create, ready with connect
+facts, live, an announce replayed by its `correlationId`, a pause and an unpause, the demo,
+`match.ended`), `config-only` (`flying-scoutsman`: a `config`-tier mode plays and uploads no
+demo), `open-join` (`retakes` with empty rosters: `player.joined` with `rostered: false`),
+`player-command` (`powerup-dm`: a player token, a widget's tap, the `plugin_event` back),
+`cancel-allocating`, `crash-restore`, `crash-lost`, `csgo-refused`, `budget-refused`,
+`webhook-replay` (the cursor walked to the end equals the tail) and `stream-hello` (the
+`hello.seq` agrees with the events route, and every `event` frame is an envelope the route
+also has).
+
+**The report** is data, not a test framework: `{ ok, results, passed, failed, skipped }`
+with a named check list per flow. `formatConformanceReport` prints it, `assertConformance`
+throws it. `@ezpug/match-api/fixtures/vitest` (this repo only, not published — it is the
+one file that imports Vitest) turns it into one `it()` per flow.
+
+**The recorded fixtures** live at `fixtures/recorded/<flow>.json` in the package (published,
+importable as `@ezpug/match-api/fixtures/recorded/happy-bo1.json`): every call with its
+input and its answer, every envelope in `seq` order, the arrival order of the deliveries,
+and the stream frames. They are what the fake produces under its fixed clock and seed, and
+a test asserts it still produces them byte for byte — the goldens PRD-02's generated C#
+types round-trip and the platform's translator is proven against. Secrets are redacted by
+field name (`password`, `token`, `secret`, `apiKey` → `"<redacted>"`) and a test greps the
+files for the fake's known prefixes. Re-record with `pnpm --filter @ezpug/match-api record`,
+read the diff, and ship it with the change that caused it.
+
 ## Invented here
 
 Fields and shapes with no counterpart in the platform on 2026-09-05. The platform loop
@@ -732,3 +784,7 @@ reads this list first; everything not on it is a copy.
   (`FAKE_SECRET_PREFIXES`, what a fixture scrub greps for). The platform's simulator
   provider had `step`/`mode`/`speed`/`chaos`/`kill` handles; here they are the `sim.*`
   commands of the Match API.
+- The conformance suite, whole: the target's shape and its capability set, the eleven flow
+  ids, the report and check shapes, the recording shape and its redaction rule, and the
+  recorded golden files. The platform has no conformance seam today — it will run this one
+  against the fake it pins.

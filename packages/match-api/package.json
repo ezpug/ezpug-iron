@@ -16,6 +16,7 @@
   },
   "files": [
     "dist",
+    "fixtures",
     "README.md",
     "CHANGELOG.md"
   ],
@@ -24,6 +25,8 @@
     "./client": "./src/client/index.ts",
     "./webhooks": "./src/webhooks/index.ts",
     "./fixtures": "./src/fixtures/index.ts",
+    "./fixtures/vitest": "./src/fixtures/vitest.ts",
+    "./fixtures/recorded/*.json": "./fixtures/recorded/*.json",
     "./fake": "./src/fake/index.ts",
     "./package.json": "./package.json"
   },
@@ -46,6 +49,7 @@
         "types": "./dist/fixtures/index.d.ts",
         "import": "./dist/fixtures/index.js"
       },
+      "./fixtures/recorded/*.json": "./fixtures/recorded/*.json",
       "./fake": {
         "types": "./dist/fake/index.d.ts",
         "import": "./dist/fake/index.js"
@@ -56,7 +60,9 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:extended": "vitest run src/fixtures/conformance",
+    "record": "EZPUG_IRON_RECORD=1 vitest run src/fixtures/recorded.test.ts"
   },
   "dependencies": {
     "hono": "catalog:",

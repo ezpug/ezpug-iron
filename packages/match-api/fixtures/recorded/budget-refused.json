@@ -1,0 +1,112 @@
+{
+  "flow": "budget-refused",
+  "calls": [
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-budget-refused",
+          "game": "cs2",
+          "gamemode": "pug",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                },
+                {
+                  "steamId64": "76561198000000003",
+                  "name": "flippo"
+                },
+                {
+                  "steamId64": "76561198000000004",
+                  "name": "Kessi"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                },
+                {
+                  "steamId64": "76561198000000103",
+                  "name": "BastiGHG"
+                },
+                {
+                  "steamId64": "76561198000000104",
+                  "name": "moepL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "de_mirage",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 61
+        }
+      },
+      "ok": false,
+      "status": 402,
+      "code": "budget_exceeded",
+      "message": "ttlMinutes is above the key’s server lifetime ceiling"
+    },
+    {
+      "route": "matches.list",
+      "input": {
+        "query": {
+          "clientMatchId": "conformance-budget-refused"
+        }
+      },
+      "ok": true,
+      "response": {
+        "items": [],
+        "nextCursor": null
+      }
+    }
+  ],
+  "envelopes": [],
+  "deliveries": [],
+  "frames": []
+}

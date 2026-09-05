@@ -266,7 +266,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   ended with every webhook verified and replayed via the events route; a 429 storm; a
   stale signature refused. No `Date.now()` anywhere in it.
 
-- [ ] **T8: The conformance suite and the recorded fixtures.** `@ezpug/match-api/fixtures`:
+- [x] **T8: The conformance suite and the recorded fixtures.** `@ezpug/match-api/fixtures`:
   `runMatchApiConformance({client, webhooks: (handler) => unsubscribe, clock?})` — a
   Vitest-free runner (returns results; a thin Vitest wrapper exists) that drives any
   implementation through the flows: happy Bo1 on `pug`, `flying-scoutsman` config-only,

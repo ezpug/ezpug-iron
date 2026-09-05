@@ -9,6 +9,18 @@
 
 export { ApiError } from '../errors'
 export {
+  createFakeConformanceTarget,
+  FAKE_CONFORMANCE_DEMO_URL,
+  FAKE_CONFORMANCE_LIFETIME_MINUTES,
+  FAKE_CONFORMANCE_SECRET,
+  FAKE_CONFORMANCE_SECRET_ID,
+  FAKE_CONFORMANCE_START,
+  FAKE_CONFORMANCE_THRIFTY_MINUTES,
+  FAKE_CONFORMANCE_WEBHOOK_URL,
+  type FakeConformanceOptions,
+  type FakeConformanceTarget,
+} from './conformance'
+export {
   FAKE_ADMIN_KEY_NAME,
   FAKE_OUT_OF_ORDER_DELAY_MS,
   FAKE_PLAYER_COMMAND_EVENT,

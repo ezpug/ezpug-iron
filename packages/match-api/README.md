@@ -23,12 +23,16 @@ Five entry points:
 - `@ezpug/match-api/webhooks` — the envelope, the orchestration facts, `verifyWebhook`
   (and `signWebhook`, so a test can round-trip), `parseEnvelope`,
   `createDeliveryDeduper`, the retry policy as constants.
-- `@ezpug/match-api/fixtures` — one valid event and one valid fact per type, and the
-  recorded conformance fixtures once they exist.
+- `@ezpug/match-api/fixtures` — one valid event and one valid fact per type, plus the
+  conformance suite: `runMatchApiConformance({ target })` drives any implementation of the
+  Match API through the eleven flows a client actually performs and hands back a report,
+  and `fixtures/recorded/<flow>.json` holds what the fake produced for each of them
+  (`@ezpug/match-api/fixtures/recorded/happy-bo1.json`).
 - `@ezpug/match-api/fake` — `createFakeOrchestrator({ clock, ... })`: every route in-process
   (`fake.client(apiKey)`) and as a Hono app (`fake.handler`, `fake.listen()`), matches played
   by the simulator engine on your clock, real webhook signatures and retries, the stream,
-  fault knobs. What your tests run against.
+  fault knobs. What your tests run against — and `createFakeConformanceTarget()` points the
+  conformance suite at it in one line.
 
 ```ts
 import { createMatchApiClient } from '@ezpug/match-api/client'

@@ -1,0 +1,6628 @@
+{
+  "flow": "stream-hello",
+  "calls": [
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-stream-hello",
+          "game": "cs2",
+          "gamemode": "pug",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                },
+                {
+                  "steamId64": "76561198000000003",
+                  "name": "flippo"
+                },
+                {
+                  "steamId64": "76561198000000004",
+                  "name": "Kessi"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                },
+                {
+                  "steamId64": "76561198000000103",
+                  "name": "BastiGHG"
+                },
+                {
+                  "steamId64": "76561198000000104",
+                  "name": "moepL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "de_mirage",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120
+        }
+      },
+      "ok": true,
+      "response": {
+        "id": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "state": "allocating",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": null,
+        "serverId": null,
+        "fleetServerId": "f64b8c99-0cda-4b69-812a-480d63723add",
+        "connect": null,
+        "tv": null,
+        "seq": 0,
+        "createdAt": "2026-09-05T18:00:00.000Z",
+        "updatedAt": "2026-09-05T18:00:00.000Z",
+        "readyAt": null,
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-09-05T20:00:00.000Z",
+        "endedReason": null,
+        "sim": null
+      }
+    },
+    {
+      "route": "matches.events",
+      "input": {
+        "params": {
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7"
+        },
+        "query": {
+          "cursor": "29",
+          "limit": 25
+        }
+      },
+      "ok": true,
+      "response": {
+        "items": [],
+        "nextCursor": "29"
+      }
+    }
+  ],
+  "envelopes": [
+    {
+      "deliveryId": "010ec1da-9911-44fb-b817-7de8e3740ba7",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 1,
+      "occurredAt": "2026-09-05T18:00:01.000Z",
+      "payload": {
+        "type": "match.allocated",
+        "provider": "sim",
+        "serverId": "sim-1",
+        "fleetServerId": "f64b8c99-0cda-4b69-812a-480d63723add",
+        "region": "sim"
+      }
+    },
+    {
+      "deliveryId": "f49c7035-24d8-4869-a431-79be9d39b5d6",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 2,
+      "occurredAt": "2026-09-05T18:00:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 1,
+        "type": "server_ready",
+        "map": "de_mirage"
+      }
+    },
+    {
+      "deliveryId": "c3991a13-3e91-448c-8c71-b7b436f298d4",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 3,
+      "occurredAt": "2026-09-05T18:00:05.000Z",
+      "payload": {
+        "type": "match.server_ready",
+        "connect": {
+          "host": "sim-1.sim.invalid",
+          "port": 27015,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "sim-1.sim.invalid",
+          "port": 27020,
+          "delaySeconds": 90
+        }
+      }
+    },
+    {
+      "deliveryId": "da7ef13f-3273-4f83-b3f7-500213b9561a",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 4,
+      "occurredAt": "2026-09-05T18:00:08.910Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 2,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "012d9874-8177-444c-9667-dff182de784a",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 5,
+      "occurredAt": "2026-09-05T18:00:08.910Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "31edd0de-d8c3-46f0-a596-67627e0dfbef",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 6,
+      "occurredAt": "2026-09-05T18:00:10.545Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 3,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "94f72f92-5519-42a4-bfa3-ca19b38f0e6a",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 7,
+      "occurredAt": "2026-09-05T18:00:10.545Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "f0177ed4-a526-4af8-bdfa-26a9d9d84add",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 8,
+      "occurredAt": "2026-09-05T18:00:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 4,
+        "type": "heartbeat",
+        "playerCount": 2
+      }
+    },
+    {
+      "deliveryId": "4d5d1bbe-0d34-48cf-b7e7-6b3f389745b1",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 9,
+      "occurredAt": "2026-09-05T18:00:15.351Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 5,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "122b8f71-7b66-4653-b691-6bb74a8ff409",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 10,
+      "occurredAt": "2026-09-05T18:00:15.351Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "00842d4c-d6cd-4721-b507-93e070fab606",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 11,
+      "occurredAt": "2026-09-05T18:00:16.116Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 6,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "cdba41e5-691d-4f75-9613-c92edc545aff",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 12,
+      "occurredAt": "2026-09-05T18:00:16.116Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "5d8d1dda-489a-4e98-8169-e598731f1789",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 13,
+      "occurredAt": "2026-09-05T18:00:16.323Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 7,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "d2c7460f-1ea1-4171-a2b6-d4117d9e92dd",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 14,
+      "occurredAt": "2026-09-05T18:00:16.323Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "d17d7711-7a6e-42c6-98ba-0f924be49e6a",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 15,
+      "occurredAt": "2026-09-05T18:00:17.332Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 8,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000001",
+          "name": "maex",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "5977551d-7edd-4812-b04d-c2a16df566bf",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 16,
+      "occurredAt": "2026-09-05T18:00:17.332Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000001",
+          "name": "maex",
+          "team": "team_a"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "3f7b48a9-ad0d-491c-973c-4b7a4f827beb",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 17,
+      "occurredAt": "2026-09-05T18:00:24.572Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 9,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000000",
+          "name": "hunzR",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "abc9391b-a925-403c-9d9a-ae00e22eb8a9",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 18,
+      "occurredAt": "2026-09-05T18:00:24.572Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000000",
+          "name": "hunzR",
+          "team": "team_a"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "06fb71c2-b5dc-4a93-b785-782906704d7f",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 19,
+      "occurredAt": "2026-09-05T18:00:24.702Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 10,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000100",
+          "name": "wickeD",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "3a708417-47e8-4ccb-8b3f-ccd865bc6f09",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 20,
+      "occurredAt": "2026-09-05T18:00:24.702Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000100",
+          "name": "wickeD",
+          "team": "team_b"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "dbee63d7-08a9-4753-8402-d2da11eb598b",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 21,
+      "occurredAt": "2026-09-05T18:00:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 11,
+        "type": "heartbeat",
+        "playerCount": 8
+      }
+    },
+    {
+      "deliveryId": "8dfe8619-6bc0-48bd-ad94-f373c843ff7e",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 22,
+      "occurredAt": "2026-09-05T18:00:26.557Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 12,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "d9e2461c-3b60-4d8b-a3b2-b4f4e00c2d2d",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 23,
+      "occurredAt": "2026-09-05T18:00:26.557Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "0c1eb118-f476-4679-b438-32053b2ba1fb",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 24,
+      "occurredAt": "2026-09-05T18:00:27.281Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 13,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198000000003",
+          "name": "flippo",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "48c7b5e7-7168-4e4d-a1e8-b6537597ac9f",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 25,
+      "occurredAt": "2026-09-05T18:00:27.281Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198000000003",
+          "name": "flippo",
+          "team": "team_a"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "7cadb97b-6325-4023-b576-eea41a405cce",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 26,
+      "occurredAt": "2026-09-05T18:00:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 14,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "22d574db-7c14-45f0-bcd0-86e8d50a1a3d",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 27,
+      "occurredAt": "2026-09-05T18:00:44.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 15,
+        "type": "chat_message",
+        "player": {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        "text": "gl hf",
+        "scope": "all"
+      }
+    },
+    {
+      "deliveryId": "13ae7a43-e434-4c5f-8615-cb980de03391",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 28,
+      "occurredAt": "2026-09-05T18:00:44.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 16,
+        "mapNumber": 1,
+        "type": "going_live",
+        "map": "de_mirage"
+      }
+    },
+    {
+      "deliveryId": "1c776405-4ddb-4328-803d-48b6140e9a1d",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 29,
+      "occurredAt": "2026-09-05T18:00:45.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 17,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "42561f85-1eb4-4cb1-87fc-a03878df00e0",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 30,
+      "occurredAt": "2026-09-05T18:00:51.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 18,
+        "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 1,
+        "filename": "matchzy_backup_map1_round01.cfg"
+      }
+    },
+    {
+      "deliveryId": "57c011a8-9cb5-424b-8ff2-01ca3abbc0e5",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 31,
+      "occurredAt": "2026-09-05T18:00:51.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 19,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "round_start",
+        "score": {
+          "teamA": 0,
+          "teamB": 0
+        }
+      }
+    },
+    {
+      "deliveryId": "b3ae29d8-8174-4086-b237-572f650ff19c",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 32,
+      "occurredAt": "2026-09-05T18:00:55.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 20,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "9fe2325d-7e12-4445-99ba-8a8f04cfff81",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 33,
+      "occurredAt": "2026-09-05T18:01:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 23,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "37dad5e8-d7a1-4180-bdde-f3f9d393e332",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 34,
+      "occurredAt": "2026-09-05T18:01:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 26,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "1433f14c-12bb-4184-bc40-6b4205615183",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 35,
+      "occurredAt": "2026-09-05T18:01:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 29,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "93e3d61f-3330-4bfc-8537-1911bdad106a",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 36,
+      "occurredAt": "2026-09-05T18:01:31.444Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 32,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561198000000003",
+          "name": "flippo",
+          "team": "team_a"
+        },
+        "assists": [
+          {
+            "player": {
+              "steamId64": "76561198000000000",
+              "name": "hunzR",
+              "team": "team_a"
+            },
+            "flash": false
+          }
+        ],
+        "weapon": "fiveseven",
+        "headshot": false,
+        "penetrated": true,
+        "throughSmoke": true,
+        "roundTimeMs": 40139
+      }
+    },
+    {
+      "deliveryId": "a7c07b83-63ce-4fd1-91a9-5aacd9c55568",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 37,
+      "occurredAt": "2026-09-05T18:01:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 33,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "3ff75ede-af9c-4f72-bd08-fa672d176e03",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 38,
+      "occurredAt": "2026-09-05T18:01:45.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 36,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "0bfec8b7-7d07-45f9-9110-9a242a8ec201",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 39,
+      "occurredAt": "2026-09-05T18:01:50.262Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 38,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "usp_silencer",
+        "headshot": false,
+        "roundTimeMs": 58957
+      }
+    },
+    {
+      "deliveryId": "a157ac80-db68-4131-bc5f-bdeb5bcc81f9",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 40,
+      "occurredAt": "2026-09-05T18:01:55.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 40,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "40d2fd21-c043-47ed-9d10-b3db5ece6a2b",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 41,
+      "occurredAt": "2026-09-05T18:02:02.184Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 43,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198000000003",
+          "name": "flippo",
+          "team": "team_a"
+        },
+        "killer": {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        "assists": [
+          {
+            "player": {
+              "steamId64": "76561198000000104",
+              "name": "moepL",
+              "team": "team_b"
+            },
+            "flash": false
+          }
+        ],
+        "weapon": "deagle",
+        "headshot": true,
+        "penetrated": true,
+        "roundTimeMs": 70879
+      }
+    },
+    {
+      "deliveryId": "31e6c020-f132-4387-977e-d18f23ae45e8",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 42,
+      "occurredAt": "2026-09-05T18:02:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 44,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "4f95bf2b-e47f-4216-98e3-20cc43d8ce8e",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 43,
+      "occurredAt": "2026-09-05T18:02:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 47,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "12091383-402c-4318-8443-69bf25a6e7e6",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 44,
+      "occurredAt": "2026-09-05T18:02:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 50,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "f3077af7-af60-4a10-846b-1335ef56019e",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 45,
+      "occurredAt": "2026-09-05T18:02:32.837Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 53,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        },
+        "killer": {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        },
+        "assists": [
+          {
+            "player": {
+              "steamId64": "76561198000000100",
+              "name": "wickeD",
+              "team": "team_b"
+            },
+            "flash": true
+          }
+        ],
+        "weapon": "tec9",
+        "headshot": false,
+        "roundTimeMs": 101532
+      }
+    },
+    {
+      "deliveryId": "8ded36ec-f146-42e7-94a7-69c91f5dc431",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 46,
+      "occurredAt": "2026-09-05T18:02:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 54,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "aa9bdd29-9b5d-451c-9d48-6dd5e0728709",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 47,
+      "occurredAt": "2026-09-05T18:02:45.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 57,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "e6cedb40-dcb2-4167-9e64-d434077875c1",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 48,
+      "occurredAt": "2026-09-05T18:02:46.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 58,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "round_end",
+        "winner": {
+          "team": "team_a",
+          "side": "ct"
+        },
+        "winCondition": "time_expired",
+        "score": {
+          "teamA": 1,
+          "teamB": 0
+        },
+        "players": [
+          {
+            "player": {
+              "steamId64": "76561198000000000",
+              "name": "hunzR",
+              "team": "team_a"
+            },
+            "kills": 0,
+            "deaths": 0,
+            "assists": 1,
+            "damage": 24,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 1
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000001",
+              "name": "maex",
+              "team": "team_a"
+            },
+            "kills": 0,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000002",
+              "name": "Zerberus",
+              "team": "team_a"
+            },
+            "kills": 0,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000003",
+              "name": "flippo",
+              "team": "team_a"
+            },
+            "kills": 1,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 130,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 1,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000004",
+              "name": "Kessi",
+              "team": "team_a"
+            },
+            "kills": 1,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 116,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000100",
+              "name": "wickeD",
+              "team": "team_b"
+            },
+            "kills": 0,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 34,
+            "flashAssists": 1,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000101",
+              "name": "Jörg",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 100,
+            "flashAssists": 0,
+            "headshotKills": 1,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000102",
+              "name": "schnitzL",
+              "team": "team_b"
+            },
+            "kills": 0,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000103",
+              "name": "BastiGHG",
+              "team": "team_b"
+            },
+            "kills": 0,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000104",
+              "name": "moepL",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 0,
+            "assists": 1,
+            "damage": 119,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 3
+          }
+        ],
+        "roundTimeMs": 115000
+      }
+    },
+    {
+      "deliveryId": "ac744cce-8e5c-42ea-a23d-29948a231e94",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 49,
+      "occurredAt": "2026-09-05T18:02:46.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 59,
+        "type": "chat_message",
+        "player": {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        "text": "zusammen rein",
+        "scope": "team"
+      }
+    },
+    {
+      "deliveryId": "ed2e02f6-1ffb-48e4-a7ef-4572ba1a3c06",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 50,
+      "occurredAt": "2026-09-05T18:02:55.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 60,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "747413ee-b709-42b2-89eb-045bccb99817",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 51,
+      "occurredAt": "2026-09-05T18:03:01.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 61,
+        "mapNumber": 1,
+        "type": "side_swap",
+        "sides": {
+          "teamA": "t",
+          "teamB": "ct"
+        }
+      }
+    },
+    {
+      "deliveryId": "c876604e-f8cc-44e8-851e-bf3171d47dde",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 52,
+      "occurredAt": "2026-09-05T18:03:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 62,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "53130c4e-2509-4901-8d3a-30c58bbf5bf4",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 53,
+      "occurredAt": "2026-09-05T18:03:08.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 63,
+        "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 2,
+        "filename": "matchzy_backup_map1_round02.cfg"
+      }
+    },
+    {
+      "deliveryId": "41ce83bd-fafb-42a1-868b-5f7b5a676f17",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 54,
+      "occurredAt": "2026-09-05T18:03:08.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 64,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "round_start",
+        "score": {
+          "teamA": 1,
+          "teamB": 0
+        }
+      }
+    },
+    {
+      "deliveryId": "6d03e7b3-12cd-48de-987e-731e6c1d5adc",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 55,
+      "occurredAt": "2026-09-05T18:03:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 66,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "a1868b71-dfe4-4c64-8bdb-146ed7b7c414",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 56,
+      "occurredAt": "2026-09-05T18:03:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 69,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "ac6a7ee9-1a98-47e0-adab-3c61c1967801",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 57,
+      "occurredAt": "2026-09-05T18:03:26.956Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 70,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198000000001",
+          "name": "maex",
+          "team": "team_a"
+        },
+        "killer": {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        "assists": [],
+        "weapon": "p250",
+        "headshot": false,
+        "roundTimeMs": 18651
+      }
+    },
+    {
+      "deliveryId": "4287a91f-775c-4a87-bf4f-dee4bda357f0",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 58,
+      "occurredAt": "2026-09-05T18:03:31.419Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 72,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561198000000000",
+          "name": "hunzR",
+          "team": "team_a"
+        },
+        "assists": [
+          {
+            "player": {
+              "steamId64": "76561198000000002",
+              "name": "Zerberus",
+              "team": "team_a"
+            },
+            "flash": true
+          }
+        ],
+        "weapon": "glock",
+        "headshot": false,
+        "roundTimeMs": 23114
+      }
+    },
+    {
+      "deliveryId": "335ce3ef-b290-4aa1-94fb-b9b841737ad1",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 59,
+      "occurredAt": "2026-09-05T18:03:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 74,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "d1bc758a-bf01-4598-9346-efff31a351ce",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 60,
+      "occurredAt": "2026-09-05T18:03:40.762Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 76,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "glock",
+        "headshot": true,
+        "roundTimeMs": 32457
+      }
+    },
+    {
+      "deliveryId": "cfedc27a-ad70-4288-8d3f-8e9726541b74",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 61,
+      "occurredAt": "2026-09-05T18:03:45.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 78,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "8431308a-7e08-42f0-9859-731c9bd77615",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 62,
+      "occurredAt": "2026-09-05T18:03:46.439Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 79,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "bomb_planted",
+        "player": {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        "site": "b",
+        "roundTimeMs": 38134
+      }
+    },
+    {
+      "deliveryId": "ad34b63e-907c-4dfe-ae11-a664e8acba95",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 63,
+      "occurredAt": "2026-09-05T18:03:55.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 82,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "48c09253-da80-499c-bcd3-ed825607de8d",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 64,
+      "occurredAt": "2026-09-05T18:04:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 85,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "13538a8e-b1f9-4b36-9b42-268315dab8a0",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 65,
+      "occurredAt": "2026-09-05T18:04:12.043Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 87,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "p250",
+        "headshot": false,
+        "roundTimeMs": 63738
+      }
+    },
+    {
+      "deliveryId": "2caf2b71-305f-42fd-9ed7-20397de75f05",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 66,
+      "occurredAt": "2026-09-05T18:04:15.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 89,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "589c278c-eecb-426c-8b43-ef980e8a9aae",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 67,
+      "occurredAt": "2026-09-05T18:04:25.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 92,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "2a0e131c-cce4-4388-9dc7-4baf8dee9dea",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 68,
+      "occurredAt": "2026-09-05T18:04:26.439Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 93,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "bomb_exploded",
+        "site": "b",
+        "roundTimeMs": 78134
+      }
+    },
+    {
+      "deliveryId": "5853c6e5-7b83-4da6-ac9e-53f600a0ed7c",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 69,
+      "occurredAt": "2026-09-05T18:04:27.439Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 94,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "round_end",
+        "winner": {
+          "team": "team_a",
+          "side": "t"
+        },
+        "winCondition": "bomb_exploded",
+        "score": {
+          "teamA": 2,
+          "teamB": 0
+        },
+        "players": [
+          {
+            "player": {
+              "steamId64": "76561198000000000",
+              "name": "hunzR",
+              "team": "team_a"
+            },
+            "kills": 1,
+            "deaths": 0,
+            "assists": 1,
+            "damage": 121,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 3
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000001",
+              "name": "maex",
+              "team": "team_a"
+            },
+            "kills": 0,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000002",
+              "name": "Zerberus",
+              "team": "team_a"
+            },
+            "kills": 0,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 39,
+            "flashAssists": 1,
+            "headshotKills": 0,
+            "bombPlants": 1,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000003",
+              "name": "flippo",
+              "team": "team_a"
+            },
+            "kills": 1,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 130,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 1,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000004",
+              "name": "Kessi",
+              "team": "team_a"
+            },
+            "kills": 3,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 342,
+            "flashAssists": 0,
+            "headshotKills": 1,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 1,
+            "score": 6
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000100",
+              "name": "wickeD",
+              "team": "team_b"
+            },
+            "kills": 0,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 34,
+            "flashAssists": 1,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000101",
+              "name": "Jörg",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 100,
+            "flashAssists": 0,
+            "headshotKills": 1,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000102",
+              "name": "schnitzL",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 2,
+            "assists": 0,
+            "damage": 83,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000103",
+              "name": "BastiGHG",
+              "team": "team_b"
+            },
+            "kills": 0,
+            "deaths": 2,
+            "assists": 0,
+            "damage": 0,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          },
+          {
+            "player": {
+              "steamId64": "76561198000000104",
+              "name": "moepL",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 0,
+            "assists": 1,
+            "damage": 119,
+            "flashAssists": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 3
+          }
+        ],
+        "roundTimeMs": 79134
+      }
+    },
+    {
+      "deliveryId": "7a7acdc9-47ab-4c7f-a609-fba5117e20a6",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 70,
+      "occurredAt": "2026-09-05T18:04:27.439Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 95,
+        "type": "chat_message",
+        "player": {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        },
+        "text": "gg wp",
+        "scope": "all"
+      }
+    },
+    {
+      "deliveryId": "88fe9470-86a3-46a5-a3c0-3c40c0b2be7a",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 71,
+      "occurredAt": "2026-09-05T18:04:29.439Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 96,
+        "mapNumber": 1,
+        "type": "map_end",
+        "map": "de_mirage",
+        "score": {
+          "teamA": 2,
+          "teamB": 0
+        },
+        "winner": "team_a"
+      }
+    },
+    {
+      "deliveryId": "635cb83c-f7b6-4655-8551-1d0fb0d11b76",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 72,
+      "occurredAt": "2026-09-05T18:04:35.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 97,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "bc327f8d-accb-4385-b8a2-a5342a40fe51",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 73,
+      "occurredAt": "2026-09-05T18:04:35.439Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 98,
+        "mapNumber": 1,
+        "type": "demo_available",
+        "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_mirage.ezpug-sim.json",
+        "sizeBytes": 11079
+      }
+    },
+    {
+      "deliveryId": "062002bf-db6c-4714-94f4-c57f1920c711",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 74,
+      "occurredAt": "2026-09-05T18:04:35.439Z",
+      "payload": {
+        "type": "demo.uploaded",
+        "mapNumber": 1,
+        "key": "demos/conformance.dem",
+        "size": 11079,
+        "sha256": "812320a0123650f1ddfdf40215065ae379e540426c01279e3f0647c5c7d687ca",
+        "contentType": "application/json; charset=utf-8"
+      }
+    },
+    {
+      "deliveryId": "835febf6-fed2-471a-99a5-e4971f365724",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 75,
+      "occurredAt": "2026-09-05T18:04:37.439Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 99,
+        "type": "series_end",
+        "seriesScore": {
+          "teamA": 1,
+          "teamB": 0
+        },
+        "winner": "team_a"
+      }
+    },
+    {
+      "deliveryId": "af9dabf6-c88e-451b-b87c-1805fe888889",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-stream-hello",
+      "seq": 76,
+      "occurredAt": "2026-09-05T18:04:37.439Z",
+      "payload": {
+        "type": "match.ended",
+        "state": "ended",
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    }
+  ],
+  "deliveries": [
+    {
+      "seq": 1,
+      "type": "match.allocated"
+    },
+    {
+      "seq": 2,
+      "type": "server_ready"
+    },
+    {
+      "seq": 3,
+      "type": "match.server_ready"
+    },
+    {
+      "seq": 4,
+      "type": "player_connected"
+    },
+    {
+      "seq": 5,
+      "type": "player.joined"
+    },
+    {
+      "seq": 6,
+      "type": "player_connected"
+    },
+    {
+      "seq": 7,
+      "type": "player.joined"
+    },
+    {
+      "seq": 8,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 9,
+      "type": "player_connected"
+    },
+    {
+      "seq": 10,
+      "type": "player.joined"
+    },
+    {
+      "seq": 11,
+      "type": "player_connected"
+    },
+    {
+      "seq": 12,
+      "type": "player.joined"
+    },
+    {
+      "seq": 13,
+      "type": "player_connected"
+    },
+    {
+      "seq": 14,
+      "type": "player.joined"
+    },
+    {
+      "seq": 15,
+      "type": "player_connected"
+    },
+    {
+      "seq": 16,
+      "type": "player.joined"
+    },
+    {
+      "seq": 17,
+      "type": "player_connected"
+    },
+    {
+      "seq": 18,
+      "type": "player.joined"
+    },
+    {
+      "seq": 19,
+      "type": "player_connected"
+    },
+    {
+      "seq": 20,
+      "type": "player.joined"
+    },
+    {
+      "seq": 21,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 22,
+      "type": "player_connected"
+    },
+    {
+      "seq": 23,
+      "type": "player.joined"
+    },
+    {
+      "seq": 24,
+      "type": "player_connected"
+    },
+    {
+      "seq": 25,
+      "type": "player.joined"
+    },
+    {
+      "seq": 26,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 27,
+      "type": "chat_message"
+    },
+    {
+      "seq": 28,
+      "type": "going_live"
+    },
+    {
+      "seq": 29,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 30,
+      "type": "backup_written"
+    },
+    {
+      "seq": 31,
+      "type": "round_start"
+    },
+    {
+      "seq": 32,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 33,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 34,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 35,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 36,
+      "type": "player_death"
+    },
+    {
+      "seq": 37,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 38,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 39,
+      "type": "player_death"
+    },
+    {
+      "seq": 40,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 41,
+      "type": "player_death"
+    },
+    {
+      "seq": 42,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 43,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 44,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 45,
+      "type": "player_death"
+    },
+    {
+      "seq": 46,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 47,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 48,
+      "type": "round_end"
+    },
+    {
+      "seq": 49,
+      "type": "chat_message"
+    },
+    {
+      "seq": 50,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 51,
+      "type": "side_swap"
+    },
+    {
+      "seq": 52,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 53,
+      "type": "backup_written"
+    },
+    {
+      "seq": 54,
+      "type": "round_start"
+    },
+    {
+      "seq": 55,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 56,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 57,
+      "type": "player_death"
+    },
+    {
+      "seq": 58,
+      "type": "player_death"
+    },
+    {
+      "seq": 59,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 60,
+      "type": "player_death"
+    },
+    {
+      "seq": 61,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 62,
+      "type": "bomb_planted"
+    },
+    {
+      "seq": 63,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 64,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 65,
+      "type": "player_death"
+    },
+    {
+      "seq": 66,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 67,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 68,
+      "type": "bomb_exploded"
+    },
+    {
+      "seq": 69,
+      "type": "round_end"
+    },
+    {
+      "seq": 70,
+      "type": "chat_message"
+    },
+    {
+      "seq": 71,
+      "type": "map_end"
+    },
+    {
+      "seq": 72,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 73,
+      "type": "demo_available"
+    },
+    {
+      "seq": 74,
+      "type": "demo.uploaded"
+    },
+    {
+      "seq": 75,
+      "type": "series_end"
+    },
+    {
+      "seq": 76,
+      "type": "match.ended"
+    }
+  ],
+  "frames": [
+    {
+      "type": "hello",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "seq": 29,
+      "state": "live"
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "42561f85-1eb4-4cb1-87fc-a03878df00e0",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 30,
+        "occurredAt": "2026-09-05T18:00:51.305Z",
+        "payload": {
+          "type": "backup_written",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "filename": "matchzy_backup_map1_round01.cfg",
+          "seq": 18
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "57c011a8-9cb5-424b-8ff2-01ca3abbc0e5",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 31,
+        "occurredAt": "2026-09-05T18:00:51.305Z",
+        "payload": {
+          "type": "round_start",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "score": {
+            "teamA": 0,
+            "teamB": 0
+          },
+          "seq": 19
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "b3ae29d8-8174-4086-b237-572f650ff19c",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 32,
+        "occurredAt": "2026-09-05T18:00:55.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 20,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1316.6,
+              "y": -317.8000000000002,
+              "z": 64,
+              "yaw": 17
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2131.6,
+              "y": -427.8000000000002,
+              "z": 64,
+              "yaw": 22
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1591.6,
+              "y": -92.80000000000018,
+              "z": 64,
+              "yaw": 94
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2021.6,
+              "y": -252.80000000000018,
+              "z": 64,
+              "yaw": 149
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1706.6,
+              "y": -2.800000000000182,
+              "z": 64,
+              "yaw": 50
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 379.2000000000003,
+              "y": -1423.6000000000004,
+              "z": 64,
+              "yaw": 69
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -5.799999999999727,
+              "y": -1863.6000000000004,
+              "z": 64,
+              "yaw": 53
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": 39.20000000000027,
+              "y": -1733.6000000000004,
+              "z": 64,
+              "yaw": 253
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": 274.2000000000003,
+              "y": -1993.6000000000004,
+              "z": 64,
+              "yaw": 318
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 419.2000000000003,
+              "y": -1248.6000000000004,
+              "z": 64,
+              "yaw": 30
+            }
+          ],
+          "seq": 21
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1221.6,
+              "y": -212.80000000000018,
+              "z": 64,
+              "yaw": 124
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2126.6,
+              "y": -312.8000000000002,
+              "z": 64,
+              "yaw": 206
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1681.6,
+              "y": -272.8000000000002,
+              "z": 64,
+              "yaw": 94
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -1846.6,
+              "y": -172.80000000000018,
+              "z": 64,
+              "yaw": 104
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1636.6,
+              "y": -22.800000000000182,
+              "z": 64,
+              "yaw": 121
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 324.2000000000003,
+              "y": -1473.6000000000004,
+              "z": 64,
+              "yaw": 146
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -15.799999999999727,
+              "y": -1763.6000000000004,
+              "z": 64,
+              "yaw": 346
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": 14.200000000000273,
+              "y": -1838.6000000000004,
+              "z": 64,
+              "yaw": 324
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": 259.2000000000003,
+              "y": -2093.6000000000004,
+              "z": 64,
+              "yaw": 234
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 359.2000000000003,
+              "y": -1153.6000000000004,
+              "z": 64,
+              "yaw": 37
+            }
+          ],
+          "seq": 22
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "9fe2325d-7e12-4445-99ba-8a8f04cfff81",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 33,
+        "occurredAt": "2026-09-05T18:01:05.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 23,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1286.6,
+              "y": -137.80000000000018,
+              "z": 64,
+              "yaw": 99
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2266.6,
+              "y": -342.8000000000002,
+              "z": 64,
+              "yaw": 31
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1831.6,
+              "y": -212.80000000000018,
+              "z": 64,
+              "yaw": 164
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -1926.6,
+              "y": -242.80000000000018,
+              "z": 64,
+              "yaw": 347
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1801.6,
+              "y": -107.80000000000018,
+              "z": 64,
+              "yaw": 315
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 154.20000000000027,
+              "y": -1393.6000000000004,
+              "z": 64,
+              "yaw": 357
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -25.799999999999727,
+              "y": -1928.6000000000004,
+              "z": 64,
+              "yaw": 28
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": 39.20000000000027,
+              "y": -1948.6000000000004,
+              "z": 64,
+              "yaw": 102
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": 329.2000000000003,
+              "y": -1923.6000000000004,
+              "z": 64,
+              "yaw": 166
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 394.2000000000003,
+              "y": -1223.6000000000004,
+              "z": 64,
+              "yaw": 176
+            }
+          ],
+          "seq": 24
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1346.6,
+              "y": 12.199999999999818,
+              "z": 64,
+              "yaw": 332
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2211.6,
+              "y": -287.8000000000002,
+              "z": 64,
+              "yaw": 204
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1791.6,
+              "y": -367.8000000000002,
+              "z": 64,
+              "yaw": 281
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2066.6,
+              "y": -322.8000000000002,
+              "z": 64,
+              "yaw": 25
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1891.6,
+              "y": 7.199999999999818,
+              "z": 64,
+              "yaw": 230
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 259.2000000000003,
+              "y": -1468.6000000000004,
+              "z": 64,
+              "yaw": 315
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 99.20000000000027,
+              "y": -1943.6000000000004,
+              "z": 64,
+              "yaw": 212
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -0.7999999999997272,
+              "y": -1843.6000000000004,
+              "z": 64,
+              "yaw": 147
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": 189.20000000000027,
+              "y": -2053.6000000000004,
+              "z": 64,
+              "yaw": 152
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 259.2000000000003,
+              "y": -1273.6000000000004,
+              "z": 64,
+              "yaw": 42
+            }
+          ],
+          "seq": 25
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "37dad5e8-d7a1-4180-bdde-f3f9d393e332",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 34,
+        "occurredAt": "2026-09-05T18:01:15.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 26,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1426.6,
+              "y": 112.19999999999982,
+              "z": 64,
+              "yaw": 199
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2106.6,
+              "y": -272.8000000000002,
+              "z": 64,
+              "yaw": 78
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1626.6,
+              "y": -412.8000000000002,
+              "z": 64,
+              "yaw": 268
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2211.6,
+              "y": -247.80000000000018,
+              "z": 64,
+              "yaw": 46
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1771.6,
+              "y": -147.80000000000018,
+              "z": 64,
+              "yaw": 74
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 104.20000000000027,
+              "y": -1578.6000000000004,
+              "z": 64,
+              "yaw": 242
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 179.20000000000027,
+              "y": -2098.6000000000004,
+              "z": 64,
+              "yaw": 40
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -100.79999999999973,
+              "y": -1858.6000000000004,
+              "z": 64,
+              "yaw": 296
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": 19.200000000000273,
+              "y": -1978.6000000000004,
+              "z": 64,
+              "yaw": 215
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 389.2000000000003,
+              "y": -1153.6000000000004,
+              "z": 64,
+              "yaw": 265
+            }
+          ],
+          "seq": 27
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1301.6,
+              "y": -67.80000000000018,
+              "z": 64,
+              "yaw": 7
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2061.6,
+              "y": -132.80000000000018,
+              "z": 64,
+              "yaw": 191
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1576.6,
+              "y": -482.8000000000002,
+              "z": 64,
+              "yaw": 90
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2226.6,
+              "y": -282.8000000000002,
+              "z": 64,
+              "yaw": 96
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1826.6,
+              "y": -187.80000000000018,
+              "z": 64,
+              "yaw": 344
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -10.799999999999727,
+              "y": -1573.6000000000004,
+              "z": 64,
+              "yaw": 8
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 204.20000000000027,
+              "y": -2168.6000000000004,
+              "z": 64,
+              "yaw": 1
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -185.79999999999973,
+              "y": -1828.6000000000004,
+              "z": 64,
+              "yaw": 269
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -5.799999999999727,
+              "y": -1988.6000000000004,
+              "z": 64,
+              "yaw": 318
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 244.20000000000027,
+              "y": -1263.6000000000004,
+              "z": 64,
+              "yaw": 195
+            }
+          ],
+          "seq": 28
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "1433f14c-12bb-4184-bc40-6b4205615183",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 35,
+        "occurredAt": "2026-09-05T18:01:25.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 29,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1371.6,
+              "y": 107.19999999999982,
+              "z": 64,
+              "yaw": 211
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -1961.6,
+              "y": -47.80000000000018,
+              "z": 64,
+              "yaw": 195
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1591.6,
+              "y": -432.8000000000002,
+              "z": 64,
+              "yaw": 357
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2296.6,
+              "y": -292.8000000000002,
+              "z": 64,
+              "yaw": 281
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1991.6,
+              "y": -127.80000000000018,
+              "z": 64,
+              "yaw": 303
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 9.200000000000273,
+              "y": -1418.6000000000004,
+              "z": 64,
+              "yaw": 39
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 209.20000000000027,
+              "y": -2098.6000000000004,
+              "z": 64,
+              "yaw": 94
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -225.79999999999973,
+              "y": -1878.6000000000004,
+              "z": 64,
+              "yaw": 145
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -100.79999999999973,
+              "y": -1978.6000000000004,
+              "z": 64,
+              "yaw": 123
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 309.2000000000003,
+              "y": -1183.6000000000004,
+              "z": 64,
+              "yaw": 162
+            }
+          ],
+          "seq": 30
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1496.6,
+              "y": 197.19999999999982,
+              "z": 64,
+              "yaw": 9
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -1911.6,
+              "y": -102.80000000000018,
+              "z": 64,
+              "yaw": 270
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1461.6,
+              "y": -327.8000000000002,
+              "z": 64,
+              "yaw": 255
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2271.6,
+              "y": -267.8000000000002,
+              "z": 64,
+              "yaw": 206
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1826.6,
+              "y": -142.80000000000018,
+              "z": 64,
+              "yaw": 1
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -20.799999999999727,
+              "y": -1328.6000000000004,
+              "z": 64,
+              "yaw": 251
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 99.20000000000027,
+              "y": -2058.6000000000004,
+              "z": 64,
+              "yaw": 177
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -95.79999999999973,
+              "y": -1873.6000000000004,
+              "z": 64,
+              "yaw": 162
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -265.7999999999997,
+              "y": -1918.6000000000004,
+              "z": 64,
+              "yaw": 205
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 234.20000000000027,
+              "y": -1318.6000000000004,
+              "z": 64,
+              "yaw": 128
+            }
+          ],
+          "seq": 31
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "93e3d61f-3330-4bfc-8537-1911bdad106a",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 36,
+        "occurredAt": "2026-09-05T18:01:31.444Z",
+        "payload": {
+          "type": "player_death",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "victim": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "killer": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "assists": [
+            {
+              "player": {
+                "steamId64": "76561198000000000",
+                "name": "hunzR",
+                "team": "team_a"
+              },
+              "flash": false
+            }
+          ],
+          "weapon": "fiveseven",
+          "headshot": false,
+          "penetrated": true,
+          "throughSmoke": true,
+          "roundTimeMs": 40139,
+          "seq": 32
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "a7c07b83-63ce-4fd1-91a9-5aacd9c55568",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 37,
+        "occurredAt": "2026-09-05T18:01:35.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 33,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1656.6,
+              "y": 32.19999999999982,
+              "z": 64,
+              "yaw": 352
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -1996.6,
+              "y": -57.80000000000018,
+              "z": 64,
+              "yaw": 297
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1286.6,
+              "y": -252.80000000000018,
+              "z": 64,
+              "yaw": 88
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2426.6,
+              "y": -237.80000000000018,
+              "z": 64,
+              "yaw": 121
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1906.6,
+              "y": -182.80000000000018,
+              "z": 64,
+              "yaw": 161
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 19.200000000000273,
+              "y": -1443.6000000000004,
+              "z": 64,
+              "yaw": 71
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 154.20000000000027,
+              "y": -2163.6000000000004,
+              "z": 64,
+              "yaw": 310
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -215.79999999999973,
+              "y": -1918.6000000000004,
+              "z": 64,
+              "yaw": 242
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 259.2000000000003,
+              "y": -1148.6000000000004,
+              "z": 64,
+              "yaw": 104
+            }
+          ],
+          "seq": 34
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1566.6,
+              "y": -27.800000000000182,
+              "z": 64,
+              "yaw": 217
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -1976.6,
+              "y": -52.80000000000018,
+              "z": 64,
+              "yaw": 332
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1321.6,
+              "y": -332.8000000000002,
+              "z": 64,
+              "yaw": 354
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2356.6,
+              "y": -417.8000000000002,
+              "z": 64,
+              "yaw": 92
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1731.6,
+              "y": -12.800000000000182,
+              "z": 64,
+              "yaw": 84
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -155.79999999999973,
+              "y": -1393.6000000000004,
+              "z": 64,
+              "yaw": 49
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 209.20000000000027,
+              "y": -2178.6000000000004,
+              "z": 64,
+              "yaw": 158
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -140.79999999999973,
+              "y": -1963.6000000000004,
+              "z": 64,
+              "yaw": 37
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 329.2000000000003,
+              "y": -1158.6000000000004,
+              "z": 64,
+              "yaw": 334
+            }
+          ],
+          "seq": 35
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "3ff75ede-af9c-4f72-bd08-fa672d176e03",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 38,
+        "occurredAt": "2026-09-05T18:01:45.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 36,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1631.6,
+              "y": 37.19999999999982,
+              "z": 64,
+              "yaw": 186
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2086.6,
+              "y": 87.19999999999982,
+              "z": 64,
+              "yaw": 237
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1181.6,
+              "y": -157.80000000000018,
+              "z": 64,
+              "yaw": 14
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2311.6,
+              "y": -302.8000000000002,
+              "z": 64,
+              "yaw": 191
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1666.6,
+              "y": 117.19999999999982,
+              "z": 64,
+              "yaw": 308
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 19.200000000000273,
+              "y": -1523.6000000000004,
+              "z": 64,
+              "yaw": 308
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 189.20000000000027,
+              "y": -2283.6000000000004,
+              "z": 64,
+              "yaw": 217
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -105.79999999999973,
+              "y": -2093.6000000000004,
+              "z": 64,
+              "yaw": 22
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 349.2000000000003,
+              "y": -1098.6000000000004,
+              "z": 64,
+              "yaw": 18
+            }
+          ],
+          "seq": 37
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "0bfec8b7-7d07-45f9-9110-9a242a8ec201",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 39,
+        "occurredAt": "2026-09-05T18:01:50.262Z",
+        "payload": {
+          "type": "player_death",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "victim": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "killer": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "assists": [],
+          "weapon": "usp_silencer",
+          "headshot": false,
+          "roundTimeMs": 58957,
+          "seq": 38
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1586.6,
+              "y": 7.199999999999818,
+              "z": 64,
+              "yaw": 288
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -1976.6,
+              "y": -67.80000000000018,
+              "z": 64,
+              "yaw": 99
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1351.6,
+              "y": -292.8000000000002,
+              "z": 64,
+              "yaw": 292
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2181.6,
+              "y": -162.80000000000018,
+              "z": 64,
+              "yaw": 130
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1676.6,
+              "y": -42.80000000000018,
+              "z": 64,
+              "yaw": 278
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -25.799999999999727,
+              "y": -1448.6000000000004,
+              "z": 64,
+              "yaw": 13
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 329.2000000000003,
+              "y": -2428.6000000000004,
+              "z": 64,
+              "yaw": 66
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 179.20000000000027,
+              "y": -1068.6000000000004,
+              "z": 64,
+              "yaw": 306
+            }
+          ],
+          "seq": 39
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "a157ac80-db68-4131-bc5f-bdeb5bcc81f9",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 40,
+        "occurredAt": "2026-09-05T18:01:55.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 40,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1561.6,
+              "y": 82.19999999999982,
+              "z": 64,
+              "yaw": 160
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -1826.6,
+              "y": -112.80000000000018,
+              "z": 64,
+              "yaw": 169
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1411.6,
+              "y": -207.80000000000018,
+              "z": 64,
+              "yaw": 188
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2291.6,
+              "y": -317.8000000000002,
+              "z": 64,
+              "yaw": 122
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1546.6,
+              "y": 7.199999999999818,
+              "z": 64,
+              "yaw": 83
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -70.79999999999973,
+              "y": -1368.6000000000004,
+              "z": 64,
+              "yaw": 54
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 199.20000000000027,
+              "y": -2283.6000000000004,
+              "z": 64,
+              "yaw": 221
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 264.2000000000003,
+              "y": -1198.6000000000004,
+              "z": 64,
+              "yaw": 107
+            }
+          ],
+          "seq": 41
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1596.6,
+              "y": -27.800000000000182,
+              "z": 64,
+              "yaw": 45
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -1966.6,
+              "y": -167.80000000000018,
+              "z": 64,
+              "yaw": 226
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1341.6,
+              "y": -287.8000000000002,
+              "z": 64,
+              "yaw": 53
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -2111.6,
+              "y": -332.8000000000002,
+              "z": 64,
+              "yaw": 189
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1511.6,
+              "y": 137.19999999999982,
+              "z": 64,
+              "yaw": 228
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -60.79999999999973,
+              "y": -1468.6000000000004,
+              "z": 64,
+              "yaw": 59
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 159.20000000000027,
+              "y": -2168.6000000000004,
+              "z": 64,
+              "yaw": 20
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 274.2000000000003,
+              "y": -1353.6000000000004,
+              "z": 64,
+              "yaw": 123
+            }
+          ],
+          "seq": 42
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "40d2fd21-c043-47ed-9d10-b3db5ece6a2b",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 41,
+        "occurredAt": "2026-09-05T18:02:02.184Z",
+        "payload": {
+          "type": "player_death",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "victim": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "killer": {
+            "steamId64": "76561198000000101",
+            "name": "Jörg",
+            "team": "team_b"
+          },
+          "assists": [
+            {
+              "player": {
+                "steamId64": "76561198000000104",
+                "name": "moepL",
+                "team": "team_b"
+              },
+              "flash": false
+            }
+          ],
+          "weapon": "deagle",
+          "headshot": true,
+          "penetrated": true,
+          "roundTimeMs": 70879,
+          "seq": 43
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "31e6c020-f132-4387-977e-d18f23ae45e8",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 42,
+        "occurredAt": "2026-09-05T18:02:05.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 44,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1641.6,
+              "y": 92.19999999999982,
+              "z": 64,
+              "yaw": 161
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -1911.6,
+              "y": 2.199999999999818,
+              "z": 64,
+              "yaw": 171
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1426.6,
+              "y": -107.80000000000018,
+              "z": 64,
+              "yaw": 139
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1411.6,
+              "y": 207.19999999999982,
+              "z": 64,
+              "yaw": 323
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -130.79999999999973,
+              "y": -1493.6000000000004,
+              "z": 64,
+              "yaw": 359
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 279.2000000000003,
+              "y": -2103.6000000000004,
+              "z": 64,
+              "yaw": 94
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 304.2000000000003,
+              "y": -1268.6000000000004,
+              "z": 64,
+              "yaw": 221
+            }
+          ],
+          "seq": 45
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1481.6,
+              "y": 212.19999999999982,
+              "z": 64,
+              "yaw": 141
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2031.6,
+              "y": 137.19999999999982,
+              "z": 64,
+              "yaw": 160
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1536.6,
+              "y": 7.199999999999818,
+              "z": 64,
+              "yaw": 87
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1251.6,
+              "y": 267.1999999999998,
+              "z": 64,
+              "yaw": 200
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -60.79999999999973,
+              "y": -1353.6000000000004,
+              "z": 64,
+              "yaw": 8
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 304.2000000000003,
+              "y": -2148.6000000000004,
+              "z": 64,
+              "yaw": 51
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 234.20000000000027,
+              "y": -1138.6000000000004,
+              "z": 64,
+              "yaw": 317
+            }
+          ],
+          "seq": 46
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "4f95bf2b-e47f-4216-98e3-20cc43d8ce8e",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 43,
+        "occurredAt": "2026-09-05T18:02:15.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 47,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1366.6,
+              "y": 337.1999999999998,
+              "z": 64,
+              "yaw": 67
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2161.6,
+              "y": 7.199999999999818,
+              "z": 64,
+              "yaw": 152
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1461.6,
+              "y": -152.80000000000018,
+              "z": 64,
+              "yaw": 50
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1296.6,
+              "y": 407.1999999999998,
+              "z": 64,
+              "yaw": 314
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -150.79999999999973,
+              "y": -1373.6000000000004,
+              "z": 64,
+              "yaw": 115
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 249.20000000000027,
+              "y": -2188.6000000000004,
+              "z": 64,
+              "yaw": 354
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 249.20000000000027,
+              "y": -1088.6000000000004,
+              "z": 64,
+              "yaw": 93
+            }
+          ],
+          "seq": 48
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1481.6,
+              "y": 307.1999999999998,
+              "z": 64,
+              "yaw": 84
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2316.6,
+              "y": -27.800000000000182,
+              "z": 64,
+              "yaw": 39
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1621.6,
+              "y": -7.800000000000182,
+              "z": 64,
+              "yaw": 2
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1241.6,
+              "y": 512.1999999999998,
+              "z": 64,
+              "yaw": 267
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 14.200000000000273,
+              "y": -1193.6000000000004,
+              "z": 64,
+              "yaw": 232
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 239.20000000000027,
+              "y": -2223.6000000000004,
+              "z": 64,
+              "yaw": 60
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 209.20000000000027,
+              "y": -1018.6000000000004,
+              "z": 64,
+              "yaw": 13
+            }
+          ],
+          "seq": 49
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "12091383-402c-4318-8443-69bf25a6e7e6",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 44,
+        "occurredAt": "2026-09-05T18:02:25.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 50,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1526.6,
+              "y": 187.19999999999982,
+              "z": 64,
+              "yaw": 295
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2191.6,
+              "y": 67.19999999999982,
+              "z": 64,
+              "yaw": 98
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1441.6,
+              "y": -157.80000000000018,
+              "z": 64,
+              "yaw": 161
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1081.6,
+              "y": 617.1999999999998,
+              "z": 64,
+              "yaw": 293
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 189.20000000000027,
+              "y": -1328.6000000000004,
+              "z": 64,
+              "yaw": 261
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 199.20000000000027,
+              "y": -2213.6000000000004,
+              "z": 64,
+              "yaw": 218
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 169.20000000000027,
+              "y": -953.6000000000004,
+              "z": 64,
+              "yaw": 78
+            }
+          ],
+          "seq": 51
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1576.6,
+              "y": 242.19999999999982,
+              "z": 64,
+              "yaw": 247
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2196.6,
+              "y": 227.19999999999982,
+              "z": 64,
+              "yaw": 223
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1396.6,
+              "y": -232.80000000000018,
+              "z": 64,
+              "yaw": 103
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -1121.6,
+              "y": 692.1999999999998,
+              "z": 64,
+              "yaw": 121
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 284.2000000000003,
+              "y": -1263.6000000000004,
+              "z": 64,
+              "yaw": 164
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 29.200000000000273,
+              "y": -2113.6000000000004,
+              "z": 64,
+              "yaw": 166
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 59.20000000000027,
+              "y": -803.6000000000004,
+              "z": 64,
+              "yaw": 14
+            }
+          ],
+          "seq": 52
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "f3077af7-af60-4a10-846b-1335ef56019e",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 45,
+        "occurredAt": "2026-09-05T18:02:32.837Z",
+        "payload": {
+          "type": "player_death",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "victim": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "killer": {
+            "steamId64": "76561198000000104",
+            "name": "moepL",
+            "team": "team_b"
+          },
+          "assists": [
+            {
+              "player": {
+                "steamId64": "76561198000000100",
+                "name": "wickeD",
+                "team": "team_b"
+              },
+              "flash": true
+            }
+          ],
+          "weapon": "tec9",
+          "headshot": false,
+          "roundTimeMs": 101532,
+          "seq": 53
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "8ded36ec-f146-42e7-94a7-69c91f5dc431",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 46,
+        "occurredAt": "2026-09-05T18:02:35.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 54,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1721.6,
+              "y": 382.1999999999998,
+              "z": 64,
+              "yaw": 330
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2341.6,
+              "y": 407.1999999999998,
+              "z": 64,
+              "yaw": 247
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1306.6,
+              "y": -337.8000000000002,
+              "z": 64,
+              "yaw": 17
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 234.20000000000027,
+              "y": -1083.6000000000004,
+              "z": 64,
+              "yaw": 341
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 189.20000000000027,
+              "y": -2123.6000000000004,
+              "z": 64,
+              "yaw": 276
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -75.79999999999973,
+              "y": -668.6000000000004,
+              "z": 64,
+              "yaw": 115
+            }
+          ],
+          "seq": 55
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": -1581.6,
+              "y": 342.1999999999998,
+              "z": 64,
+              "yaw": 136
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": -2361.6,
+              "y": 332.1999999999998,
+              "z": 64,
+              "yaw": 151
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -1181.6,
+              "y": -397.8000000000002,
+              "z": 64,
+              "yaw": 153
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": 399.2000000000003,
+              "y": -1083.6000000000004,
+              "z": 64,
+              "yaw": 351
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": 344.2000000000003,
+              "y": -2143.6000000000004,
+              "z": 64,
+              "yaw": 179
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": 84.20000000000027,
+              "y": -628.6000000000004,
+              "z": 64,
+              "yaw": 82
+            }
+          ],
+          "seq": 56
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "aa9bdd29-9b5d-451c-9d48-6dd5e0728709",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 47,
+        "occurredAt": "2026-09-05T18:02:45.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 57,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "e6cedb40-dcb2-4167-9e64-d434077875c1",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 48,
+        "occurredAt": "2026-09-05T18:02:46.305Z",
+        "payload": {
+          "type": "round_end",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "winner": {
+            "team": "team_a",
+            "side": "ct"
+          },
+          "winCondition": "time_expired",
+          "score": {
+            "teamA": 1,
+            "teamB": 0
+          },
+          "players": [
+            {
+              "player": {
+                "steamId64": "76561198000000000",
+                "name": "hunzR",
+                "team": "team_a"
+              },
+              "kills": 0,
+              "deaths": 0,
+              "assists": 1,
+              "damage": 24,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 1
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000001",
+                "name": "maex",
+                "team": "team_a"
+              },
+              "kills": 0,
+              "deaths": 0,
+              "assists": 0,
+              "damage": 0,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000002",
+                "name": "Zerberus",
+                "team": "team_a"
+              },
+              "kills": 0,
+              "deaths": 0,
+              "assists": 0,
+              "damage": 0,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000003",
+                "name": "flippo",
+                "team": "team_a"
+              },
+              "kills": 1,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 130,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 1,
+              "score": 2
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000004",
+                "name": "Kessi",
+                "team": "team_a"
+              },
+              "kills": 1,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 116,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 2
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000100",
+                "name": "wickeD",
+                "team": "team_b"
+              },
+              "kills": 0,
+              "deaths": 0,
+              "assists": 0,
+              "damage": 34,
+              "flashAssists": 1,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000101",
+                "name": "Jörg",
+                "team": "team_b"
+              },
+              "kills": 1,
+              "deaths": 0,
+              "assists": 0,
+              "damage": 100,
+              "flashAssists": 0,
+              "headshotKills": 1,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 2
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000102",
+                "name": "schnitzL",
+                "team": "team_b"
+              },
+              "kills": 0,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 0,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000103",
+                "name": "BastiGHG",
+                "team": "team_b"
+              },
+              "kills": 0,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 0,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000104",
+                "name": "moepL",
+                "team": "team_b"
+              },
+              "kills": 1,
+              "deaths": 0,
+              "assists": 1,
+              "damage": 119,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 3
+            }
+          ],
+          "roundTimeMs": 115000,
+          "seq": 58
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "ac744cce-8e5c-42ea-a23d-29948a231e94",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 49,
+        "occurredAt": "2026-09-05T18:02:46.305Z",
+        "payload": {
+          "type": "chat_message",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "text": "zusammen rein",
+          "scope": "team",
+          "seq": 59
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "ed2e02f6-1ffb-48e4-a7ef-4572ba1a3c06",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 50,
+        "occurredAt": "2026-09-05T18:02:55.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 60,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "747413ee-b709-42b2-89eb-045bccb99817",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 51,
+        "occurredAt": "2026-09-05T18:03:01.305Z",
+        "payload": {
+          "type": "side_swap",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "sides": {
+            "teamA": "t",
+            "teamB": "ct"
+          },
+          "seq": 61
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "c876604e-f8cc-44e8-851e-bf3171d47dde",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 52,
+        "occurredAt": "2026-09-05T18:03:05.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 62,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "53130c4e-2509-4901-8d3a-30c58bbf5bf4",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 53,
+        "occurredAt": "2026-09-05T18:03:08.305Z",
+        "payload": {
+          "type": "backup_written",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "filename": "matchzy_backup_map1_round02.cfg",
+          "seq": 63
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "41ce83bd-fafb-42a1-868b-5f7b5a676f17",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 54,
+        "occurredAt": "2026-09-05T18:03:08.305Z",
+        "payload": {
+          "type": "round_start",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "score": {
+            "teamA": 1,
+            "teamB": 0
+          },
+          "seq": 64
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 49.20000000000027,
+              "y": -1903.6000000000004,
+              "z": 64,
+              "yaw": 47
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": 99.20000000000027,
+              "y": -1508.6000000000004,
+              "z": 64,
+              "yaw": 58
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": -65.79999999999973,
+              "y": -1608.6000000000004,
+              "z": 64,
+              "yaw": 72
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": 254.20000000000027,
+              "y": -2078.6000000000004,
+              "z": 64,
+              "yaw": 334
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": 109.20000000000027,
+              "y": -1658.6000000000004,
+              "z": 64,
+              "yaw": 115
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -1926.6,
+              "y": -127.80000000000018,
+              "z": 64,
+              "yaw": 128
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -1256.6,
+              "y": 397.1999999999998,
+              "z": 64,
+              "yaw": 266
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1561.6,
+              "y": -57.80000000000018,
+              "z": 64,
+              "yaw": 253
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -1956.6,
+              "y": -457.8000000000002,
+              "z": 64,
+              "yaw": 287
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1446.6,
+              "y": 247.19999999999982,
+              "z": 64,
+              "yaw": 257
+            }
+          ],
+          "seq": 65
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "6d03e7b3-12cd-48de-987e-731e6c1d5adc",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 55,
+        "occurredAt": "2026-09-05T18:03:15.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 66,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 24.200000000000273,
+              "y": -1763.6000000000004,
+              "z": 64,
+              "yaw": 54
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": 259.2000000000003,
+              "y": -1603.6000000000004,
+              "z": 64,
+              "yaw": 211
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 29.200000000000273,
+              "y": -1623.6000000000004,
+              "z": 64,
+              "yaw": 134
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": 179.20000000000027,
+              "y": -1963.6000000000004,
+              "z": 64,
+              "yaw": 256
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -55.79999999999973,
+              "y": -1538.6000000000004,
+              "z": 64,
+              "yaw": 334
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -1966.6,
+              "y": -32.80000000000018,
+              "z": 64,
+              "yaw": 251
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -1356.6,
+              "y": 477.1999999999998,
+              "z": 64,
+              "yaw": 346
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1706.6,
+              "y": -227.80000000000018,
+              "z": 64,
+              "yaw": 348
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -1971.6,
+              "y": -297.8000000000002,
+              "z": 64,
+              "yaw": 33
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1456.6,
+              "y": 402.1999999999998,
+              "z": 64,
+              "yaw": 129
+            }
+          ],
+          "seq": 67
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 134.20000000000027,
+              "y": -1633.6000000000004,
+              "z": 64,
+              "yaw": 348
+            },
+            {
+              "steamId64": "76561198000000001",
+              "x": 189.20000000000027,
+              "y": -1698.6000000000004,
+              "z": 64,
+              "yaw": 91
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 204.20000000000027,
+              "y": -1478.6000000000004,
+              "z": 64,
+              "yaw": 52
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": 94.20000000000027,
+              "y": -2113.6000000000004,
+              "z": 64,
+              "yaw": 57
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": 49.20000000000027,
+              "y": -1363.6000000000004,
+              "z": 64,
+              "yaw": 249
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -1901.6,
+              "y": -112.80000000000018,
+              "z": 64,
+              "yaw": 246
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -1306.6,
+              "y": 337.1999999999998,
+              "z": 64,
+              "yaw": 145
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1686.6,
+              "y": -87.80000000000018,
+              "z": 64,
+              "yaw": 115
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -1811.6,
+              "y": -147.80000000000018,
+              "z": 64,
+              "yaw": 288
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1536.6,
+              "y": 262.1999999999998,
+              "z": 64,
+              "yaw": 280
+            }
+          ],
+          "seq": 68
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "a1868b71-dfe4-4c64-8bdb-146ed7b7c414",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 56,
+        "occurredAt": "2026-09-05T18:03:25.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 69,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "ac6a7ee9-1a98-47e0-adab-3c61c1967801",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 57,
+        "occurredAt": "2026-09-05T18:03:26.956Z",
+        "payload": {
+          "type": "player_death",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "victim": {
+            "steamId64": "76561198000000001",
+            "name": "maex",
+            "team": "team_a"
+          },
+          "killer": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "assists": [],
+          "weapon": "p250",
+          "headshot": false,
+          "roundTimeMs": 18651,
+          "seq": 70
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 104.20000000000027,
+              "y": -1473.6000000000004,
+              "z": 64,
+              "yaw": 75
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 134.20000000000027,
+              "y": -1508.6000000000004,
+              "z": 64,
+              "yaw": 50
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -60.79999999999973,
+              "y": -2128.6000000000004,
+              "z": 64,
+              "yaw": 132
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -10.799999999999727,
+              "y": -1198.6000000000004,
+              "z": 64,
+              "yaw": 320
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2021.6,
+              "y": -47.80000000000018,
+              "z": 64,
+              "yaw": 298
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -1401.6,
+              "y": 402.1999999999998,
+              "z": 64,
+              "yaw": 300
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1626.6,
+              "y": -162.80000000000018,
+              "z": 64,
+              "yaw": 318
+            },
+            {
+              "steamId64": "76561198000000103",
+              "x": -1741.6,
+              "y": -92.80000000000018,
+              "z": 64,
+              "yaw": 30
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1406.6,
+              "y": 397.1999999999998,
+              "z": 64,
+              "yaw": 13
+            }
+          ],
+          "seq": 71
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "4287a91f-775c-4a87-bf4f-dee4bda357f0",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 58,
+        "occurredAt": "2026-09-05T18:03:31.419Z",
+        "payload": {
+          "type": "player_death",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "victim": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "killer": {
+            "steamId64": "76561198000000000",
+            "name": "hunzR",
+            "team": "team_a"
+          },
+          "assists": [
+            {
+              "player": {
+                "steamId64": "76561198000000002",
+                "name": "Zerberus",
+                "team": "team_a"
+              },
+              "flash": true
+            }
+          ],
+          "weapon": "glock",
+          "headshot": false,
+          "roundTimeMs": 23114,
+          "seq": 72
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 24.200000000000273,
+              "y": -1313.6000000000004,
+              "z": 64,
+              "yaw": 327
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 239.20000000000027,
+              "y": -1598.6000000000004,
+              "z": 64,
+              "yaw": 260
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -95.79999999999973,
+              "y": -1963.6000000000004,
+              "z": 64,
+              "yaw": 260
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -160.79999999999973,
+              "y": -1253.6000000000004,
+              "z": 64,
+              "yaw": 261
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2181.6,
+              "y": -77.80000000000018,
+              "z": 64,
+              "yaw": 42
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -1481.6,
+              "y": 322.1999999999998,
+              "z": 64,
+              "yaw": 319
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1711.6,
+              "y": -182.80000000000018,
+              "z": 64,
+              "yaw": 331
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1371.6,
+              "y": 527.1999999999998,
+              "z": 64,
+              "yaw": 124
+            }
+          ],
+          "seq": 73
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "335ce3ef-b290-4aa1-94fb-b9b841737ad1",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 59,
+        "occurredAt": "2026-09-05T18:03:35.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 74,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 114.20000000000027,
+              "y": -1448.6000000000004,
+              "z": 64,
+              "yaw": 78
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 144.20000000000027,
+              "y": -1458.6000000000004,
+              "z": 64,
+              "yaw": 11
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -205.79999999999973,
+              "y": -1813.6000000000004,
+              "z": 64,
+              "yaw": 316
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -205.79999999999973,
+              "y": -1268.6000000000004,
+              "z": 64,
+              "yaw": 96
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2241.6,
+              "y": -142.80000000000018,
+              "z": 64,
+              "yaw": 233
+            },
+            {
+              "steamId64": "76561198000000101",
+              "x": -1621.6,
+              "y": 217.19999999999982,
+              "z": 64,
+              "yaw": 238
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1826.6,
+              "y": -337.8000000000002,
+              "z": 64,
+              "yaw": 12
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1391.6,
+              "y": 402.1999999999998,
+              "z": 64,
+              "yaw": 9
+            }
+          ],
+          "seq": 75
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "d1bc758a-bf01-4598-9346-efff31a351ce",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 60,
+        "occurredAt": "2026-09-05T18:03:40.762Z",
+        "payload": {
+          "type": "player_death",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "victim": {
+            "steamId64": "76561198000000101",
+            "name": "Jörg",
+            "team": "team_b"
+          },
+          "killer": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "assists": [],
+          "weapon": "glock",
+          "headshot": true,
+          "roundTimeMs": 32457,
+          "seq": 76
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 184.20000000000027,
+              "y": -1483.6000000000004,
+              "z": 64,
+              "yaw": 93
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 209.20000000000027,
+              "y": -1473.6000000000004,
+              "z": 64,
+              "yaw": 172
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -325.7999999999997,
+              "y": -1733.6000000000004,
+              "z": 64,
+              "yaw": 268
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -35.79999999999973,
+              "y": -1308.6000000000004,
+              "z": 64,
+              "yaw": 6
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2371.6,
+              "y": -172.80000000000018,
+              "z": 64,
+              "yaw": 284
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1921.6,
+              "y": -217.80000000000018,
+              "z": 64,
+              "yaw": 333
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1246.6,
+              "y": 267.1999999999998,
+              "z": 64,
+              "yaw": 301
+            }
+          ],
+          "seq": 77
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "cfedc27a-ad70-4288-8d3f-8e9726541b74",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 61,
+        "occurredAt": "2026-09-05T18:03:45.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 78,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "8431308a-7e08-42f0-9859-731c9bd77615",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 62,
+        "occurredAt": "2026-09-05T18:03:46.439Z",
+        "payload": {
+          "type": "bomb_planted",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "site": "b",
+          "roundTimeMs": 38134,
+          "seq": 79
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 139.20000000000027,
+              "y": -1323.6000000000004,
+              "z": 64,
+              "yaw": 262
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 194.20000000000027,
+              "y": -1508.6000000000004,
+              "z": 64,
+              "yaw": 337
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -305.7999999999997,
+              "y": -1588.6000000000004,
+              "z": 64,
+              "yaw": 322
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -15.799999999999727,
+              "y": -1148.6000000000004,
+              "z": 64,
+              "yaw": 164
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2356.6,
+              "y": 7.199999999999818,
+              "z": 64,
+              "yaw": 302
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1921.6,
+              "y": -127.80000000000018,
+              "z": 64,
+              "yaw": 103
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1101.6,
+              "y": 87.19999999999982,
+              "z": 64,
+              "yaw": 210
+            }
+          ],
+          "seq": 80
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 114.20000000000027,
+              "y": -1148.6000000000004,
+              "z": 64,
+              "yaw": 72
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 289.2000000000003,
+              "y": -1338.6000000000004,
+              "z": 64,
+              "yaw": 6
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -420.7999999999997,
+              "y": -1763.6000000000004,
+              "z": 64,
+              "yaw": 36
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": -35.79999999999973,
+              "y": -1293.6000000000004,
+              "z": 64,
+              "yaw": 143
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2521.6,
+              "y": 32.19999999999982,
+              "z": 64,
+              "yaw": 17
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1906.6,
+              "y": -62.80000000000018,
+              "z": 64,
+              "yaw": 111
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1151.6,
+              "y": 107.19999999999982,
+              "z": 64,
+              "yaw": 359
+            }
+          ],
+          "seq": 81
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "ad34b63e-907c-4dfe-ae11-a664e8acba95",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 63,
+        "occurredAt": "2026-09-05T18:03:55.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 82,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 234.20000000000027,
+              "y": -1193.6000000000004,
+              "z": 64,
+              "yaw": 189
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 204.20000000000027,
+              "y": -1343.6000000000004,
+              "z": 64,
+              "yaw": 42
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -450.7999999999997,
+              "y": -1628.6000000000004,
+              "z": 64,
+              "yaw": 25
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": 144.20000000000027,
+              "y": -1468.6000000000004,
+              "z": 64,
+              "yaw": 167
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2481.6,
+              "y": -32.80000000000018,
+              "z": 64,
+              "yaw": 26
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1851.6,
+              "y": 77.19999999999982,
+              "z": 64,
+              "yaw": 287
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1126.6,
+              "y": -2.800000000000182,
+              "z": 64,
+              "yaw": 15
+            }
+          ],
+          "seq": 83
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 284.2000000000003,
+              "y": -1058.6000000000004,
+              "z": 64,
+              "yaw": 75
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 154.20000000000027,
+              "y": -1463.6000000000004,
+              "z": 64,
+              "yaw": 156
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -530.7999999999997,
+              "y": -1708.6000000000004,
+              "z": 64,
+              "yaw": 0
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": 29.200000000000273,
+              "y": -1568.6000000000004,
+              "z": 64,
+              "yaw": 231
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2391.6,
+              "y": 137.19999999999982,
+              "z": 64,
+              "yaw": 36
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1711.6,
+              "y": 147.19999999999982,
+              "z": 64,
+              "yaw": 144
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1106.6,
+              "y": 107.19999999999982,
+              "z": 64,
+              "yaw": 257
+            }
+          ],
+          "seq": 84
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "48c09253-da80-499c-bcd3-ed825607de8d",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 64,
+        "occurredAt": "2026-09-05T18:04:05.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 85,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 209.20000000000027,
+              "y": -943.6000000000004,
+              "z": 64,
+              "yaw": 320
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 139.20000000000027,
+              "y": -1298.6000000000004,
+              "z": 64,
+              "yaw": 145
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -670.7999999999997,
+              "y": -1838.6000000000004,
+              "z": 64,
+              "yaw": 160
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": 199.20000000000027,
+              "y": -1538.6000000000004,
+              "z": 64,
+              "yaw": 224
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2471.6,
+              "y": 157.19999999999982,
+              "z": 64,
+              "yaw": 281
+            },
+            {
+              "steamId64": "76561198000000102",
+              "x": -1796.6,
+              "y": 77.19999999999982,
+              "z": 64,
+              "yaw": 105
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1166.6,
+              "y": 207.19999999999982,
+              "z": 64,
+              "yaw": 119
+            }
+          ],
+          "seq": 86
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "13538a8e-b1f9-4b36-9b42-268315dab8a0",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 65,
+        "occurredAt": "2026-09-05T18:04:12.043Z",
+        "payload": {
+          "type": "player_death",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "victim": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "killer": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "assists": [],
+          "weapon": "p250",
+          "headshot": false,
+          "roundTimeMs": 63738,
+          "seq": 87
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 204.20000000000027,
+              "y": -983.6000000000004,
+              "z": 64,
+              "yaw": 287
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 34.20000000000027,
+              "y": -1343.6000000000004,
+              "z": 64,
+              "yaw": 204
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -565.7999999999997,
+              "y": -1998.6000000000004,
+              "z": 64,
+              "yaw": 147
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": 364.2000000000003,
+              "y": -1473.6000000000004,
+              "z": 64,
+              "yaw": 194
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2341.6,
+              "y": 117.19999999999982,
+              "z": 64,
+              "yaw": 226
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1296.6,
+              "y": 212.19999999999982,
+              "z": 64,
+              "yaw": 98
+            }
+          ],
+          "seq": 88
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "2caf2b71-305f-42fd-9ed7-20397de75f05",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 66,
+        "occurredAt": "2026-09-05T18:04:15.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 89,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 309.2000000000003,
+              "y": -1163.6000000000004,
+              "z": 64,
+              "yaw": 223
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 79.20000000000027,
+              "y": -1403.6000000000004,
+              "z": 64,
+              "yaw": 128
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -540.7999999999997,
+              "y": -1883.6000000000004,
+              "z": 64,
+              "yaw": 318
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": 264.2000000000003,
+              "y": -1653.6000000000004,
+              "z": 64,
+              "yaw": 214
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2466.6,
+              "y": 2.199999999999818,
+              "z": 64,
+              "yaw": 236
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1421.6,
+              "y": 242.19999999999982,
+              "z": 64,
+              "yaw": 276
+            }
+          ],
+          "seq": 90
+        }
+      ]
+    },
+    {
+      "type": "tick",
+      "ticks": [
+        {
+          "type": "position_tick",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "positions": [
+            {
+              "steamId64": "76561198000000000",
+              "x": 444.2000000000003,
+              "y": -1263.6000000000004,
+              "z": 64,
+              "yaw": 97
+            },
+            {
+              "steamId64": "76561198000000002",
+              "x": 119.20000000000027,
+              "y": -1318.6000000000004,
+              "z": 64,
+              "yaw": 283
+            },
+            {
+              "steamId64": "76561198000000003",
+              "x": -690.7999999999997,
+              "y": -1773.6000000000004,
+              "z": 64,
+              "yaw": 3
+            },
+            {
+              "steamId64": "76561198000000004",
+              "x": 419.2000000000003,
+              "y": -1723.6000000000004,
+              "z": 64,
+              "yaw": 39
+            },
+            {
+              "steamId64": "76561198000000100",
+              "x": -2576.6,
+              "y": -177.80000000000018,
+              "z": 64,
+              "yaw": 306
+            },
+            {
+              "steamId64": "76561198000000104",
+              "x": -1476.6,
+              "y": 77.19999999999982,
+              "z": 64,
+              "yaw": 38
+            }
+          ],
+          "seq": 91
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "589c278c-eecb-426c-8b43-ef980e8a9aae",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 67,
+        "occurredAt": "2026-09-05T18:04:25.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 92,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "2a0e131c-cce4-4388-9dc7-4baf8dee9dea",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 68,
+        "occurredAt": "2026-09-05T18:04:26.439Z",
+        "payload": {
+          "type": "bomb_exploded",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "site": "b",
+          "roundTimeMs": 78134,
+          "seq": 93
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "5853c6e5-7b83-4da6-ac9e-53f600a0ed7c",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 69,
+        "occurredAt": "2026-09-05T18:04:27.439Z",
+        "payload": {
+          "type": "round_end",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "winner": {
+            "team": "team_a",
+            "side": "t"
+          },
+          "winCondition": "bomb_exploded",
+          "score": {
+            "teamA": 2,
+            "teamB": 0
+          },
+          "players": [
+            {
+              "player": {
+                "steamId64": "76561198000000000",
+                "name": "hunzR",
+                "team": "team_a"
+              },
+              "kills": 1,
+              "deaths": 0,
+              "assists": 1,
+              "damage": 121,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 3
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000001",
+                "name": "maex",
+                "team": "team_a"
+              },
+              "kills": 0,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 0,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000002",
+                "name": "Zerberus",
+                "team": "team_a"
+              },
+              "kills": 0,
+              "deaths": 0,
+              "assists": 0,
+              "damage": 39,
+              "flashAssists": 1,
+              "headshotKills": 0,
+              "bombPlants": 1,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 2
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000003",
+                "name": "flippo",
+                "team": "team_a"
+              },
+              "kills": 1,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 130,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 1,
+              "score": 2
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000004",
+                "name": "Kessi",
+                "team": "team_a"
+              },
+              "kills": 3,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 342,
+              "flashAssists": 0,
+              "headshotKills": 1,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 1,
+              "score": 6
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000100",
+                "name": "wickeD",
+                "team": "team_b"
+              },
+              "kills": 0,
+              "deaths": 0,
+              "assists": 0,
+              "damage": 34,
+              "flashAssists": 1,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000101",
+                "name": "Jörg",
+                "team": "team_b"
+              },
+              "kills": 1,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 100,
+              "flashAssists": 0,
+              "headshotKills": 1,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 2
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000102",
+                "name": "schnitzL",
+                "team": "team_b"
+              },
+              "kills": 1,
+              "deaths": 2,
+              "assists": 0,
+              "damage": 83,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 2
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000103",
+                "name": "BastiGHG",
+                "team": "team_b"
+              },
+              "kills": 0,
+              "deaths": 2,
+              "assists": 0,
+              "damage": 0,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            },
+            {
+              "player": {
+                "steamId64": "76561198000000104",
+                "name": "moepL",
+                "team": "team_b"
+              },
+              "kills": 1,
+              "deaths": 0,
+              "assists": 1,
+              "damage": 119,
+              "flashAssists": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 3
+            }
+          ],
+          "roundTimeMs": 79134,
+          "seq": 94
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "7a7acdc9-47ab-4c7f-a609-fba5117e20a6",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 70,
+        "occurredAt": "2026-09-05T18:04:27.439Z",
+        "payload": {
+          "type": "chat_message",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "text": "gg wp",
+          "scope": "all",
+          "seq": 95
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "88fe9470-86a3-46a5-a3c0-3c40c0b2be7a",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 71,
+        "occurredAt": "2026-09-05T18:04:29.439Z",
+        "payload": {
+          "type": "map_end",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "map": "de_mirage",
+          "score": {
+            "teamA": 2,
+            "teamB": 0
+          },
+          "winner": "team_a",
+          "seq": 96
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "635cb83c-f7b6-4655-8551-1d0fb0d11b76",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 72,
+        "occurredAt": "2026-09-05T18:04:35.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 97,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "bc327f8d-accb-4385-b8a2-a5342a40fe51",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 73,
+        "occurredAt": "2026-09-05T18:04:35.439Z",
+        "payload": {
+          "type": "demo_available",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_mirage.ezpug-sim.json",
+          "sizeBytes": 11079,
+          "seq": 98
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "062002bf-db6c-4714-94f4-c57f1920c711",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 74,
+        "occurredAt": "2026-09-05T18:04:35.439Z",
+        "payload": {
+          "type": "demo.uploaded",
+          "mapNumber": 1,
+          "key": "demos/conformance.dem",
+          "size": 11079,
+          "sha256": "812320a0123650f1ddfdf40215065ae379e540426c01279e3f0647c5c7d687ca",
+          "contentType": "application/json; charset=utf-8"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "835febf6-fed2-471a-99a5-e4971f365724",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 75,
+        "occurredAt": "2026-09-05T18:04:37.439Z",
+        "payload": {
+          "type": "series_end",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seriesScore": {
+            "teamA": 1,
+            "teamB": 0
+          },
+          "winner": "team_a",
+          "seq": 99
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "af9dabf6-c88e-451b-b87c-1805fe888889",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-stream-hello",
+        "seq": 76,
+        "occurredAt": "2026-09-05T18:04:37.439Z",
+        "payload": {
+          "type": "match.ended",
+          "state": "ended",
+          "reason": {
+            "kind": "completed"
+          }
+        }
+      }
+    }
+  ]
+}
