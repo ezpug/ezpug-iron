@@ -229,7 +229,7 @@ every offline proof here.
   scope), a `GET /v1/fleet/budget` a health tile can draw. Tests on the fake Dathost's
   prices and a fake clock crossing a month boundary.
 
-- [ ] **T6 (fable): The link.** `/link` on the orchestrator: a raw `ws` upgrade beside
+- [x] **T6 (fable): The link.** `/link` on the orchestrator: a raw `ws` upgrade beside
   Hono (attach listeners before awaiting anything — the Socket.IO lesson the platform
   learned), server-token auth, T1's protocol, per-server `seq` dedup, ack per event,
   batches applied in order, heartbeat → `servers.lastSeenAt`, silence past two intervals
