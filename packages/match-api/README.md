@@ -16,11 +16,13 @@ Five entry points:
   `matchRequestSchema`, `matchSchema`, `matchCommandSchema`, the fleet shapes, the
   webhook envelope and the stream frames, the route table `matchApiRoutes`, the error
   vocabulary, the scopes.
-- `@ezpug/match-api/client` — `createMatchApiClient({ baseUrl, apiKey, fetch? })`, typed
-  from the route table.
-- `@ezpug/match-api/webhooks` — the envelope, the orchestration facts,
-  `verifyWebhookSignature` (and `signWebhook`, so a test can round-trip), the retry
-  policy as constants.
+- `@ezpug/match-api/client` — `createMatchApiClient({ baseUrl, apiKey, fetch?, clock? })`,
+  typed from the route table, with an `Idempotency-Key` on the calls that have one,
+  retries with backoff for `429` and `5xx` on the injected clock, and
+  `subscribeStream({ matchId, onFrame })` for the live socket.
+- `@ezpug/match-api/webhooks` — the envelope, the orchestration facts, `verifyWebhook`
+  (and `signWebhook`, so a test can round-trip), `parseEnvelope`,
+  `createDeliveryDeduper`, the retry policy as constants.
 - `@ezpug/match-api/fixtures` — one valid event and one valid fact per type, and the
   recorded conformance fixtures once they exist.
 - `@ezpug/match-api/fake` — `createFakeOrchestrator({ clock, ... })`: every route in-process
@@ -51,16 +53,16 @@ await client.matches.command({
 ```
 
 ```ts
-import { verifyWebhookSignature, webhookEnvelopeSchema } from '@ezpug/match-api/webhooks'
+import { createDeliveryDeduper, verifyWebhook } from '@ezpug/match-api/webhooks'
 
-const verdict = await verifyWebhookSignature({
-  header: request.headers.get('x-ezpug-signature'),
-  body: rawBody,
-  secrets: { 'whsec-2026-09': process.env.EZPUG_WEBHOOK_SECRET },
-  clock,
-})
-if (!verdict.ok) return new Response(null, { status: 401 })
-const envelope = webhookEnvelopeSchema.parse(JSON.parse(rawBody))
+const deduper = createDeliveryDeduper(store)
+
+// `body` is the bytes as received — the signature is over those, not over a re-serialisation.
+const body = await request.text()
+const result = await verifyWebhook({ headers: request.headers, body, secrets, clock })
+if (!result.ok) return new Response(null, { status: result.status })
+if ((await deduper.check(result.envelope)) === null) await handle(result.envelope)
+return new Response(null, { status: 200 })
 ```
 
 The reference is [`docs/match-api.md`](https://github.com/ezpug/ezpug-iron/blob/main/docs/match-api.md)

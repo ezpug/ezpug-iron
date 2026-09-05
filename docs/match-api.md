@@ -466,6 +466,49 @@ stops every later delivery for the match: the endpoint said it no longer wants t
 events route and the stream keep working. The constants are `WEBHOOK_RETRY_DELAYS_MS`,
 `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_ATTEMPT_TIMEOUT_MS`, `WEBHOOK_STOP_STATUS`.
 
+### Handling one
+
+`@ezpug/match-api/webhooks` is the consumer's whole half. A handler is four lines and two
+rules:
+
+```ts
+import { createDeliveryDeduper, verifyWebhook } from '@ezpug/match-api/webhooks'
+
+const deduper = createDeliveryDeduper(store) // your Redis, your table, a Map in a test
+
+app.post('/hooks/ezpug', async request => {
+  const body = await request.text() // the bytes, before anything parses them
+  const result = await verifyWebhook({ headers: request.headers, body, secrets, clock })
+  if (!result.ok) return new Response(null, { status: result.status }) // 401 or 400
+  if ((await deduper.check(result.envelope)) === null) await handle(result.envelope)
+  return new Response(null, { status: 200 })
+})
+```
+
+- **Verify the bytes that arrived**, never a re-serialisation of the parsed JSON: the HMAC
+  is over the body as sent, and a JSON round trip does not preserve key order. Read the
+  body as text once, verify, then parse — the order `verifyWebhook` itself uses.
+- **Answer fast.** A `2xx` inside ten seconds ends the delivery; anything slower is
+  retried and your handler runs again. Do the work after the answer, keyed by
+  `(matchId, seq)`.
+
+`verifyWebhook({ headers, body, secrets, clock })` takes headers as a `Headers`, Node's
+`req.headers` or a plain record, and answers `{ ok: true, envelope, secretId, deliveryId,
+attempt, timestamp }` or `{ ok: false, reason, status, message }` — `reason` being
+`missing_header | malformed_header | stale_timestamp | unknown_secret | signature_mismatch`
+(`401`) or `invalid_body` (`400`). Refusing is not a retry request: the orchestrator
+retries a refused delivery on the schedule above anyway, so a consumer whose secret was
+wrong for a minute loses nothing. `parseEnvelope(raw)` is the parse alone, for a replay
+from your own store or from the events route.
+
+`createDeliveryDeduper(store)` records **two** keys per envelope — `delivery:<deliveryId>`
+and `fact:<matchId>:<seq>` — and answers `null` (new, handle it), `'duplicate_delivery'`
+(a retry) or `'duplicate_fact'` (the same fact through another path). Two keys because the
+webhook, the stream's `event` frame and the events route all carry the same envelope: one
+deduper in front of all three is what makes taking all three safe. The store is yours
+(`{ has, add }`, sync or async); keep entries longer than the retry schedule's sixteen
+hours. `createMemoryDeliveryStore()` is the `Map` version for tests.
+
 ## The stream
 
 `GET /v1/matches/:matchId/stream`, a WebSocket upgrade, one socket per match per
@@ -492,6 +535,61 @@ origin of a browser socket must be in the request's `callbacks.streamAllowedOrig
 `match.ended` or `match.failed` came first), `4001` unauthorized, `4003` forbidden (scope,
 token for another match, origin), `4004` no such match, `4008` slow consumer (frames were
 dropped; reconnect and replay). Reconnect on a network close (`1006`), never on these.
+
+## The client
+
+`@ezpug/match-api/client` is generated from the same route table the orchestrator serves,
+so a call cannot disagree with it about a path, a method or a shape:
+
+```ts
+import { createMatchApiClient } from '@ezpug/match-api/client'
+
+const client = createMatchApiClient({ baseUrl: 'https://gs.ezpug.com', apiKey, clock })
+const match = await client.matches.create({ body: request })
+```
+
+Every non-2xx is thrown as an `ApiError` with the envelope's `code`, `message`, `details`
+and the HTTP status. A request that produced no answer at all after its attempts is a
+`TransportError` with the last `cause` — the one error that is not the orchestrator's
+verdict about anything.
+
+**Idempotency.** An unsafe call whose body names its own key sends it as
+`Idempotency-Key: <route key>:<body key>` — `matches.create:platform-match-1`,
+`matches.command:<correlationId>`. The orchestrator answers a repeat of a key with the
+first answer instead of doing the thing twice. A mint (`player-tokens`, `keys`) names
+none: it makes a new secret every time, and repeating one is the caller's decision.
+The header mirrors the body, so this round nothing has to read it: the fake (and the
+orchestrator PRD-02 grows) keys a create on `clientMatchId` and a command on
+`correlationId` and answers a repeat with the first answer. What the header adds is a
+retry key that survives a body the orchestrator never got to parse.
+
+**Retries** happen on the injected clock, never on a wall clock:
+
+| Retry | 1     | 2     | 3     | 4      |
+| ----- | ----- | ----- | ----- | ------ |
+| after | 200 ms | 800 ms | 3.2 s | 12.8 s |
+
+Five attempts, about seventeen seconds (`CLIENT_RETRY_DELAYS_MS`, `CLIENT_MAX_ATTEMPTS`).
+A `Retry-After` on the answer wins over the schedule, capped at
+`CLIENT_RETRY_AFTER_MAX_MS` (60 s). Two rules decide whether an attempt is repeated at
+all:
+
+- **The request must be safe or idempotent**: a `GET`, or one carrying an
+  `Idempotency-Key`.
+- **The answer must be weather**: no answer at all, a `429`, or any `5xx`
+  (`isRetryableStatus`). Everything else is a verdict and stands — a `402 budget_exceeded`
+  is money, and repeating it only wastes the ceiling it just refused.
+
+`retry: false` attempts everything once; `retry: { delaysMs, retryAfterMaxMs, onRetry }`
+tunes it. `createRetryingFetch({ clock, ... })` is the same behaviour as a plain `fetch`
+wrapper.
+
+**The stream** is an upgrade, so it is not a call on the client but
+`client.subscribeStream({ matchId, onFrame })`, which returns `{ url, closed, close() }` —
+`closed` resolving with the close code (`STREAM_CLOSE_CODES`). It does not reconnect and
+does not buffer: a frame that never arrived is fetched from the events route, and only the
+caller knows whether it still cares. On Node, pass `WebSocket` from `ws` so the API key can
+travel as a header; a browser gets a player token and subscribes with `?token=`.
 
 ## The fake
 
@@ -622,6 +720,11 @@ reads this list first; everything not on it is a copy.
   (`accepted | duplicate | ephemeral`, `applied`) stays on the plugin↔orchestrator side.
 - The stream frames (`hello`, `event`, `tick`, `command_result`, `presence`), `?token=`
   for browsers and the close codes. The platform's own realtime channels are unrelated.
+- The client's half: the `Idempotency-Key` header and the `<route key>:<body key>` format,
+  the retry policy (`CLIENT_RETRY_DELAYS_MS`, `CLIENT_RETRY_AFTER_MAX_MS`, the safe-or-keyed
+  rule), `TransportError`, `subscribeStream`. The consumer's half: `verifyWebhook`'s result
+  and its `reason` set, and the deduper's two keys (`delivery:`, `fact:`). The platform
+  retries nothing today and dedupes on its own ingestion table.
 - The fake (`@ezpug/match-api/fake`), whole: its options and fault knobs, the `sim`
   provider's facts (`sim-N`, `sim-N.sim.invalid`, region `sim`), the invented open-join
   roster rule, the `player_command` plugin event and `playerCommand`, the `fake-key-`,

@@ -15,7 +15,8 @@
  *   client is generated from; `rpc.ts` is the declaration helper.
  * - **Scopes and errors**: what a key may do, and the one error shape.
  * - **The webhooks** (`webhooks/`): the envelope, the orchestration facts,
- *   the events replay's page, the signature scheme and the retry policy.
+ *   the events replay's page, the signature scheme, the retry policy, the
+ *   verifier and the delivery deduper.
  * - **The stream** (`stream/`): the frames one socket per match carries.
  * - **The registry** (`schemas.ts`): every wire shape by its generated name,
  *   and the JSON Schema export the C# side reads.
@@ -35,7 +36,9 @@ export * from './schemas'
 export * from './scopes'
 export * from './stream/frames'
 export * from './vocabulary'
+export * from './webhooks/deduper'
 export * from './webhooks/envelope'
 export * from './webhooks/events'
 export * from './webhooks/retry'
 export * from './webhooks/signature'
+export * from './webhooks/verify'

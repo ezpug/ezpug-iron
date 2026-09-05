@@ -256,7 +256,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   history seed will run on, so it must play a Bo1 in milliseconds under a fake clock.
   References: T2–T5, the platform's `simulator/provider.ts` as the shape of the handles.
 
-- [ ] **T7: The client and the verifier.** `@ezpug/match-api/client`:
+- [x] **T7: The client and the verifier.** `@ezpug/match-api/client`:
   `createMatchApiClient({baseUrl, apiKey, fetch?, clock?})` typed from the route table,
   idempotent create (`clientMatchId` + `Idempotency-Key`), retries with backoff for 5xx and
   429 on the clock, a `subscribeStream(matchId)` helper over `ws`/`WebSocket`, typed

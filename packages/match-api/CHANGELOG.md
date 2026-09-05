@@ -15,9 +15,16 @@ A change to a schema is a release with a line here (decisions 3, 24).
   retry schedule and the `410` stop, `GET /v1/matches/:matchId/events` with a `seq` cursor.
 - The stream: `GET /v1/matches/:matchId/stream` (an upgrade) and its frames `hello`,
   `event`, `tick`, `command_result`, `presence`; close codes.
-- `@ezpug/match-api/client`: the table-driven typed client.
+- `@ezpug/match-api/client`: the table-driven typed client —
+  `createMatchApiClient({ baseUrl, apiKey, fetch?, clock?, retry?, WebSocket? })` with the
+  `Idempotency-Key` header on a create and a command, retries with backoff for `429`, `5xx`
+  and a dead connection on the injected clock (`CLIENT_RETRY_DELAYS_MS`, `Retry-After`
+  honoured and capped), `TransportError`, and `subscribeStream({ matchId, onFrame })` over
+  `ws`/`WebSocket`.
 - `@ezpug/match-api/webhooks`: `signWebhook`, `verifyWebhookSignature`, the envelope, the
-  facts and the retry constants.
+  facts and the retry constants, plus the consumer's half —
+  `verifyWebhook({ headers, body, secrets, clock })`, `parseEnvelope` and
+  `createDeliveryDeduper(store)` keyed on `deliveryId` and `(matchId, seq)`.
 - `@ezpug/match-api/fixtures`: one valid event per type, one valid fact per type, `envelopeFixture`.
 - `@ezpug/match-api/fake`: `createFakeOrchestrator({ clock, prng?, gamemodes?, providers?,
   webhooks?, fetch? })` — every route in-process (`fake.client`) and as a Hono app

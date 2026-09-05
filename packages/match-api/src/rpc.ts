@@ -62,6 +62,21 @@ export interface RouteDef<
 /** Where every Match API route lives. A route outside it does not define. */
 export const MATCH_API_PREFIX = '/v1/'
 
+/**
+ * **The retry key.** An unsafe request may carry `Idempotency-Key`: the
+ * orchestrator answers a repeat of the same key with the first answer instead
+ * of doing the thing twice, which is what makes a client's automatic retry
+ * safe when a `502` or a dropped connection left it not knowing whether the
+ * first attempt landed.
+ *
+ * The client (`@ezpug/match-api/client`) sets it from the body's own
+ * idempotency field — `clientMatchId` on a create, `correlationId` on a
+ * command — so the header never says something the body does not, and it
+ * retries a non-`GET` **only** when it could set one. A request without the
+ * header is attempted once.
+ */
+export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key'
+
 export function defineRoute<const Def extends RouteDef>(def: Def): Def {
   routePathSchema.parse(def.path)
   matchApiScopeSchema.parse(def.scope)
@@ -179,13 +194,29 @@ export type ApiClient<Routes extends RouteTree> = {
       : never
 }
 
+/**
+ * One outgoing call, as the header hook sees it — after the route's schemas
+ * have parsed the input and before anything is sent. Enough to decide a
+ * header from what the call *is*: the key's `authorization` for every route,
+ * an `Idempotency-Key` for the ones whose body names one.
+ */
+export interface ClientRequest {
+  /** The dotted key in the route table (`matches.create`). */
+  key: string
+  route: RouteDef
+  /** The validated input the call will send. */
+  input: RouteInput<RouteDef>
+  /** Where it is going, params substituted and query applied. */
+  url: URL
+}
+
 export interface ClientOptions {
   /** The orchestrator's origin, no trailing slash. */
   baseUrl: string
   /** Injectable for tests and servers; defaults to `globalThis.fetch`. */
   fetch?: typeof globalThis.fetch
   /** Extra headers per request — the API key's `authorization` arrives here. */
-  headers?: () => Record<string, string> | Promise<Record<string, string>>
+  headers?: (request: ClientRequest) => Record<string, string> | Promise<Record<string, string>>
 }
 
 function isRouteDef(value: RouteDef | RouteTree): value is RouteDef {
@@ -193,6 +224,7 @@ function isRouteDef(value: RouteDef | RouteTree): value is RouteDef {
 }
 
 async function callRoute(
+  key: string,
   route: RouteDef,
   options: ClientOptions,
   input: { params?: unknown; query?: unknown; body?: unknown },
@@ -200,18 +232,18 @@ async function callRoute(
   const parsed = parseRouteInput(route, input)
   let path: string = route.path
   if (parsed.params) {
-    for (const [key, value] of Object.entries(parsed.params))
-      path = path.replace(`:${key}`, encodeURIComponent(String(value)))
+    for (const [name, value] of Object.entries(parsed.params))
+      path = path.replace(`:${name}`, encodeURIComponent(String(value)))
   }
   const url = new URL(`${options.baseUrl}${path}`)
   if (parsed.query) {
-    for (const [key, value] of Object.entries(parsed.query)) {
-      if (value !== undefined) url.searchParams.set(key, String(value))
+    for (const [name, value] of Object.entries(parsed.query)) {
+      if (value !== undefined) url.searchParams.set(name, String(value))
     }
   }
   const headers: Record<string, string> = {
     accept: 'application/json',
-    ...(await options.headers?.()),
+    ...(await options.headers?.({ key, route, input: parsed, url })),
   }
   const init: RequestInit = {
     method: route.method.toUpperCase(),
@@ -245,16 +277,17 @@ export function createClient<const Routes extends RouteTree>(
   routes: Routes,
   options: ClientOptions,
 ): ApiClient<Routes> {
-  const build = (node: RouteDef | RouteTree): unknown => {
+  const build = (node: RouteDef | RouteTree, dotted: string): unknown => {
     if (isRouteDef(node)) {
-      return (input: Parameters<typeof callRoute>[2] = {}) => callRoute(node, options, input)
+      return (input: Parameters<typeof callRoute>[3] = {}) =>
+        callRoute(dotted, node, options, input)
     }
     const group: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(node)) {
       if (isRouteDef(value) && value.upgrade) continue
-      group[key] = build(value)
+      group[key] = build(value, dotted ? `${dotted}.${key}` : key)
     }
     return group
   }
-  return build(routes) as ApiClient<Routes>
+  return build(routes, '') as ApiClient<Routes>
 }
