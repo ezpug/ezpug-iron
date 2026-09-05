@@ -13,6 +13,7 @@ import type {
   SimStatus,
   WebhookPayload,
 } from '@ezpug/match-api'
+import type { LinkServerState, ServerVersions } from '@ezpug/protocol'
 
 /**
  * **What the match machine needs from storage**, and nothing more (PRD-02
@@ -132,6 +133,14 @@ export interface ServerRow {
   tv: ServerTv | null
   costHourlyCents: number
   providerMeta: Record<string, unknown> | null
+  /** What the server said in `hello` over the link (T6); null until it dialled in. */
+  versions: ServerVersions | null
+  hostname: string | null
+  currentMap: string | null
+  /** The server's own state as last reported over the link. */
+  linkState: LinkServerState | null
+  /** The highest link `seq` acknowledged contiguously — `welcome.ackedSeq` on reconnect. */
+  linkAckedSeq: number
   lastSeenAt: Date | null
   lastError: string | null
   releasedReason: string | null
@@ -158,6 +167,8 @@ export interface ServerTokenRow {
   fleetServerId: string
   tokenHash: string
   createdAt: Date
+  lastUsedAt: Date | null
+  revokedAt: Date | null
 }
 
 export interface PlayerTokenRow {
@@ -250,8 +261,20 @@ export interface MatchStore {
   listKeyLedgerSince: (keyId: string, since: Date) => Promise<ServerRow[]>
   /** The hash of the link token minted for a row (decision 5); the link (T6) looks it up. */
   insertServerToken: (row: ServerTokenRow) => Promise<void>
+  /** The link's one lookup on `hello`: the token's row, revoked or not — the caller decides. */
+  findServerTokenByHash: (tokenHash: string) => Promise<ServerTokenRow | undefined>
+  /** `last_used_at`, written once per `hello`. */
+  touchServerToken: (id: string, at: Date) => Promise<void>
 
   // --- backups and player tokens (written by T6/T14 and T24; read here) ----------
+  /**
+   * Write one round backup as the link relayed it: the same (match, map,
+   * round) replaces the earlier one, and only the newest `keep` rows of the
+   * match survive — backups are small text, but a Bo3 writes sixty of them.
+   */
+  upsertBackup: (row: BackupRow, keep: number) => Promise<void>
+  /** Every backup of a match, newest round first. */
+  listBackups: (matchId: string) => Promise<BackupRow[]>
   latestBackup: (matchId: string) => Promise<BackupRow | undefined>
   findPlayerTokenByHash: (tokenHash: string) => Promise<PlayerTokenRow | undefined>
 }

@@ -47,3 +47,16 @@ writes it back and asserts the same bytes — and does the same for every vocabu
 `pnpm --filter @ezpug/protocol record` and read the diff.
 
 Nothing in a fixture is a secret; every token carries `not-a-secret` and a test checks it.
+
+## The fake server, and the recorded link exchanges
+
+`src/fake-server.ts` (`@ezpug/protocol/fake-server`) is a server that speaks the link from
+TypeScript: it says `hello` first, sequences and buffers its events until an `ack` names
+them, resends past `welcome.ackedSeq` on reconnect, answers `command` and `player_command`
+by `correlationId`, and reports `state` after `assign`, `release` and `drain` — exactly what
+the C# link client must do. The orchestrator's link tests connect it in place of a plugin
+and record what crossed the socket, scrubbed, into `fixtures/link/*.json` (`{ schema:
+"LinkExchange", exchange: [{ from, frame } | { from, close }] }`). Those files are proven
+on both sides: `src/fixtures.test.ts` parses every frame with its direction's schema and
+asserts the bytes, and `ProtocolRoundTripTests.cs` reads each into its C# twin and writes it
+back. Re-record with `EZPUG_IRON_RECORD=1 pnpm --filter @ezpug/orchestrator test src/link`.

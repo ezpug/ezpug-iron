@@ -76,6 +76,11 @@ function serverRow(keyId: string, matchId: string, allocatedAt = at()): ServerRo
     tv: null,
     costHourlyCents: 0,
     providerMeta: null,
+    versions: null,
+    hostname: null,
+    currentMap: null,
+    linkState: null,
+    linkAckedSeq: 0,
     lastSeenAt: null,
     lastError: null,
     releasedReason: null,
@@ -213,20 +218,64 @@ async function contract(store: MatchStore, keyId: string): Promise<void> {
     s2.id,
   ])
   expect((await store.listLedger({ matchId: b.id }, 0, 1)).nextOffset).toBe(1)
-  await store.insertServerToken({
-    id: randomUUID(),
-    fleetServerId: s1.id,
-    tokenHash: hashToken(mintToken('server')),
-    createdAt: at(),
+  // The link's facts (T6): what hello said, the acked seq, the token's use.
+  await store.updateServer(s1.id, {
+    versions: { plugin: '0.1.0', sdk: '0.1.0', counterStrikeSharp: '1.0.373' },
+    hostname: 'EZPug dev server',
+    currentMap: 'de_mirage',
+    linkState: 'assigned',
+    linkAckedSeq: 7,
+    lastSeenAt: at(4_000),
   })
+  expect(await store.findServer(s1.id)).toMatchObject({
+    versions: { plugin: '0.1.0' },
+    hostname: 'EZPug dev server',
+    currentMap: 'de_mirage',
+    linkState: 'assigned',
+    linkAckedSeq: 7,
+  })
+  const serverToken = mintToken('server')
+  const tokenId = randomUUID()
+  await store.insertServerToken({
+    id: tokenId,
+    fleetServerId: s1.id,
+    tokenHash: hashToken(serverToken),
+    createdAt: at(),
+    lastUsedAt: null,
+    revokedAt: null,
+  })
+  expect((await store.findServerTokenByHash(hashToken(serverToken)))?.fleetServerId).toBe(s1.id)
+  expect(await store.findServerTokenByHash(hashToken(mintToken('server')))).toBeUndefined()
+  await store.touchServerToken(tokenId, at(5_000))
+  expect((await store.findServerTokenByHash(hashToken(serverToken)))?.lastUsedAt).toEqual(at(5_000))
   // The budget's one read (T5): open rows always, closed ones only while
   // they belong to the month being counted.
   expect((await store.listKeyLedgerSince(keyId, at(0))).map(s => s.id)).toEqual([s2.id, s1.id])
   expect((await store.listKeyLedgerSince(keyId, at(3_000))).map(s => s.id)).toEqual([s1.id])
   expect(await store.listKeyLedgerSince(randomUUID(), at(0))).toEqual([])
 
-  // nothing written by later tasks yet
+  // backups (T6): the same round replaces, only the newest `keep` survive
   expect(await store.latestBackup(b.id)).toBeUndefined()
+  const backup = (roundNumber: number, content = `round ${roundNumber}`) => ({
+    id: randomUUID(),
+    matchId: b.id,
+    fleetServerId: s1.id,
+    mapNumber: 1,
+    roundNumber,
+    filename: `matchzy_1_map1_round${roundNumber}.cfg`,
+    content,
+    createdAt: at(roundNumber * 1_000),
+  })
+  for (const round of [1, 2, 3, 4]) await store.upsertBackup(backup(round), 3)
+  await store.upsertBackup(backup(4, 'round 4 again'), 3)
+  expect((await store.listBackups(b.id)).map(row => [row.roundNumber, row.content])).toEqual([
+    [4, 'round 4 again'],
+    [3, 'round 3'],
+    [2, 'round 2'],
+  ])
+  expect((await store.latestBackup(b.id))?.roundNumber).toBe(4)
+  expect(await store.listBackups(a.id)).toEqual([])
+  // nothing written by later tasks yet
   expect(await store.findPlayerTokenByHash(hashToken(mintToken('player')))).toBeUndefined()
 }
 

@@ -132,6 +132,7 @@ describe('the orchestrator over a real socket', () => {
     expect(result.steps.map(step => step.name)).toEqual([
       'health',
       'listener',
+      'links',
       'streams',
       'requests',
       'reaper',

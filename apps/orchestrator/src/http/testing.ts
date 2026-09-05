@@ -11,10 +11,12 @@ import { createLinkRegistry, type LinkRegistry } from '../link/channels'
 import { createMemoryLog } from '../log'
 import { createMatches, type MatchDeadlines, type Matches } from '../match/machine'
 import { createMemoryMatchStore } from '../match/memory-store'
+import type { GameServerProvider } from '../providers/provider'
 import { createReaper, type Reaper } from '../providers/reaper'
 import { createProviderRegistry, type ProviderRegistry } from '../providers/registry'
 import { createSimProvider, type SimProvider } from '../providers/sim/provider'
 import { createStreamHub, type StreamHub } from '../stream/hub'
+import type { RandomBytes } from '../tokens'
 import {
   createWebhookWorker,
   type WebhookAttemptReport,
@@ -90,6 +92,10 @@ export interface TestAppOptions {
   simHourlyCents?: number
   /** Register no provider at all — a world with nothing to allocate. */
   noProviders?: boolean
+  /** Register these instead of the sim — a world of servers that dial the link (T6). */
+  providers?: GameServerProvider[]
+  /** The bytes behind every minted token and password; a recording pins them. */
+  random?: RandomBytes
   webhookPollIntervalMs?: number
   budgetSweepIntervalMs?: number
 }
@@ -152,6 +158,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     budget: budgets,
     baseUrl: 'http://localhost:3430',
     deadlines: options.deadlines,
+    random: options.random,
   })
   const sim = createSimProvider({
     clock,
@@ -162,7 +169,8 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     defaults: options.sim,
     onError: (error, context) => log.error(`sim ${JSON.stringify(context)}`, error),
   })
-  if (!options.noProviders) providers.register(sim)
+  if (options.providers) for (const provider of options.providers) providers.register(provider)
+  else if (!options.noProviders) providers.register(sim)
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
   const fleet = createFleet({ clock, store, registry: providers, matches })
 

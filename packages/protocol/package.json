@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./fixtures": "./src/fixtures.ts"
+    "./fixtures": "./src/fixtures.ts",
+    "./fake-server": "./src/fake-server.ts"
   },
   "scripts": {
     "build": "tsdown && node ../../scripts/protocol-schema.mjs && node ../../scripts/protocol-codegen.mjs",

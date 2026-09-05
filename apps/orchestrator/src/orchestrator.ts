@@ -14,6 +14,7 @@ import { createRateLimiter } from './http/rate-limit'
 import { createPostgresKeyStore } from './keys/postgres-store'
 import { createKeys, type Keys } from './keys/service'
 import { createLinkRegistry, type LinkRegistry } from './link/channels'
+import { attachServerLink, type ServerLink } from './link/server-link'
 import type { Log } from './log'
 import { createMatches, type Matches } from './match/machine'
 import { createPostgresMatchStore } from './match/postgres-store'
@@ -58,6 +59,8 @@ export interface Orchestrator {
   readonly store: MatchStore
   readonly providers: ProviderRegistry
   readonly links: LinkRegistry
+  /** The `/link` sessions (T6). */
+  readonly link: ServerLink
   readonly matches: Matches
   readonly fleet: Fleet
   readonly hub: StreamHub
@@ -202,6 +205,15 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     hub,
     isDraining: () => shutdown?.draining === true,
   })
+  const link = attachServerLink({
+    router: upgrades,
+    clock,
+    log,
+    store,
+    matches,
+    links,
+    isDraining: () => shutdown?.draining === true,
+  })
   const httpDrain = createHttpDrain(server, clock)
 
   shutdown = createShutdown({
@@ -212,6 +224,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       httpDrain,
       redis,
       database,
+      links: link,
       streams: {
         close: () => {
           for (const client of wss.clients) client.close(1001, 'draining')
@@ -235,6 +248,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     store,
     providers,
     links,
+    link,
     matches,
     fleet,
     hub,

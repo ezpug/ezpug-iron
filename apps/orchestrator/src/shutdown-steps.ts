@@ -34,6 +34,8 @@ export interface ShutdownStepsOptions {
   httpDrain: HttpDrain
   redis: Closable
   database: Closable
+  /** The server links (T6): every session told `shuttingDown`, so the plugins reconnect with backoff. */
+  links?: Closable
   /** The stream sockets (T3). Absent in a composition without a listener. */
   streams?: Closable
   reaper?: { stop: () => Promise<void> }
@@ -45,17 +47,29 @@ export interface ShutdownStepsOptions {
 }
 
 export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
-  const { clock, httpDrain, redis, database, streams, reaper, budgets, webhooks, matches, hub } =
-    options
+  const {
+    clock,
+    httpDrain,
+    redis,
+    database,
+    links,
+    streams,
+    reaper,
+    budgets,
+    webhooks,
+    matches,
+    hub,
+  } = options
   return [
     // 1. Out of rotation first, while everything still works.
     { name: 'health', run: () => clock.sleep(HEALTH_GRACE_MS) },
     // 2. No new connections. In-flight ones keep running.
     { name: 'listener', run: () => httpDrain.stopAccepting() },
-    // 3. (T6, T12) The server links and node links go here: a link is not in
-    //    flight, it is *parked*, and its peer reconnects by itself with
+    // 3. The server links (T6; the node links join them in T12): a link is
+    //    not in flight, it is *parked*, and its peer reconnects by itself with
     //    backoff — told to go while the machines below are still open, so a
     //    last `state` frame still lands.
+    ...(links ? [{ name: 'links', run: () => links.close() }] : []),
     // 4. The stream's subscribers: told to go (1001) and to replay from the
     //    events route when they come back, before the hub they hang off.
     ...(streams ? [{ name: 'streams', run: () => streams.close() }] : []),

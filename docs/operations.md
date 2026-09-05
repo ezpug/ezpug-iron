@@ -131,7 +131,7 @@ deploy smoke and `pnpm dev:status` all read this one route.
 Boot: read the environment → open the pool and the Redis client → register the providers
 `EZPUG_IRON_PROVIDERS` names → build the machine, the hub, the worker and the reaper over
 them → build the app over the route table → create the server and attach the upgrade
-router (the stream; the links in T6/T12) → arm the drain → ping both rails → **start**
+router (the stream, the server link; the node link joins in T12) → arm the drain → ping both rails → **start**
 (the hub joins the Redis fan-out, every open match re-arms its deadlines from its row, the
 worker and the reaper arm their sweeps) → listen. The port opens **last**, so a probe
 during a slow boot gets a refused connection (a starting process) and never a
@@ -141,7 +141,7 @@ Shutdown is an **order**, not a set of `close()` calls (`apps/orchestrator/src/s
 
 1. `health` — `/healthz` turns 503, so whatever is in front stops sending work here.
 2. `listener` — the port closes; idle keep-alive sockets are hung up; in-flight requests keep running.
-3. *(T6, T12)* the server links and node links are closed; their peers reconnect by themselves.
+3. `links` — every server link is closed `4012`; the plugins reconnect by themselves with backoff (the node links join here in T12).
 4. `streams` — every stream socket is closed `1001`; a subscriber replays from the events route when it returns.
 5. `requests` — in-flight requests get five seconds to answer, then every socket is destroyed.
 6. `reaper`, `webhooks`, `matches`, `hub` — the sweeps disarm, attempts in flight finish, every
@@ -200,7 +200,7 @@ restart re-arms each at the same absolute instant (`DEFAULT_MATCH_DEADLINES`):
 | the loss detector | no event from the server for three heartbeat intervals | 30 s | the provider is probed; `gone` or `stopped` opens `recovering` from `live`, fails `provider_error` before it |
 
 **Recovery** this round: a lost server's match says `match.recovering` with the newest
-backup's round (`backups`, written by the link from T6) and waits the window; with no
+backup's round (`backups`, written by the link — see *The link*) and waits the window; with no
 backup it fails `server_lost` at once. Resuming onto the next candidate with the backup
 is T14's, and so is the sim's crash door — which is why the conformance flows
 `crash-restore` and `crash-lost` are *skipped*, not failed, against the orchestrator today.
@@ -208,8 +208,8 @@ is T14's, and so is the sim's crash door — which is why the conformance flows
 **Commands** are idempotent on `correlationId` across a restart (`match_commands`):
 `force_end`, `restore` (`no_backup` this round), `profile` and the state checks are the
 machine's; everything else is relayed down the server's channel (`link/channels.ts`: the
-sim's in-process channel today, the `/link` socket from T6) and answered with what the
-server said. `rcon` needs `admin`. The **`sim.*` family** reaches a simulated server and
+sim's in-process channel, or the `/link` socket a real plugin holds) and answered with what
+the server said. `rcon` needs `admin`. The **`sim.*` family** reaches a simulated server and
 nothing else: on any other provider it is `command_unsupported` with the provider named,
 before a channel is ever asked.
 
@@ -270,6 +270,73 @@ server before Hono: an API key with `matches` owning the match, or a player toke
 now and fails the match `provider_error` — the row itself is `released`, because a person
 did it. `GET /v1/capacity` asks every provider's offerings; `POST
 /v1/fleet/providers/:id/drain` keeps what it runs and allocates nothing more.
+
+## The link
+
+Every server's plugin opens **one outbound WebSocket** to the orchestrator at `/link`
+(decision 5) and everything crosses it: the assignment down, events and heartbeats up,
+commands down and their results up, backups up, profiles and player commands down. A
+Dathost server, a node-hosted server and the dev container are indistinguishable once
+connected; providers only differ in how a server gets started and stopped. The frames are
+`@ezpug/protocol`'s (`packages/protocol/README.md`), the C# twins are generated from them,
+and the upgrade is matched on the raw server before Hono, attached before the port opens.
+
+**Hello, welcome, assign.** The first frame is `hello` with the server token the provider
+planted (`ezpug.json` on Dathost, the container env on a node — minted by the walk, hashed
+in `server_tokens`). The token's ledger row must be open; what `hello` reports (plugin,
+SDK and CounterStrikeSharp versions, the plugin folders in the image, hostname, map,
+state) lands on the row (`versions`, `hostname`, `current_map`, `link_state`) and the
+token's `last_used_at` is written. The answer is `welcome` (the provider and server id
+the plugin stamps into every event's `source`, the heartbeat interval, and `ackedSeq`);
+then, unless the `hello` says the server already holds the row's match, `assign` — the
+request, the manifest and every profile pushed since, composed once in
+`link/assign.ts`: the manifest minus its map list and widget, the plugins to enable (the
+manifest's, plus `WeaponPaints` when a roster entry carries a loadout and the image has
+the plugin), the cfg files, the cvars merged flat (a request's `rules.cvars` under the
+mode's under what the rules derive: `mp_maxrounds`, the overtime cvars), the map plan,
+the rules, the roster, the warmup lines, the branding and the demo upload URL.
+`matchzyConfig` arrives with T9, `restore` with T14. A manifest naming a plugin the image
+lacks fails the match `provider_error` before anything is sent.
+
+**Refusals are close codes** (`LINK_CLOSE_CODES`): `4001` for an unknown, revoked or
+foreign token or a row that is closed; `4002` for a protocol version this build does not
+speak; `4003` for a frame that does not parse or a first frame that is not `hello`;
+`4005` when a newer socket presented the same token (the older one is told); `4008` for
+no `hello` within ten seconds; `4012` when the orchestrator shuts down (every session,
+between the listener and the streams in the drain order — the plugins reconnect with
+backoff). A draining orchestrator answers the upgrade itself with a 503.
+
+**Events are acked one by one.** Each carries the plugin's own per-server `seq`; the link
+keeps the highest *contiguous* acknowledged seq per session and persists it on the row
+(`link_acked_seq`) after every batch, so `welcome.ackedSeq` survives a restart on either
+side. A seq at or below it, or already taken above it, is `duplicate`; the rest go to the
+machine **in order** and its answer is the ack — `accepted`, `ephemeral` for a position
+tick, `rejected` (with a reason) for an event naming a match this server does not hold or
+one the machine will not take. A plugin whose counter is behind ours started afresh, and
+ours follows its `lastSeq` rather than calling every event it sends a duplicate.
+
+**Commands are relayed by `correlationId` with a deadline** (fifteen seconds on the
+clock); a server that does not answer is `provider_unavailable` to the client. The
+answers — `command_result`, a `console` tail, a `player_command_result` — are resolved
+the moment they arrive, off the session's inbound chain, because the machine sends a
+command while holding the match's chain and a real plugin reports the event (a pause)
+before it answers the command that caused it. The `sim.*` family never reaches a real
+server. `release` is sent when the match ends, before the provider stops the server, so
+the plugin unloads its mode and says `state: idle` while it still can.
+
+**Silence is a probe.** Every frame re-arms a timer at two heartbeat intervals; past that
+the match's server is *suspected* (the provider is probed — `gone` opens the recovery
+window from `live`, fails the match before it) and the socket is terminated so the plugin
+reconnects. `last_seen_at` is written at most every five seconds. `backup` frames are
+persisted (`backups`, the newest eight per match, the same round replaced); a `console`
+tail — asked for by the fleet console route (T20) or sent unsolicited on a failure — is
+cached on the session.
+
+**The fake server** (`@ezpug/protocol/fake-server`) is what every link test connects: it
+sequences, buffers and resends like the C# client must, and the exchanges it had with
+the real `/link` are recorded under `packages/protocol/fixtures/link/` — the files the C#
+side round-trips. `link/server-link.test.ts` runs the whole thing over a real socket on a
+fake clock; `EZPUG_IRON_RECORD=1` rewrites the goldens.
 
 ## Keys, scopes, rate limits, logs
 

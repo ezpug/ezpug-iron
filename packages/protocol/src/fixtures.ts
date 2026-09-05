@@ -54,7 +54,9 @@ type RosterEntryInput = z.input<typeof rosterEntrySchema>
 /** The string every fixture token carries — a test greps for it, so a real one can never slip in. */
 export const FIXTURE_TOKEN_MARK = 'not-a-secret'
 
-const SERVER_TOKEN = `ezs_${FIXTURE_TOKEN_MARK}_server_token_0001`
+/** The server token every link fixture carries — the shape of one, and a string that says it is not one. */
+export const FIXTURE_SERVER_TOKEN = `ezs_${FIXTURE_TOKEN_MARK}_server_token_0001`
+const SERVER_TOKEN = FIXTURE_SERVER_TOKEN
 const NODE_TOKEN = `ezn_${FIXTURE_TOKEN_MARK}_node_token_0001`
 const ENROLMENT_TOKEN = `eze_${FIXTURE_TOKEN_MARK}_enrolment_0001`
 

@@ -209,7 +209,45 @@ export function createMemoryMatchStore(): MatchStore & {
       serverTokens.push(copy(row))
       return Promise.resolve()
     },
+    findServerTokenByHash: tokenHash =>
+      Promise.resolve(copy(serverTokens.find(row => row.tokenHash === tokenHash))),
+    touchServerToken: (id, at) => {
+      const row = serverTokens.find(candidate => candidate.id === id)
+      if (!row) throw new Error(`no server token ${id}`)
+      row.lastUsedAt = at
+      return Promise.resolve()
+    },
 
+    upsertBackup: (row, keep) => {
+      const existing = backups.findIndex(
+        b =>
+          b.matchId === row.matchId &&
+          b.mapNumber === row.mapNumber &&
+          b.roundNumber === row.roundNumber,
+      )
+      if (existing >= 0) backups.splice(existing, 1)
+      backups.push(copy(row))
+      const survivors = new Set(
+        backups
+          .filter(b => b.matchId === row.matchId)
+          .sort((a, b) => b.mapNumber - a.mapNumber || b.roundNumber - a.roundNumber)
+          .slice(0, keep)
+          .map(b => b.id),
+      )
+      for (let i = backups.length - 1; i >= 0; i -= 1) {
+        const candidate = backups[i]
+        if (candidate && candidate.matchId === row.matchId && !survivors.has(candidate.id))
+          backups.splice(i, 1)
+      }
+      return Promise.resolve()
+    },
+    listBackups: matchId =>
+      Promise.resolve(
+        backups
+          .filter(row => row.matchId === matchId)
+          .sort((a, b) => b.mapNumber - a.mapNumber || b.roundNumber - a.roundNumber)
+          .map(copy),
+      ),
     latestBackup: matchId =>
       Promise.resolve(
         copy(

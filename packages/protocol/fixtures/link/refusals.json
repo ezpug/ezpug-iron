@@ -1,0 +1,303 @@
+{
+  "schema": "LinkExchange",
+  "exchange": [
+    {
+      "from": "server",
+      "frame": {
+        "type": "hello",
+        "protocol": 1,
+        "token": "ezis_not-a-secret_unknown_token_0000000000",
+        "versions": {
+          "plugin": "0.1.0",
+          "sdk": "0.1.0",
+          "counterStrikeSharp": "1.0.373",
+          "matchzy": "0.8.15"
+        },
+        "capabilities": [
+          "positions",
+          "chat",
+          "playerCommands",
+          "widget",
+          "backups",
+          "scoreboardRating"
+        ],
+        "plugins": [
+          "EZPug.Core",
+          "MatchZy",
+          "RetakesPlugin",
+          "WeaponPaints"
+        ],
+        "hostname": "EZPug dev server",
+        "map": "de_dust2",
+        "state": "idle",
+        "lastSeq": 0
+      }
+    },
+    {
+      "from": "orchestrator",
+      "close": {
+        "code": 4001,
+        "reason": "unknown or revoked token"
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "hello",
+        "protocol": 1,
+        "token": "ezs_not-a-secret_server_token_0001",
+        "versions": {
+          "plugin": "0.1.0",
+          "sdk": "0.1.0",
+          "counterStrikeSharp": "1.0.373",
+          "matchzy": "0.8.15"
+        },
+        "capabilities": [
+          "positions",
+          "chat",
+          "playerCommands",
+          "widget",
+          "backups",
+          "scoreboardRating"
+        ],
+        "plugins": [
+          "EZPug.Core",
+          "MatchZy",
+          "RetakesPlugin",
+          "WeaponPaints"
+        ],
+        "hostname": "EZPug dev server",
+        "map": "de_dust2",
+        "state": "idle",
+        "lastSeq": 0
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "welcome",
+        "protocol": 1,
+        "provider": "nodes",
+        "serverId": "devbox-1",
+        "heartbeatIntervalMs": 10000,
+        "ackedSeq": 0
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "assign",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "game": "cs2",
+        "gamemode": {
+          "id": "pug",
+          "game": "cs2",
+          "tier": "plugin",
+          "title": {
+            "de": "5v5 Wettkampf",
+            "en": "5v5 competitive"
+          },
+          "description": {
+            "de": "Das Spiel der Warteschlange: fünf gegen fünf, Messerrunde, Overtime, Demo und Rundenbackups – MatchZy führt das Match.",
+            "en": "The queue's game: five against five, a knife round, overtime, a demo and round backups – MatchZy runs the match."
+          },
+          "slots": {
+            "teamSize": 5,
+            "teams": 2,
+            "openJoin": false
+          },
+          "flow": "matchzy",
+          "records": "demo",
+          "ranked": false,
+          "version": "0.1.0",
+          "plugins": [
+            "MatchZy"
+          ],
+          "cfg": [
+            "ezpug/pug.cfg"
+          ],
+          "cvars": {
+            "matchzy_kick_when_no_match_loaded": "false",
+            "matchzy_demo_recording_enabled": "true",
+            "matchzy_enable_tech_pause": "true",
+            "matchzy_stop_command_available": "true",
+            "matchzy_reset_cvars_on_series_end": "true"
+          },
+          "capabilities": {
+            "positions": true,
+            "chat": true,
+            "playerCommands": false,
+            "widget": false,
+            "backups": true,
+            "scoreboardRating": true
+          },
+          "commands": [],
+          "sdkVersion": "0.1.0"
+        },
+        "plugins": [
+          "MatchZy",
+          "WeaponPaints"
+        ],
+        "cfg": [
+          "ezpug/pug.cfg"
+        ],
+        "cvars": {
+          "mp_freezetime": "15",
+          "mp_maxrounds": "2",
+          "matchzy_kick_when_no_match_loaded": "false",
+          "matchzy_demo_recording_enabled": "true",
+          "matchzy_enable_tech_pause": "true",
+          "matchzy_stop_command_available": "true",
+          "matchzy_reset_cvars_on_series_end": "true",
+          "mp_overtime_enable": "0",
+          "mp_overtime_maxrounds": "2",
+          "mp_overtime_startmoney": "10000"
+        },
+        "maps": [
+          {
+            "map": "de_mirage",
+            "sides": "knife"
+          }
+        ],
+        "rules": {
+          "regulationRounds": 2,
+          "overtime": {
+            "enabled": false,
+            "maxRounds": 2,
+            "startMoney": 10000
+          },
+          "warmup": {
+            "minPlayersToReady": 2,
+            "minSpectatorsToReady": 0
+          },
+          "cvars": {
+            "mp_freezetime": "15",
+            "mp_maxrounds": "30"
+          }
+        },
+        "teams": {
+          "teamA": {
+            "name": "Team tk",
+            "players": [
+              {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "locale": "de",
+                "rating": 1820,
+                "rankName": "Eisen III",
+                "loadout": {
+                  "t": {
+                    "weapons": [],
+                    "knife": "weapon_knife_karambit"
+                  },
+                  "ct": {
+                    "weapons": [
+                      {
+                        "defindex": 60,
+                        "paintId": 1231,
+                        "wear": 0.000001,
+                        "seed": 0,
+                        "stattrak": false,
+                        "stattrakCount": 0,
+                        "stickers": []
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "teamB": {
+            "name": "Team maex",
+            "players": [
+              {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "locale": "en"
+              }
+            ]
+          }
+        },
+        "warmupLines": [
+          "Willkommen bei EZPug.",
+          "Welcome to EZPug."
+        ],
+        "branding": {
+          "hostname": "EZPug · SaarLAN 2026 · Mirage",
+          "eventName": "SaarLAN 2026"
+        },
+        "demoUploadUrl": "http://127.0.0.1:9400/demos/fixture.dem?X-Amz-Signature=fixture"
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "state",
+        "state": "assigned",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "detail": "plugins loaded"
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "release",
+        "reason": "cancelled: cancelled"
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "state",
+        "state": "idle",
+        "detail": "cancelled: cancelled"
+      }
+    },
+    {
+      "from": "server",
+      "close": {
+        "code": 1000,
+        "reason": ""
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "hello",
+        "protocol": 1,
+        "token": "ezs_not-a-secret_server_token_0001",
+        "versions": {
+          "plugin": "0.1.0",
+          "sdk": "0.1.0",
+          "counterStrikeSharp": "1.0.373",
+          "matchzy": "0.8.15"
+        },
+        "capabilities": [
+          "positions",
+          "chat",
+          "playerCommands",
+          "widget",
+          "backups",
+          "scoreboardRating"
+        ],
+        "plugins": [
+          "EZPug.Core",
+          "MatchZy",
+          "RetakesPlugin",
+          "WeaponPaints"
+        ],
+        "hostname": "EZPug dev server",
+        "map": "de_dust2",
+        "state": "idle",
+        "lastSeq": 0
+      }
+    },
+    {
+      "from": "orchestrator",
+      "close": {
+        "code": 4001,
+        "reason": "no open server for this token"
+      }
+    }
+  ]
+}

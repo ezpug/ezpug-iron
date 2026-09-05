@@ -24,10 +24,15 @@ import {
   MATCH_API_ERROR_STATUS,
   STREAM_CLOSE_CODES,
 } from '@ezpug/match-api'
-import { HEARTBEAT_INTERVAL_MS_DEFAULT, SERVER_LINK_PATH } from '@ezpug/protocol'
+import {
+  HEARTBEAT_INTERVAL_MS_DEFAULT,
+  type OrchestratorFrameOf,
+  SERVER_LINK_PATH,
+} from '@ezpug/protocol'
 import { SIM_PROVIDER_ID } from '@ezpug/sim'
 import type { BudgetGate } from '../budget/service'
 import type { AuthenticatedKey } from '../keys/service'
+import { composeAssign, missingPlugins } from '../link/assign'
 import type { IngestStatus, LinkRegistry, ServerEventSink, ServerRef } from '../link/channels'
 import { serverKey } from '../link/channels'
 import type { Log } from '../log'
@@ -69,9 +74,11 @@ import { envelopeOf, matchView } from './views'
  * holds provider truth against the rows this writes.
  *
  * Events arrive through {@link ServerEventSink} — from the sim provider in
- * process today, from `/link` (T6) tomorrow — and are deduplicated per
- * server `seq`, logged as envelopes (`emit`), mirrored to the stream and
- * handed to the webhook worker. Recovery onto a new server with a backup
+ * process, from a real plugin over `/link` (`../link/server-link.ts`, which
+ * also asks here for the assignment on `hello` and re-arms the loss detector
+ * on a heartbeat) — and are deduplicated per server `seq`, logged as
+ * envelopes (`emit`), mirrored to the stream and handed to the webhook
+ * worker. Recovery onto a new server with a backup
  * (`assign.restore`) is T14's; here a lost server with no backup fails the
  * match honestly and one with a backup waits the window.
  */
@@ -151,6 +158,19 @@ export interface Matches extends ServerEventSink {
   emit: (matchId: string, payload: WebhookPayload) => Promise<WebhookEnvelope | null>
   /** The reaper's alarm: the provider no longer lists this match's server. */
   suspect: (matchId: string, detail: string) => Promise<void>
+  /** The link's heartbeat (T6): the server is alive — re-arm the loss detector of its match. */
+  touch: (source: ServerRef) => Promise<void>
+  /**
+   * The link's `hello` (T6): the assignment for the match this server's row
+   * holds, composed from the request, the manifest and every profile pushed
+   * since; null when the row holds no open match. A manifest naming a plugin
+   * the image lacks fails the match `provider_error` here, before anything
+   * is sent.
+   */
+  assignment: (
+    source: ServerRef,
+    hello: { plugins: readonly string[]; matchId?: string },
+  ) => Promise<OrchestratorFrameOf<'assign'> | null>
   /** The reaper's ceiling: the match's ttl ran out. */
   expire: (matchId: string, detail: string) => Promise<void>
   /** `POST /v1/fleet/servers/:id/release`: end the match on this row `provider_error` and deallocate. */
@@ -395,6 +415,14 @@ export function createMatches(options: MatchesOptions): Matches {
   ): Promise<void> => {
     const provider = providers.get(server.provider)
     if (deallocate && provider && server.serverId) {
+      // Told over the link before the provider pulls the plug, so a real
+      // server unloads its mode and says `state: idle` while it still can.
+      const channel = links.get({ provider: server.provider, serverId: server.serverId })
+      try {
+        await channel?.release?.(reason)
+      } catch (error) {
+        report(error, { phase: `release:${server.provider}`, serverId: server.serverId })
+      }
       try {
         await provider.stop(server.serverId)
       } catch (error) {
@@ -600,6 +628,11 @@ export function createMatches(options: MatchesOptions): Matches {
         tv: null,
         costHourlyCents: offering.hourlyCents,
         providerMeta: null,
+        versions: null,
+        hostname: null,
+        currentMap: null,
+        linkState: null,
+        linkAckedSeq: 0,
         lastSeenAt: null,
         lastError: null,
         releasedReason: null,
@@ -667,6 +700,8 @@ export function createMatches(options: MatchesOptions): Matches {
           fleetServerId,
           tokenHash: hashToken(serverToken),
           createdAt: now(),
+          lastUsedAt: null,
+          revokedAt: null,
         })
         await provider.configure(allocated.serverId, {
           matchId: row.id,
@@ -721,6 +756,7 @@ export function createMatches(options: MatchesOptions): Matches {
   ): Promise<IngestStatus> => {
     if (isTerminalMatchState(row.state)) return 'rejected'
     if (row.provider !== source.provider || row.serverId !== source.serverId) return 'rejected'
+    if (event.matchId !== row.id) return 'rejected'
     const runtime = runtimeOf(row)
     if (event.seq !== undefined) {
       const mark = `${serverKey(source)}#${event.seq}`
@@ -797,18 +833,58 @@ export function createMatches(options: MatchesOptions): Matches {
     return 'accepted'
   }
 
-  const ingest: ServerEventSink['ingest'] = async (source, event) => {
-    if (closed) return 'rejected'
+  /** The open match a server plays for, from attribution or the ledger. */
+  const matchOf = async (source: ServerRef): Promise<MatchRow | undefined> => {
     let matchId = attribution.get(serverKey(source))
     if (!matchId) {
       const server = await store.findServerByHandle(source.provider, source.serverId)
-      if (!server?.matchId || server.releasedAt) return 'rejected'
+      if (!server?.matchId || server.releasedAt) return undefined
       matchId = server.matchId
       attribution.set(serverKey(source), matchId)
     }
-    const row = await store.findMatch(matchId)
+    return store.findMatch(matchId)
+  }
+
+  const ingest: ServerEventSink['ingest'] = async (source, event) => {
+    if (closed) return 'rejected'
+    const row = await matchOf(source)
     if (!row) return 'rejected'
     return enqueue(row, fresh => onServerEvent(fresh, source, event))
+  }
+
+  const touch: Matches['touch'] = async source => {
+    if (closed) return
+    const row = await matchOf(source)
+    if (!row) return
+    if (row.state === 'configuring' || row.state === 'ready' || row.state === 'live')
+      armHeartbeat(row)
+  }
+
+  const assignment: Matches['assignment'] = async (source, hello) => {
+    if (closed) return null
+    const row = await matchOf(source)
+    if (!row || isTerminalMatchState(row.state)) return null
+    return enqueue(row, async fresh => {
+      if (isTerminalMatchState(fresh.state)) return null
+      if (fresh.provider !== source.provider || fresh.serverId !== source.serverId) return null
+      const manifest = manifestOf(fresh)
+      const missing = missingPlugins(manifest, hello.plugins)
+      if (missing.length > 0) {
+        await fail(
+          fresh,
+          'provider_error',
+          `the server's image lacks ${missing.join(', ')}, which ${manifest.id} needs`,
+        )
+        return null
+      }
+      return composeAssign({
+        matchId: fresh.id,
+        request: fresh.requestJson,
+        manifest,
+        profiles: runtimeOf(fresh).known,
+        installed: hello.plugins,
+      })
+    })
   }
 
   // --- the door ----------------------------------------------------------------------------
@@ -1151,6 +1227,8 @@ export function createMatches(options: MatchesOptions): Matches {
     view,
     emit: emitTo,
     suspect,
+    touch,
+    assignment,
     expire,
     releaseRow,
     resume,

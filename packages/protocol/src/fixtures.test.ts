@@ -1,7 +1,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { stringifyRecording } from '@ezpug/match-api/fixtures'
 import { describe, expect, it } from 'vitest'
+import type { LinkExchangeFixture } from './fake-server'
 import { FIXTURE_TOKEN_MARK, protocolFixtureFiles, stringifyProtocolFixture } from './fixtures'
+import { orchestratorFrameSchema, serverFrameSchema } from './server-link'
 
 /**
  * **The frame fixtures** (PRD-02 T1). One file per union under
@@ -13,6 +16,7 @@ import { FIXTURE_TOKEN_MARK, protocolFixtureFiles, stringifyProtocolFixture } fr
  */
 
 const FRAMES_DIR = fileURLToPath(new URL('../fixtures/frames/', import.meta.url))
+const LINK_DIR = fileURLToPath(new URL('../fixtures/link/', import.meta.url))
 const RECORDING = process.env.EZPUG_IRON_RECORD === '1'
 
 describe('the frame fixtures', () => {
@@ -50,4 +54,38 @@ describe('the frame fixtures', () => {
       }
     }
   })
+})
+
+/**
+ * **The recorded link exchanges** (PRD-02 T6): what the fake server and the
+ * real `/link` said to each other, written by the orchestrator's link tests.
+ * Here every frame must parse with its direction's schema and the file must
+ * be its own canonical bytes; the C# side reads the same files.
+ */
+describe('the recorded link exchanges', () => {
+  const files = readdirSync(LINK_DIR)
+    .filter(name => name.endsWith('.json'))
+    .sort()
+
+  it('exist', () => {
+    expect(files.length).toBeGreaterThan(0)
+  })
+
+  for (const file of files) {
+    it(`${file} parses each way and is canonical`, () => {
+      const text = readFileSync(`${LINK_DIR}${file}`, 'utf8')
+      const fixture = JSON.parse(text) as LinkExchangeFixture
+      expect(fixture.schema).toBe('LinkExchange')
+      expect(fixture.exchange.length).toBeGreaterThan(0)
+      const reparsed = fixture.exchange.map(entry => {
+        if (!('frame' in entry)) return entry
+        return entry.from === 'server'
+          ? { from: entry.from, frame: serverFrameSchema.parse(entry.frame) }
+          : { from: entry.from, frame: orchestratorFrameSchema.parse(entry.frame) }
+      })
+      expect(stringifyRecording({ schema: 'LinkExchange', exchange: reparsed })).toBe(text)
+      for (const match of text.matchAll(/"(?:token|serverToken|nodeToken)": "([^"]*)"/g))
+        expect(match[1], `${file}: ${match[0]}`).toContain(FIXTURE_TOKEN_MARK)
+    })
+  }
 })

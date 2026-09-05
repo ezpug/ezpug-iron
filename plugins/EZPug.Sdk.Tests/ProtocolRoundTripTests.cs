@@ -104,6 +104,54 @@ public class ProtocolRoundTripTests
         }
     }
 
+    public static IEnumerable<object[]> LinkExchangeFixtures() =>
+        Directory.GetFiles(Path.Combine(Repo, "packages/protocol/fixtures/link"), "*.json")
+            .Order()
+            .Select(path => new object[] { Path.GetFileName(path) });
+
+    /// <summary>
+    /// The recorded link exchanges (PRD-02 T6): what the TypeScript fake server and the real
+    /// <c>/link</c> said to each other, scrubbed. Every frame is read into the twin of its
+    /// direction — a server's into <see cref="ServerFrame"/>, the orchestrator's into
+    /// <see cref="OrchestratorFrame"/> — and written back; the file must be its own bytes.
+    /// The link client (T7) is proven against the same files: given the orchestrator's
+    /// frames, it must produce the server's.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(LinkExchangeFixtures))]
+    public void EveryLinkExchangeRoundTripsByteForByte(string file)
+    {
+        var path = Path.Combine(Repo, "packages/protocol/fixtures/link", file);
+        var text = File.ReadAllText(path);
+        var document = JsonNode.Parse(text)!.AsObject();
+        Assert.Equal("LinkExchange", document["schema"]!.GetValue<string>());
+        var exchange = document["exchange"]!.AsArray();
+        Assert.NotEmpty(exchange);
+        var frames = 0;
+
+        foreach (var entry in exchange)
+        {
+            var frame = entry!["frame"];
+            if (frame is null)
+            {
+                Assert.NotNull(entry["close"]);
+                continue;
+            }
+
+            var type = entry["from"]!.GetValue<string>() switch
+            {
+                "server" => typeof(ServerFrame),
+                "orchestrator" => typeof(OrchestratorFrame),
+                var other => throw new InvalidOperationException($"{file}: a frame from {other}"),
+            };
+            entry["frame"] = RoundTrip(frame, type);
+            frames++;
+        }
+
+        Assert.True(frames > 0, $"{file}: no frame to round-trip");
+        Assert.Equal(text, Canonical(document));
+    }
+
     public static IEnumerable<object[]> RecordedFixtures() =>
         Directory.GetFiles(Path.Combine(Repo, "packages/match-api/fixtures/recorded"), "*.json")
             .Order()

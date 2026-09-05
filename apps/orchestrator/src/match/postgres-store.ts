@@ -1,4 +1,5 @@
 import type { MatchState } from '@ezpug/match-api'
+import type { LinkServerState } from '@ezpug/protocol'
 import { and, asc, desc, eq, gte, isNull, lte, notInArray, or, sql } from 'drizzle-orm'
 import type { DatabaseExecutor } from '../db/client'
 import {
@@ -54,6 +55,11 @@ function toServer(row: ServerDb): ServerRow {
     tv: row.tv,
     costHourlyCents: row.costHourlyCents,
     providerMeta: row.providerMeta,
+    versions: row.versions,
+    hostname: row.hostname,
+    currentMap: row.currentMap,
+    linkState: row.linkState as LinkServerState | null,
+    linkAckedSeq: row.linkAckedSeq,
     lastSeenAt: row.lastSeenAt,
     lastError: row.lastError,
     releasedReason: row.releasedReason,
@@ -277,7 +283,41 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
     insertServerToken: async row => {
       await executor.insert(serverTokens).values(row)
     },
+    findServerTokenByHash: tokenHash =>
+      one(executor.select().from(serverTokens).where(eq(serverTokens.tokenHash, tokenHash))),
+    touchServerToken: async (id, at) => {
+      await executor.update(serverTokens).set({ lastUsedAt: at }).where(eq(serverTokens.id, id))
+    },
 
+    upsertBackup: async (row, keep) => {
+      await executor
+        .insert(backups)
+        .values(row)
+        .onConflictDoUpdate({
+          target: [backups.matchId, backups.mapNumber, backups.roundNumber],
+          set: {
+            fleetServerId: row.fleetServerId,
+            filename: row.filename,
+            content: row.content,
+            createdAt: row.createdAt,
+          },
+        })
+      const survivors = executor
+        .select({ id: backups.id })
+        .from(backups)
+        .where(eq(backups.matchId, row.matchId))
+        .orderBy(desc(backups.mapNumber), desc(backups.roundNumber))
+        .limit(keep)
+      await executor
+        .delete(backups)
+        .where(and(eq(backups.matchId, row.matchId), notInArray(backups.id, survivors)))
+    },
+    listBackups: async matchId =>
+      executor
+        .select()
+        .from(backups)
+        .where(eq(backups.matchId, matchId))
+        .orderBy(desc(backups.mapNumber), desc(backups.roundNumber)),
     latestBackup: matchId =>
       one(
         executor
