@@ -48,31 +48,38 @@
       },
       "core": {
         // The determinism primitives depend on nothing.
-        "dependencies": { "deny": ["app", "published", "internal", "plugins"] }
+        "dependencies": { "deny": ["app", "published", "internal", "plugins", "engine", "data"] }
       },
       "data": {
         // Authored data every side reads (the gamemode manifests): no code, no
         // dependencies; `published` bundles it, the apps and plugins read it.
-        "dependencies": { "deny": ["app", "published", "core", "internal", "plugins", "data"] }
+        "dependencies": {
+          "deny": ["app", "published", "core", "internal", "plugins", "data", "engine"]
+        }
       },
       "internal": {
-        // Internal packages (the protocol, the sim engine): shared by the apps,
-        // never reaching into one. Whether the sim engine is `internal` or
-        // `core`-shaped is PRD-01 T5's call; an `internal` package the fake
-        // embeds must be bundled, not imported, by the published package.
+        // Internal packages (the protocol): shared by the apps, never reaching
+        // into one, never leaving the repo.
         "dependencies": { "deny": ["app", "plugins"] }
+      },
+      "engine": {
+        // The simulator engine (`packages/sim`, PRD-01 T5): it speaks the
+        // published vocabulary as a *peer* (not a graph edge, so no cycle) and
+        // leans on `core`; the orchestrator runs it and the published fake
+        // bundles it as a devDependency. Never an app, never a plugin.
+        "dependencies": { "deny": ["app", "internal", "plugins", "data"] }
       },
       "app": {
         // apps/orchestrator, apps/node, apps/cli: an app never imports an app,
         // and nothing imports an app.
         "dependencies": { "deny": ["app"] },
-        "dependents": { "deny": ["app", "published", "core", "internal", "plugins"] }
+        "dependents": { "deny": ["app", "published", "core", "internal", "plugins", "engine"] }
       },
       "plugins": {
         // The dotnet wrapper is a leaf both ways: it runs `dotnet`, it imports
         // nothing and nothing imports it.
-        "dependencies": { "deny": ["app", "published", "core", "internal"] },
-        "dependents": { "deny": ["app", "published", "core", "internal", "plugins"] }
+        "dependencies": { "deny": ["app", "published", "core", "internal", "engine"] },
+        "dependents": { "deny": ["app", "published", "core", "internal", "plugins", "engine"] }
       }
     }
   }

@@ -13,8 +13,11 @@ pnpm verify
 
 # `turbo run` refuses a task no package defines, so only ask for it once one
 # does — the tier is scripted before it has content on purpose.
-if grep -rl --include=package.json --exclude-dir=node_modules --exclude-dir=references \
-  '"test:extended"' apps packages plugins gamemode-kit 2>/dev/null | grep -q .; then
+# (`|| true` because a workspace directory that does not exist yet — `apps/`
+# before PRD-02 — makes grep exit non-zero, and `pipefail` would read that as
+# "nothing found".)
+if (grep -rl --include=package.json --exclude-dir=node_modules --exclude-dir=references \
+  '"test:extended"' apps packages plugins gamemode-kit 2>/dev/null || true) | grep -q .; then
   pnpm exec turbo run test:extended
 else
   echo "verify:extended: no package defines test:extended yet — nothing beyond pnpm verify to run"

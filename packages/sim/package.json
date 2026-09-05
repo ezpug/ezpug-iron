@@ -1,0 +1,27 @@
+{
+  "name": "@ezpug/sim",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The simulator engine of EZPug Iron (decision 9): the platform's seeded, clock-driven match story, ported. A SimulatedServer plays a match as data on an injected clock — the `sim` provider of the orchestrator and the engine inside @ezpug/match-api's fake both run it.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:extended": "vitest run determinism"
+  },
+  "dependencies": {
+    "@ezpug/core": "workspace:*",
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "@ezpug/match-api": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

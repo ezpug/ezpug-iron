@@ -1,0 +1,24 @@
+{
+  "layers": [
+    {
+      "name": "default",
+      "imageUrl": "/radar/de_vertigo.png",
+      "posX": -3168,
+      "posY": 1762,
+      "scale": 4,
+      "size": 1024,
+      "zMin": 11700,
+      "zMax": null
+    },
+    {
+      "name": "lower",
+      "imageUrl": "/radar/de_vertigo_lower.png",
+      "posX": -3168,
+      "posY": 1762,
+      "scale": 4,
+      "size": 1024,
+      "zMin": null,
+      "zMax": 11700
+    }
+  ]
+}

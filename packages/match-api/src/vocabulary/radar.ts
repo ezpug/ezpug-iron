@@ -57,3 +57,70 @@ export const worldPositionSchema: z.ZodType<WorldPosition> = z.object({
   y: z.number(),
   z: z.number(),
 })
+
+/** A point on a radar image, in pixels from its top-left corner. */
+export interface RadarPoint {
+  layer: string
+  x: number
+  y: number
+}
+
+/**
+ * Which layer a world position belongs to: the first whose Z range contains
+ * `z`, else the last layer (the ground floor is the catch-all). Layers are
+ * ordered top floor first.
+ */
+export function radarLayerFor(radar: MapRadar, z: number): MapRadarLayer {
+  const layers = radar.layers
+  const found = layers.find(
+    layer => (layer.zMin === null || z >= layer.zMin) && (layer.zMax === null || z < layer.zMax),
+  )
+  return found ?? (layers[layers.length - 1] as MapRadarLayer)
+}
+
+/**
+ * World → image. The transform every minimap and every 2D replay frame runs,
+ * living here rather than in whichever surface drew a dot first: `x` grows
+ * right and `y` grows *down* on the image, which is the sign flip everyone
+ * gets wrong once. The platform's `map-pools.ts`, verbatim.
+ */
+export function worldToRadar(radar: MapRadar, position: WorldPosition): RadarPoint {
+  const layer = radarLayerFor(radar, position.z)
+  return {
+    layer: layer.name,
+    x: (position.x - layer.posX) / layer.scale,
+    y: (layer.posY - position.y) / layer.scale,
+  }
+}
+
+/**
+ * The layer a name refers to, or null. A renderer showing the lower floor of
+ * Nuke asks for `lower`; a point projected by {@link worldToRadar} names the
+ * layer it landed on, and this is how a surface gets the image behind it.
+ */
+export function radarLayerNamed(radar: MapRadar, name: string): MapRadarLayer | null {
+  return radar.layers.find(layer => layer.name === name) ?? null
+}
+
+/**
+ * Where a player is looking, on the image. The engine's `yaw` is degrees
+ * counter-clockwise from world +X (0 faces east, 90 faces north = world +Y);
+ * the image's y grows *down*, so the same turn is clockwise on the picture —
+ * the second sign flip everyone gets wrong once, sitting beside the first. The
+ * result is radians in image space, ready for `Math.cos`/`Math.sin` on the
+ * pixel axes: 0 points right, `-π/2` points up.
+ */
+export function radarHeading(yawDegrees: number): number {
+  return (-yawDegrees * Math.PI) / 180
+}
+
+/** Image → world, at a given Z. The inverse of {@link worldToRadar}. */
+export function radarToWorld(
+  layer: MapRadarLayer,
+  point: { x: number; y: number },
+): {
+  x: number
+  y: number
+} {
+  return { x: layer.posX + point.x * layer.scale, y: layer.posY - point.y * layer.scale }
+}

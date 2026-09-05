@@ -74,8 +74,11 @@ recorded files).
 
 Also in the vocabulary: `steamId64Schema` (a 17-digit string, never a number), `game`
 (`cs2 | csgo`), `locale` (`de | en`, German default), `mapRadar` (overview geometry, the
-platform's `map-pools.ts` shape), the map identifier grammar (`de_mirage` or
-`workshop/<id>/<name>`, the platform's `map-pools.ts` regex, with `parseMapIdentifier`).
+platform's `map-pools.ts` shape, with its transforms `worldToRadar`, `radarToWorld`,
+`radarLayerFor`, `radarLayerNamed` and `radarHeading` verbatim, so a live page and the
+simulator engine draw a `position_tick` with the same arithmetic), the map identifier
+grammar (`de_mirage` or `workshop/<id>/<name>`, the platform's `map-pools.ts` regex, with
+`parseMapIdentifier`).
 
 ## Resources
 

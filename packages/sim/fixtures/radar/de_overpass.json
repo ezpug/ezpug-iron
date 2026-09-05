@@ -1,0 +1,14 @@
+{
+  "layers": [
+    {
+      "name": "default",
+      "imageUrl": "/radar/de_overpass.png",
+      "posX": -4831,
+      "posY": 1781,
+      "scale": 5.2,
+      "size": 1024,
+      "zMin": null,
+      "zMax": null
+    }
+  ]
+}

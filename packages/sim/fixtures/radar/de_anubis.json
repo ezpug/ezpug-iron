@@ -1,0 +1,14 @@
+{
+  "layers": [
+    {
+      "name": "default",
+      "imageUrl": "/radar/de_anubis.png",
+      "posX": -2796,
+      "posY": 3328,
+      "scale": 5.22,
+      "size": 1024,
+      "zMin": null,
+      "zMax": null
+    }
+  ]
+}

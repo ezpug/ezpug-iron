@@ -1,0 +1,14 @@
+{
+  "layers": [
+    {
+      "name": "default",
+      "imageUrl": "/radar/de_inferno.png",
+      "posX": -2087,
+      "posY": 3870,
+      "scale": 4.9,
+      "size": 1024,
+      "zMin": null,
+      "zMax": null
+    }
+  ]
+}

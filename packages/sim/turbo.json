@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tags": ["engine"],
+  "boundaries": {
+    // `@ezpug/match-api` is a *peer* of the engine, not a graph edge: the
+    // published package bundles the engine into its fake (a devDependency
+    // pointing this way), and a dependency pointing back would be a cycle.
+    // The import is legitimate; this tells boundaries so.
+    "implicitDependencies": ["@ezpug/match-api"]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "layers": [
+    {
+      "name": "default",
+      "imageUrl": "/radar/de_dust2.png",
+      "posX": -2476,
+      "posY": 3239,
+      "scale": 4.4,
+      "size": 1024,
+      "zMin": null,
+      "zMax": null
+    }
+  ]
+}

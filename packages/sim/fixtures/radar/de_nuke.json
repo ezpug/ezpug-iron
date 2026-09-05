@@ -1,0 +1,24 @@
+{
+  "layers": [
+    {
+      "name": "default",
+      "imageUrl": "/radar/de_nuke.png",
+      "posX": -3453,
+      "posY": 2887,
+      "scale": 7,
+      "size": 1024,
+      "zMin": -495,
+      "zMax": null
+    },
+    {
+      "name": "lower",
+      "imageUrl": "/radar/de_nuke_lower.png",
+      "posX": -3453,
+      "posY": 2887,
+      "scale": 7,
+      "size": 1024,
+      "zMin": null,
+      "zMax": -495
+    }
+  ]
+}

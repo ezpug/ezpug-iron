@@ -69,6 +69,25 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1))
 
+  packages/sim:
+    dependencies:
+      '@ezpug/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ezpug/match-api':
+        specifier: workspace:*
+        version: link:../match-api
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1))
+
   plugins: {}
 
 packages:

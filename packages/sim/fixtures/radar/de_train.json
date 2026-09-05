@@ -1,0 +1,24 @@
+{
+  "layers": [
+    {
+      "name": "default",
+      "imageUrl": "/radar/de_train.png",
+      "posX": -2308,
+      "posY": 2078,
+      "scale": 4.082077,
+      "size": 1024,
+      "zMin": -50,
+      "zMax": null
+    },
+    {
+      "name": "lower",
+      "imageUrl": "/radar/de_train_lower.png",
+      "posX": -2308,
+      "posY": 2078,
+      "scale": 4.082077,
+      "size": 1024,
+      "zMin": null,
+      "zMax": -50
+    }
+  ]
+}

@@ -227,7 +227,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   the tiers, what each field means, how the platform is expected to render one.
   References: decisions 14–17, the vendor shapes in Findings (retakes config, MatchZy).
 
-- [ ] **T5 (fable): The simulator engine, ported.** `packages/sim`: `story.ts`,
+- [x] **T5 (fable): The simulator engine, ported.** `packages/sim`: `story.ts`,
   `assignment.ts`, `record.ts`, `scenario.ts` and their tests from the platform,
   decoupled from the platform's provider interface: a `SimulatedServer` handle (`assign`,
   `start`, `step`, `setMode`, `setSpeed`, `setChaos`, `kill`, `restore`, `announce`,

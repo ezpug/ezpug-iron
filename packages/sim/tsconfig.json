@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The engine is isomorphic like the contract it speaks: it runs inside the
+    // orchestrator, inside the published fake and in a browser test — so the
+    // DOM lib for `TextEncoder`, never @types/node.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    // The radar calibration and the config goldens are JSON under `fixtures/`.
+    "resolveJsonModule": true
+  },
+  "include": ["src", "fixtures"]
+}

@@ -1,0 +1,14 @@
+{
+  "layers": [
+    {
+      "name": "default",
+      "imageUrl": "/radar/de_ancient.png",
+      "posX": -2953,
+      "posY": 2164,
+      "scale": 5,
+      "size": 1024,
+      "zMin": null,
+      "zMax": null
+    }
+  ]
+}
