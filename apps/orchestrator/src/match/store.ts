@@ -241,6 +241,13 @@ export interface MatchStore {
   listOpenServers: (provider?: string) => Promise<ServerRow[]>
   /** Every row, newest first, filtered, paged by offset. */
   listLedger: (filter: LedgerFilter, offset: number, limit: number) => Promise<Page<ServerRow>>
+  /**
+   * Every row of one key's that counts toward this month's spend: still
+   * open, or closed at or after `since`. The budget's one read — a month's
+   * cost is `cost_hourly_cents` times each row's open time, live rows
+   * accruing to now.
+   */
+  listKeyLedgerSince: (keyId: string, since: Date) => Promise<ServerRow[]>
   /** The hash of the link token minted for a row (decision 5); the link (T6) looks it up. */
   insertServerToken: (row: ServerTokenRow) => Promise<void>
 

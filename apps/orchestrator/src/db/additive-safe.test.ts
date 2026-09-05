@@ -89,6 +89,7 @@ describe('the committed migrations', () => {
     expect(created).toEqual(
       [
         'api_keys',
+        'api_key_budget_notices',
         'api_key_webhook_secrets',
         'matches',
         'match_events',

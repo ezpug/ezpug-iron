@@ -1,5 +1,8 @@
 import type { ApiKey } from '@ezpug/match-api'
-import { KeyNameTakenError, type KeyRecord, type KeyStore } from './store'
+import { type BudgetNotice, KeyNameTakenError, type KeyRecord, type KeyStore } from './store'
+
+const noticeKey = (notice: BudgetNotice): string =>
+  [notice.keyId, notice.limit, notice.fraction, notice.monthStartedAt.toISOString()].join('|')
 
 interface MemoryRow {
   key: ApiKey
@@ -29,6 +32,7 @@ function view(row: MemoryRow): KeyRecord {
  */
 export function createMemoryKeyStore(): KeyStore {
   const rows: MemoryRow[] = []
+  const notices = new Set<string>()
   const byId = (id: string): MemoryRow | undefined => rows.find(row => row.key.id === id)
 
   return {
@@ -75,6 +79,30 @@ export function createMemoryKeyStore(): KeyStore {
       if (!row) return Promise.resolve(undefined)
       row.webhookSecrets = new Map(secrets.map(s => [s.id, s.secret]))
       return Promise.resolve(view(row))
+    },
+    rotateSecret: (id, secret) => {
+      const row = byId(id)
+      if (!row) return Promise.resolve(undefined)
+      row.secretHash = secret.secretHash
+      row.key.prefix = secret.prefix
+      return Promise.resolve(view(row))
+    },
+    setBudget: (id, patch) => {
+      const row = byId(id)
+      if (!row) return Promise.resolve(undefined)
+      row.key.budget = { ...row.key.budget, ...patch }
+      for (const mark of [...notices]) if (mark.startsWith(`${id}|`)) notices.delete(mark)
+      return Promise.resolve(view(row))
+    },
+    markBudgetNotice: notice => {
+      const mark = noticeKey(notice)
+      if (notices.has(mark)) return Promise.resolve(false)
+      notices.add(mark)
+      return Promise.resolve(true)
+    },
+    clearBudgetNotices: id => {
+      for (const mark of [...notices]) if (mark.startsWith(`${id}|`)) notices.delete(mark)
+      return Promise.resolve()
     },
     touch: (id, at) => {
       const row = byId(id)

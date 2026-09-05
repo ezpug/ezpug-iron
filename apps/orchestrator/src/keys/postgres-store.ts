@@ -1,7 +1,7 @@
 import type { ApiKey, MatchApiScope } from '@ezpug/match-api'
 import { and, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm'
 import type { DatabaseExecutor } from '../db/client'
-import { apiKeys, apiKeyWebhookSecrets } from '../db/schema'
+import { apiKeyBudgetNotices, apiKeys, apiKeyWebhookSecrets } from '../db/schema'
 import { KeyNameTakenError, type KeyRecord, type KeyStore } from './store'
 
 type KeyRow = typeof apiKeys.$inferSelect
@@ -138,6 +138,58 @@ export function createPostgresKeyStore(executor: DatabaseExecutor): KeyStore {
           )
       })
       return one(existing)
+    },
+
+    rotateSecret: async (id, secret) => {
+      // A revoked key is not rotated back to life: the service refuses it
+      // before this, and the WHERE says so again.
+      await executor
+        .update(apiKeys)
+        .set({ secretHash: secret.secretHash, prefix: secret.prefix })
+        .where(and(eq(apiKeys.id, id), isNull(apiKeys.revokedAt)))
+      return one((await executor.select().from(apiKeys).where(eq(apiKeys.id, id)))[0])
+    },
+
+    setBudget: async (id, patch) => {
+      const existing = (await executor.select().from(apiKeys).where(eq(apiKeys.id, id)))[0]
+      if (!existing) return undefined
+      await executor.transaction(async tx => {
+        await tx
+          .update(apiKeys)
+          .set({
+            ...(patch.maxConcurrentServers !== undefined && {
+              budgetMaxConcurrentServers: patch.maxConcurrentServers,
+            }),
+            ...(patch.maxServerLifetimeMinutes !== undefined && {
+              budgetMaxServerLifetimeMinutes: patch.maxServerLifetimeMinutes,
+            }),
+            ...(patch.monthlyCents !== undefined && { budgetMonthlyCents: patch.monthlyCents }),
+          })
+          .where(eq(apiKeys.id, id))
+        await tx.delete(apiKeyBudgetNotices).where(eq(apiKeyBudgetNotices.keyId, id))
+      })
+      return one((await executor.select().from(apiKeys).where(eq(apiKeys.id, id)))[0])
+    },
+
+    markBudgetNotice: async (notice, at) => {
+      // The primary key is the lock: two processes racing the same crossing
+      // means exactly one insert, so exactly one of them announces.
+      const inserted = await executor
+        .insert(apiKeyBudgetNotices)
+        .values({
+          keyId: notice.keyId,
+          limit: notice.limit,
+          fraction: String(notice.fraction),
+          monthStartedAt: notice.monthStartedAt,
+          sentAt: at,
+        })
+        .onConflictDoNothing()
+        .returning({ keyId: apiKeyBudgetNotices.keyId })
+      return inserted.length > 0
+    },
+
+    clearBudgetNotices: async id => {
+      await executor.delete(apiKeyBudgetNotices).where(eq(apiKeyBudgetNotices.keyId, id))
     },
 
     touch: async (id, at) => {

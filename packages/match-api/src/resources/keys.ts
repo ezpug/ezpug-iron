@@ -56,3 +56,14 @@ export const apiKeyCreatedSchema = z.object({
   secret: z.string().min(32),
 })
 export type ApiKeyCreated = z.infer<typeof apiKeyCreatedSchema>
+
+/**
+ * Body of `PATCH /v1/keys/:keyId/budget`: the ceilings to move, at least
+ * one of them. A patch and not a put, because an operator raising the
+ * monthly ceiling on a Saturday should not have to restate the other two
+ * from memory and risk widening them by accident.
+ */
+export const budgetPatchRequestSchema = budgetLimitsSchema
+  .partial()
+  .refine(patch => Object.keys(patch).length > 0, 'name at least one ceiling')
+export type BudgetPatchRequest = z.infer<typeof budgetPatchRequestSchema>

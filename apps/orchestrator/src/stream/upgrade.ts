@@ -148,11 +148,18 @@ export function attachStreamUpgrade(options: StreamUpgradeOptions): WebSocketSer
       ws.close(verdict.code, verdict.reason)
       return
     }
-    // The hello reads the match *after* subscribing, so a frame published
-    // between the read and the subscription cannot be missed; a frame seen
-    // twice is what the deduper is for.
+    // Two promises that look like one: **nothing may be missed** (so the
+    // subscription is taken before the match is read for the hello — a frame
+    // published in between would otherwise fall in the gap) and **`hello` is
+    // the first frame** (`docs/match-api.md`). Subscribing first alone breaks
+    // the second: a match being allocated right now publishes into that very
+    // window, and the client's first frame is an `event`. So a frame that
+    // arrives before the greeting is written waits behind it, in order,
+    // rather than overtaking it.
     let unsubscribe: (() => void) | undefined
-    const send = (frame: StreamFrame): void => {
+    let greeted = false
+    const held: StreamFrame[] = []
+    const write = (frame: StreamFrame): void => {
       if (ws.readyState !== ws.OPEN) return
       if (ws.bufferedAmount > STREAM_SLOW_CONSUMER_BYTES) {
         unsubscribe?.()
@@ -160,6 +167,13 @@ export function attachStreamUpgrade(options: StreamUpgradeOptions): WebSocketSer
         return
       }
       ws.send(JSON.stringify(frame))
+    }
+    const send = (frame: StreamFrame): void => {
+      if (!greeted) {
+        held.push(frame)
+        return
+      }
+      write(frame)
     }
     unsubscribe = hub.subscribe(matchId, {
       send,
@@ -172,7 +186,9 @@ export function attachStreamUpgrade(options: StreamUpgradeOptions): WebSocketSer
       ws.close(STREAM_CLOSE_CODES.notFound, 'no such match')
       return
     }
-    send({ type: 'hello', matchId: row.id, seq: row.seq, state: row.state })
+    write({ type: 'hello', matchId: row.id, seq: row.seq, state: row.state })
+    greeted = true
+    for (const frame of held.splice(0)) write(frame)
     if (isTerminalMatchState(row.state)) {
       unsubscribe()
       ws.close(STREAM_CLOSE_CODES.matchEnded, 'the match is over')

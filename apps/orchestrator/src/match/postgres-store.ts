@@ -1,5 +1,5 @@
 import type { MatchState } from '@ezpug/match-api'
-import { and, asc, desc, eq, isNull, lte, notInArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, isNull, lte, notInArray, or, sql } from 'drizzle-orm'
 import type { DatabaseExecutor } from '../db/client'
 import {
   backups,
@@ -260,6 +260,20 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
         .limit(limit + 1)
       return page(rows.map(toServer), offset, limit)
     },
+    listKeyLedgerSince: async (keyId, since) =>
+      (
+        await executor
+          .select()
+          .from(servers)
+          .where(
+            and(
+              eq(servers.keyId, keyId),
+              or(isNull(servers.releasedAt), gte(servers.releasedAt, since)),
+            ),
+          )
+          .orderBy(desc(servers.allocatedAt), desc(servers.id))
+      ).map(toServer),
+
     insertServerToken: async row => {
       await executor.insert(serverTokens).values(row)
     },

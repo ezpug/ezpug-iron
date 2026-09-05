@@ -2,6 +2,7 @@ import { createFakeClock, type FakeClock } from '@ezpug/core'
 import { SHIPPED_GAMEMODES, type WebhookEnvelope } from '@ezpug/match-api'
 import type { SimPlan } from '@ezpug/sim'
 import { createApp } from '../app'
+import { type Budgets, createBudgets } from '../budget/service'
 import { createFleet, type Fleet } from '../fleet/service'
 import { createHealth, type HealthReport } from '../health'
 import { createMemoryKeyStore } from '../keys/memory-store'
@@ -34,6 +35,7 @@ import { createRateLimiter } from './rate-limit'
 export interface TestApp {
   app: ReturnType<typeof createApp>
   keys: Keys
+  budgets: Budgets
   clock: FakeClock
   log: ReturnType<typeof createMemoryLog>
   store: ReturnType<typeof createMemoryMatchStore>
@@ -89,12 +91,14 @@ export interface TestAppOptions {
   /** Register no provider at all — a world with nothing to allocate. */
   noProviders?: boolean
   webhookPollIntervalMs?: number
+  budgetSweepIntervalMs?: number
 }
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
   const clock = createFakeClock({ start: '2026-09-05T18:00:00.000Z' })
   const log = createMemoryLog()
-  const keys = createKeys({ store: createMemoryKeyStore(), clock })
+  const keyStore = createMemoryKeyStore()
+  const keys = createKeys({ store: keyStore, clock })
   const store = createMemoryMatchStore()
   const providers = createProviderRegistry()
   const links = createLinkRegistry()
@@ -126,6 +130,16 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     pollIntervalMs: options.webhookPollIntervalMs,
     onAttempt: report => void attempts.push(report),
   })
+  const budgets = createBudgets({
+    clock,
+    log,
+    store,
+    keys: keyStore,
+    intervalMs: options.budgetSweepIntervalMs,
+    emit: async (matchId, fact) => {
+      await matches.emit(matchId, fact)
+    },
+  })
   const matches = createMatches({
     clock,
     log,
@@ -135,6 +149,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     gamemodes: SHIPPED_GAMEMODES,
     hub,
     webhooks,
+    budget: budgets,
     baseUrl: 'http://localhost:3430',
     deadlines: options.deadlines,
   })
@@ -161,7 +176,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, gamemodes: SHIPPED_GAMEMODES, matches, fleet }),
+      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet }),
     ),
     rateLimiter: createRateLimiter({
       clock,
@@ -190,6 +205,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   return {
     app,
     keys,
+    budgets,
     clock,
     log,
     store,
@@ -252,17 +268,24 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
       await matches.close()
       await webhooks.close()
       await reaper.stop()
+      await budgets.stop()
       await hub.close()
     },
   }
 }
 
-/** A key request with the round's default budget — what most tests mint. */
+/**
+ * A key request with the round's default budget — what most tests mint. The
+ * monthly ceiling is a real number and not `0`, because `0` means *no money*
+ * (T5, and the fake before it): a key that may spend nothing can only ever
+ * use a free provider, which is true of the sim and not of a stub with a
+ * price.
+ */
 export function keyRequest(name: string, scopes: ('matches' | 'fleet' | 'admin')[] = ['matches']) {
   return {
     name,
     scopes,
-    budget: { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 0 },
+    budget: { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 100_000 },
     webhookSecrets: [],
   }
 }

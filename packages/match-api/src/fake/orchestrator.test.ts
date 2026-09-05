@@ -310,6 +310,37 @@ describe('the door', () => {
       'validation_failed',
     )
   })
+
+  it('rotates a key’s secret and patches its ceilings without touching the rest', async () => {
+    const h = setup()
+    const admin = h.fake.client(h.fake.admin.secret)
+    const before = h.platform.secret
+    const rotated = await admin.keys.rotate({ params: { keyId: h.platform.key.id } })
+    expect(rotated.key.id).toBe(h.platform.key.id)
+    expect(rotated.secret).not.toBe(before)
+    expect(rotated.key.prefix).toBe(rotated.secret.slice(0, 12))
+    expect(rotated.key.webhookSecretIds).toEqual(h.platform.key.webhookSecretIds)
+    // The old secret died the moment the new one was drawn.
+    expect((await refusal(h.fake.client(before).matches.list({ query: {} }))).code).toBe(
+      'unauthorized',
+    )
+    expect((await h.fake.client(rotated.secret).matches.list({ query: {} })).items).toEqual([])
+
+    const patched = await admin.keys.setBudget({
+      params: { keyId: h.platform.key.id },
+      body: { monthlyCents: 12_345 },
+    })
+    expect(patched.budget.monthlyCents).toBe(12_345)
+    expect(patched.budget.maxConcurrentServers).toBe(h.platform.key.budget.maxConcurrentServers)
+    expect(patched.budget.maxServerLifetimeMinutes).toBe(
+      h.platform.key.budget.maxServerLifetimeMinutes,
+    )
+
+    await admin.keys.revoke({ params: { keyId: h.platform.key.id } })
+    expect((await refusal(admin.keys.rotate({ params: { keyId: h.platform.key.id } }))).code).toBe(
+      'invalid_state',
+    )
+  })
 })
 
 describe('cancel and commands', () => {

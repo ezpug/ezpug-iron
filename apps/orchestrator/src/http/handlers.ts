@@ -6,6 +6,7 @@ import type {
   RouteTree,
 } from '@ezpug/match-api'
 import { ApiError, MATCH_API_ERROR_STATUS, parseEventsCursor } from '@ezpug/match-api'
+import type { Budgets } from '../budget/service'
 import type { Fleet } from '../fleet/service'
 import type { AuthenticatedKey, Keys } from '../keys/service'
 import type { Matches } from '../match/machine'
@@ -17,10 +18,10 @@ import type { Matches } from '../match/machine'
  * this object; nothing registers a path by hand.
  *
  * Served: the catalog and the keys (T2), matches, capacity, the fleet's
- * servers, providers and ledger (T3). Everything else answers
- * {@link notServedYet} until the task that builds it replaces the entry:
- * T5 (budget), T12 (nodes), T17 (gslt), T20 (console, rcon), T24 (player
- * tokens). A route that is not yet served still exists: it authenticates,
+ * servers, providers and ledger (T3), the budget and the keys' rotation and
+ * ceilings (T5). Everything else answers {@link notServedYet} until the task
+ * that builds it replaces the entry: T12 (nodes), T17 (gslt), T20 (console,
+ * rcon), T24 (player tokens). A route that is not yet served still exists: it authenticates,
  * gates its scope and validates its input like every other, and then says
  * so with `internal` — never a `404` that would lie about the contract.
  */
@@ -43,6 +44,7 @@ export type RouteHandlers<Routes extends RouteTree = MatchApiRoutes> = {
 
 export interface HandlerDependencies {
   keys: Keys
+  budgets: Budgets
   /** The catalog `GET /v1/gamemodes` serves, `pug` first. */
   gamemodes: readonly GamemodeManifest[]
   matches: Matches
@@ -74,7 +76,7 @@ function upgradeRequired(): ApiError {
 }
 
 export function createHandlers(deps: HandlerDependencies): RouteHandlers {
-  const { keys, gamemodes, matches, fleet } = deps
+  const { keys, budgets, gamemodes, matches, fleet } = deps
   return {
     gamemodes: {
       list: () => ({ gamemodes: [...gamemodes] }),
@@ -132,13 +134,15 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
         const { cursor, limit, ...filter } = query
         return fleet.ledger(filter, cursor, limit)
       },
-      budget: notServedYet('T5'),
+      budget: (_input, ctx) => budgets.of(ctx.key.key),
       gslt: notServedYet('T17'),
     },
     keys: {
       create: ({ body }) => keys.mint(body),
       list: async () => ({ keys: await keys.list() }),
       revoke: ({ params }) => keys.revoke(params.keyId),
+      rotate: ({ params }) => keys.rotate(params.keyId),
+      setBudget: ({ params, body }) => keys.setBudget(params.keyId, body),
       setWebhookSecrets: ({ params, body }) => keys.setWebhookSecrets(params.keyId, body),
     },
   }

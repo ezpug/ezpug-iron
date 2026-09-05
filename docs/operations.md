@@ -170,9 +170,10 @@ an unknown `sim.scenario`; `unknown_gamemode`; `no_capable_server` when no provi
 host the request (every `csgo` request this round, `lan` with no node, a named
 `provider` or `region` nobody offers, every provider drained or full) and
 `provider_unavailable` when every asked provider failed to answer; `game_unsupported`;
-`map_not_allowed`; `budget_exceeded` for a `ttlMinutes` above the key's lifetime ceiling
-(the concurrent and monthly ceilings are T5's). Then the row is written `pending` and the
-walk is kicked.
+`map_not_allowed`; `budget_exceeded` when the key is at its concurrent-server ceiling,
+asks for a `ttlMinutes` above its lifetime ceiling, or the match's projected cost would
+cross its month (see *Budgets* below). Then the row is written `pending` and the walk is
+kicked.
 
 **The walk** (`provision`): selection filters every eligible provider's offerings on
 `game`, `region`, `lan` and `workshopMaps`, then orders them — a node first when the
@@ -289,9 +290,53 @@ pnpm --filter @ezpug/orchestrator keys:mint -- --name platform --scopes matches,
 ```
 
 The secret is the one line on stdout. From there `POST /v1/keys` (an `admin` key) mints
-the rest; `DELETE /v1/keys/:id` revokes; `PUT /v1/keys/:id/webhook-secrets` rotates the
-secrets a key's match requests sign with. T4 adds `EZPUG_IRON_BOOTSTRAP_API_KEY` for a
-dev world that boots with a known key; T5 adds rotation and budget enforcement.
+the rest; `DELETE /v1/keys/:id` revokes; `POST /v1/keys/:id/rotate` draws a new secret
+and kills the old one on the spot (same key, same id, same budget — what you do when a
+secret leaked, instead of minting a second key and leaving the first alive);
+`PATCH /v1/keys/:id/budget` moves a ceiling; `PUT /v1/keys/:id/webhook-secrets` rotates
+the secrets a key's match requests sign with. `EZPUG_IRON_BOOTSTRAP_API_KEY` is the dev
+world's known key (see the image section).
+
+## Budgets: the wall in front of the money
+
+Every key carries three ceilings (decision 7) and the orchestrator enforces them against
+the **ledger**, never against what the caller says:
+
+| Ceiling | What it counts | Refused when |
+| ------- | -------------- | ------------ |
+| `maxConcurrentServers` | open ledger rows this key is paying for right now | one more would cross it |
+| `maxServerLifetimeMinutes` | the request's own `ttlMinutes` | the request asks for longer |
+| `monthlyCents` | this UTC month's spend: each row's `cost_hourly_cents` × its open time, **live rows accruing to now** | the new match's projected cost would cross it |
+
+The refusal is `402 budget_exceeded` with `details.limit` naming which ceiling, and it is
+final — a client must not retry it. It happens at the door, before a ledger row exists,
+so a refused request costs nothing and leaves nothing.
+
+**`monthlyCents: 0` means no money, not "no ceiling".** A key with a zero ceiling can use
+free providers (the sim, a node) forever and is refused the first paid allocation. That
+is the safe default and it is why the dev bootstrap key carries it: a dev world pointed
+at Dathost by accident stops at the first request instead of at the invoice.
+
+**The month** is the UTC calendar month. `GET /v1/fleet/budget` answers the calling key's
+`{ limits, usage: { concurrentServers, monthCents, monthStartedAt } }` — the query a
+health tile draws; `GET /v1/fleet/ledger?since=` is the same money row by row.
+
+**Warnings.** When a key crosses 80 % or 95 % of a ceiling that has a ratio (the
+concurrent and monthly ones), `fleet.budget_threshold` is appended to each of that key's
+open matches — so it reaches the client on the webhook it already listens to. A crossing
+is announced **once per ceiling, fraction and month**: the mark is a row in
+`api_key_budget_notices`, not a set in this process, so a deploy does not re-announce.
+Moving a ceiling clears that key's marks, because a new number is a new crossing. The
+check runs when a ledger row opens and on a sweep every minute, which is how accrual on
+a live server crosses a line without anybody asking.
+
+Raising a ceiling in the middle of a Saturday:
+
+```sh
+curl -sS -X PATCH https://gs.ezpug.com/v1/keys/$KEY_ID/budget \
+  -H "authorization: Bearer $ADMIN_KEY" -H 'content-type: application/json' \
+  -d '{"monthlyCents": 50000}'
+```
 
 **Rate limits** are a token bucket per key — `EZPUG_IRON_RATE_LIMIT_BURST` deep,
 refilled at `EZPUG_IRON_RATE_LIMIT_PER_SECOND` — answering `429 rate_limited` with a
@@ -318,6 +363,7 @@ from the injected clock.
 | Table | What | Written by |
 | ----- | ---- | ---------- |
 | `api_keys` | a key: name, public prefix, secret hash, scopes, the three budget ceilings, the per-key fleet webhook (T31), created / last used / revoked | keys (T2), budgets (T5) |
+| `api_key_budget_notices` | which `fleet.budget_threshold` was already said, per key, ceiling, fraction and month — so a restart never repeats a crossing | budgets (T5) |
 | `api_key_webhook_secrets` | the HMAC secrets a key registered, by id, **in clear** — they sign | keys |
 | `matches` | the Match API resource as a row, plus the request whole, its hash (the `clientMatchId` conflict check), when the state was entered (deadlines re-arm from it), and `webhooks_stopped_at` (a `410`) | the match machine (T3) |
 | `match_events` | the per-match durable log: `(match, seq)` unique, the payload, the `delivery_id`; what the events route replays and the webhooks carry | the machine, the link (T6) |

@@ -21,6 +21,7 @@ import {
   apiKeyCreatedSchema,
   apiKeyCreateRequestSchema,
   apiKeySchema,
+  budgetPatchRequestSchema,
   webhookSecretsRequestSchema,
 } from './resources/keys'
 import { matchListFilterSchema, matchSchema } from './resources/match'
@@ -307,7 +308,29 @@ export const matchApiRoutes = {
       params: keyParams,
       response: apiKeySchema,
     }),
-    /** Replace the key's webhook secrets — how a client rotates. */
+    /**
+     * Draw the key a new secret and kill the old one on the spot — what an
+     * operator does when a key leaked. Same id, same scopes, same budget,
+     * same webhook secrets; the new secret is in the answer and nowhere
+     * else, like a mint.
+     */
+    rotate: defineRoute({
+      method: 'post',
+      path: '/v1/keys/:keyId/rotate',
+      scope: 'admin',
+      params: keyParams,
+      response: apiKeyCreatedSchema,
+    }),
+    /** Move one or more of the key's three ceilings (decision 7). */
+    setBudget: defineRoute({
+      method: 'patch',
+      path: '/v1/keys/:keyId/budget',
+      scope: 'admin',
+      params: keyParams,
+      body: budgetPatchRequestSchema,
+      response: apiKeySchema,
+    }),
+    /** Replace the key's webhook secrets — how a client rotates a signature. */
     setWebhookSecrets: defineRoute({
       method: 'put',
       path: '/v1/keys/:keyId/webhook-secrets',

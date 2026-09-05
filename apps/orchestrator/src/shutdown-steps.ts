@@ -37,13 +37,16 @@ export interface ShutdownStepsOptions {
   /** The stream sockets (T3). Absent in a composition without a listener. */
   streams?: Closable
   reaper?: { stop: () => Promise<void> }
+  /** The budget sweep (T5) — a timer, disarmed with the reaper's. */
+  budgets?: { stop: () => Promise<void> }
   webhooks?: Closable
   matches?: Closable
   hub?: Closable
 }
 
 export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
-  const { clock, httpDrain, redis, database, streams, reaper, webhooks, matches, hub } = options
+  const { clock, httpDrain, redis, database, streams, reaper, budgets, webhooks, matches, hub } =
+    options
   return [
     // 1. Out of rotation first, while everything still works.
     { name: 'health', run: () => clock.sleep(HEALTH_GRACE_MS) },
@@ -58,10 +61,12 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     ...(streams ? [{ name: 'streams', run: () => streams.close() }] : []),
     // 5. Now the wait means what it says: only requests are left.
     { name: 'requests', run: () => httpDrain.finish(REQUEST_GRACE_MS) },
-    // 6. The reaper, the webhook worker and the match machines drain here —
-    //    sweeps disarmed, attempts in flight awaited, deadlines disarmed and
-    //    chains awaited — before the hub whose fan-out they publish into.
+    // 6. The reaper, the budget sweep, the webhook worker and the match
+    //    machines drain here — sweeps disarmed, attempts in flight awaited,
+    //    deadlines disarmed and chains awaited — before the hub whose fan-out
+    //    they publish into.
     ...(reaper ? [{ name: 'reaper', run: () => reaper.stop() }] : []),
+    ...(budgets ? [{ name: 'budgets', run: () => budgets.stop() }] : []),
     ...(webhooks ? [{ name: 'webhooks', run: () => webhooks.close() }] : []),
     ...(matches ? [{ name: 'matches', run: () => matches.close() }] : []),
     ...(hub ? [{ name: 'hub', run: () => hub.close() }] : []),

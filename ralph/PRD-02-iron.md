@@ -222,7 +222,7 @@ every offline proof here.
   `docs/operations.md` under "running it inside another project's dev world". A local
   build tag (`:dev`) works before any publish.
 
-- [ ] **T5: Budgets and keys.** Per-key `maxConcurrentServers`, `maxServerMinutes`,
+- [x] **T5: Budgets and keys.** Per-key `maxConcurrentServers`, `maxServerMinutes`,
   `monthlyCentsCeiling` with the month's spend from the ledger (cost snapshot × uptime,
   live rows included), `budget_exceeded` refusals, `fleet.budget_threshold` at 50/80/100 %,
   the `keys` routes (create → key shown once, rotate, revoke, budgets patch; `admin`

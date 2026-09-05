@@ -86,6 +86,49 @@ describe('createPostgresKeyStore', () => {
     })
   })
 
+  it('rotates a secret, moves one ceiling and forgets the notices with it (T5)', async () => {
+    await database.rollback(async tx => {
+      const store = createPostgresKeyStore(tx)
+      const { row, secret } = input(`${database.namespace}-e`)
+      await store.insert(row)
+      const next = mintToken('apiKey')
+      const rotated = await store.rotateSecret(
+        row.id,
+        { prefix: next.slice(0, 12), secretHash: hashToken(next) },
+        at,
+      )
+      expect(rotated?.key.prefix).toBe(next.slice(0, 12))
+      expect((await store.findBySecretHash(hashToken(next)))?.key.id).toBe(row.id)
+      expect(await store.findBySecretHash(hashToken(secret))).toBeUndefined()
+      // The webhook secrets came along untouched — a rotation is about one credential.
+      expect([...(rotated?.webhookSecrets.keys() ?? [])]).toEqual(['whsec-1'])
+      expect(await store.rotateSecret(randomUUID(), { prefix: 'x', secretHash: 'y' }, at)).toBe(
+        undefined,
+      )
+
+      const month = new Date('2026-09-01T00:00:00.000Z')
+      const notice = { keyId: row.id, limit: 'monthlyCents', fraction: 0.8, monthStartedAt: month }
+      expect(await store.markBudgetNotice(notice, at)).toBe(true)
+      expect(await store.markBudgetNotice(notice, at)).toBe(false)
+      expect(await store.markBudgetNotice({ ...notice, fraction: 0.95 }, at)).toBe(true)
+      // A different month is a different crossing.
+      expect(
+        await store.markBudgetNotice(
+          { ...notice, monthStartedAt: new Date('2026-10-01T00:00:00.000Z') },
+          at,
+        ),
+      ).toBe(true)
+
+      const patched = await store.setBudget(row.id, { monthlyCents: 999 }, at)
+      expect(patched?.key.budget).toEqual({ ...row.budget, monthlyCents: 999 })
+      // The ceiling moved, so the crossing is new again.
+      expect(await store.markBudgetNotice(notice, at)).toBe(true)
+      await store.clearBudgetNotices(row.id)
+      expect(await store.markBudgetNotice(notice, at)).toBe(true)
+      expect(await store.setBudget(randomUUID(), { monthlyCents: 1 }, at)).toBeUndefined()
+    })
+  })
+
   it('lists newest first, revoked included', async () => {
     await database.rollback(async tx => {
       const store = createPostgresKeyStore(tx)

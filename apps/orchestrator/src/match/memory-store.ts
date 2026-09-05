@@ -197,6 +197,14 @@ export function createMemoryMatchStore(): MatchStore & {
         ),
       ),
 
+    listKeyLedgerSince: (keyId, since) =>
+      Promise.resolve(
+        newestFirst(servers)
+          .filter(row => row.keyId === keyId)
+          .filter(row => row.releasedAt === null || row.releasedAt >= since)
+          .map(copy),
+      ),
+
     insertServerToken: row => {
       serverTokens.push(copy(row))
       return Promise.resolve()

@@ -219,6 +219,11 @@ async function contract(store: MatchStore, keyId: string): Promise<void> {
     tokenHash: hashToken(mintToken('server')),
     createdAt: at(),
   })
+  // The budget's one read (T5): open rows always, closed ones only while
+  // they belong to the month being counted.
+  expect((await store.listKeyLedgerSince(keyId, at(0))).map(s => s.id)).toEqual([s2.id, s1.id])
+  expect((await store.listKeyLedgerSince(keyId, at(3_000))).map(s => s.id)).toEqual([s1.id])
+  expect(await store.listKeyLedgerSince(randomUUID(), at(0))).toEqual([])
 
   // nothing written by later tasks yet
   expect(await store.latestBackup(b.id)).toBeUndefined()

@@ -30,6 +30,7 @@ import type {
   ApiKeyCreated,
   ApiKeyCreateRequest,
   Budget,
+  BudgetPatchRequest,
   BudgetUsage,
   Capacity,
   ConsoleLine,
@@ -345,6 +346,26 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
   const revokeKey = (keyId: string): ApiKey => {
     const record = requireKey(keyId)
     if (!record.key.revokedAt) record.key.revokedAt = iso()
+    return { ...record.key }
+  }
+
+  const rotateKey = (keyId: string): ApiKeyCreated => {
+    const record = requireKey(keyId)
+    if (record.key.revokedAt) throw refuse('invalid_state', `key ${keyId} is revoked`)
+    keysBySecret.delete(record.secret)
+    const secret = `${FAKE_SECRET_PREFIXES.apiKey}${hex32()}`
+    record.secret = secret
+    record.key.prefix = secret.slice(0, 12)
+    keysBySecret.set(secret, record.key.id)
+    return { key: { ...record.key }, secret }
+  }
+
+  const setKeyBudget = (keyId: string, patch: BudgetPatchRequest): ApiKey => {
+    const record = requireKey(keyId)
+    record.key.budget = { ...record.key.budget, ...patch }
+    // A ceiling that moved is a new crossing: what was announced under the
+    // old number says nothing about the new one.
+    record.thresholdsSent.clear()
     return { ...record.key }
   }
 
@@ -1575,6 +1596,8 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     gamemodes,
     // keys
     mintKey,
+    rotateKey,
+    setKeyBudget,
     authenticate,
     listKeys: (): ApiKey[] => [...keys.values()].map(k => ({ ...k.key })),
     revokeKey,

@@ -223,6 +223,7 @@ describe('deadlines', () => {
       gamemodes: (await import('@ezpug/match-api')).SHIPPED_GAMEMODES,
       hub: app.hub,
       webhooks: app.webhooks,
+      budget: app.budgets,
       baseUrl: 'http://localhost:3430',
     })
     await revived.resume()

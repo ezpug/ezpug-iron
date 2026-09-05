@@ -282,7 +282,9 @@ cursor is not opaque: it is **the `seq` to resume after**, as a decimal string, 
 ### `GET /v1/matches/:matchId/stream`
 
 Scope `matches`. A WebSocket upgrade, not a request: every message the socket sends is a
-`StreamFrame`, the first one a `hello`. Authenticated by the bearer header, or by a player
+`StreamFrame`, the first one a `hello` — always, even when the match is publishing at the
+moment you connect: the subscription is taken before the greeting is built, and anything
+published in between waits behind it. Authenticated by the bearer header, or by a player
 token minted for this match in `?token=` for a browser. The typed client has no call for
 it; `subscribeStream(matchId)` opens it. See [The stream](#the-stream).
 
@@ -361,6 +363,21 @@ Scope `admin`. `{ keys: ApiKey[] }`.
 ### `DELETE /v1/keys/:keyId`
 
 Scope `admin`. Revokes; answers the key with `revokedAt` set.
+
+### `POST /v1/keys/:keyId/rotate`
+
+Scope `admin`. Draws the key a new secret and kills the old one on the spot — the answer
+is `{ key, secret }`, the secret shown once, like a mint. Same id, scopes, budget and
+webhook secrets; `invalid_state` for a revoked key. What an operator does when a key
+leaked: rotate, then hand the new secret over, rather than mint a second key and leave
+the first alive.
+
+### `PATCH /v1/keys/:keyId/budget`
+
+Scope `admin`. Body is the ceilings to move — any of `maxConcurrentServers`,
+`maxServerLifetimeMinutes`, `monthlyCents`, at least one — and the answer is the key.
+The ceilings that are not named do not change. A ceiling that moved is a new crossing:
+the `fleet.budget_threshold` warnings for that key start over.
 
 ### `PUT /v1/keys/:keyId/webhook-secrets`
 

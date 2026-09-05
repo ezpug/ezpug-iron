@@ -26,6 +26,7 @@ import {
 } from '@ezpug/match-api'
 import { HEARTBEAT_INTERVAL_MS_DEFAULT, SERVER_LINK_PATH } from '@ezpug/protocol'
 import { SIM_PROVIDER_ID } from '@ezpug/sim'
+import type { BudgetGate } from '../budget/service'
 import type { AuthenticatedKey } from '../keys/service'
 import type { IngestStatus, LinkRegistry, ServerEventSink, ServerRef } from '../link/channels'
 import { serverKey } from '../link/channels'
@@ -106,6 +107,8 @@ export interface MatchesOptions {
   hub: StreamHub
   /** The webhook worker's door: a delivery row was written. */
   webhooks: { kick: () => void }
+  /** The budget's door: the three ceilings, checked against the ledger (T5). */
+  budget: BudgetGate
   /** The orchestrator's own origin — what a server's plugin dials the link at. */
   baseUrl: string
   deadlines?: Partial<MatchDeadlines>
@@ -606,6 +609,15 @@ export function createMatches(options: MatchesOptions): Matches {
       })
       await store.updateMatch(row.id, { provider: provider.id, fleetServerId, updatedAt: at })
       Object.assign(row, { provider: provider.id, fleetServerId })
+      // A row that opened is a concurrency count and a meter that started.
+      // Tracked so a test's `settle()` waits for the warning, never awaited
+      // here: the warning is emitted on this very match's chain, which this
+      // walk is holding, and a warning must not be able to fail a walk.
+      void track(
+        options.budget
+          .announce(row.keyId)
+          .catch((error: unknown) => report(error, { phase: 'budget', matchId: row.id })),
+      )
 
       let allocated: Awaited<ReturnType<typeof provider.allocate>>
       try {
@@ -852,14 +864,10 @@ export function createMatches(options: MatchesOptions): Matches {
           map: plan.map,
         })
     }
-    // The request-level ceiling (`docs/match-api.md`: "never above the key's
-    // ceiling"). The concurrent and monthly ceilings, and the thresholds, are T5's.
-    if (request.ttlMinutes > key.key.budget.maxServerLifetimeMinutes)
-      throw refuse('budget_exceeded', 'ttlMinutes is above the key’s server lifetime ceiling', {
-        limit: 'maxServerLifetimeMinutes',
-        ttlMinutes: request.ttlMinutes,
-        maxServerLifetimeMinutes: key.key.budget.maxServerLifetimeMinutes,
-      })
+    // Money last, and against the ledger (T5): concurrent servers, then the
+    // request's own lifetime, then the month — priced at what the walk's
+    // first candidate charges, which is what this match would actually cost.
+    await options.budget.check(key.key, request, selection.candidates[0]?.offering.hourlyCents ?? 0)
 
     const at = now()
     const row: MatchRow = {

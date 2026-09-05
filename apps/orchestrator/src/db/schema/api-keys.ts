@@ -68,3 +68,32 @@ export const apiKeyWebhookSecrets = pgTable(
   },
   table => [primaryKey({ columns: [table.keyId, table.id] })],
 )
+
+/**
+ * **Budget warnings already said** (PRD-02 T5). `fleet.budget_threshold` is
+ * "sent once per fraction per month, never repeated for the same crossing"
+ * (`docs/match-api.md`), and a promise like that cannot live in a process
+ * that gets restarted every deploy — a key sitting above 80 % of its
+ * monthly ceiling would re-announce into every open match each time. One
+ * row per `(key, limit, fraction, month)`; the month is the UTC first of
+ * the month the crossing belongs to, so a new month starts the warnings
+ * over without anything being deleted. Moving a ceiling deletes this key's
+ * rows for the month: a new number is a new crossing.
+ */
+export const apiKeyBudgetNotices = pgTable(
+  'api_key_budget_notices',
+  {
+    keyId: uuid('key_id')
+      .notNull()
+      .references(() => apiKeys.id),
+    /** `BudgetLimitName` — the ceiling that was crossed. */
+    limit: text().notNull(),
+    /** One of `BUDGET_THRESHOLD_FRACTIONS`, as text so a float never rounds. */
+    fraction: text().notNull(),
+    monthStartedAt: timestamptz('month_started_at').notNull(),
+    sentAt: createdAt('sent_at'),
+  },
+  table => [
+    primaryKey({ columns: [table.keyId, table.limit, table.fraction, table.monthStartedAt] }),
+  ],
+)

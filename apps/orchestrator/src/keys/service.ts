@@ -5,6 +5,7 @@ import {
   type ApiKey,
   type ApiKeyCreated,
   type ApiKeyCreateRequest,
+  type BudgetPatchRequest,
   MATCH_API_ERROR_STATUS,
   type WebhookSecretsRequest,
 } from '@ezpug/match-api'
@@ -13,10 +14,11 @@ import { KeyNameTakenError, type KeyRecord, type KeyStore } from './store'
 
 /**
  * **API keys, the service**: mint (the secret shown once, only its hash
- * kept), authenticate a bearer, list, revoke, rotate webhook secrets, and
- * the throttled "last used" touch. The scope gate is not here — it is the
- * dispatch's, from the route table (`http/dispatch.ts`) — and the budgets
- * are PRD-02 T5's; this is the identity half of decision 7.
+ * kept), authenticate a bearer, list, revoke, rotate the secret, move the
+ * ceilings, rotate webhook secrets, and the throttled "last used" touch. The
+ * scope gate is not here — it is the dispatch's, from the route table
+ * (`http/dispatch.ts`) — and enforcing the ceilings is the budget service's
+ * (`../budget/service.ts`); this is the identity half of decision 7.
  */
 
 /**
@@ -63,6 +65,15 @@ export interface Keys {
   list: () => Promise<ApiKey[]>
   /** Revoke; `not_found` for an unknown id. Idempotent. */
   revoke: (id: string) => Promise<ApiKey>
+  /**
+   * Draw the key a new secret and kill the old one on the spot — what an
+   * operator does when a key leaked. `not_found` for an unknown id,
+   * `invalid_state` for a revoked one (revoking is the way to end a key;
+   * rotation must never bring one back).
+   */
+  rotate: (id: string) => Promise<ApiKeyCreated>
+  /** Move one or more of the three ceilings; `not_found` for an unknown id. */
+  setBudget: (id: string, patch: BudgetPatchRequest) => Promise<ApiKey>
   /** Replace the registered webhook secrets; `not_found` for an unknown id. */
   setWebhookSecrets: (id: string, request: WebhookSecretsRequest) => Promise<ApiKey>
   get: (id: string) => Promise<AuthenticatedKey | undefined>
@@ -152,6 +163,34 @@ export function createKeys(options: KeysOptions): Keys {
 
     async revoke(id) {
       const record = await store.revoke(id, clock.date())
+      if (!record) throw notFound(id)
+      return record.key
+    },
+
+    async rotate(id) {
+      const existing = await store.findById(id)
+      if (!existing) throw notFound(id)
+      if (existing.key.revokedAt)
+        throw new ApiError(
+          MATCH_API_ERROR_STATUS.invalid_state,
+          'invalid_state',
+          `API key ${id} was revoked`,
+        )
+      const secret = mintToken('apiKey', options.random)
+      const record = await store.rotateSecret(
+        id,
+        { prefix: apiKeyPrefix(secret), secretHash: hashToken(secret) },
+        clock.date(),
+      )
+      if (!record) throw notFound(id)
+      // The throttle remembers the key by id, not by secret; the new secret
+      // should still touch on its first use.
+      touched.delete(id)
+      return { key: record.key, secret }
+    },
+
+    async setBudget(id, patch) {
+      const record = await store.setBudget(id, patch, clock.date())
       if (!record) throw notFound(id)
       return record.key
     },

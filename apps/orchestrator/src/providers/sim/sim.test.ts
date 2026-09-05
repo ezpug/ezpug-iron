@@ -44,7 +44,9 @@ async function platformKey(app: TestApp): Promise<AuthenticatedKey> {
   const minted = await app.keys.mint({
     name: 'platform',
     scopes: ['matches', 'fleet'],
-    budget: { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 0 },
+    // A real monthly ceiling, not `0`: `0` is "no money" (T5), and one of
+    // these tests allocates on a stub provider that charges by the hour.
+    budget: { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 100_000 },
     webhookSecrets: [{ id: SECRET_ID, secret: SECRET }],
   })
   return (await app.keys.get(minted.key.id)) as AuthenticatedKey

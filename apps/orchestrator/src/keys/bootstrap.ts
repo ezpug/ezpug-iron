@@ -41,9 +41,11 @@ export const BOOTSTRAP_KEY_SCOPES: readonly MatchApiScope[] = ['matches', 'fleet
 
 /**
  * A dev budget, not a production one: four servers at a time, four hours
- * each, no monthly ceiling (`0` = none, T5's rule). The sim costs nothing;
- * a dev world pointed at a paying provider is the operator's business, and
- * the ceiling can be patched on the key afterwards.
+ * each, and **no money** — `monthlyCents: 0` is a ceiling of zero, not the
+ * absence of one (T5). The sim and a node cost nothing, so a dev world runs
+ * unhindered; a dev world pointed at a paying provider is refused
+ * `budget_exceeded` on the first request, which is the honest answer, and
+ * the operator raises the ceiling with `PATCH /v1/keys/:keyId/budget`.
  */
 export const BOOTSTRAP_KEY_BUDGET = {
   maxConcurrentServers: 4,

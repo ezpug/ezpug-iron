@@ -3,6 +3,7 @@ import type { Clock } from '@ezpug/core'
 import { SHIPPED_GAMEMODES } from '@ezpug/match-api'
 import { createAdaptorServer } from '@hono/node-server'
 import { createApp } from './app'
+import { type Budgets, createBudgets } from './budget/service'
 import type { OrchestratorConfig } from './config'
 import { createDatabase, type DatabaseHandle } from './db/client'
 import { createFleet, type Fleet } from './fleet/service'
@@ -53,6 +54,7 @@ export interface Orchestrator {
   readonly database: DatabaseHandle
   readonly redis: RedisHandle
   readonly keys: Keys
+  readonly budgets: Budgets
   readonly store: MatchStore
   readonly providers: ProviderRegistry
   readonly links: LinkRegistry
@@ -90,8 +92,9 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
   const database = createDatabase(config.database, { applicationName: 'orchestrator' })
   const redis = createRedis(config.redis, { name: 'orchestrator' })
 
+  const keyStore = createPostgresKeyStore(database.db)
   const keys = createKeys({
-    store: createPostgresKeyStore(database.db),
+    store: keyStore,
     clock,
     onError: (error, context) => log.error(`keys ${String(context.op)}`, error),
   })
@@ -110,6 +113,18 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     keys,
     fetch: options.fetch ?? globalThis.fetch,
   })
+  // The budget needs the machine's `emit` and the machine needs the budget's
+  // `check`: the knot is tied with a lazy read, the same trick the drain uses
+  // for the health route, because both only ever fire after both exist.
+  const budgets = createBudgets({
+    clock,
+    log,
+    store,
+    keys: keyStore,
+    emit: async (matchId, fact) => {
+      await matches.emit(matchId, fact)
+    },
+  })
   const matches = createMatches({
     clock,
     log,
@@ -119,6 +134,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     gamemodes: SHIPPED_GAMEMODES,
     hub,
     webhooks,
+    budget: budgets,
     baseUrl: config.baseUrl,
   })
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
@@ -167,7 +183,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, gamemodes: SHIPPED_GAMEMODES, matches, fleet }),
+      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet }),
     ),
     rateLimiter: createRateLimiter({ clock, ...config.rateLimit }),
     health,
@@ -202,6 +218,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
         },
       },
       reaper,
+      budgets,
       webhooks,
       matches,
       hub,
@@ -214,6 +231,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     database,
     redis,
     keys,
+    budgets,
     store,
     providers,
     links,
@@ -231,6 +249,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       await matches.resume()
       webhooks.start()
       reaper.start()
+      budgets.start()
     },
     listen: ({ port = config.port, host = config.host } = {}) =>
       new Promise((resolve, reject) => {

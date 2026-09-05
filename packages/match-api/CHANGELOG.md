@@ -6,6 +6,21 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.2.0 — 2026-09-05
+
+Additive: two `admin` routes the operator half of decision 7 was missing. Serves the
+platform's key administration (`PRD-09` T2's console) and PRD-02 T5's budget enforcement,
+which is otherwise unreachable — a ceiling nobody can move is a ceiling nobody sets.
+
+- `POST /v1/keys/:keyId/rotate` — draw the key a new secret, kill the old one on the
+  spot, answer `{ key, secret }` like a mint. Same id, scopes, budget and webhook
+  secrets; `invalid_state` for a revoked key.
+- `PATCH /v1/keys/:keyId/budget` — move one or more of the three ceilings
+  (`BudgetPatchRequest`, at least one named); the rest keep their values, and the key's
+  `fleet.budget_threshold` warnings start over.
+- The fake serves both; `GET /v1/fleet/budget`, the `budget_exceeded` refusals and the
+  threshold facts are unchanged — this release only adds the door to them.
+
 ## 0.1.0 — 2026-09-05
 
 The first release: the whole contract, exercised end to end by the fake orchestrator and
