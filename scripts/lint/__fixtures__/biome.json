@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../node_modules/@biomejs/biome/configuration_schema.json",
+  "root": false,
+  "linter": { "enabled": true, "rules": { "preset": "none" } },
+  "plugins": ["../determinism.grit", "../test-isolation.grit", "../table-scope.grit", "../waitfor-budget.grit", "../sound-registry.grit", "../e2e-budget.grit", "../live-session.grit", "../pwa-boundary.grit", "../shared-settings.grit"]
+}

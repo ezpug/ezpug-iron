@@ -1,0 +1,3132 @@
+{
+ "openapi": "3.0.0",
+ "info": {
+  "title": "Dathost API (vendored fragments, 2026-09-05)",
+  "version": "0.1"
+ },
+ "paths": {
+  "/api/0.1/game-servers/{server_id}": {
+   "delete": {
+    "operationId": "delete_game_server_item",
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "Delete a game server",
+    "tags": [
+     "Game Servers > General"
+    ]
+   },
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ],
+   "get": {
+    "description": "If the server is currently in the booting state it will also check if the server           is still booting and update the value before returning",
+    "operationId": "get_game_server_item",
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/GameServerOutput"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "Get a game server",
+    "tags": [
+     "Game Servers > General"
+    ]
+   },
+   "put": {
+    "description": "If the server is on this will restart the server to reflect the changes.",
+    "operationId": "put_game_server_item",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "added_voice_server": {
+          "description": "ID of a voice server that was purchased with this server",
+          "type": "string"
+         },
+         "autostop": {
+          "description": "Automatically stop server when empty <autostop_minutes> min",
+          "type": "boolean"
+         },
+         "autostop_minutes": {
+          "description": "Minutes until autostop triggers if is is enabled",
+          "type": "integer"
+         },
+         "confirmed": {
+          "description": "Has the server been ordered yet (used internally)",
+          "type": "boolean"
+         },
+         "custom_domain": {
+          "description": "Use a custom domain for the server",
+          "type": "string"
+         },
+         "deletion_protection": {
+          "description": "While this is set DELETE operation will be blocked",
+          "type": "boolean"
+         },
+         "enable_core_dump": {
+          "description": "Write core dump file on server crash",
+          "type": "boolean"
+         },
+         "enable_mysql": {
+          "description": "Enable MySQL addon",
+          "type": "boolean"
+         },
+         "enable_syntropy": {
+          "type": "boolean"
+         },
+         "location": {
+          "description": "ID for the location of the server, see this article for available locations:<br /><a target=\"_blank\" href=\"https://help.dathost.net/article/76-api-server-locations-mapping\">https://help.dathost.net/article/76-api-server-locations-mapping</a>",
+          "type": "string"
+         },
+         "manual_sort_order": {
+          "description": "Sort order in control panel",
+          "type": "number"
+         },
+         "max_disk_usage_gb": {
+          "description": "Max disk usage excluding base installation in GB, 30GB included, extra disk space charged at \u20ac0.3 / GB / Month",
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 100
+         },
+         "name": {
+          "description": "Name of the server",
+          "type": "string"
+         },
+         "prefer_dedicated": {
+          "description": "Prefer assignment to dedicated hosts on account",
+          "type": "boolean"
+         },
+         "reboot_on_crash": {
+          "description": "Automatically reboot the server in case of server crash",
+          "type": "boolean"
+         },
+         "scheduled_commands": {
+          "description": "JSON list with scheduled commands (see game-servers.GET for format to use)",
+          "type": "string"
+         },
+         "server_image": {
+          "description": "Server image to use for this server",
+          "type": "string",
+          "enum": [
+           "default",
+           "ubuntu_20.04"
+          ]
+         },
+         "user_data": {
+          "description": "Custom metadata for the server, is not used by the DatHost system",
+          "type": "string"
+         },
+         "ark_settings.enable_ark_server_api": {
+          "description": "Enable ARK Server API",
+          "type": "boolean"
+         },
+         "cs2_settings.steam_game_server_login_token": {
+          "description": "Steam Game Server Login Token",
+          "type": "string"
+         },
+         "cs2_settings.disable_bots": {
+          "description": "Disable bots",
+          "type": "boolean"
+         },
+         "cs2_settings.enable_gotv": {
+          "description": "Enable GOTV",
+          "type": "boolean"
+         },
+         "cs2_settings.enable_gotv_secondary": {
+          "description": "Enables a secondary GOTV stream on the same server. <br><b>Warning:</b> The tv_delay and tv_delay1 shouldn\u2019t be more than 10 seconds apart, otherwise the server runs the risk of a sudden shutdown.",
+          "type": "boolean"
+         },
+         "cs2_settings.enable_metamod": {
+          "description": "Enable MetaMod",
+          "type": "boolean"
+         },
+         "cs2_settings.game_mode": {
+          "description": "Game mode",
+          "type": "string",
+          "enum": [
+           "competitive",
+           "casual",
+           "arms_race",
+           "ffa_deathmatch",
+           "retakes",
+           "wingman",
+           "custom"
+          ]
+         },
+         "cs2_settings.insecure": {
+          "description": "Insecure server",
+          "type": "boolean"
+         },
+         "cs2_settings.maps_source": {
+          "description": "Maps source (in workshop single map mode only workshop_start_map_id is loaded)",
+          "type": "string",
+          "enum": [
+           "mapgroup",
+           "workshop_collection",
+           "workshop_single_map"
+          ]
+         },
+         "cs2_settings.mapgroup": {
+          "description": "Mapgroup",
+          "type": "string"
+         },
+         "cs2_settings.mapgroup_start_map": {
+          "description": "Mapgroup start map",
+          "type": "string"
+         },
+         "cs2_settings.workshop_collection_start_map_id": {
+          "description": "Steam ID of workshop start map",
+          "type": "string"
+         },
+         "cs2_settings.workshop_single_map_id": {
+          "description": "Steam ID of workshop single map",
+          "type": "string"
+         },
+         "cs2_settings.password": {
+          "description": "Server password",
+          "type": "string"
+         },
+         "cs2_settings.private_server": {
+          "description": "Private server",
+          "type": "boolean"
+         },
+         "cs2_settings.disable_workshop_command_filtering": {
+          "description": "Disables the filtering of console commands on community/workshop maps, allowing all commands to be executed. By default, CS2 restricts certain commands when running workshop content.",
+          "type": "boolean"
+         },
+         "cs2_settings.rcon": {
+          "description": "RCON password",
+          "type": "string"
+         },
+         "cs2_settings.slots": {
+          "description": "Server slots (5 - 64)",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 64
+         },
+         "csgo_settings.autoload_configs": {
+          "description": "JSON list of configs to load automatically",
+          "type": "string"
+         },
+         "csgo_settings.disable_1v1_warmup_arenas": {
+          "description": "Disable 1v1 warmup arenas",
+          "type": "boolean"
+         },
+         "csgo_settings.disable_bots": {
+          "description": "Disable bots",
+          "type": "boolean"
+         },
+         "csgo_settings.enable_csay_plugin": {
+          "description": "Enable cSay plugin (required for eBot)",
+          "type": "boolean"
+         },
+         "csgo_settings.enable_gotv": {
+          "description": "Enable GOTV",
+          "type": "boolean"
+         },
+         "csgo_settings.enable_gotv_secondary": {
+          "description": "Enables a secondary GOTV stream on the same server. <br><b>Warning:</b> The tv_delay and tv_delay1 shouldn\u2019t be more than 10 seconds apart, otherwise the server runs the risk of a sudden shutdown.",
+          "type": "boolean"
+         },
+         "csgo_settings.enable_sourcemod": {
+          "description": "Enable Sourcemod",
+          "type": "boolean"
+         },
+         "csgo_settings.game_mode": {
+          "description": "Game mode",
+          "type": "string",
+          "enum": [
+           "classic_competitive",
+           "classic_casual",
+           "arms_race",
+           "demolition",
+           "deathmatch",
+           "custom",
+           "danger_zone",
+           "wingman",
+           "guardian",
+           "coop_strike",
+           "short_competitive"
+          ]
+         },
+         "csgo_settings.insecure": {
+          "description": "Insecure server",
+          "type": "boolean"
+         },
+         "csgo_settings.mapgroup": {
+          "description": "Mapgroup",
+          "type": "string"
+         },
+         "csgo_settings.mapgroup_start_map": {
+          "description": "Mapgroup start map",
+          "type": "string"
+         },
+         "csgo_settings.maps_source": {
+          "description": "Maps source - mapgroup, workshop or workshop_single_map (in single map mode only workshop_start_map_id is loaded)",
+          "type": "string",
+          "enum": [
+           "mapgroup",
+           "workshop",
+           "workshop_single_map"
+          ]
+         },
+         "csgo_settings.password": {
+          "description": "Server password",
+          "type": "string"
+         },
+         "csgo_settings.private_server": {
+          "description": "Private server",
+          "type": "boolean"
+         },
+         "csgo_settings.pure_server": {
+          "description": "Pure server",
+          "type": "boolean"
+         },
+         "csgo_settings.rcon": {
+          "description": "RCON password",
+          "type": "string"
+         },
+         "csgo_settings.slots": {
+          "description": "Server slots (5 - 64)",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 64
+         },
+         "csgo_settings.sourcemod_admins": {
+          "description": "This string is written as is to csgo/addons/sourcemod/configs/admins_simple.ini, documentation can be found here: https://wiki.alliedmods.net/Adding_Admins_(SourceMod)",
+          "type": "string"
+         },
+         "csgo_settings.sourcemod_plugins": {
+          "description": "JSON list of sourcemod plugin IDs",
+          "type": "string"
+         },
+         "csgo_settings.steam_game_server_login_token": {
+          "description": "Steam Game Server Login Token",
+          "type": "string"
+         },
+         "csgo_settings.tickrate": {
+          "description": "Server tickrate",
+          "type": "number",
+          "enum": [
+           64,
+           85,
+           100,
+           102.4,
+           128
+          ]
+         },
+         "csgo_settings.workshop_authkey": {
+          "description": "Workshop collection authkey, leave blank to use our default Authkey",
+          "type": "string"
+         },
+         "csgo_settings.workshop_id": {
+          "description": "Steam workshop ID",
+          "type": "string"
+         },
+         "csgo_settings.workshop_start_map_id": {
+          "description": "Steam ID of workshop start map",
+          "type": "string"
+         },
+         "teamfortress2_settings.enable_gotv": {
+          "description": "Enable GOTV",
+          "type": "boolean"
+         },
+         "teamfortress2_settings.enable_sourcemod": {
+          "description": "Enable Sourcemod",
+          "type": "boolean"
+         },
+         "teamfortress2_settings.insecure": {
+          "description": "Insecure server",
+          "type": "boolean"
+         },
+         "teamfortress2_settings.password": {
+          "description": "Server password",
+          "type": "string"
+         },
+         "teamfortress2_settings.rcon": {
+          "description": "Server RCON",
+          "type": "string"
+         },
+         "teamfortress2_settings.slots": {
+          "description": "Server slots (5 - 32)",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 32
+         },
+         "teamfortress2_settings.sourcemod_admins": {
+          "description": "This string is written as is to tf/addons/sourcemod/configs/admins_simple.ini, documentation can be found here: https://wiki.alliedmods.net/Adding_Admins_(SourceMod)",
+          "type": "string"
+         },
+         "teamfortress2_settings.start_map": {
+          "description": "Starting map",
+          "type": "string"
+         },
+         "teamspeak3_settings.slots": {
+          "description": "Server slots (5 - 1000)",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 1000
+         },
+         "valheim_settings.admins_steamid64": {
+          "description": "JSON list of server admins in SteamID64 format",
+          "type": "string"
+         },
+         "valheim_settings.bepinex_plugins": {
+          "description": "JSON list of BepInEx plugin IDs",
+          "type": "string"
+         },
+         "valheim_settings.enable_bepinex": {
+          "description": "Enable BepInEx",
+          "type": "boolean"
+         },
+         "valheim_settings.enable_crossplay": {
+          "description": "Enable crossplay",
+          "type": "boolean"
+         },
+         "valheim_settings.password": {
+          "description": "Server password",
+          "type": "string"
+         },
+         "valheim_settings.server_branch": {
+          "description": "Server branch",
+          "type": "string"
+         },
+         "valheim_settings.world_name": {
+          "description": "World name",
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Success"
+     }
+    },
+    "summary": "Update a game server",
+    "tags": [
+     "Game Servers > General"
+    ]
+   }
+  },
+  "/api/0.1/account": {
+   "get": {
+    "operationId": "get_account",
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AccountOutput"
+        }
+       }
+      }
+     }
+    },
+    "summary": "Get the current account",
+    "tags": [
+     "Account"
+    ]
+   }
+  },
+  "/api/0.1/cs2-matches/{match_id}": {
+   "get": {
+    "description": "Get a CS2 match",
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CS2MatchOutput"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "A match with this id was not found"
+     }
+    },
+    "summary": "Get a CS2 match",
+    "tags": [
+     "CS2 Matches"
+    ]
+   },
+   "parameters": [
+    {
+     "in": "path",
+     "name": "match_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ]
+  },
+  "/api/0.1/game-servers/{server_id}/console": {
+   "get": {
+    "operationId": "get_game_server_console",
+    "parameters": [
+     {
+      "description": "Maximum number of lines to fetch (1-100000)",
+      "in": "query",
+      "name": "max_lines",
+      "schema": {
+       "type": "integer",
+       "default": 1000
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "Get the last lines of backlog from a game server console",
+    "tags": [
+     "Game Servers > Console"
+    ]
+   },
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ],
+   "post": {
+    "operationId": "post_game_server_console",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "line": {
+          "description": "A line of text to send to the server console",
+          "type": "string"
+         }
+        },
+        "required": [
+         "line"
+        ]
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "Send a line of text to a game server console",
+    "tags": [
+     "Game Servers > Console"
+    ]
+   }
+  },
+  "/api/0.1/game-servers/{server_id}/files": {
+   "get": {
+    "operationId": "get_game_server_files",
+    "parameters": [
+     {
+      "description": "If true, only files added by the user will be shown, default is all files",
+      "in": "query",
+      "name": "hide_default_files",
+      "schema": {
+       "type": "boolean"
+      }
+     },
+     {
+      "description": "If true, also return files that has been deleted by the user",
+      "in": "query",
+      "name": "include_deleted_files",
+      "schema": {
+       "type": "boolean"
+      }
+     },
+     {
+      "description": "Path to use as root, leave empty to get all files",
+      "in": "query",
+      "name": "path",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "List files on gameserver",
+    "tags": [
+     "Game Servers > File Management"
+    ]
+   },
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ]
+  },
+  "/api/0.1/game-servers/{server_id}/files/{path}": {
+   "get": {
+    "description": "The path is counted from the root node as seen in the file manager in the control panel,i.e. to retrieve csgo/cfg/server.cfg the path would be cfg/server.cfg\n\nIf the path is a directory you will receive a zip file with the directory's contents.",
+    "operationId": "get_game_server_files_item",
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "404": {
+      "description": "A server with this id was not found, or file not found"
+     }
+    },
+    "summary": "Download a file from a game server",
+    "tags": [
+     "Game Servers > File Management"
+    ]
+   },
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    },
+    {
+     "in": "path",
+     "name": "path",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ],
+   "post": {
+    "description": "The path is counted from the root node as seen in the file manager in the control panel,i.e. to write csgo/cfg/server.cfg the path would be cfg/server.cfg, if the path ends with / a directory will be created and the file parameter will be ignored.\n\nThere is a upload limit of 100MB on dathost.com, use FTP to upload bigger files.",
+    "operationId": "post_game_server_files_item",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "file": {
+          "description": "The file to be uploaded as a multipart/form-data body <a target=\"_blank\" href=\"        http://docs.python-requests.org/en/latest/user/quickstart/#post-a-multipart-encoded-file\">        (Python example)</a>, if not provided an empty file/directory will be created",
+          "type": "string",
+          "format": "binary"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "400": {
+      "description": "Path is a directory"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     },
+     "507": {
+      "description": "Your disk quota of 30GB per server (excluding base installation) has been exceeded"
+     }
+    },
+    "summary": "Upload a file to a game server",
+    "tags": [
+     "Game Servers > File Management"
+    ]
+   },
+   "put": {
+    "description": "Moves path to destination, the paths are counted from the root node\nas seen in the file manager in the control panel,\ni.e. to delete csgo/cfg/server.cfg the path would be cfg/server.cfg.",
+    "operationId": "put_game_server_files_item",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "destination": {
+          "description": "Destination path",
+          "type": "string"
+         }
+        },
+        "required": [
+         "destination"
+        ]
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "400": {
+      "description": "Cannot move file into itself"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "Move a file/directory on a game server",
+    "tags": [
+     "Game Servers > File Management"
+    ]
+   }
+  },
+  "/api/0.1/game-servers/{server_id}/metrics": {
+   "get": {
+    "operationId": "get_game_server_metrics",
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MetricsOutput"
+        }
+       }
+      }
+     }
+    },
+    "summary": "Get game server metrics",
+    "tags": [
+     "Game Servers > General"
+    ]
+   },
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ]
+  },
+  "/api/0.1/game-servers": {
+   "get": {
+    "description": "The booting state is not updated using this method, so a server might show true when            booting is finished. Use single item get to check booting state.",
+    "operationId": "get_game_servers",
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/GameServerOutput"
+         },
+         "type": "array"
+        }
+       }
+      }
+     }
+    },
+    "summary": "List game servers",
+    "tags": [
+     "Game Servers > General"
+    ]
+   },
+   "post": {
+    "description": "On success this returns the new server in the same format as game-servers.",
+    "operationId": "post_game_servers",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "added_voice_server": {
+          "description": "ID of a voice server that was purchased with this server",
+          "type": "string"
+         },
+         "autostop": {
+          "description": "Automatically stop server when empty <autostop_minutes> min",
+          "type": "boolean",
+          "default": false
+         },
+         "autostop_minutes": {
+          "description": "Minutes until autostop triggers if is is enabled",
+          "type": "integer"
+         },
+         "confirmed": {
+          "description": "Has the server been ordered yet (used internally)",
+          "type": "boolean",
+          "default": true
+         },
+         "custom_domain": {
+          "description": "Use a custom domain for the server",
+          "type": "string"
+         },
+         "deletion_protection": {
+          "description": "While this is set DELETE operation will be blocked",
+          "type": "boolean",
+          "default": false
+         },
+         "enable_core_dump": {
+          "description": "Write core dump file on server crash",
+          "type": "boolean",
+          "default": false
+         },
+         "enable_mysql": {
+          "description": "Enable MySQL addon",
+          "type": "boolean",
+          "default": false
+         },
+         "enable_syntropy": {
+          "type": "boolean",
+          "default": false
+         },
+         "game": {
+          "type": "string",
+          "enum": [
+           "csgo",
+           "cs2",
+           "ark",
+           "teamfortress2",
+           "teamspeak3",
+           "valheim",
+           "vrising"
+          ]
+         },
+         "location": {
+          "description": "ID for the location of the server, see this article for available locations:<br /><a target=\"_blank\" href=\"https://help.dathost.net/article/76-api-server-locations-mapping\">https://help.dathost.net/article/76-api-server-locations-mapping</a>",
+          "type": "string"
+         },
+         "manual_sort_order": {
+          "description": "Sort order in control panel",
+          "type": "number"
+         },
+         "max_disk_usage_gb": {
+          "description": "Max disk usage excluding base installation in GB, 30GB included, extra disk space charged at \u20ac0.3 / GB / Month",
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 100,
+          "default": 30
+         },
+         "name": {
+          "description": "Name of the server",
+          "type": "string"
+         },
+         "prefer_dedicated": {
+          "description": "Prefer assignment to dedicated hosts on account",
+          "type": "boolean",
+          "default": true
+         },
+         "reboot_on_crash": {
+          "description": "Automatically reboot the server in case of server crash",
+          "type": "boolean",
+          "default": false
+         },
+         "scheduled_commands": {
+          "description": "JSON list with scheduled commands (see game-servers.GET for format to use)",
+          "type": "string"
+         },
+         "server_image": {
+          "description": "Server image to use for this server",
+          "type": "string",
+          "enum": [
+           "default",
+           "ubuntu_20.04"
+          ],
+          "default": "default"
+         },
+         "user_data": {
+          "description": "Custom metadata for the server, is not used by the DatHost system",
+          "type": "string"
+         },
+         "ark_settings.enable_ark_server_api": {
+          "description": "Enable ARK Server API",
+          "type": "boolean",
+          "default": false
+         },
+         "cs2_settings.steam_game_server_login_token": {
+          "description": "Steam Game Server Login Token",
+          "type": "string"
+         },
+         "cs2_settings.disable_bots": {
+          "description": "Disable bots",
+          "type": "boolean",
+          "default": false
+         },
+         "cs2_settings.enable_gotv": {
+          "description": "Enable GOTV",
+          "type": "boolean",
+          "default": false
+         },
+         "cs2_settings.enable_gotv_secondary": {
+          "description": "Enables a secondary GOTV stream on the same server. <br><b>Warning:</b> The tv_delay and tv_delay1 shouldn\u2019t be more than 10 seconds apart, otherwise the server runs the risk of a sudden shutdown.",
+          "type": "boolean",
+          "default": false
+         },
+         "cs2_settings.enable_metamod": {
+          "description": "Enable MetaMod",
+          "type": "boolean",
+          "default": false
+         },
+         "cs2_settings.game_mode": {
+          "description": "Game mode",
+          "type": "string",
+          "enum": [
+           "competitive",
+           "casual",
+           "arms_race",
+           "ffa_deathmatch",
+           "retakes",
+           "wingman",
+           "custom"
+          ],
+          "default": "competitive"
+         },
+         "cs2_settings.insecure": {
+          "description": "Insecure server",
+          "type": "boolean",
+          "default": false
+         },
+         "cs2_settings.maps_source": {
+          "description": "Maps source (in workshop single map mode only workshop_start_map_id is loaded)",
+          "type": "string",
+          "enum": [
+           "mapgroup",
+           "workshop_collection",
+           "workshop_single_map"
+          ],
+          "default": "mapgroup"
+         },
+         "cs2_settings.mapgroup": {
+          "description": "Mapgroup",
+          "type": "string",
+          "default": ""
+         },
+         "cs2_settings.mapgroup_start_map": {
+          "description": "Mapgroup start map",
+          "type": "string",
+          "default": "de_dust2"
+         },
+         "cs2_settings.workshop_collection_id": {
+          "description": "Steam workshop collection ID",
+          "type": "string",
+          "default": ""
+         },
+         "cs2_settings.workshop_collection_start_map_id": {
+          "description": "Steam ID of workshop start map",
+          "type": "string",
+          "default": ""
+         },
+         "cs2_settings.workshop_single_map_id": {
+          "description": "Steam ID of workshop single map",
+          "type": "string",
+          "default": ""
+         },
+         "cs2_settings.password": {
+          "description": "Server password",
+          "type": "string"
+         },
+         "cs2_settings.private_server": {
+          "description": "Private server",
+          "type": "boolean",
+          "default": false
+         },
+         "cs2_settings.disable_workshop_command_filtering": {
+          "description": "Disables the filtering of console commands on community/workshop maps, allowing all commands to be executed. By default, CS2 restricts certain commands when running workshop content.",
+          "type": "boolean",
+          "default": false
+         },
+         "cs2_settings.rcon": {
+          "description": "RCON password",
+          "type": "string"
+         },
+         "cs2_settings.slots": {
+          "description": "Server slots (5 - 64)",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 64,
+          "default": 14
+         },
+         "csgo_settings.autoload_configs": {
+          "description": "JSON list of configs to load automatically",
+          "type": "string"
+         },
+         "csgo_settings.disable_1v1_warmup_arenas": {
+          "description": "Disable 1v1 warmup arenas",
+          "type": "boolean",
+          "default": false
+         },
+         "csgo_settings.disable_bots": {
+          "description": "Disable bots",
+          "type": "boolean",
+          "default": false
+         },
+         "csgo_settings.enable_csay_plugin": {
+          "description": "Enable cSay plugin (required for eBot)",
+          "type": "boolean",
+          "default": true
+         },
+         "csgo_settings.enable_gotv": {
+          "description": "Enable GOTV",
+          "type": "boolean",
+          "default": false
+         },
+         "csgo_settings.enable_gotv_secondary": {
+          "description": "Enables a secondary GOTV stream on the same server. <br><b>Warning:</b> The tv_delay and tv_delay1 shouldn\u2019t be more than 10 seconds apart, otherwise the server runs the risk of a sudden shutdown.",
+          "type": "boolean",
+          "default": false
+         },
+         "csgo_settings.enable_sourcemod": {
+          "description": "Enable Sourcemod",
+          "type": "boolean",
+          "default": false
+         },
+         "csgo_settings.game_mode": {
+          "description": "Game mode",
+          "type": "string",
+          "enum": [
+           "classic_competitive",
+           "classic_casual",
+           "arms_race",
+           "demolition",
+           "deathmatch",
+           "custom",
+           "danger_zone",
+           "wingman",
+           "guardian",
+           "coop_strike",
+           "short_competitive"
+          ],
+          "default": "classic_competitive"
+         },
+         "csgo_settings.insecure": {
+          "description": "Insecure server",
+          "type": "boolean",
+          "default": false
+         },
+         "csgo_settings.mapgroup": {
+          "description": "Mapgroup",
+          "type": "string",
+          "default": "mg_active"
+         },
+         "csgo_settings.mapgroup_start_map": {
+          "description": "Mapgroup start map",
+          "type": "string",
+          "default": "de_dust2"
+         },
+         "csgo_settings.maps_source": {
+          "description": "Maps source - mapgroup, workshop or workshop_single_map (in single map mode only workshop_start_map_id is loaded)",
+          "type": "string",
+          "enum": [
+           "mapgroup",
+           "workshop",
+           "workshop_single_map"
+          ],
+          "default": "mapgroup"
+         },
+         "csgo_settings.password": {
+          "description": "Server password",
+          "type": "string"
+         },
+         "csgo_settings.private_server": {
+          "description": "Private server",
+          "type": "boolean",
+          "default": false
+         },
+         "csgo_settings.pure_server": {
+          "description": "Pure server",
+          "type": "boolean",
+          "default": false
+         },
+         "csgo_settings.rcon": {
+          "description": "RCON password",
+          "type": "string"
+         },
+         "csgo_settings.slots": {
+          "description": "Server slots (5 - 64)",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 64,
+          "default": 12
+         },
+         "csgo_settings.sourcemod_admins": {
+          "description": "This string is written as is to csgo/addons/sourcemod/configs/admins_simple.ini, documentation can be found here: https://wiki.alliedmods.net/Adding_Admins_(SourceMod)",
+          "type": "string"
+         },
+         "csgo_settings.sourcemod_plugins": {
+          "description": "JSON list of sourcemod plugin IDs",
+          "type": "string"
+         },
+         "csgo_settings.steam_game_server_login_token": {
+          "description": "Steam Game Server Login Token",
+          "type": "string"
+         },
+         "csgo_settings.tickrate": {
+          "description": "Server tickrate",
+          "type": "number",
+          "enum": [
+           64,
+           85,
+           100,
+           102.4,
+           128
+          ],
+          "default": 128
+         },
+         "csgo_settings.workshop_authkey": {
+          "description": "Workshop collection authkey, leave blank to use our default Authkey",
+          "type": "string"
+         },
+         "csgo_settings.workshop_id": {
+          "description": "Steam workshop ID",
+          "type": "string",
+          "default": "435587093"
+         },
+         "csgo_settings.workshop_start_map_id": {
+          "description": "Steam ID of workshop start map",
+          "type": "string",
+          "default": "125438255"
+         },
+         "teamfortress2_settings.enable_gotv": {
+          "description": "Enable GOTV",
+          "type": "boolean",
+          "default": false
+         },
+         "teamfortress2_settings.enable_sourcemod": {
+          "description": "Enable Sourcemod",
+          "type": "boolean",
+          "default": false
+         },
+         "teamfortress2_settings.insecure": {
+          "description": "Insecure server",
+          "type": "boolean",
+          "default": false
+         },
+         "teamfortress2_settings.password": {
+          "description": "Server password",
+          "type": "string"
+         },
+         "teamfortress2_settings.rcon": {
+          "description": "Server RCON",
+          "type": "string"
+         },
+         "teamfortress2_settings.slots": {
+          "description": "Server slots (5 - 32)",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 32,
+          "default": 12
+         },
+         "teamfortress2_settings.sourcemod_admins": {
+          "description": "This string is written as is to tf/addons/sourcemod/configs/admins_simple.ini, documentation can be found here: https://wiki.alliedmods.net/Adding_Admins_(SourceMod)",
+          "type": "string"
+         },
+         "teamfortress2_settings.start_map": {
+          "description": "Starting map",
+          "type": "string"
+         },
+         "teamspeak3_settings.slots": {
+          "description": "Server slots (5 - 1000)",
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 1000,
+          "default": 50
+         },
+         "valheim_settings.admins_steamid64": {
+          "description": "JSON list of server admins in SteamID64 format",
+          "type": "string"
+         },
+         "valheim_settings.bepinex_plugins": {
+          "description": "JSON list of BepInEx plugin IDs",
+          "type": "string"
+         },
+         "valheim_settings.enable_bepinex": {
+          "description": "Enable BepInEx",
+          "type": "boolean",
+          "default": false
+         },
+         "valheim_settings.enable_crossplay": {
+          "description": "Enable crossplay",
+          "type": "boolean",
+          "default": false
+         },
+         "valheim_settings.password": {
+          "description": "Server password",
+          "type": "string"
+         },
+         "valheim_settings.server_branch": {
+          "description": "Server branch",
+          "type": "string"
+         },
+         "valheim_settings.world_name": {
+          "description": "World name",
+          "type": "string",
+          "default": "Dedicated"
+         }
+        },
+        "required": [
+         "game",
+         "name"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Success"
+     }
+    },
+    "summary": "Create a game server",
+    "tags": [
+     "Game Servers > General"
+    ]
+   }
+  },
+  "/api/0.1/cs2-matches/{match_id}/cancel": {
+   "post": {
+    "description": "Cancel a CS2 match in progress",
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CS2MatchOutput"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "A match with this id was not found"
+     }
+    },
+    "summary": "Cancel a CS2 match in progress",
+    "tags": [
+     "CS2 Matches"
+    ]
+   },
+   "parameters": [
+    {
+     "in": "path",
+     "name": "match_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ]
+  },
+  "/api/0.1/cs2-matches/{match_id}/players": {
+   "post": {
+    "description": "Add a player to a CS2 match",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CS2MatchPlayerInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CS2MatchPlayerOutput"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "A match with this id was not found"
+     }
+    },
+    "summary": "Add a player to a CS2 match",
+    "tags": [
+     "CS2 Matches"
+    ]
+   },
+   "parameters": [
+    {
+     "in": "path",
+     "name": "match_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ]
+  },
+  "/api/0.1/cs2-matches": {
+   "post": {
+    "description": "Start a CS2 match",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CS2MatchInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CS2MatchOutput"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Game server not found"
+     }
+    },
+    "summary": "Start a CS2 match",
+    "tags": [
+     "CS2 Matches"
+    ],
+    "x-internal": false
+   }
+  },
+  "/api/0.1/game-servers/{server_id}/duplicate": {
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ],
+   "post": {
+    "description": "Copies settings and files to a new server. Please note that the server's files are duplicated from a local cache, to make sure the latest file changes are preserved, update the local cache with the sync-files method first. Returns the new server.",
+    "operationId": "post_game_server_duplicate",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "location": {
+          "description": "ID for the location of the server, if not set it will use the same location as the source server. See this article for available locations:<br /><a target=\"_blank\" href=\"https://help.dathost.net/article/76-api-server-locations-mapping\">https://help.dathost.net/article/76-api-server-locations-mapping</a>",
+          "type": "string"
+         },
+         "destination_server_id": {
+          "description": "Optional destination server ID, if this is set this destination server will be WIPED and the settings/files of the source server will be copied over. If this isn't set a new server will be created instead.",
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Success",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/GameServerOutput"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "Duplicate a game server",
+    "tags": [
+     "Game Servers > Actions"
+    ]
+   }
+  },
+  "/api/0.1/game-servers/{server_id}/start": {
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ],
+   "post": {
+    "description": "This will reboot the server if the server is already on.",
+    "operationId": "post_game_server_start",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "allow_host_reassignment": {
+          "description": "If true, the server may be moved to another host/port if the current host is unreachable",
+          "type": "boolean"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     },
+     "500": {
+      "description": "Failed to start server, if this issue persists, please contact support@dathost.com"
+     }
+    },
+    "summary": "Start a game server",
+    "tags": [
+     "Game Servers > Actions"
+    ]
+   }
+  },
+  "/api/0.1/game-servers/{server_id}/stop": {
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ],
+   "post": {
+    "operationId": "post_game_server_stop",
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "Stop a game server",
+    "tags": [
+     "Game Servers > Actions"
+    ]
+   }
+  },
+  "/api/0.1/game-servers/{server_id}/sync-files": {
+   "parameters": [
+    {
+     "in": "path",
+     "name": "server_id",
+     "required": true,
+     "schema": {
+      "type": "string"
+     }
+    }
+   ],
+   "post": {
+    "description": "This manually triggers a sync between a game server and the local cache which is used for duplicating servers. This is done automatically approximately once per hour while the server is on, and once more when stopping a server.",
+    "operationId": "post_game_server_sync_files",
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "404": {
+      "description": "A server with this id was not found"
+     }
+    },
+    "summary": "Sync the files between the API cache and a game server",
+    "tags": [
+     "Game Servers > Actions"
+    ]
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "AccountOutput": {
+    "properties": {
+     "accepted_terms_of_service_version": {
+      "description": "Accepted ToS version",
+      "type": "integer"
+     },
+     "affiliate": {
+      "description": "True if this account is an affiliate",
+      "type": "boolean"
+     },
+     "autorefill_amount": {
+      "type": "number"
+     },
+     "autorefill_below": {
+      "type": "number"
+     },
+     "confirmed_at": {
+      "description": "Timestamp of email confirmation",
+      "type": "integer"
+     },
+     "credits": {
+      "description": "Number of credits left",
+      "type": "number"
+     },
+     "disabled_notification_types": {
+      "items": {
+       "description": "Disabled notification types",
+       "enum": [
+        "SUBSCRIPTION_RENEWAL_SUCCESS_EMAIL",
+        "AUTOREFILL_SUCCESS_EMAIL",
+        "LOW_CREDITS_WARNING_EMAIL"
+       ],
+       "example": "SUBSCRIPTION_RENEWAL_SUCCESS_EMAIL",
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "email": {
+      "description": "Account email",
+      "type": "string"
+     },
+     "first_month_discount_percentage": {
+      "description": "Discount percentage for the first month of a subscription",
+      "type": "integer"
+     },
+     "gravatar_url": {
+      "description": "Gravatar URL",
+      "type": "string"
+     },
+     "id": {
+      "description": "Account ID",
+      "type": "string"
+     },
+     "lifetime_hourly_discount_percentage": {
+      "description": "Account hourly discount percentage",
+      "type": "integer"
+     },
+     "lifetime_subscription_discount_percentage": {
+      "description": "Account subscription discount percentage",
+      "type": "integer"
+     },
+     "marketing_emails_enabled": {
+      "type": "boolean"
+     },
+     "roles": {
+      "description": "Special roles at dathost.com",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "seconds_left": {
+      "description": "Approximately seconds the credits will last with current usage. Returns null if no servers are on",
+      "type": "integer"
+     },
+     "subscription_pay_with_credits": {
+      "description": "If true, try to pay subscription with credits first",
+      "type": "boolean"
+     },
+     "time_left": {
+      "description": "Human readable approximate of the time the credits will last with current usage, for seconds see seconds_left",
+      "type": "string"
+     },
+     "trial": {
+      "description": "An account is considered trial when no payments has been made",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "credits",
+     "email",
+     "gravatar_url",
+     "id"
+    ],
+    "type": "object",
+    "additionalProperties": false
+   },
+   "CS2MatchPlayerOutput": {
+    "type": "object",
+    "properties": {
+     "match_id": {
+      "type": "string"
+     },
+     "steam_id_64": {
+      "type": "string",
+      "pattern": "[0-9]+"
+     },
+     "team": {
+      "type": "string",
+      "enum": [
+       "team1",
+       "team2",
+       "spectator"
+      ]
+     },
+     "nickname_override": {
+      "type": "string"
+     },
+     "connected": {
+      "type": "boolean"
+     },
+     "kicked": {
+      "type": "boolean"
+     },
+     "disconnected_at": {
+      "description": "If the player left the match during the live phase this will be the UNIX timestamp of the last disconnect event. Otherwise null.",
+      "type": "integer"
+     },
+     "disconnected_reason": {
+      "description": "If the player left the match during the live phase this will be the reason for the disconnect. Otherwise null.",
+      "type": "string"
+     },
+     "stats": {
+      "type": "object",
+      "properties": {
+       "kills": {
+        "type": "integer"
+       },
+       "assists": {
+        "type": "integer"
+       },
+       "deaths": {
+        "type": "integer"
+       },
+       "mvps": {
+        "type": "integer"
+       },
+       "score": {
+        "type": "integer"
+       },
+       "2ks": {
+        "type": "integer"
+       },
+       "3ks": {
+        "type": "integer"
+       },
+       "4ks": {
+        "type": "integer"
+       },
+       "5ks": {
+        "type": "integer"
+       },
+       "kills_with_headshot": {
+        "type": "integer"
+       },
+       "kills_with_pistol": {
+        "type": "integer"
+       },
+       "kills_with_sniper": {
+        "type": "integer"
+       },
+       "damage_dealt": {
+        "type": "integer"
+       },
+       "entry_attempts": {
+        "type": "integer"
+       },
+       "entry_successes": {
+        "type": "integer"
+       },
+       "flashes_thrown": {
+        "type": "integer"
+       },
+       "flashes_successful": {
+        "type": "integer"
+       },
+       "flashes_enemies_blinded": {
+        "type": "integer"
+       },
+       "utility_thrown": {
+        "type": "integer"
+       },
+       "utility_damage": {
+        "type": "integer"
+       },
+       "1vX_attempts": {
+        "type": "integer"
+       },
+       "1vX_wins": {
+        "type": "integer"
+       }
+      },
+      "required": [
+       "kills",
+       "assists",
+       "deaths",
+       "mvps",
+       "score",
+       "2ks",
+       "3ks",
+       "4ks",
+       "5ks",
+       "kills_with_headshot",
+       "kills_with_pistol",
+       "kills_with_sniper",
+       "damage_dealt",
+       "entry_attempts",
+       "entry_successes",
+       "flashes_thrown",
+       "flashes_successful",
+       "flashes_enemies_blinded",
+       "utility_thrown",
+       "utility_damage",
+       "1vX_attempts",
+       "1vX_wins"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "match_id",
+     "steam_id_64",
+     "team",
+     "nickname_override",
+     "connected",
+     "kicked",
+     "stats"
+    ],
+    "additionalProperties": false
+   },
+   "CS2MatchOutput": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "game_server_id": {
+      "type": "string",
+      "description": "Id of the game server to run the match on. Must be a CS2 server on the same account as the match"
+     },
+     "team1": {
+      "description": "Settings for team 1, which starts as CT",
+      "type": "object",
+      "properties": {
+       "name": {
+        "description": "Team name",
+        "type": "string"
+       },
+       "flag": {
+        "description": "Team flag (ISO alpha-2: <a href=\"https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2\" target=\"_blank\">https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2</a>)",
+        "type": "string"
+       },
+       "stats": {
+        "type": "object",
+        "properties": {
+         "score": {
+          "type": "integer"
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "score"
+        ]
+       }
+      },
+      "required": [
+       "name",
+       "flag"
+      ],
+      "additionalProperties": false
+     },
+     "team2": {
+      "description": "Settings for team 2, which starts as T",
+      "type": "object",
+      "properties": {
+       "name": {
+        "description": "Team name",
+        "type": "string"
+       },
+       "flag": {
+        "description": "Team flag (ISO alpha-2: <a href=\"https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2\" target=\"_blank\">https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2</a>)",
+        "type": "string"
+       },
+       "stats": {
+        "type": "object",
+        "properties": {
+         "score": {
+          "type": "integer"
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "score"
+        ]
+       }
+      },
+      "required": [
+       "name",
+       "flag"
+      ],
+      "additionalProperties": false
+     },
+     "players": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/CS2MatchPlayerOutput"
+      }
+     },
+     "settings": {
+      "type": "object",
+      "properties": {
+       "map": {
+        "type": "string",
+        "description": "Specifies the map for the match. Options include local/official maps (e.g. <code>de_dust2</code>), workshop maps (e.g. <code>workshop/3071899764</code>), or <code>null</code> for the server-configured map."
+       },
+       "password": {
+        "type": "string",
+        "description": "Server password. Use \"\" to remove the password. Use null to use the password configured on the game server."
+       },
+       "connect_time": {
+        "type": "integer",
+        "description": "Time in seconds until match is canceled if not everyone has joined",
+        "default": 300
+       },
+       "match_begin_countdown": {
+        "type": "integer",
+        "description": "Time in seconds after everyone has joined until match start",
+        "default": 30
+       },
+       "team_size": {
+        "type": "integer",
+        "description": "Amount of players in each team. By default, the number of players will be the same as the number of Steam IDs entered in each team. Set this to a custom amount if you need to enter more Steam IDs than should participate, for example, to allow an emergency substitution during the game."
+       },
+       "wait_for_gotv": {
+        "type": "boolean",
+        "description": "Controls the GOTV demo recording stop time to mitigate the \"GOTV lag spoiler\".<br /><code>False</code>: Stops demo 20s after match ends.<br /><code>True</code>: Stops demo after <code>tv_delay</code> (default 105s) + 20s after match ends. Recommended if you have live GOTV viewers.",
+        "default": false
+       },
+       "enable_plugin": {
+        "type": "boolean",
+        "description": "Enable experimental CounterStrikeSharp plugin to lock players to their teams",
+        "default": false
+       },
+       "enable_tech_pause": {
+        "type": "boolean",
+        "description": "Enable tech pause using the !tech chat command",
+        "default": false
+       }
+      },
+      "required": [
+       "map",
+       "password",
+       "connect_time",
+       "match_begin_countdown",
+       "team_size",
+       "wait_for_gotv",
+       "enable_plugin",
+       "enable_tech_pause"
+      ],
+      "additionalProperties": false
+     },
+     "webhooks": {
+      "type": "object",
+      "properties": {
+       "match_end_url": {
+        "type": "string"
+       },
+       "round_end_url": {
+        "type": "string"
+       },
+       "player_votekick_success_url": {
+        "type": "string"
+       },
+       "event_url": {
+        "type": "string",
+        "description": "URL that will recieve webhooks for all event types specified by the \"enabled_events\" setting"
+       },
+       "enabled_events": {
+        "type": "array",
+        "description": "Array of event types to subscribe to, use [\"*\"] to subscribe to all avents",
+        "items": {
+         "type": "string",
+         "enum": [
+          "*",
+          "booting_server",
+          "loading_map",
+          "server_ready_for_players",
+          "all_players_connected",
+          "match_started",
+          "match_ended",
+          "players_exited",
+          "gotv_stopped",
+          "player_connected",
+          "player_disconnected",
+          "player_votekicked",
+          "round_end",
+          "match_canceled"
+         ]
+        }
+       },
+       "authorization_header": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "match_end_url",
+       "round_end_url",
+       "player_votekick_success_url",
+       "authorization_header",
+       "event_url",
+       "enabled_events"
+      ],
+      "additionalProperties": false
+     },
+     "rounds_played": {
+      "type": "integer"
+     },
+     "finished": {
+      "type": "boolean"
+     },
+     "cancel_reason": {
+      "type": "string"
+     },
+     "events": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "event": {
+         "type": "string",
+         "description": "The type of event that was triggered",
+         "enum": [
+          "booting_server",
+          "loading_map",
+          "server_ready_for_players",
+          "all_players_connected",
+          "match_started",
+          "match_ended",
+          "players_exited",
+          "gotv_stopped",
+          "player_connected",
+          "player_disconnected",
+          "player_votekicked",
+          "round_end",
+          "match_canceled"
+         ]
+        },
+        "timestamp": {
+         "type": "integer",
+         "description": "UNIX timestamp when the event was triggered"
+        },
+        "payload": {
+         "type": "object",
+         "description": "Additional data depending on the object type"
+        }
+       },
+       "required": [
+        "event",
+        "timestamp"
+       ]
+      }
+     }
+    },
+    "required": [
+     "id",
+     "game_server_id",
+     "players",
+     "webhooks",
+     "rounds_played",
+     "finished",
+     "cancel_reason",
+     "events"
+    ],
+    "additionalProperties": false
+   },
+   "GameServerOutput": {
+    "properties": {
+     "added_voice_server": {
+      "description": "ID of a voice server that was purchased with this server",
+      "type": "string"
+     },
+     "ark_settings": {
+      "properties": {
+       "cluster_main_server": {
+        "description": "Cluster main server",
+        "type": "string"
+       },
+       "enable_ark_server_api": {
+        "description": "Enable ARK Server API",
+        "type": "boolean"
+       },
+       "server_branch": {
+        "description": "Server branch",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "autostop": {
+      "description": "Automatically stop server when empty <autostop_minutes> min",
+      "type": "boolean"
+     },
+     "autostop_minutes": {
+      "description": "Minutes until autostop triggers if is is enabled",
+      "type": "integer"
+     },
+     "booting": {
+      "description": "Is the server in booting state?",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "description": "Has the server been ordered yet (used internally)",
+      "type": "boolean"
+     },
+     "cost_per_hour": {
+      "description": "Current cost per hour for this server",
+      "type": "number"
+     },
+     "cost_per_month": {
+      "description": "Base cost per month for this server (before storage/multiplier), used for grandfathered pricing",
+      "type": "number"
+     },
+     "created_at": {
+      "description": "UNIX timestamp when the server was created",
+      "type": "integer"
+     },
+     "cs2_settings": {
+      "properties": {
+       "steam_game_server_login_token": {
+        "description": "Steam Game Server Login Token",
+        "type": "string"
+       },
+       "disable_bots": {
+        "description": "Disable bots",
+        "type": "boolean"
+       },
+       "enable_gotv": {
+        "description": "Enable GOTV",
+        "type": "boolean"
+       },
+       "enable_gotv_secondary": {
+        "description": "Enables a secondary GOTV stream on the same server. <br><b>Warning:</b> The tv_delay and tv_delay1 shouldn\u2019t be more than 10 seconds apart, otherwise the server runs the risk of a sudden shutdown.",
+        "type": "boolean"
+       },
+       "enable_metamod": {
+        "description": "Enable our managed version of MetaMod",
+        "type": "boolean"
+       },
+       "game_mode": {
+        "description": "Game mode",
+        "type": "string"
+       },
+       "insecure": {
+        "description": "Insecure server",
+        "type": "boolean"
+       },
+       "maps_source": {
+        "description": "Maps source",
+        "type": "string",
+        "enum": [
+         "mapgroup",
+         "workshop_collection",
+         "workshop_single_map"
+        ]
+       },
+       "mapgroup": {
+        "description": "Mapgroup",
+        "type": "string"
+       },
+       "mapgroup_start_map": {
+        "description": "Mapgroup start map",
+        "type": "string"
+       },
+       "workshop_collection_id": {
+        "description": "Steam workshop collection ID",
+        "type": "string"
+       },
+       "workshop_collection_start_map_id": {
+        "description": "Steam ID of workshop start map",
+        "type": "string"
+       },
+       "workshop_single_map_id": {
+        "description": "Steam ID of workshop single map",
+        "type": "string"
+       },
+       "password": {
+        "description": "Server password",
+        "type": "string"
+       },
+       "private_server": {
+        "description": "Private server",
+        "type": "boolean"
+       },
+       "disable_workshop_command_filtering": {
+        "description": "Disables the filtering of console commands on community/workshop maps, allowing all commands to be executed. By default, CS2 restricts certain commands when running workshop content.",
+        "type": "boolean"
+       },
+       "rcon": {
+        "description": "RCON password",
+        "type": "string"
+       },
+       "slots": {
+        "description": "Server slots",
+        "type": "integer"
+       }
+      },
+      "type": "object",
+      "additionalProperties": true
+     },
+     "csgo_settings": {
+      "properties": {
+       "autoload_configs": {
+        "description": "List of configs to load automatically",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "disable_1v1_warmup_arenas": {
+        "description": "Disable 1v1 warmup arenas",
+        "type": "boolean"
+       },
+       "disable_bots": {
+        "description": "Disable bots",
+        "type": "boolean"
+       },
+       "enable_csay_plugin": {
+        "description": "Enable cSay plugin (required for eBot)",
+        "type": "boolean"
+       },
+       "enable_gotv": {
+        "description": "Enable GOTV",
+        "type": "boolean"
+       },
+       "enable_gotv_secondary": {
+        "description": "Enables a secondary GOTV stream on the same server. <br><b>Warning:</b> The tv_delay and tv_delay1 shouldn\u2019t be more than 10 seconds apart, otherwise the server runs the risk of a sudden shutdown.",
+        "type": "boolean"
+       },
+       "enable_sourcemod": {
+        "description": "Enable Sourcemod",
+        "type": "boolean"
+       },
+       "game_mode": {
+        "description": "Game mode",
+        "type": "string"
+       },
+       "insecure": {
+        "description": "Insecure server",
+        "type": "boolean"
+       },
+       "mapgroup": {
+        "description": "Mapgroup",
+        "type": "string"
+       },
+       "mapgroup_start_map": {
+        "description": "Mapgroup start map",
+        "type": "string"
+       },
+       "maps_source": {
+        "description": "Maps source - mapgroup, workshop or workshop_single_map (in single map mode only workshop_start_map_id is loaded)",
+        "type": "string"
+       },
+       "password": {
+        "description": "Server password",
+        "type": "string"
+       },
+       "private_server": {
+        "description": "Private server",
+        "type": "boolean"
+       },
+       "pure_server": {
+        "description": "Pure server",
+        "type": "boolean"
+       },
+       "rcon": {
+        "description": "RCON password",
+        "type": "string"
+       },
+       "slots": {
+        "description": "Server slots",
+        "type": "integer"
+       },
+       "sourcemod_admins": {
+        "description": "This string is written as is to csgo/addons/sourcemod/configs/admins_simple.ini, documentation can be found here: https://wiki.alliedmods.net/Adding_Admins_(SourceMod)",
+        "type": "string"
+       },
+       "sourcemod_plugins": {
+        "description": "Sourcemod plugins",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "steam_game_server_login_token": {
+        "description": "Steam Game Server Login Token",
+        "type": "string"
+       },
+       "tickrate": {
+        "description": "Server tickrate",
+        "type": "number"
+       },
+       "workshop_authkey": {
+        "description": "Workshop collection authkey, leave blank to use our default Authkey",
+        "type": "string"
+       },
+       "workshop_id": {
+        "description": "Steam workshop ID",
+        "type": "string"
+       },
+       "workshop_start_map_id": {
+        "description": "Steam ID of workshop start map",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "custom_domain": {
+      "description": "Use a custom domain for the server",
+      "type": "string"
+     },
+     "cycle_months_12_discount_percentage": {
+      "description": "Discount percentage for a yearly subscription",
+      "type": "integer"
+     },
+     "cycle_months_1_discount_percentage": {
+      "description": "Discount percentage for a monthly subscription",
+      "type": "integer"
+     },
+     "cycle_months_3_discount_percentage": {
+      "description": "Discount percentage for a quarterly subscription",
+      "type": "integer"
+     },
+     "cycle_months_6_discount_percentage": {
+      "description": "Discount percentage for a 6-Month subscription",
+      "type": "integer"
+     },
+     "default_file_locations": {
+      "description": "Physical location of the server addons (used internally)",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "deletion_protection": {
+      "description": "While this is set DELETE operation will be blocked",
+      "type": "boolean"
+     },
+     "disk_usage_bytes": {
+      "description": "Disk usage in bytes",
+      "type": "integer"
+     },
+     "duplicate_source_server": {
+      "description": "ID of a server that this was cloned from, if any",
+      "type": "string"
+     },
+     "enable_core_dump": {
+      "description": "Write core dump file on server crash",
+      "type": "boolean"
+     },
+     "enable_mysql": {
+      "description": "Enable MySQL addon",
+      "type": "boolean"
+     },
+     "enable_syntropy": {
+      "description": "",
+      "type": "boolean"
+     },
+     "first_month_discount_percentage": {
+      "description": "Discount percentage for the first month of a subscription",
+      "type": "integer"
+     },
+     "ftp_password": {
+      "description": "FTP password",
+      "type": "string"
+     },
+     "game": {
+      "description": "A lowercase string identifying the game that this server is running",
+      "type": "string"
+     },
+     "hytale_settings": {
+      "properties": {
+       "server_branch": {
+        "description": "Server branch",
+        "type": "string"
+       },
+       "ignore_broken_mods": {
+        "description": "Ignores broken mods, attempting to allow the server to boot even if one fails to load",
+        "type": "boolean"
+       },
+       "domain_verification_token": {
+        "description": "TXT record value published at hytale-server-verification.<custom_domain> to verify the server listing on hytale.com",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "id": {
+      "description": "Server ID",
+      "type": "string"
+     },
+     "ip": {
+      "description": "Hostname or IP to gameserver",
+      "type": "string"
+     },
+     "location": {
+      "description": "ID for the location of the server, see this article for available locations:<br /><a target=\"_blank\" href=\"https://help.dathost.net/article/76-api-server-locations-mapping\">https://help.dathost.net/article/76-api-server-locations-mapping</a>",
+      "type": "string"
+     },
+     "manual_sort_order": {
+      "description": "Sort order in control panel",
+      "type": "number"
+     },
+     "match_id": {
+      "description": "Ongoing match using our match API, if any",
+      "type": "string"
+     },
+     "max_cost_per_hour": {
+      "description": "Max cost per hour for this server",
+      "type": "number"
+     },
+     "max_cost_per_month": {
+      "description": "Cost per month if server has a monthly subscription",
+      "type": "number"
+     },
+     "max_disk_usage_gb": {
+      "description": "Max disk usage excluding base installation in GB",
+      "type": "integer"
+     },
+     "minecraft_settings": {
+      "properties": {
+       "server_type": {
+        "description": "Server type",
+        "type": "string"
+       },
+       "server_version": {
+        "description": "Server version",
+        "type": "string"
+       },
+       "enable_server_auto_update": {
+        "description": "Server version",
+        "type": "boolean"
+       },
+       "custom_server_path": {
+        "description": "Custom server path",
+        "type": "string"
+       },
+       "custom_server_runtime": {
+        "description": "Custom server runtime",
+        "type": "string"
+       },
+       "managed_mods": {
+        "description": "Managed mods",
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "source": {
+           "type": "string"
+          },
+          "category_slug": {
+           "type": "string"
+          },
+          "mod_slug": {
+           "type": "string"
+          },
+          "mod_id": {
+           "type": "string"
+          },
+          "mod_name": {
+           "type": "string"
+          },
+          "logo_url": {
+           "type": "string"
+          },
+          "file_id": {
+           "type": "string"
+          },
+          "file_name": {
+           "type": "string"
+          },
+          "file_published_at": {
+           "type": "number"
+          },
+          "installed_at": {
+           "type": "number"
+          }
+         },
+         "additionalProperties": false
+        }
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "month_credits": {
+      "description": "Credits this server has used this month",
+      "type": "number"
+     },
+     "month_reset_at": {
+      "description": "UNIX timestamp when the month_credits will be reset",
+      "type": "integer"
+     },
+     "mysql_password": {
+      "description": "MySQL password",
+      "type": "string"
+     },
+     "mysql_username": {
+      "description": "MySQL username",
+      "type": "string"
+     },
+     "name": {
+      "description": "Name of the server",
+      "type": "string"
+     },
+     "on": {
+      "description": "Is the server currently on?",
+      "type": "boolean"
+     },
+     "ongoing_maintenance": {
+      "description": "Is system maintenance going on on this server",
+      "type": "boolean"
+     },
+     "palworld_settings": {
+      "properties": {
+       "enable_rest_api": {
+        "description": "Enable REST API",
+        "type": "boolean"
+       },
+       "enable_server_auto_pause": {
+        "description": "Enable server auto pause",
+        "type": "boolean"
+       },
+       "public_server": {
+        "description": "Public server",
+        "type": "boolean"
+       },
+       "nosteam": {
+        "description": "No Steam",
+        "type": "boolean"
+       },
+       "enable_wine": {
+        "description": "Enable Wine",
+        "type": "boolean"
+       },
+       "enable_ue4ss": {
+        "description": "Enable UE4SS",
+        "type": "boolean"
+       },
+       "server_branch": {
+        "description": "Server branch",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "players_online": {
+      "description": "Number of players online",
+      "type": "integer"
+     },
+     "ports": {
+      "$ref": "#/components/schemas/Ports"
+     },
+     "prefer_dedicated": {
+      "description": "Prefer assignment to dedicated hosts on account",
+      "type": "boolean"
+     },
+     "projectzomboid_settings": {
+      "properties": {
+       "adminpassword": {
+        "description": "Admin password",
+        "type": "string"
+       },
+       "nosteam": {
+        "description": "No Steam",
+        "type": "boolean"
+       },
+       "server_branch": {
+        "description": "Server branch",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "private_ip": {
+      "description": "Private IP of game server (only available with Syntropy integration)",
+      "type": "string"
+     },
+     "raw_ip": {
+      "description": "IP to gameserver",
+      "type": "string"
+     },
+     "reboot_on_crash": {
+      "description": "Automatically reboot the server in case of server crash",
+      "type": "boolean"
+     },
+     "romestead_settings": {
+      "properties": {},
+      "type": "object",
+      "additionalProperties": false
+     },
+     "runescapedragonwilds_settings": {
+      "properties": {},
+      "type": "object",
+      "additionalProperties": false
+     },
+     "satisfactory_settings": {
+      "properties": {
+       "server_branch": {
+        "description": "Server branch",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "scheduled_commands": {
+      "items": {
+       "$ref": "#/components/schemas/ScheduledCommand"
+      },
+      "type": "array"
+     },
+     "server_error": {
+      "description": "Have we detected an error on the server?",
+      "type": "string"
+     },
+     "server_image": {
+      "description": "Server image to use for this server",
+      "type": "string"
+     },
+     "sevendaystodie_settings": {
+      "properties": {
+       "server_branch": {
+        "description": "Server branch",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "sonsoftheforest_settings": {
+      "properties": {
+       "password": {
+        "description": "Server password",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "soulmask_settings": {
+      "properties": {
+       "slots": {
+        "description": "Server slots",
+        "type": "number"
+       },
+       "password": {
+        "description": "Server password",
+        "type": "string"
+       },
+       "admin_password": {
+        "description": "Admin password",
+        "type": "string"
+       },
+       "enable_pvp": {
+        "description": "Enable PvP",
+        "type": "boolean"
+       },
+       "clan_size_limit": {
+        "description": "Sets the maximum number of members in a clan",
+        "type": "number"
+       },
+       "map": {
+        "description": "Map to use. Cloud Mist Forest: Level01_Main, Shifting Sands: DLC_Level01_Main",
+        "type": "string"
+       },
+       "cluster_main_server": {
+        "description": "The server ID of the main server in the cluster. Set on all servers in a cluster, including the main server itself.",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "status": {
+      "description": "Various server status (map, version etc.)",
+      "items": {
+       "$ref": "#/components/schemas/KeyValue"
+      },
+      "type": "array"
+     },
+     "subscription_cycle_months": {
+      "description": "0 if server is pay as you go, otherwise subscription cycle length in months",
+      "type": "integer"
+     },
+     "subscription_renewal_failed_attempts": {
+      "description": "Number of failed attempts to renew this subscription",
+      "type": "integer"
+     },
+     "subscription_renewal_next_attempt_at": {
+      "description": "Timestamp of next subscription renewal attempt",
+      "type": "integer"
+     },
+     "subscription_state": {
+      "description": "State of the subscription of this server",
+      "enum": [
+       "PAY_AS_YOU_GO",
+       "ACTIVE",
+       "RENEWAL_FAILED",
+       "SUSPENDED",
+       "CANCELING",
+       "CANCELED"
+      ],
+      "example": "PAY_AS_YOU_GO",
+      "type": "string"
+     },
+     "teamfortress2_settings": {
+      "properties": {
+       "enable_gotv": {
+        "description": "Enable GOTV",
+        "type": "boolean"
+       },
+       "enable_sourcemod": {
+        "description": "Enable Sourcemod",
+        "type": "boolean"
+       },
+       "insecure": {
+        "description": "Insecure server",
+        "type": "boolean"
+       },
+       "password": {
+        "description": "Server Password",
+        "type": "string"
+       },
+       "rcon": {
+        "description": "Server RCON",
+        "type": "string"
+       },
+       "slots": {
+        "description": "Server slots",
+        "type": "integer"
+       },
+       "sourcemod_admins": {
+        "description": "This string is written as is to tf/addons/sourcemod/configs/admins_simple.ini, documentation can be found here: https://wiki.alliedmods.net/Adding_Admins_(SourceMod)",
+        "type": "string"
+       },
+       "start_map": {
+        "description": "Starting map",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "teamspeak3_settings": {
+      "properties": {
+       "slots": {
+        "description": "Server slots",
+        "type": "integer"
+       },
+       "ts_admin_token": {
+        "description": "TeamSpeak admin token",
+        "type": "string"
+       },
+       "ts_server_id": {
+        "description": "TeamSpeak server instance ID (useful for server query)",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "user_data": {
+      "description": "Custom metadata for the server,is not used by the DatHost system",
+      "type": "string"
+     },
+     "valheim_settings": {
+      "properties": {
+       "admins_steamid64": {
+        "description": "JSON list of server admins in SteamID64 format",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "bepinex_plugins": {
+        "description": "BepInEx plugins",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "enable_bepinex": {
+        "description": "Enable BepInEx",
+        "type": "boolean"
+       },
+       "enable_crossplay": {
+        "description": "Enable crossplay",
+        "type": "boolean"
+       },
+       "join_code": {
+        "description": "Crossplay join code",
+        "type": "string"
+       },
+       "password": {
+        "description": "Server password",
+        "type": "string"
+       },
+       "server_branch": {
+        "description": "Server branch",
+        "type": "string"
+       },
+       "world_name": {
+        "description": "World name",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "vrising_settings": {
+      "properties": {
+       "enable_rest_api": {
+        "description": "Enable REST API",
+        "type": "boolean"
+       },
+       "server_branch": {
+        "description": "Server branch",
+        "type": "string"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     },
+     "windrose_settings": {
+      "properties": {
+       "invite_code": {
+        "description": "Invite code",
+        "type": "string"
+       },
+       "use_direct_connection": {
+        "description": "Use direct IP connection instead of invite code",
+        "type": "boolean"
+       }
+      },
+      "type": "object",
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "autostop",
+     "autostop_minutes",
+     "booting",
+     "confirmed",
+     "cost_per_hour",
+     "cost_per_month",
+     "cycle_months_12_discount_percentage",
+     "cycle_months_1_discount_percentage",
+     "cycle_months_3_discount_percentage",
+     "cycle_months_6_discount_percentage",
+     "enable_mysql",
+     "ftp_password",
+     "game",
+     "id",
+     "ip",
+     "location",
+     "max_cost_per_hour",
+     "max_cost_per_month",
+     "max_disk_usage_gb",
+     "month_credits",
+     "month_reset_at",
+     "mysql_password",
+     "mysql_username",
+     "name",
+     "on",
+     "players_online",
+     "private_ip",
+     "raw_ip",
+     "server_image",
+     "subscription_cycle_months",
+     "subscription_renewal_failed_attempts",
+     "subscription_state",
+     "user_data"
+    ],
+    "type": "object",
+    "additionalProperties": false
+   },
+   "KeyValue": {
+    "properties": {
+     "key": {
+      "type": "string"
+     },
+     "value": {
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false
+   },
+   "Ports": {
+    "properties": {
+     "game": {
+      "description": "Main game port",
+      "type": "integer"
+     },
+     "gotv": {
+      "description": "Port used for gotv streaming",
+      "type": "integer"
+     },
+     "gotv_secondary": {
+      "description": "Port used for gotv streaming",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "game",
+     "gotv",
+     "gotv_secondary"
+    ],
+    "type": "object",
+    "additionalProperties": true
+   },
+   "ScheduledCommand": {
+    "properties": {
+     "action": {
+      "type": "string"
+     },
+     "command": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "repeat": {
+      "type": "integer"
+     },
+     "run_at": {
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false
+   },
+   "GraphPoint": {
+    "properties": {
+     "timestamp": {
+      "type": "integer"
+     },
+     "value": {
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false
+   },
+   "MapsPlayed": {
+    "properties": {
+     "map": {
+      "description": "Map name",
+      "type": "string"
+     },
+     "seconds": {
+      "description": "Approx. seconds played",
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false
+   },
+   "MetricsOutput": {
+    "properties": {
+     "all_time_players": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Player"
+      },
+      "description": "All time players stats"
+     },
+     "maps_played": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/MapsPlayed"
+      },
+      "description": "Maps played"
+     },
+     "players_online": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/Player"
+      },
+      "description": "Current players online"
+     },
+     "players_online_graph": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/GraphPoint"
+      },
+      "description": "Players online graph"
+     },
+     "memory_usage_bytes_graph": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/GraphPoint"
+      },
+      "description": "Memory usage graph in bytes (Minecraft only)"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false
+   },
+   "Player": {
+    "properties": {
+     "duration": {
+      "description": "How long the player has been online (only CS:GO and TeamFortress 2)",
+      "type": "integer"
+     },
+     "name": {
+      "description": "Player nickname",
+      "type": "string"
+     },
+     "score": {
+      "description": "Player score (only CS:GO and TeamFortress 2)",
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false
+   },
+   "CS2MatchPlayerInput": {
+    "type": "object",
+    "properties": {
+     "steam_id_64": {
+      "type": "string",
+      "pattern": "[0-9]+",
+      "default": ""
+     },
+     "team": {
+      "type": "string",
+      "enum": [
+       "team1",
+       "team2",
+       "spectator"
+      ]
+     },
+     "nickname_override": {
+      "type": "string",
+      "description": "Optional override of the Steam default nickname",
+      "default": ""
+     }
+    },
+    "required": [
+     "steam_id_64",
+     "team"
+    ],
+    "additionalProperties": false
+   },
+   "CS2MatchInput": {
+    "type": "object",
+    "properties": {
+     "game_server_id": {
+      "type": "string",
+      "description": "Id of the game server to run the match on. Must be a CS2 server on the same account as the match"
+     },
+     "team1": {
+      "type": "object",
+      "description": "Settings for team 1, which starts as CT",
+      "properties": {
+       "name": {
+        "description": "Team name",
+        "type": "string",
+        "default": ""
+       },
+       "flag": {
+        "description": "Team flag (ISO alpha-2: <a href=\"https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2\" target=\"_blank\">https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2</a>)",
+        "type": "string",
+        "default": ""
+       }
+      },
+      "additionalProperties": false
+     },
+     "team2": {
+      "type": "object",
+      "description": "Settings for team 2, which starts as T",
+      "properties": {
+       "name": {
+        "description": "Team name",
+        "type": "string",
+        "default": ""
+       },
+       "flag": {
+        "description": "Team flag (ISO alpha-2: <a href=\"https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2\" target=\"_blank\">https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2</a>)",
+        "type": "string",
+        "default": ""
+       }
+      },
+      "additionalProperties": false
+     },
+     "players": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/CS2MatchPlayerInput"
+      }
+     },
+     "settings": {
+      "type": "object",
+      "description": "Match settings",
+      "properties": {
+       "map": {
+        "type": "string",
+        "description": "Specifies the map for the match. Options include local/official maps (e.g. <code>de_dust2</code>), workshop maps (e.g. <code>workshop/3071899764</code>), or <code>null</code> for the server-configured map.",
+        "default": null
+       },
+       "password": {
+        "type": "string",
+        "description": "Server password. Use \"\" to remove the password. Use null to use the password configured on the game server.",
+        "default": null
+       },
+       "connect_time": {
+        "type": "integer",
+        "description": "Time in seconds until match is canceled if not everyone has joined",
+        "default": 300
+       },
+       "match_begin_countdown": {
+        "type": "integer",
+        "description": "Time in seconds after everyone has joined until match start",
+        "default": 30
+       },
+       "team_size": {
+        "type": "integer",
+        "description": "Amount of players in each team. By default, the number of players will be the same as the number of Steam IDs entered in each team. Set this to a custom amount if you need to enter more Steam IDs than should participate, for example, to allow an emergency substitution during the game.",
+        "default": null
+       },
+       "wait_for_gotv": {
+        "type": "boolean",
+        "description": "Controls the GOTV demo recording stop time to mitigate the \"GOTV lag spoiler\".<br /><code>False</code>: Stops demo 20s after match ends.<br /><code>True</code>: Stops demo after <code>tv_delay</code> (default 105s) + 20s after match ends. Recommended if you have live GOTV viewers.",
+        "default": false
+       },
+       "enable_plugin": {
+        "type": "boolean",
+        "description": "Enable experimental CounterStrikeSharp plugin to lock players to their teams",
+        "default": false
+       },
+       "enable_tech_pause": {
+        "type": "boolean",
+        "description": "Enable tech pause using the !tech chat command",
+        "default": false
+       }
+      },
+      "additionalProperties": false
+     },
+     "webhooks": {
+      "type": "object",
+      "description": "Documentation: <a target=\"_blank\" href=\"https://dathost.com/docs/cs2-match-api-webhooks\">https://dathost.com/docs/cs2-match-api-webhooks</a>",
+      "properties": {
+       "match_end_url": {
+        "type": "string",
+        "default": ""
+       },
+       "round_end_url": {
+        "type": "string",
+        "default": ""
+       },
+       "player_votekick_success_url": {
+        "type": "string",
+        "default": ""
+       },
+       "event_url": {
+        "type": "string",
+        "description": "URL that will recieve webhooks for all event types specified by the \"enabled_events\" setting",
+        "default": ""
+       },
+       "enabled_events": {
+        "type": "array",
+        "description": "Array of event types to subscribe to, use [\"*\"] to subscribe to all avents",
+        "items": {
+         "type": "string",
+         "enum": [
+          "*",
+          "booting_server",
+          "loading_map",
+          "server_ready_for_players",
+          "all_players_connected",
+          "match_started",
+          "match_ended",
+          "players_exited",
+          "gotv_stopped",
+          "player_connected",
+          "player_disconnected",
+          "player_votekicked",
+          "round_end",
+          "match_canceled"
+         ]
+        },
+        "default": []
+       },
+       "authorization_header": {
+        "type": "string",
+        "description": "This is added as is as the \"Authorization\" HTTP header to all webhook requests",
+        "default": ""
+       }
+      },
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "game_server_id",
+     "players"
+    ],
+    "additionalProperties": false
+   }
+  }
+ }
+}

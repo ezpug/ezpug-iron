@@ -1,0 +1,33 @@
+// The waiting-budget guard, for test files only (CLAUDE.md "Verify", PRD-02 T15b).
+//
+// `vi.waitFor` gives up after **one second**. That number is a latency
+// assumption, not a behavioural one, and it is wrong under `verify:extended`,
+// where a Nuxt build runs beside the whole test matrix: a Postgres round trip,
+// a machine transition and its projector, or BullMQ handing a job to a worker
+// can each take longer than a second on a loaded box. Every reproduced flake
+// of this shape has been the deadline and not the behaviour — and a flaky test
+// is a P1 against Foundation.
+//
+// The assertion these tests want is "eventually", so say that:
+//
+//   import { eventually } from '@ezpug/core/testing'
+//   await eventually(async () => expect(await core.get(id)).toBe('live'))
+//
+// It is the same call with a 15 s budget (`EVENTUALLY_TIMEOUT_MS`), which is
+// why a suite using it needs a `testTimeout` above that — see
+// `apps/api/vitest.config.ts`.
+//
+// Escape hatch, for a wait that really is asserting latency:
+//
+//   // biome-ignore lint/plugin: <why one second is the behaviour under test>
+
+language js
+
+`vi.$member($...)` where {
+  $member <: or { "waitFor", "waitUntil" },
+  register_diagnostic(
+    span = $member,
+    message = "Waiting budget: `vi.waitFor` gives up after one second, which is a latency assumption a loaded box breaks. Use `eventually()` from `@ezpug/core/testing` (15 s, same assertion). Suppress with `// biome-ignore lint/plugin: <reason>` when the one-second deadline IS the assertion.",
+    severity = "error",
+  )
+}

@@ -1,0 +1,31 @@
+# Dependencies & build output
+node_modules/
+dist/
+.turbo/
+*.log
+test-results/
+bin/
+obj/
+*.user
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+*.local.txt
+
+# The CS2 install is a docker volume, never a checkout; anything a script
+# downloads lands here
+.cache/
+downloads/
+
+# Upstream reference clones — external repos, restorable via references/README.md
+references/CounterStrikeSharp/
+references/MatchZy/
+references/cs2-WeaponPaints/
+references/cs2-retakes/
+references/legacy/
+
+# OS/editor noise
+.DS_Store

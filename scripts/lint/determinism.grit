@@ -1,0 +1,68 @@
+// The determinism guard (CLAUDE.md "Determinism", Foundation §2, PRD-01 T4/T6).
+//
+// Anything that must reproduce — state machines, deadlines, seeds, fixtures, the
+// simulator — asks the injected clock and the seeded PRNG from `@ezpug/core`
+// instead of reaching for the ambient wall clock or `Math.random()`. This plugin
+// makes that an error everywhere except `packages/core` itself (scoped by the
+// override in `biome.json`).
+//
+// Escape hatch, for the genuine exceptions (a debounce, a non-reproducing log
+// line, a third-party callback shape):
+//
+//   // biome-ignore lint/plugin: <why this one may use the wall clock>
+//
+// Suppression is deliberate friction: it survives review as a written reason.
+
+language js
+
+or {
+  // `Date.now()` → `clock.now()`
+  `Date.$member()` where {
+    $member <: "now",
+    register_diagnostic(
+      span = $member,
+      message = "Determinism: use the injected clock (`clock.now()` from @ezpug/core), not `Date.now()`. Suppress with `// biome-ignore lint/plugin: <reason>` if this must not reproduce.",
+      severity = "error",
+    )
+  },
+
+  // `new Date()` → `clock.date()`. `new Date(<arg>)` is fine: it is a parse, not a reading.
+  `new $ctor()` where {
+    $ctor <: "Date",
+    register_diagnostic(
+      span = $ctor,
+      message = "Determinism: use the injected clock (`clock.date()` from @ezpug/core), not a bare `new Date()`. `new Date(value)` with an explicit argument is fine.",
+      severity = "error",
+    )
+  },
+
+  // `Math.random()` → a seeded stream
+  `Math.$member()` where {
+    $member <: "random",
+    register_diagnostic(
+      span = $member,
+      message = "Determinism: draw from a seeded PRNG (`createPrng(seed)` from @ezpug/core), not `Math.random()`.",
+      severity = "error",
+    )
+  },
+
+  // Deadlines belong on the clock (`clock.after` / `clock.at` / `clock.sleep`), so
+  // a fake clock can fast-forward them and crash recovery can re-arm them.
+  `$fn($...)` where {
+    $fn <: or { "setTimeout", "setInterval" },
+    register_diagnostic(
+      span = $fn,
+      message = "Determinism: arm deadlines on the injected clock (`clock.after()` / `clock.at()` from @ezpug/core), not a bare timer. Suppress with `// biome-ignore lint/plugin: <reason>` for non-deadline timers.",
+      severity = "error",
+    )
+  },
+  `$global.$fn($...)` where {
+    $global <: or { "globalThis", "window", "self" },
+    $fn <: or { "setTimeout", "setInterval" },
+    register_diagnostic(
+      span = $fn,
+      message = "Determinism: arm deadlines on the injected clock (`clock.after()` / `clock.at()` from @ezpug/core), not a bare timer. Suppress with `// biome-ignore lint/plugin: <reason>` for non-deadline timers.",
+      severity = "error",
+    )
+  },
+}

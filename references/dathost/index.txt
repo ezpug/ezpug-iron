@@ -1,0 +1,61 @@
+# DatHost Documentation
+
+> Documentation for DatHost
+
+Append .md to any documentation page URL to get its markdown version.
+
+## Guides
+- [CS2 Platform onboarding](https://dathost.readme.io/docs/cs2-platform-onboarding.md)
+- [Introduction](https://dathost.readme.io/docs/cs2-match-api-introduction.md)
+- [Roadmap](https://dathost.readme.io/docs/cs2-match-api-roadmap.md): Below is our roadmap, detailing our current features and what's to come. We'll update it regularly to keep everyone in the loop.
+- [Webhooks](https://dathost.readme.io/docs/cs2-match-api-webhooks.md)
+- [Cancel Reasons](https://dathost.readme.io/docs/cs2-match-api-cancel-reasons.md): Below are all the possible reasons a match may be canceled, along with brief explanations.
+- [Warmup & Custom Settings](https://dathost.readme.io/docs/warmup-custom-settings.md)
+
+## API Reference
+- [Server Locations Mapping](https://dathost.readme.io/reference/server-locations-mapping.md)
+- [List game servers](https://dathost.readme.io/reference/get_game_servers.md): The booting state is not updated using this method, so a server might show true when            booting is finished. Use single item get to check booting state.
+- [Create a game server](https://dathost.readme.io/reference/post_game_servers.md): On success this returns the new server in the same format as game-servers.
+- [Delete a game server](https://dathost.readme.io/reference/delete_game_server_item.md)
+- [Get a game server](https://dathost.readme.io/reference/get_game_server_item.md): If the server is currently in the booting state it will also check if the server           is still booting and update the value before returning
+- [Update a game server](https://dathost.readme.io/reference/put_game_server_item.md): If the server is on this will restart the server to reflect the changes.
+- [Get game server metrics](https://dathost.readme.io/reference/get_game_server_metrics.md)
+- [Purchase subscription / Cancel subscription / Switch to Pay as you Go](https://dathost.readme.io/reference/post_api-0-1-game-servers-server-id-subscription.md)
+- [Duplicate a game server](https://dathost.readme.io/reference/post_game_server_duplicate.md): Copies settings and files to a new server. Please note that the server's files are duplicated from a local cache, to make sure the latest file changes are preserved, update the local cache with the sync-files method first. Returns the new server.
+- [Reset a game server](https://dathost.readme.io/reference/post_game_server_reset.md): This will reset settings and all changed files to the default files, settings to the default values and void any changes you have made. It's not possible to revert this change.
+- [Start a game server](https://dathost.readme.io/reference/post_game_server_start.md): This will reboot the server if the server is already on.
+- [Stop a game server](https://dathost.readme.io/reference/post_game_server_stop.md)
+- [Sync the files between the API cache and a game server](https://dathost.readme.io/reference/post_game_server_sync_files.md): This manually triggers a sync between a game server and the local cache which is used for duplicating servers. This is done automatically approximately once per hour while the server is on, and once more when stopping a server.
+- [Reassign server to a new host](https://dathost.readme.io/reference/post_game_server_reassign_host.md): Reassigns the server to a host, getting a new IP address and ports. If the server is running, it will be stopped, reassigned, and restarted automatically.
+- [List files on gameserver](https://dathost.readme.io/reference/get_game_server_files.md)
+- [Delete a file/directory from a game server](https://dathost.readme.io/reference/delete_game_server_files_item.md): The path is counted from the root node as seen in the file manager in the control panel, i.e. to delete csgo/cfg/server.cfg the path would be cfg/server.cfg.
+- [Download a file from a game server](https://dathost.readme.io/reference/get_game_server_files_item.md): The path is counted from the root node as seen in the file manager in the control panel,i.e. to retrieve csgo/cfg/server.cfg the path would be cfg/server.cfg  If the path is a directory you will receive a zip file with the directory's contents.
+- [Upload a file to a game server](https://dathost.readme.io/reference/post_game_server_files_item.md): The path is counted from the root node as seen in the file manager in the control panel,i.e. to write csgo/cfg/server.cfg the path would be cfg/server.cfg, if the path ends with / a directory will be created and the file parameter will be ignored.  There is a upload limit of 100MB on dathost.com, use FTP to upload bigger files.
+- [Move a file/directory on a game server](https://dathost.readme.io/reference/put_game_server_files_item.md): Moves path to destination, the paths are counted from the root node as seen in the file manager in the control panel, i.e. to delete csgo/cfg/server.cfg the path would be cfg/server.cfg.
+- [Regenerate FTP password for a game server](https://dathost.readme.io/reference/post_game_server_regenerate_ftp_password.md): Sets a new random FTP password for the server
+- [Unzip a file on a game server](https://dathost.readme.io/reference/post_game_server_unzip.md): The file at path will be unzipped to destination
+- [Get the last lines of backlog from a game server console](https://dathost.readme.io/reference/get_game_server_console.md)
+- [Send a line of text to a game server console](https://dathost.readme.io/reference/post_game_server_console.md)
+- [Start a CS2 match](https://dathost.readme.io/reference/post_api-0-1-cs2-matches.md): Start a CS2 match
+- [Get a CS2 match](https://dathost.readme.io/reference/get_api-0-1-cs2-matches-match-id.md): Get a CS2 match
+- [Cancel a CS2 match in progress](https://dathost.readme.io/reference/post_api-0-1-cs2-matches-match-id-cancel.md): Cancel a CS2 match in progress
+- [Add a player to a CS2 match](https://dathost.readme.io/reference/post_api-0-1-cs2-matches-match-id-players.md): Add a player to a CS2 match
+- [Get the current account](https://dathost.readme.io/reference/get_account.md)
+- [List all invoices/receipts](https://dathost.readme.io/reference/get_invoices.md)
+- [Get an invoice as HTML](https://dathost.readme.io/reference/get_invoice_html.md)
+- [Get all available custom domains](https://dathost.readme.io/reference/get_custom_domains.md)
+- [Get CS server monitoring overview](https://dathost.readme.io/reference/get_cs_monitoring_server_overview.md): Returns a 30-day activity overview for a CS game server, including unique player counts per 5-minute interval and server metadata.
+- [Get CS server monitoring metrics](https://dathost.readme.io/reference/get_cs_monitoring_server_metrics.md): Returns detailed server metrics for a CS game server within a specified time window.  **Important:** The maximum time window between start_time and end_time is 3 hours. Requests exceeding this limit will be rejected with a 400 error. The time range must also fall within the last 30 days.  Returns CPU/memory usage, player ping, packet loss, server var (SVMS), and connected player IDs.
+- [Get CS player investigation](https://dathost.readme.io/reference/get_cs_monitoring_player.md): Returns a 30-day investigation report for a CS player identified by their Steam 64-bit ID. Includes summary statistics, server history, known nicknames/IPs, and ping/loss time series across all of the authenticated user's servers.
+
+## Changelog
+- [CS2 Match-API Update: Event-Driven Webhooks](https://dathost.readme.io/changelog/cs2-match-api-update-event-driven-webhooks.md)
+- [CS2 Match-API Update: Team Locks via SteamID](https://dathost.readme.io/changelog/cs2-match-api-update-team-locks-via-steamid.md)
+- [CS2 Match-API: Tech/Tac Pauses and Custom Nicknames](https://dathost.readme.io/changelog/cs2-match-api-tech-tac-pauses-and-custom-nicknames.md)
+- [CS2 Match-API: Added Workshop Support](https://dathost.readme.io/changelog/cs2-match-api-added-workshop-support.md)
+- [API: Added CS2 Workshop Support](https://dathost.readme.io/changelog/api-added-cs2-workshop-support.md)
+- [API: Added Guide for Latency Measurement to DatHost Servers](https://dathost.readme.io/changelog/api-added-websocket-guide-for-latency-measurement-to-dathost-servers.md)
+- [API: Added CS2 Game Server Login Tokens](https://dathost.readme.io/changelog/api-added-cs2-game-server-login-tokens.md)
+- [CS2 Match-API: Added Cancel Endpoint](https://dathost.readme.io/changelog/cs2-match-api-added-cancel-endpoint.md)
+- [CS2 Match-API: Week 42 Updates](https://dathost.readme.io/changelog/cs2-match-api-week-42-updates.md)
+- [CS2 Match-API: GOTV Fixes](https://dathost.readme.io/changelog/cs2-match-api-gotv-fixes.md)

@@ -1,0 +1,27 @@
+// The test-isolation guard (CLAUDE.md "Verify", PRD-01 T17a).
+//
+// `flushdb` / `flushall` wipe a whole logical database, not the caller's keys.
+// Vitest runs test *files* in parallel and Turbo runs *packages* in parallel,
+// so a flush anywhere is one suite deleting another suite's in-flight state —
+// the exact flake this guard was written after (`@ezpug/bus` losing a queued
+// BullMQ job to its neighbour's `beforeEach`).
+//
+// The replacement is per-package logical databases *and* a per-test-file key
+// namespace: `useTestRedis()` hands each file its own `keyPrefix` and cleans up
+// with `deleteKeysByPrefix`, so a suite can only ever destroy its own state.
+//
+// Escape hatch, for a genuine exception (a one-shot ops script owning the
+// whole server):
+//
+//   // biome-ignore lint/plugin: <why this may wipe the database>
+
+language js
+
+`$client.$member($...)` where {
+  $member <: or { "flushdb", "flushall" },
+  register_diagnostic(
+    span = $member,
+    message = "Test isolation: never flush a whole Redis database — suites run in parallel and share it. Delete your own namespace instead (`deleteKeysByPrefix(client, keyPrefix)` from the package's `redis-testing.ts`). Suppress with `// biome-ignore lint/plugin: <reason>` if this really owns the server.",
+    severity = "error",
+  )
+}
