@@ -1,0 +1,428 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EZPug Iron node link",
+  "description": "The wire between an ezpug-node agent and the orchestrator (decision 23). Generated from packages/protocol/src by scripts/protocol-schema.mjs.",
+  "x-protocol-version": 1,
+  "x-document-version": 1,
+  "x-constants": {
+    "PROTOCOL_VERSION": 1,
+    "SERVER_LINK_PATH": "/link",
+    "NODE_LINK_PATH": "/node",
+    "HEARTBEAT_INTERVAL_MS_DEFAULT": 10000,
+    "HELLO_TIMEOUT_MS": 10000,
+    "EVENTS_BATCH_MAX": 200,
+    "BACKUP_CONTENT_MAX": 262144,
+    "CONSOLE_TAIL_MAX": 500,
+    "CONSOLE_LINE_MAX": 2048,
+    "CONSOLE_TAIL_DEFAULT": 100,
+    "CLOSE_UNAUTHORIZED": 4001,
+    "CLOSE_PROTOCOL_MISMATCH": 4002,
+    "CLOSE_MALFORMED": 4003,
+    "CLOSE_REPLACED": 4005,
+    "CLOSE_HELLO_TIMEOUT": 4008,
+    "CLOSE_REVOKED": 4009,
+    "CLOSE_SHUTTING_DOWN": 4012
+  },
+  "$defs": {
+    "NodeTokenKind": {
+      "description": "Which kind of token a hello presents.",
+      "type": "string",
+      "enum": [
+        "enrolment",
+        "node"
+      ]
+    },
+    "InstancePorts": {
+      "description": "The game and GOTV ports a container publishes.",
+      "type": "object",
+      "properties": {
+        "game": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 65535
+        },
+        "tv": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "game",
+        "tv"
+      ],
+      "additionalProperties": false
+    },
+    "InstancePurpose": {
+      "description": "Why an instance exists: warm or for a match.",
+      "type": "string",
+      "enum": [
+        "warm",
+        "match"
+      ]
+    },
+    "InstanceState": {
+      "description": "A container’s life as docker sees it.",
+      "type": "string",
+      "enum": [
+        "starting",
+        "running",
+        "stopping",
+        "stopped",
+        "failed"
+      ]
+    },
+    "NodeInstance": {
+      "description": "One container, as the node reports it.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "purpose": {
+          "$ref": "#/$defs/InstancePurpose"
+        },
+        "state": {
+          "$ref": "#/$defs/InstanceState"
+        },
+        "serverId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "containerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ports": {
+          "$ref": "#/$defs/InstancePorts"
+        },
+        "matchId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "error": {
+          "type": "string",
+          "maxLength": 1024
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "state",
+        "serverId",
+        "ports"
+      ],
+      "additionalProperties": false
+    },
+    "NodeCapacity": {
+      "description": "How many containers, and how many warm.",
+      "type": "object",
+      "properties": {
+        "maxInstances": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "warm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        }
+      },
+      "required": [
+        "maxInstances",
+        "warm"
+      ],
+      "additionalProperties": false
+    },
+    "ImageDigest": {
+      "description": "An OCI image digest.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "InstanceSpec": {
+      "description": "What `start` tells a node to run.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "purpose": {
+          "$ref": "#/$defs/InstancePurpose"
+        },
+        "image": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "serverId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "serverToken": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 512
+        },
+        "ports": {
+          "$ref": "#/$defs/InstancePorts"
+        },
+        "env": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 4096
+          }
+        },
+        "matchId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": [
+        "id",
+        "purpose",
+        "image",
+        "serverId",
+        "serverToken",
+        "ports",
+        "env"
+      ],
+      "additionalProperties": false
+    },
+    "NodeFrame": {
+      "description": "What a node sends the orchestrator.",
+      "x-branch": "NodeFrame",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "hello"
+            },
+            "protocol": {
+              "type": "number",
+              "const": 1
+            },
+            "token": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 512
+            },
+            "tokenKind": {
+              "$ref": "#/$defs/NodeTokenKind"
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "region": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "lan": {
+              "default": true,
+              "type": "boolean"
+            },
+            "labels": {
+              "default": {},
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "additionalProperties": {
+                "type": "string",
+                "maxLength": 256
+              }
+            },
+            "capacity": {
+              "$ref": "#/$defs/NodeCapacity"
+            },
+            "imageDigest": {
+              "$ref": "#/$defs/ImageDigest"
+            },
+            "instances": {
+              "maxItems": 256,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NodeInstance"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "protocol",
+            "token",
+            "tokenKind",
+            "version",
+            "region",
+            "lan",
+            "labels",
+            "capacity",
+            "imageDigest",
+            "instances"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "heartbeat"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "instances"
+            },
+            "instances": {
+              "maxItems": 256,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NodeInstance"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "instances"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "OrchestratorNodeFrame": {
+      "description": "What the orchestrator sends a node.",
+      "x-branch": "OrchestratorNodeFrame",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "welcome"
+            },
+            "protocol": {
+              "type": "number",
+              "const": 1
+            },
+            "nodeId": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "nodeToken": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 512
+            },
+            "heartbeatIntervalMs": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "drained": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "protocol",
+            "nodeId",
+            "heartbeatIntervalMs",
+            "drained"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "start"
+            },
+            "instance": {
+              "$ref": "#/$defs/InstanceSpec"
+            }
+          },
+          "required": [
+            "type",
+            "instance"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "stop"
+            },
+            "instanceId": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "type",
+            "instanceId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "drain"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "undrain"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

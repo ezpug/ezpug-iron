@@ -8,6 +8,9 @@ gamemodes, the node agent and the server image.
 
 - `packages/match-api` — `@ezpug/match-api`, the published contract: schemas, typed
   client, webhook verifier, conformance fixtures and an in-process fake orchestrator.
+- `packages/protocol` — the wire protocols inside the repo: the server link a plugin dials
+  the orchestrator on and the node link an `ezpug-node` dials it on, Zod first, exported as
+  JSON Schema, the C# twins generated from that into `plugins/EZPug.Sdk/Generated/`.
 - `packages/sim` — the simulator engine: a seeded, clock-driven CS2 match with rounds,
   deaths, bomb, chat and positions, and no game anywhere near it.
 - `packages/core` — the injected clock, the seeded PRNG, chaos toggles and `eventually()`:

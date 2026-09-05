@@ -1,0 +1,301 @@
+{
+  "schema": "OrchestratorFrame",
+  "frames": [
+    {
+      "type": "welcome",
+      "protocol": 1,
+      "provider": "nodes",
+      "serverId": "devbox-1",
+      "heartbeatIntervalMs": 10000,
+      "ackedSeq": 0
+    },
+    {
+      "type": "assign",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "game": "cs2",
+      "gamemode": {
+        "id": "pug",
+        "game": "cs2",
+        "tier": "plugin",
+        "title": {
+          "de": "5v5 Wettkampf",
+          "en": "5v5 competitive"
+        },
+        "description": {
+          "de": "Das Spiel der Warteschlange: fünf gegen fünf, Messerrunde, Overtime, Demo und Rundenbackups – MatchZy führt das Match.",
+          "en": "The queue's game: five against five, a knife round, overtime, a demo and round backups – MatchZy runs the match."
+        },
+        "slots": {
+          "teamSize": 5,
+          "teams": 2,
+          "openJoin": false
+        },
+        "flow": "matchzy",
+        "records": "demo",
+        "ranked": false,
+        "version": "0.1.0",
+        "plugins": [
+          "MatchZy"
+        ],
+        "cfg": [
+          "ezpug/pug.cfg"
+        ],
+        "cvars": {
+          "matchzy_kick_when_no_match_loaded": "false",
+          "matchzy_demo_recording_enabled": "true",
+          "matchzy_enable_tech_pause": "true",
+          "matchzy_stop_command_available": "true",
+          "matchzy_reset_cvars_on_series_end": "true"
+        },
+        "capabilities": {
+          "positions": true,
+          "chat": true,
+          "playerCommands": false,
+          "widget": false,
+          "backups": true,
+          "scoreboardRating": true
+        },
+        "commands": [],
+        "sdkVersion": "0.1.0"
+      },
+      "plugins": [
+        "MatchZy",
+        "WeaponPaints"
+      ],
+      "cfg": [
+        "ezpug/pug.cfg"
+      ],
+      "cvars": {
+        "mp_maxrounds": "24",
+        "mp_overtime_enable": "1",
+        "matchzy_demo_recording_enabled": "true"
+      },
+      "matchzyConfig": {
+        "matchid": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "num_maps": 1,
+        "maplist": [
+          "de_mirage"
+        ],
+        "players_per_team": 5
+      },
+      "maps": [
+        {
+          "map": "de_mirage",
+          "sides": "knife"
+        }
+      ],
+      "rules": {
+        "regulationRounds": 24,
+        "overtime": {
+          "enabled": true,
+          "maxRounds": 6,
+          "startMoney": 10000
+        },
+        "warmup": {
+          "minPlayersToReady": 10,
+          "minSpectatorsToReady": 0
+        },
+        "cvars": {
+          "mp_freezetime": "15"
+        }
+      },
+      "teams": {
+        "teamA": {
+          "name": "Team tk",
+          "players": [
+            {
+              "steamId64": "76561198279375306",
+              "name": "tk",
+              "locale": "de",
+              "rating": 1820,
+              "rankName": "Eisen III",
+              "loadout": {
+                "t": {
+                  "weapons": [
+                    {
+                      "defindex": 7,
+                      "paintId": 490,
+                      "wear": 0.12,
+                      "seed": 661,
+                      "nametag": "lauwarm",
+                      "stattrak": true,
+                      "stattrakCount": 1337,
+                      "stickers": [
+                        {
+                          "id": 4,
+                          "schema": 0,
+                          "x": 0.5,
+                          "y": -0.25,
+                          "wear": 0,
+                          "scale": 1,
+                          "rotation": 0
+                        }
+                      ],
+                      "keychain": {
+                        "id": 20,
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "seed": 7
+                      }
+                    }
+                  ],
+                  "knife": "weapon_knife_karambit",
+                  "gloves": 5027,
+                  "agent": "customplayer_tm_leet_variantg",
+                  "music": 3,
+                  "pin": 874
+                },
+                "ct": {
+                  "weapons": [
+                    {
+                      "defindex": 60,
+                      "paintId": 1231,
+                      "wear": 0.000001,
+                      "seed": 0,
+                      "stattrak": false,
+                      "stattrakCount": 0,
+                      "stickers": []
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "teamB": {
+          "name": "Team maex",
+          "players": [
+            {
+              "steamId64": "76561198279375307",
+              "name": "maex",
+              "locale": "en"
+            }
+          ]
+        }
+      },
+      "warmupLines": [
+        "Willkommen bei EZPug.",
+        "Welcome to EZPug."
+      ],
+      "branding": {
+        "hostname": "EZPug · SaarLAN 2026 · Mirage",
+        "eventName": "SaarLAN 2026"
+      },
+      "demoUploadUrl": "http://127.0.0.1:9400/demos/fixture.dem?X-Amz-Signature=fixture",
+      "restore": {
+        "mapNumber": 1,
+        "roundNumber": 13,
+        "filename": "matchzy_1_map1_round12.cfg",
+        "content": "\"round\" { \"team1_score\" \"8\" \"team2_score\" \"4\" }\n"
+      }
+    },
+    {
+      "type": "command",
+      "command": {
+        "correlationId": "cmd-0003",
+        "type": "pause",
+        "kind": "technical"
+      }
+    },
+    {
+      "type": "player_command",
+      "correlationId": "pc-0001",
+      "steamId64": "76561198279375306",
+      "command": "powerup",
+      "args": {
+        "kind": "speed"
+      }
+    },
+    {
+      "type": "profile",
+      "player": {
+        "steamId64": "76561198279375306",
+        "name": "tk",
+        "locale": "de",
+        "rating": 1820,
+        "rankName": "Eisen III",
+        "loadout": {
+          "t": {
+            "weapons": [
+              {
+                "defindex": 7,
+                "paintId": 490,
+                "wear": 0.12,
+                "seed": 661,
+                "nametag": "lauwarm",
+                "stattrak": true,
+                "stattrakCount": 1337,
+                "stickers": [
+                  {
+                    "id": 4,
+                    "schema": 0,
+                    "x": 0.5,
+                    "y": -0.25,
+                    "wear": 0,
+                    "scale": 1,
+                    "rotation": 0
+                  }
+                ],
+                "keychain": {
+                  "id": 20,
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "seed": 7
+                }
+              }
+            ],
+            "knife": "weapon_knife_karambit",
+            "gloves": 5027,
+            "agent": "customplayer_tm_leet_variantg",
+            "music": 3,
+            "pin": 874
+          },
+          "ct": {
+            "weapons": [
+              {
+                "defindex": 60,
+                "paintId": 1231,
+                "wear": 0.000001,
+                "seed": 0,
+                "stattrak": false,
+                "stattrakCount": 0,
+                "stickers": []
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "release",
+      "reason": "ended"
+    },
+    {
+      "type": "drain"
+    },
+    {
+      "type": "ack",
+      "results": [
+        {
+          "seq": 1,
+          "status": "accepted"
+        },
+        {
+          "seq": 2,
+          "status": "duplicate"
+        },
+        {
+          "seq": 17,
+          "status": "ephemeral"
+        },
+        {
+          "seq": 23,
+          "status": "rejected",
+          "message": "names a match this server does not hold"
+        }
+      ]
+    }
+  ]
+}

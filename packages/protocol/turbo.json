@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tags": ["internal"],
+  "tasks": {
+    "build": {
+      // `build` bundles the schemas, exports them as JSON Schema into
+      // `schema/` and regenerates `plugins/EZPug.Sdk/Generated/*.g.cs` —
+      // outputs outside `dist/` that Turbo could not restore from a cache
+      // hit, so the task always really runs. It takes a second.
+      "cache": false,
+      "dependsOn": ["^build"]
+    }
+  }
+}

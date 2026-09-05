@@ -1,0 +1,27 @@
+{
+  "name": "@ezpug/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The wire protocols inside EZPug Iron (decision 2, PRD-02 T1): the server link a plugin dials the orchestrator on and the node link an ezpug-node agent dials it on. Zod first; JSON Schema exported from it; the C# twins generated from that. Internal, never published.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures": "./src/fixtures.ts"
+  },
+  "scripts": {
+    "build": "tsdown && node ../../scripts/protocol-schema.mjs && node ../../scripts/protocol-codegen.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "record": "EZPUG_IRON_RECORD=1 vitest run src/fixtures.test.ts"
+  },
+  "dependencies": {
+    "@ezpug/match-api": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

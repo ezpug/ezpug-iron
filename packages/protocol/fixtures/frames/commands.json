@@ -1,0 +1,62 @@
+{
+  "schema": "LinkCommand",
+  "frames": [
+    {
+      "type": "console",
+      "correlationId": "cmd-0002",
+      "lines": 50
+    },
+    {
+      "correlationId": "cmd-0003",
+      "type": "pause",
+      "kind": "technical"
+    },
+    {
+      "correlationId": "cmd-0004",
+      "type": "unpause"
+    },
+    {
+      "correlationId": "cmd-0005",
+      "type": "restart_round"
+    },
+    {
+      "correlationId": "cmd-0006",
+      "type": "force_end",
+      "reason": "admin decision"
+    },
+    {
+      "correlationId": "cmd-0007",
+      "type": "kick",
+      "steamId64": "76561198279375307",
+      "reason": "afk"
+    },
+    {
+      "correlationId": "cmd-0008",
+      "type": "announce",
+      "text": "GLHF — viel Erfolg!"
+    },
+    {
+      "correlationId": "cmd-0009",
+      "type": "rcon",
+      "command": "status"
+    },
+    {
+      "correlationId": "cmd-0010",
+      "type": "restore",
+      "roundNumber": 12
+    },
+    {
+      "correlationId": "cmd-0011",
+      "type": "reroll"
+    },
+    {
+      "correlationId": "cmd-0012",
+      "type": "profile",
+      "player": {
+        "steamId64": "76561198279375307",
+        "name": "maex",
+        "locale": "en"
+      }
+    }
+  ]
+}

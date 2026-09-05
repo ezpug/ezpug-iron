@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The protocol is spoken by Node processes only (the orchestrator, the
+    // node agent, the fake server) — so @types/node, and no DOM.
+    "types": ["node"],
+    // The fixture tests and the schema test read the committed JSON files.
+    "resolveJsonModule": true
+  },
+  "include": ["src", "tsdown.config.ts"]
+}

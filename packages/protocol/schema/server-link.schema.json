@@ -1,0 +1,3037 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EZPug Iron server link",
+  "description": "The wire between a server’s EZPug core plugin and the orchestrator (decision 5). Generated from packages/protocol/src by scripts/protocol-schema.mjs; the C# twins in plugins/EZPug.Sdk/Generated are generated from this file.",
+  "x-protocol-version": 1,
+  "x-document-version": 1,
+  "x-constants": {
+    "PROTOCOL_VERSION": 1,
+    "SERVER_LINK_PATH": "/link",
+    "NODE_LINK_PATH": "/node",
+    "HEARTBEAT_INTERVAL_MS_DEFAULT": 10000,
+    "HELLO_TIMEOUT_MS": 10000,
+    "EVENTS_BATCH_MAX": 200,
+    "BACKUP_CONTENT_MAX": 262144,
+    "CONSOLE_TAIL_MAX": 500,
+    "CONSOLE_LINE_MAX": 2048,
+    "CONSOLE_TAIL_DEFAULT": 100,
+    "CLOSE_UNAUTHORIZED": 4001,
+    "CLOSE_PROTOCOL_MISMATCH": 4002,
+    "CLOSE_MALFORMED": 4003,
+    "CLOSE_REPLACED": 4005,
+    "CLOSE_HELLO_TIMEOUT": 4008,
+    "CLOSE_REVOKED": 4009,
+    "CLOSE_SHUTTING_DOWN": 4012
+  },
+  "$defs": {
+    "Game": {
+      "description": "The game a server plays (decision 18).",
+      "type": "string",
+      "enum": [
+        "cs2",
+        "csgo"
+      ]
+    },
+    "Locale": {
+      "description": "A player’s language: German or English.",
+      "type": "string",
+      "enum": [
+        "de",
+        "en"
+      ]
+    },
+    "LocalizedText": {
+      "description": "A translated string: both languages, always.",
+      "type": "object",
+      "properties": {
+        "de": {
+          "type": "string",
+          "minLength": 1
+        },
+        "en": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "de",
+        "en"
+      ],
+      "additionalProperties": false
+    },
+    "MatchTeam": {
+      "description": "A match team as every event names one.",
+      "type": "string",
+      "enum": [
+        "team_a",
+        "team_b"
+      ]
+    },
+    "TeamSide": {
+      "description": "A CS side.",
+      "type": "string",
+      "enum": [
+        "ct",
+        "t"
+      ]
+    },
+    "ServerSlot": {
+      "description": "Where a connected human sits.",
+      "type": "string",
+      "enum": [
+        "team_a",
+        "team_b",
+        "spec"
+      ]
+    },
+    "GameserverSource": {
+      "description": "Which provider and which server an event came from.",
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "serverId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "provider",
+        "serverId"
+      ],
+      "additionalProperties": false
+    },
+    "GameserverPlayer": {
+      "description": "A player as a gameserver sees one: SteamID64, in-game name, slot.",
+      "type": "object",
+      "properties": {
+        "steamId64": {
+          "type": "string",
+          "pattern": "^\\d{17}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "team": {
+          "$ref": "#/$defs/ServerSlot"
+        }
+      },
+      "required": [
+        "steamId64",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "TeamScore": {
+      "description": "A score in team order, never winner first.",
+      "type": "object",
+      "properties": {
+        "teamA": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "teamB": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "teamA",
+        "teamB"
+      ],
+      "additionalProperties": false
+    },
+    "RoundWinCondition": {
+      "description": "Why a round ended, normalized.",
+      "type": "string",
+      "enum": [
+        "elimination",
+        "bomb_exploded",
+        "bomb_defused",
+        "time_expired",
+        "other"
+      ]
+    },
+    "RoundWinner": {
+      "description": "Who took a round, and on which side.",
+      "type": "object",
+      "properties": {
+        "team": {
+          "$ref": "#/$defs/MatchTeam"
+        },
+        "side": {
+          "$ref": "#/$defs/TeamSide"
+        }
+      },
+      "required": [
+        "team",
+        "side"
+      ],
+      "additionalProperties": false
+    },
+    "PlayerRoundSummary": {
+      "description": "One player’s cumulative stats as of a round end.",
+      "type": "object",
+      "properties": {
+        "player": {
+          "$ref": "#/$defs/GameserverPlayer"
+        },
+        "kills": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "deaths": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "assists": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "damage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "flashAssists": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "utilityDamage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "enemiesFlashed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "headshotKills": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "bombPlants": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "bombDefuses": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "mvps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "score": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "player",
+        "kills",
+        "deaths",
+        "assists",
+        "damage"
+      ],
+      "additionalProperties": false
+    },
+    "PauseKind": {
+      "description": "Why a match is standing still.",
+      "type": "string",
+      "enum": [
+        "tactical",
+        "technical",
+        "admin"
+      ]
+    },
+    "PauseSource": {
+      "description": "Who asked for a pause.",
+      "type": "string",
+      "enum": [
+        "team_a",
+        "team_b",
+        "admin",
+        "server"
+      ]
+    },
+    "BombSite": {
+      "description": "A bomb site.",
+      "type": "string",
+      "enum": [
+        "a",
+        "b"
+      ]
+    },
+    "ServerChatScope": {
+      "description": "Which window a chat line was said in.",
+      "type": "string",
+      "enum": [
+        "all",
+        "team"
+      ]
+    },
+    "GameserverEvent": {
+      "description": "The vocabulary (decision 4): the one language a server speaks to anyone. v1, byte-compatible with the platform’s.",
+      "x-branch": "Event",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "server_ready"
+            },
+            "map": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "heartbeat"
+            },
+            "playerCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "player_connected"
+            },
+            "player": {
+              "$ref": "#/$defs/GameserverPlayer"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "player"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "player_disconnected"
+            },
+            "player": {
+              "$ref": "#/$defs/GameserverPlayer"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "player"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "going_live"
+            },
+            "map": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type",
+            "map"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "round_start"
+            },
+            "score": {
+              "$ref": "#/$defs/TeamScore"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "roundNumber",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "round_end"
+            },
+            "winner": {
+              "$ref": "#/$defs/RoundWinner"
+            },
+            "winCondition": {
+              "$ref": "#/$defs/RoundWinCondition"
+            },
+            "score": {
+              "$ref": "#/$defs/TeamScore"
+            },
+            "players": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/PlayerRoundSummary"
+              }
+            },
+            "roundTimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "roundNumber",
+            "type",
+            "winner",
+            "winCondition",
+            "score"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "side_swap"
+            },
+            "sides": {
+              "type": "object",
+              "properties": {
+                "teamA": {
+                  "$ref": "#/$defs/TeamSide"
+                },
+                "teamB": {
+                  "$ref": "#/$defs/TeamSide"
+                }
+              },
+              "required": [
+                "teamA",
+                "teamB"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type",
+            "sides"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "map_end"
+            },
+            "map": {
+              "type": "string",
+              "minLength": 1
+            },
+            "score": {
+              "$ref": "#/$defs/TeamScore"
+            },
+            "winner": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MatchTeam"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type",
+            "score",
+            "winner"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "series_end"
+            },
+            "seriesScore": {
+              "$ref": "#/$defs/TeamScore"
+            },
+            "winner": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MatchTeam"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "seriesScore",
+            "winner"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "match_paused"
+            },
+            "kind": {
+              "$ref": "#/$defs/PauseKind"
+            },
+            "pausedBy": {
+              "$ref": "#/$defs/PauseSource"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "match_unpaused"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "player_death"
+            },
+            "victim": {
+              "$ref": "#/$defs/GameserverPlayer"
+            },
+            "killer": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GameserverPlayer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "assists": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "player": {
+                    "$ref": "#/$defs/GameserverPlayer"
+                  },
+                  "flash": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "player",
+                  "flash"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "weapon": {
+              "type": "string",
+              "minLength": 1
+            },
+            "headshot": {
+              "type": "boolean"
+            },
+            "penetrated": {
+              "type": "boolean"
+            },
+            "noscope": {
+              "type": "boolean"
+            },
+            "throughSmoke": {
+              "type": "boolean"
+            },
+            "attackerBlind": {
+              "type": "boolean"
+            },
+            "roundTimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "roundNumber",
+            "type",
+            "victim",
+            "killer",
+            "assists",
+            "weapon",
+            "headshot"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "bomb_planted"
+            },
+            "player": {
+              "$ref": "#/$defs/GameserverPlayer"
+            },
+            "site": {
+              "$ref": "#/$defs/BombSite"
+            },
+            "roundTimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "roundNumber",
+            "type",
+            "player"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "bomb_defused"
+            },
+            "player": {
+              "$ref": "#/$defs/GameserverPlayer"
+            },
+            "site": {
+              "$ref": "#/$defs/BombSite"
+            },
+            "roundTimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "roundNumber",
+            "type",
+            "player"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "bomb_exploded"
+            },
+            "site": {
+              "$ref": "#/$defs/BombSite"
+            },
+            "roundTimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "roundNumber",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "position_tick"
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "positions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "steamId64": {
+                    "type": "string",
+                    "pattern": "^\\d{17}$"
+                  },
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "z": {
+                    "type": "number"
+                  },
+                  "yaw": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "steamId64",
+                  "x",
+                  "y",
+                  "z"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type",
+            "positions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "backup_written"
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "filename": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type",
+            "roundNumber",
+            "filename"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "demo_available"
+            },
+            "filename": {
+              "type": "string",
+              "minLength": 1
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "sizeBytes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type",
+            "filename"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "chat_command"
+            },
+            "player": {
+              "$ref": "#/$defs/GameserverPlayer"
+            },
+            "command": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]*$"
+            },
+            "args": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "player",
+            "command"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "chat_message"
+            },
+            "player": {
+              "$ref": "#/$defs/GameserverPlayer"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "scope": {
+              "$ref": "#/$defs/ServerChatScope"
+            },
+            "tick": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "player",
+            "text",
+            "scope"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "plugin_event"
+            },
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+            },
+            "data": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "name",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "MatchApiErrorCode": {
+      "description": "The Match API’s error vocabulary, as a command result names a reason.",
+      "type": "string",
+      "enum": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "validation_failed",
+        "conflict",
+        "invalid_state",
+        "command_unsupported",
+        "no_backup",
+        "player_not_in_match",
+        "unknown_gamemode",
+        "game_unsupported",
+        "map_not_allowed",
+        "no_capable_server",
+        "budget_exceeded",
+        "rate_limited",
+        "provider_unavailable",
+        "internal"
+      ]
+    },
+    "Sticker": {
+      "description": "One sticker on one weapon.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "schema": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "x": {
+          "default": 0,
+          "type": "number"
+        },
+        "y": {
+          "default": 0,
+          "type": "number"
+        },
+        "wear": {
+          "default": 0,
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "scale": {
+          "default": 1,
+          "type": "number"
+        },
+        "rotation": {
+          "default": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "schema",
+        "x",
+        "y",
+        "wear",
+        "scale",
+        "rotation"
+      ],
+      "additionalProperties": false
+    },
+    "Keychain": {
+      "description": "A keychain on a weapon.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "x": {
+          "default": 0,
+          "type": "number"
+        },
+        "y": {
+          "default": 0,
+          "type": "number"
+        },
+        "z": {
+          "default": 0,
+          "type": "number"
+        },
+        "seed": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "id",
+        "x",
+        "y",
+        "z",
+        "seed"
+      ],
+      "additionalProperties": false
+    },
+    "WeaponSkin": {
+      "description": "A finish on a weapon, for one side.",
+      "type": "object",
+      "properties": {
+        "defindex": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "paintId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "wear": {
+          "default": 0.000001,
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "seed": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "nametag": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "stattrak": {
+          "default": false,
+          "type": "boolean"
+        },
+        "stattrakCount": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "stickers": {
+          "default": [],
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sticker"
+          }
+        },
+        "keychain": {
+          "$ref": "#/$defs/Keychain"
+        }
+      },
+      "required": [
+        "defindex",
+        "paintId",
+        "wear",
+        "seed",
+        "stattrak",
+        "stattrakCount",
+        "stickers"
+      ],
+      "additionalProperties": false
+    },
+    "SideLoadout": {
+      "description": "Everything one side of a loadout holds.",
+      "type": "object",
+      "properties": {
+        "weapons": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WeaponSkin"
+          }
+        },
+        "knife": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "gloves": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "agent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "music": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pin": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "weapons"
+      ],
+      "additionalProperties": false
+    },
+    "Loadout": {
+      "description": "A player’s cosmetics as the server applies them (decision 20).",
+      "type": "object",
+      "properties": {
+        "t": {
+          "$ref": "#/$defs/SideLoadout"
+        },
+        "ct": {
+          "$ref": "#/$defs/SideLoadout"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RosterEntry": {
+      "description": "A rostered or pushed player: SteamID64, display name, locale, rating, rank, loadout.",
+      "type": "object",
+      "properties": {
+        "steamId64": {
+          "type": "string",
+          "pattern": "^\\d{17}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "locale": {
+          "default": "de",
+          "$ref": "#/$defs/Locale"
+        },
+        "rating": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rankName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "loadout": {
+          "$ref": "#/$defs/Loadout"
+        }
+      },
+      "required": [
+        "steamId64",
+        "name",
+        "locale"
+      ],
+      "additionalProperties": false
+    },
+    "Roster": {
+      "description": "A team as the request locks it.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "players": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RosterEntry"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "players"
+      ],
+      "additionalProperties": false
+    },
+    "MatchTeams": {
+      "description": "Both rosters.",
+      "type": "object",
+      "properties": {
+        "teamA": {
+          "$ref": "#/$defs/Roster"
+        },
+        "teamB": {
+          "$ref": "#/$defs/Roster"
+        }
+      },
+      "required": [
+        "teamA",
+        "teamB"
+      ],
+      "additionalProperties": false
+    },
+    "MapPlanSides": {
+      "description": "Which side team A starts on, or `knife`.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TeamSide"
+        },
+        {
+          "type": "string",
+          "const": "knife"
+        }
+      ]
+    },
+    "MapPlan": {
+      "description": "One map to be played and how sides are decided.",
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sides": {
+          "$ref": "#/$defs/MapPlanSides"
+        }
+      },
+      "required": [
+        "map",
+        "sides"
+      ],
+      "additionalProperties": false
+    },
+    "MatchRules": {
+      "description": "The rules a context decided.",
+      "type": "object",
+      "properties": {
+        "regulationRounds": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "multipleOf": 2
+        },
+        "overtime": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "maxRounds": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "multipleOf": 2
+            },
+            "startMoney": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "enabled",
+            "maxRounds",
+            "startMoney"
+          ],
+          "additionalProperties": false
+        },
+        "warmup": {
+          "type": "object",
+          "properties": {
+            "minPlayersToReady": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "minSpectatorsToReady": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "minPlayersToReady",
+            "minSpectatorsToReady"
+          ],
+          "additionalProperties": false
+        },
+        "cvars": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "regulationRounds",
+        "overtime",
+        "warmup",
+        "cvars"
+      ],
+      "additionalProperties": false
+    },
+    "MatchBranding": {
+      "description": "Hostname and event name (decision 22).",
+      "type": "object",
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "eventName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "additionalProperties": false
+    },
+    "GamemodeTier": {
+      "description": "The three tiers (decision 15).",
+      "type": "string",
+      "enum": [
+        "config",
+        "plugin",
+        "sdk"
+      ]
+    },
+    "GamemodeFlow": {
+      "description": "Who owns match flow on the server.",
+      "type": "string",
+      "enum": [
+        "matchzy",
+        "plugin",
+        "none"
+      ]
+    },
+    "GamemodeRecords": {
+      "description": "What the server keeps of a match.",
+      "type": "string",
+      "enum": [
+        "demo",
+        "events",
+        "none"
+      ]
+    },
+    "GamemodeSlots": {
+      "description": "How many people, in what shape.",
+      "type": "object",
+      "properties": {
+        "teamSize": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 32
+        },
+        "teams": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 2
+        },
+        "openJoin": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "teamSize",
+        "teams",
+        "openJoin"
+      ],
+      "additionalProperties": false
+    },
+    "GamemodeCapabilities": {
+      "description": "What the mode can do, as booleans the loader enforces.",
+      "type": "object",
+      "properties": {
+        "positions": {
+          "type": "boolean"
+        },
+        "chat": {
+          "type": "boolean"
+        },
+        "playerCommands": {
+          "type": "boolean"
+        },
+        "widget": {
+          "type": "boolean"
+        },
+        "backups": {
+          "type": "boolean"
+        },
+        "scoreboardRating": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "positions",
+        "chat",
+        "playerCommands",
+        "widget",
+        "backups",
+        "scoreboardRating"
+      ],
+      "additionalProperties": false
+    },
+    "PlayerCommandChargePeriod": {
+      "description": "What a charge is counted against.",
+      "type": "string",
+      "enum": [
+        "life",
+        "round",
+        "map",
+        "match"
+      ]
+    },
+    "PlayerCommandSpec": {
+      "description": "A player-scoped verb an sdk mode accepts, with its cooldown and charges.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+        },
+        "title": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "description": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "cooldownMs": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "charges": {
+          "default": null,
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 999
+                },
+                "per": {
+                  "$ref": "#/$defs/PlayerCommandChargePeriod"
+                }
+              },
+              "required": [
+                "count",
+                "per"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "args": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "name",
+        "title",
+        "cooldownMs",
+        "charges"
+      ],
+      "additionalProperties": false
+    },
+    "LinkServerState": {
+      "description": "Where a server is in its life, as it reports it.",
+      "type": "string",
+      "enum": [
+        "booting",
+        "idle",
+        "assigned",
+        "live",
+        "ending",
+        "draining"
+      ]
+    },
+    "GamemodeCapability": {
+      "description": "One manifest capability, as a hello lists the ones a server can honour.",
+      "type": "string",
+      "enum": [
+        "positions",
+        "chat",
+        "playerCommands",
+        "widget",
+        "backups",
+        "scoreboardRating"
+      ]
+    },
+    "ServerVersions": {
+      "description": "The versions a server runs.",
+      "type": "object",
+      "properties": {
+        "plugin": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "sdk": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "counterStrikeSharp": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "matchzy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "metamod": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "plugin",
+        "sdk",
+        "counterStrikeSharp"
+      ],
+      "additionalProperties": false
+    },
+    "RoundBackup": {
+      "description": "A round backup as it crosses the link, up as written and down on restore.",
+      "type": "object",
+      "properties": {
+        "mapNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "roundNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 262144
+        }
+      },
+      "required": [
+        "mapNumber",
+        "roundNumber",
+        "filename",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "ConsoleLine": {
+      "description": "One console line with the server’s uptime.",
+      "type": "object",
+      "properties": {
+        "uptimeMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "line": {
+          "type": "string",
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "uptimeMs",
+        "line"
+      ],
+      "additionalProperties": false
+    },
+    "SequencedEvent": {
+      "description": "One vocabulary event with its per-server link sequence number.",
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "event": {
+          "$ref": "#/$defs/GameserverEvent"
+        }
+      },
+      "required": [
+        "seq",
+        "event"
+      ],
+      "additionalProperties": false
+    },
+    "AssignedGamemode": {
+      "description": "The manifest as resolved for one assignment: everything a server reads.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "game": {
+          "$ref": "#/$defs/Game"
+        },
+        "tier": {
+          "$ref": "#/$defs/GamemodeTier"
+        },
+        "title": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "description": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "slots": {
+          "$ref": "#/$defs/GamemodeSlots"
+        },
+        "flow": {
+          "$ref": "#/$defs/GamemodeFlow"
+        },
+        "records": {
+          "$ref": "#/$defs/GamemodeRecords"
+        },
+        "ranked": {
+          "type": "boolean",
+          "const": false
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?$"
+        },
+        "plugins": {
+          "default": [],
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+          }
+        },
+        "cfg": {
+          "default": [],
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?:[a-z0-9_-]+\\/)*[a-z0-9_-]+\\.cfg$"
+          }
+        },
+        "cvars": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "capabilities": {
+          "$ref": "#/$defs/GamemodeCapabilities"
+        },
+        "commands": {
+          "default": [],
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PlayerCommandSpec"
+          }
+        },
+        "sdkVersion": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?$"
+        }
+      },
+      "required": [
+        "id",
+        "game",
+        "tier",
+        "title",
+        "description",
+        "slots",
+        "flow",
+        "records",
+        "ranked",
+        "version",
+        "plugins",
+        "cfg",
+        "cvars",
+        "capabilities",
+        "commands",
+        "sdkVersion"
+      ],
+      "additionalProperties": false
+    },
+    "LinkCommand": {
+      "description": "A Match API command relayed verbatim, or the link’s own `console`.",
+      "x-branch": "Command",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "console"
+            },
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "lines": {
+              "default": 100,
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "type",
+            "correlationId",
+            "lines"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "pause"
+            },
+            "kind": {
+              "$ref": "#/$defs/PauseKind"
+            }
+          },
+          "required": [
+            "correlationId",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "unpause"
+            }
+          },
+          "required": [
+            "correlationId",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "restart_round"
+            }
+          },
+          "required": [
+            "correlationId",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "force_end"
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "correlationId",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "kick"
+            },
+            "steamId64": {
+              "type": "string",
+              "pattern": "^\\d{17}$"
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "correlationId",
+            "type",
+            "steamId64"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "announce"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "required": [
+            "correlationId",
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "rcon"
+            },
+            "command": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          "required": [
+            "correlationId",
+            "type",
+            "command"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "restore"
+            },
+            "roundNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "correlationId",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "reroll"
+            }
+          },
+          "required": [
+            "correlationId",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "profile"
+            },
+            "player": {
+              "$ref": "#/$defs/RosterEntry"
+            }
+          },
+          "required": [
+            "correlationId",
+            "type",
+            "player"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "LinkCommandStatus": {
+      "description": "What became of a command on the server.",
+      "type": "string",
+      "enum": [
+        "applied",
+        "rejected"
+      ]
+    },
+    "PlayerCommandRefusal": {
+      "description": "Why a player’s command was refused.",
+      "type": "string",
+      "enum": [
+        "cooldown",
+        "no_charges",
+        "unknown_command",
+        "invalid_args",
+        "not_in_match",
+        "not_alive",
+        "refused"
+      ]
+    },
+    "LinkAckStatus": {
+      "description": "What the orchestrator answers per event.",
+      "type": "string",
+      "enum": [
+        "accepted",
+        "duplicate",
+        "ephemeral",
+        "rejected"
+      ]
+    },
+    "ServerFrame": {
+      "description": "What a server sends the orchestrator.",
+      "x-branch": "ServerFrame",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "hello"
+            },
+            "protocol": {
+              "type": "number",
+              "const": 1
+            },
+            "token": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 512
+            },
+            "versions": {
+              "$ref": "#/$defs/ServerVersions"
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/GamemodeCapability"
+              }
+            },
+            "plugins": {
+              "maxItems": 64,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+              }
+            },
+            "hostname": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "map": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "state": {
+              "$ref": "#/$defs/LinkServerState"
+            },
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "lastSeq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "type",
+            "protocol",
+            "token",
+            "versions",
+            "capabilities",
+            "plugins",
+            "hostname",
+            "map",
+            "state",
+            "lastSeq"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "heartbeat"
+            },
+            "state": {
+              "$ref": "#/$defs/LinkServerState"
+            },
+            "map": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "playerCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "uptimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "type",
+            "state",
+            "map",
+            "playerCount",
+            "uptimeMs"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "state"
+            },
+            "state": {
+              "$ref": "#/$defs/LinkServerState"
+            },
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "detail": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "type",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "events"
+            },
+            "events": {
+              "minItems": 1,
+              "maxItems": 200,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SequencedEvent"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "events"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "command_result"
+            },
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "status": {
+              "$ref": "#/$defs/LinkCommandStatus"
+            },
+            "code": {
+              "$ref": "#/$defs/MatchApiErrorCode"
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 1024
+            },
+            "output": {
+              "type": "string",
+              "maxLength": 65536
+            }
+          },
+          "required": [
+            "type",
+            "correlationId",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "backup"
+            },
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "backup": {
+              "$ref": "#/$defs/RoundBackup"
+            }
+          },
+          "required": [
+            "type",
+            "matchId",
+            "backup"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "console"
+            },
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "uptimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "lines": {
+              "maxItems": 500,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ConsoleLine"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "uptimeMs",
+            "lines"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "player_command_result"
+            },
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "steamId64": {
+              "type": "string",
+              "pattern": "^\\d{17}$"
+            },
+            "command": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+            },
+            "status": {
+              "$ref": "#/$defs/LinkCommandStatus"
+            },
+            "code": {
+              "$ref": "#/$defs/PlayerCommandRefusal"
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "cooldownMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "chargesLeft": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "type",
+            "correlationId",
+            "steamId64",
+            "command",
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "OrchestratorFrame": {
+      "description": "What the orchestrator sends a server.",
+      "x-branch": "OrchestratorFrame",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "welcome"
+            },
+            "protocol": {
+              "type": "number",
+              "const": 1
+            },
+            "provider": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "serverId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "heartbeatIntervalMs": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ackedSeq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "type",
+            "protocol",
+            "provider",
+            "serverId",
+            "heartbeatIntervalMs",
+            "ackedSeq"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "assign"
+            },
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "game": {
+              "$ref": "#/$defs/Game"
+            },
+            "gamemode": {
+              "$ref": "#/$defs/AssignedGamemode"
+            },
+            "plugins": {
+              "maxItems": 16,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+              }
+            },
+            "cfg": {
+              "maxItems": 16,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:[a-z0-9_-]+\\/)*[a-z0-9_-]+\\.cfg$"
+              }
+            },
+            "cvars": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "maxLength": 256
+              }
+            },
+            "matchzyConfig": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "maps": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MapPlan"
+              }
+            },
+            "rules": {
+              "$ref": "#/$defs/MatchRules"
+            },
+            "teams": {
+              "$ref": "#/$defs/MatchTeams"
+            },
+            "warmupLines": {
+              "default": [],
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            },
+            "branding": {
+              "default": {},
+              "$ref": "#/$defs/MatchBranding"
+            },
+            "demoUploadUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "restore": {
+              "$ref": "#/$defs/RoundBackup"
+            }
+          },
+          "required": [
+            "type",
+            "matchId",
+            "game",
+            "gamemode",
+            "plugins",
+            "cfg",
+            "cvars",
+            "maps",
+            "teams",
+            "warmupLines",
+            "branding"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "command"
+            },
+            "command": {
+              "$ref": "#/$defs/LinkCommand"
+            }
+          },
+          "required": [
+            "type",
+            "command"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "player_command"
+            },
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "steamId64": {
+              "type": "string",
+              "pattern": "^\\d{17}$"
+            },
+            "command": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+            },
+            "args": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "type",
+            "correlationId",
+            "steamId64",
+            "command"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "profile"
+            },
+            "player": {
+              "$ref": "#/$defs/RosterEntry"
+            }
+          },
+          "required": [
+            "type",
+            "player"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "release"
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "drain"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ack"
+            },
+            "results": {
+              "minItems": 1,
+              "maxItems": 200,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "seq": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "status": {
+                    "$ref": "#/$defs/LinkAckStatus"
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 512
+                  }
+                },
+                "required": [
+                  "seq",
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "type",
+            "results"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

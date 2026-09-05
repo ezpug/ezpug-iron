@@ -152,7 +152,7 @@ every offline proof here.
 
 **Rails**
 
-- [ ] **T1 (fable): The wire protocols, in two languages.** `packages/protocol` (internal,
+- [x] **T1 (fable): The wire protocols, in two languages.** `packages/protocol` (internal,
   not published): the **server link** — server → orchestrator `hello` (server token,
   plugin/SDK/MatchZy/CSS versions, capabilities, hostname, current map), `heartbeat`,
   `state` (`booting | idle | assigned | live | ending | draining`), `events` (a batch of

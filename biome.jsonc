@@ -16,7 +16,12 @@
       // one writer (`stringifyRecording`), compared byte for byte by a test,
       // never edited by hand. A formatter that reflowed them would only ever
       // make the comparison fail.
-      "!packages/match-api/fixtures/recorded"
+      "!packages/match-api/fixtures/recorded",
+      // The protocol's frame fixtures and its JSON Schema export (PRD-02 T1):
+      // one writer each, compared byte for byte by a test and round-tripped
+      // by the C# side.
+      "!packages/protocol/fixtures",
+      "!packages/protocol/schema"
     ]
   },
   "formatter": {

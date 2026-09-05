@@ -1,0 +1,42 @@
+{
+  "schema": "OrchestratorNodeFrame",
+  "frames": [
+    {
+      "type": "welcome",
+      "protocol": 1,
+      "nodeId": "devbox",
+      "nodeToken": "ezn_not-a-secret_node_token_0001",
+      "heartbeatIntervalMs": 10000,
+      "drained": false
+    },
+    {
+      "type": "start",
+      "instance": {
+        "id": "devbox-1-c",
+        "purpose": "match",
+        "image": "ghcr.io/ezpug/ezpug-iron/cs2:0.1.0@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "serverId": "devbox-1-c",
+        "serverToken": "ezs_not-a-secret_server_token_0001",
+        "ports": {
+          "game": 27417,
+          "tv": 27422
+        },
+        "env": {
+          "EZPUG_IRON_URL": "http://localhost:3430"
+        },
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
+      }
+    },
+    {
+      "type": "stop",
+      "instanceId": "devbox-1-c",
+      "reason": "released"
+    },
+    {
+      "type": "drain"
+    },
+    {
+      "type": "undrain"
+    }
+  ]
+}

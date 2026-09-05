@@ -1,0 +1,68 @@
+{
+  "schema": "NodeFrame",
+  "frames": [
+    {
+      "type": "hello",
+      "protocol": 1,
+      "token": "eze_not-a-secret_enrolment_0001",
+      "tokenKind": "enrolment",
+      "version": "0.1.0",
+      "region": "eu-central",
+      "lan": true,
+      "labels": {
+        "venue": "saarlan",
+        "tickrate": "128",
+        "cores": "16"
+      },
+      "capacity": {
+        "maxInstances": 4,
+        "warm": 1
+      },
+      "imageDigest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "instances": [
+        {
+          "id": "devbox-1-a",
+          "purpose": "warm",
+          "state": "running",
+          "serverId": "devbox-1-a",
+          "containerId": "3f0c2a9d1e5b",
+          "ports": {
+            "game": 27415,
+            "tv": 27420
+          }
+        }
+      ]
+    },
+    {
+      "type": "heartbeat"
+    },
+    {
+      "type": "instances",
+      "instances": [
+        {
+          "id": "devbox-1-a",
+          "purpose": "match",
+          "state": "running",
+          "serverId": "devbox-1-a",
+          "containerId": "3f0c2a9d1e5b",
+          "ports": {
+            "game": 27415,
+            "tv": 27420
+          },
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
+        },
+        {
+          "id": "devbox-1-b",
+          "purpose": "warm",
+          "state": "failed",
+          "serverId": "devbox-1-b",
+          "ports": {
+            "game": 27416,
+            "tv": 27421
+          },
+          "error": "port 27416 is in use"
+        }
+      ]
+    }
+  ]
+}
