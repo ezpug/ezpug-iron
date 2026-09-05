@@ -1,0 +1,33 @@
+<Project>
+  <!--
+    Shared by every project under plugins/. The CounterStrikeSharp pin lives
+    here and nowhere else (docs/pins.md records it; a bump is one line here and
+    one there). The SDK reads it back as assembly metadata, and
+    EZPug.Sdk.Tests proves the assembly that was actually restored carries the
+    same number.
+
+    CounterStrikeSharp moved to .NET 10 (LTS) on 2026-05-30; every API package
+    from 1.0.369 on targets net10.0 only, so the SDK does too. The community
+    plugins the image vendors (MatchZy, WeaponPaints) still build for net8.0
+    and load unchanged on the .NET 10 runtime CounterStrikeSharp ships.
+    The SDK version `dotnet` itself must be is in plugins/global.json.
+  -->
+  <PropertyGroup>
+    <CounterStrikeSharpApiVersion>1.0.373</CounterStrikeSharpApiVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- `dotnet build -warnaserror` is the verify command; this keeps an IDE build honest too. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="CounterStrikeSharp.API" Value="$(CounterStrikeSharpApiVersion)" />
+  </ItemGroup>
+</Project>

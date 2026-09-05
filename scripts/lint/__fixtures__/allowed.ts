@@ -8,8 +8,3 @@ export const escaped = Date.now()
 
 // biome-ignore lint/plugin: the self-test proves the isolation escape hatch works
 export const wiped = (client: { flushdb: () => Promise<unknown> }) => client.flushdb()
-
-type Selectable = { select: () => { from: (table: unknown) => unknown } }
-export const unscoped = (tx: Selectable) =>
-  // biome-ignore lint/plugin: the self-test proves the table-scope escape hatch works
-  tx.select().from('ezpug_fixture_widgets')

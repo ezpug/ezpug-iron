@@ -6,6 +6,7 @@ dist/
 test-results/
 bin/
 obj/
+TestResults/
 *.user
 
 # Env & secrets

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    EZPug.Sdk: the link, the event model, timers, per-player state, player
+    commands, i18n and the test harness a gamemode is written over (CLAUDE.md
+    "The plugin is thin, the SDK is the product"). Empty this round — PRD-01
+    T1 only proves the toolchain; PRD-02 fills it in.
+  -->
+  <PropertyGroup>
+    <RootNamespace>EZPug.Sdk</RootNamespace>
+    <AssemblyName>EZPug.Sdk</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CounterStrikeSharp.API" Version="$(CounterStrikeSharpApiVersion)" />
+  </ItemGroup>
+</Project>

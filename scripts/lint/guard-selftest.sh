@@ -14,13 +14,7 @@ config=scripts/lint/__fixtures__/biome.json
 cases=(
   "violations.ts:× Determinism:7"
   "isolation.ts:× Test isolation:2"
-  "table-scope.ts:× Test isolation:2"
   "waitfor.ts:× Waiting budget:2"
-  "sound.ts:× Sound:3"
-  "e2e-budget.ts:× Deadline budget:5"
-  "live-session.ts:× Live page:2"
-  "pwa-boundary.ts:× PWA boundary:3"
-  "shared-settings.ts:× Shared setting:2"
 )
 
 for case in "${cases[@]}"; do
@@ -49,7 +43,5 @@ if ! "$biome" lint --colors=off --config-path="$config" \
   exit 1
 fi
 
-echo "lint guard self-test ok: determinism, redis-flush, table-scope, waiting-budget," \
-  "deadline-budget, sound-registry, live-page, pwa-boundary and shared-setting" \
-  "violations caught," \
+echo "lint guard self-test ok: determinism, redis-flush and waiting-budget violations caught," \
   "allowed patterns clean"

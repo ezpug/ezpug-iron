@@ -1,0 +1,74 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "globalDependencies": [".env"],
+  "globalEnv": ["NODE_ENV", "EZPUG_*"],
+  "tasks": {
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["transit"]
+    },
+    "test": {
+      "dependsOn": ["transit"]
+    },
+    "test:extended": {
+      // The extended tier (CLAUDE.md "Verify"): the conformance suite over
+      // HTTP, the determinism test, later the live lanes. Never cached — it
+      // is the tier that exists to be re-run.
+      "cache": false,
+      "dependsOn": ["transit"]
+    },
+    "//#lint": {
+      // One Biome process over the whole repo plus the lint guards' self-test:
+      // faster than per-package tasks, and it covers the files no package owns
+      // (scripts/, root configs). Turbo never caches root tasks, so lint always
+      // really runs — cheap enough not to care.
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  },
+  "boundaries": {
+    // Every workspace package carries exactly one of these tags in its own
+    // turbo.json. `turbo boundaries` (the last step of `pnpm verify`) refuses
+    // a dependency edge the tag denies.
+    "tags": {
+      "published": {
+        // `@ezpug/match-api` and anything else that leaves this repo: it may
+        // lean on `core` (bundled into its dist) and on nothing else internal,
+        // so a consumer never drags an app or a provider along.
+        "dependencies": { "deny": ["app", "internal", "plugins"] }
+      },
+      "core": {
+        // The determinism primitives depend on nothing.
+        "dependencies": { "deny": ["app", "published", "internal", "plugins"] }
+      },
+      "internal": {
+        // Internal packages (the protocol, the sim engine): shared by the apps,
+        // never reaching into one. Whether the sim engine is `internal` or
+        // `core`-shaped is PRD-01 T5's call; an `internal` package the fake
+        // embeds must be bundled, not imported, by the published package.
+        "dependencies": { "deny": ["app", "plugins"] }
+      },
+      "app": {
+        // apps/orchestrator, apps/node, apps/cli: an app never imports an app,
+        // and nothing imports an app.
+        "dependencies": { "deny": ["app"] },
+        "dependents": { "deny": ["app", "published", "core", "internal", "plugins"] }
+      },
+      "plugins": {
+        // The dotnet wrapper is a leaf both ways: it runs `dotnet`, it imports
+        // nothing and nothing imports it.
+        "dependencies": { "deny": ["app", "published", "core", "internal"] },
+        "dependents": { "deny": ["app", "published", "core", "internal", "plugins"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@ezpug/plugins",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The C# side (EZPug.Sdk, the core plugin, gamemodes) wrapped so Turbo runs dotnet as typecheck and test — one pnpm verify covers both languages.",
+  "scripts": {
+    "typecheck": "dotnet build EZPug.sln -warnaserror --nologo -v quiet",
+    "test": "dotnet test EZPug.sln --no-build --nologo -v quiet"
+  }
+}

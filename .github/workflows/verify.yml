@@ -1,0 +1,44 @@
+# `pnpm verify` on every push and pull request: strict typecheck, Biome with
+# the lint guards, Vitest, `turbo boundaries`, and `dotnet build -warnaserror`
+# plus `dotnet test` over plugins/EZPug.sln. No CS2, no Dathost, no database —
+# those lanes are opt-in and local (CLAUDE.md "Verify").
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+  DOTNET_NOLOGO: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm's version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # The .NET SDK version comes from plugins/global.json, the one place it
+      # is decided.
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: plugins/global.json
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm verify

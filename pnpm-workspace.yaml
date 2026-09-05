@@ -1,0 +1,22 @@
+packages:
+  - apps/*
+  - packages/*
+  # The C# side is one workspace package: `plugins/package.json` wraps
+  # `dotnet build` and `dotnet test` over `plugins/EZPug.sln` so Turbo runs
+  # them as `typecheck` and `test` beside the TypeScript packages.
+  - plugins
+  - gamemode-kit
+
+# Dependencies whose install scripts are allowed to run (pnpm 10 blocks all
+# build scripts by default).
+onlyBuiltDependencies:
+  - esbuild
+
+# Shared version pins — packages reference these with "catalog:" so the whole
+# workspace stays on one version per tool. Mirrors the platform's catalog on
+# 2026-09-05: the published package must resolve against the same zod the
+# platform installs.
+catalog:
+  typescript: ~5.9.3
+  vitest: ^4.1.11
+  zod: ^4.4.3

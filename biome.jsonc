@@ -1,0 +1,99 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/bin",
+      "!**/obj",
+      // Reference material (vendor OpenAPI dumps, upstream clones): read, never linted.
+      "!references",
+      "!ralph/logs",
+      "!scripts/lint/__fixtures__"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all",
+      "arrowParentheses": "asNeeded",
+      "bracketSpacing": true
+    }
+  },
+  "json": {
+    "parser": { "allowComments": true }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error",
+        "noUnusedFunctionParameters": "error"
+      },
+      "complexity": {
+        // `String.raw` on regex-source templates is a convention, not an
+        // accident: it keeps `\\d` honest the day someone adds one.
+        "noUselessStringRaw": "off"
+      },
+      "style": {
+        // `noUncheckedIndexedAccess` is on repo-wide, so `!` is the sanctioned
+        // "I just proved this" escape rather than a smell. Lint runs with
+        // --error-on-warnings, so a rule is either enforced or explicitly off.
+        "noNonNullAssertion": "off",
+        "useConsistentArrayType": { "level": "error", "options": { "syntax": "shorthand" } },
+        "useNodejsImportProtocol": "error",
+        "useImportType": "error",
+        "useExportType": "error",
+        "noParameterAssign": "error",
+        "useTemplate": "error",
+        "useThrowNewError": "error",
+        "useThrowOnlyError": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noDoubleEquals": "error",
+        "useAwait": "error"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  // Repo-wide guards (`scripts/lint/*.grit`, proven by `guard-selftest.sh` on
+  // every lint). `determinism.grit` is scoped by the override below —
+  // packages/core owns the wall clock; the isolation guard has no exception.
+  "plugins": ["./scripts/lint/test-isolation.grit"],
+  "overrides": [
+    {
+      "includes": ["**", "!packages/core/**"],
+      "plugins": ["./scripts/lint/determinism.grit"]
+    },
+    {
+      // `vi.waitFor`'s one-second default is a deadline that only goes red
+      // when the box is busy; `eventually()` from `@ezpug/core/testing` is the
+      // wait (CLAUDE.md "Determinism").
+      "includes": ["**/*.test.ts", "**/*.spec.ts"],
+      "plugins": ["./scripts/lint/waitfor-budget.grit"],
+      "linter": { "rules": { "suspicious": { "useAwait": "off" } } }
+    },
+    {
+      "includes": ["**/*.grit"],
+      "formatter": { "enabled": false }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "ezpug-iron",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=22.19 <23"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "biome check --error-on-warnings . && ./scripts/lint/guard-selftest.sh",
+    "lint:fix": "biome check --write .",
+    "verify": "turbo run typecheck lint test && turbo boundaries",
+    "verify:extended": "./scripts/verify-extended.sh",
+    "boundaries": "turbo boundaries"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "turbo": "^2.10.11"
+  }
+}

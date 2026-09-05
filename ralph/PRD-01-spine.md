@@ -139,7 +139,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
 
 ## Tasks
 
-- [ ] **T1 (fable): The repo, its toolchain and its core.** pnpm + Turborepo workspace
+- [x] **T1 (fable): The repo, its toolchain and its core.** pnpm + Turborepo workspace
   (`apps/*`, `packages/*`, `plugins/*` for the C# wrapper, `gamemode-kit`), Biome with the
   platform's plugins (`scripts/lint/` — determinism, `waitfor-budget`, `test-isolation`;
   `guard-selftest.sh` on every lint), strict tsconfig, Vitest, `turbo boundaries` tags
@@ -291,7 +291,8 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
 
 - [ ] **T10: Docs, pins and the handoff.** `docs/match-api.md` complete and checked
   against the route table by a test (every route has a section); `docs/gamemodes.md`
-  complete for the manifest; `docs/pins.md` (CounterStrikeSharp 1.0.373, .NET 8.0.416,
+  complete for the manifest; `docs/pins.md` (CounterStrikeSharp 1.0.373, .NET SDK 10.0.400 —
+  net10.0 since CounterStrikeSharp 1.0.369, decided in T1 —
   MatchZy 0.8.15, Metamod 2.0 git1411, cs2-retakes 3.1.0, cs2-WeaponPaints at the
   platform's recorded commit `fa8936f3` — PRD-02 updates as it vendors); `README.md`
   status line; `CLAUDE.md` amended where a task decided differently, and the progress line
