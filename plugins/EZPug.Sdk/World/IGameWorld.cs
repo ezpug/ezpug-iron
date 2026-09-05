@@ -64,6 +64,29 @@ public sealed record RoundEnd(PlayerTeam Winner, RoundEndReason Reason, int Terr
 /// <summary>A line a player typed: raw, and which window (<c>say</c> or <c>say_team</c>).</summary>
 public sealed record ChatLine(IGamePlayer Player, string Text, bool TeamOnly);
 
+/// <summary>
+/// The engine's match state as <c>cs_gamerules</c> keeps it, read on the game thread:
+/// warmup, the rounds played so far in the match (what the scoreboard counts; reset by
+/// <c>mp_restartgame</c>, so a knife round and warmup never count), whether a pause is
+/// requested or in force (<c>mp_pause_match</c>), the two tactical timeouts and the
+/// technical one, and whether the teams swap at the next round reset (halftime). What
+/// the SDK's runtime numbers rounds from and what the core plugin's MatchZy flow watches
+/// for pauses and side swaps (PRD-02 T9). <c>null</c> from <see cref="IGameWorld.Rules"/>
+/// while no map is loaded.
+/// </summary>
+public sealed record GameRules(
+    bool Warmup,
+    int RoundsPlayed,
+    bool Paused,
+    bool TerroristTimeout,
+    bool CounterTerroristTimeout,
+    bool TechnicalTimeout,
+    bool SwitchingTeamsAtRoundReset)
+{
+    /// <summary>The match is standing still for any reason.</summary>
+    public bool Standing => Paused || TerroristTimeout || CounterTerroristTimeout || TechnicalTimeout;
+}
+
 /// <summary>Bomb site as the engine names it.</summary>
 public enum BombSiteName
 {
@@ -92,6 +115,9 @@ public interface IGameWorld
     IReadOnlyList<IGamePlayer> Players { get; }
 
     IGamePlayer? Find(ulong steamId64);
+
+    /// <summary>The engine's match state right now, or <c>null</c> between maps. A snapshot: read it again to see a change.</summary>
+    GameRules? Rules { get; }
 
     // Text
     void Say(string text);

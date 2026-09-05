@@ -11,6 +11,7 @@ import { createLinkRegistry, type LinkRegistry } from '../link/channels'
 import { createMemoryLog } from '../log'
 import { createMatches, type MatchDeadlines, type Matches } from '../match/machine'
 import { createMemoryMatchStore } from '../match/memory-store'
+import { createMatchZyDoor } from '../matchzy/door'
 import type { GameServerProvider } from '../providers/provider'
 import { createReaper, type Reaper } from '../providers/reaper'
 import { createProviderRegistry, type ProviderRegistry } from '../providers/registry'
@@ -193,6 +194,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     }),
     health,
     isDraining: () => draining.value,
+    matchzy: createMatchZyDoor({ store, matches, log }),
   })
   void hub.start()
 

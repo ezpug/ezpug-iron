@@ -277,7 +277,7 @@ every offline proof here.
   says how to install by hand. References: T7, legacy `FiveStackPlugin.cs`,
   `FiveStack.Events/*.cs`.
 
-- [ ] **T9 (fable): `pug` — MatchZy, translated once, and the config builders.** Port the
+- [x] **T9 (fable): `pug` — MatchZy, translated once, and the config builders.** Port the
   platform's `buildMatchZyConfig`/`buildGet5Config` and their goldens into
   `apps/orchestrator/src/match-config/` (input: the Match API request; output: the JSON
   MatchZy loads; the remote-log cvars now point at the orchestrator's `/matchzy/:serverToken`

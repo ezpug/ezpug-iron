@@ -1,0 +1,46 @@
+{
+  "matchid": "3c9e5a71-8d42-4b06-a1f7-5e2c8b9d0a34",
+  "match_title": "EZPug — Team hunzR vs Team Bommelmann",
+  "num_maps": 1,
+  "maplist": ["de_train"],
+  "map_sides": ["team1_t"],
+  "skip_veto": true,
+  "side_type": "never_knife",
+  "players_per_team": 5,
+  "min_players_to_ready": 10,
+  "min_spectators_to_ready": 0,
+  "team1": {
+    "name": "Team hunzR",
+    "players": {
+      "76561198070000101": "hunzR",
+      "76561198070000103": "Schmiddi",
+      "76561198070000106": "flexxi",
+      "76561198070000109": "maex",
+      "76561198070000111": "nova"
+    }
+  },
+  "team2": {
+    "name": "Team Bommelmann",
+    "players": {
+      "76561198070000102": "Bommelmann",
+      "76561198070000107": "SaarKrieger2003",
+      "76561198070000110": "tobi",
+      "76561198070000112": "kalle",
+      "76561198070000113": "zwiebel"
+    }
+  },
+  "spectators": {
+    "players": {}
+  },
+  "cvars": {
+    "matchzy_kick_when_no_match_loaded": "false",
+    "matchzy_demo_recording_enabled": "true",
+    "matchzy_enable_tech_pause": "true",
+    "matchzy_stop_command_available": "true",
+    "matchzy_reset_cvars_on_series_end": "true",
+    "mp_maxrounds": "30",
+    "mp_overtime_enable": "1",
+    "mp_overtime_maxrounds": "6",
+    "mp_overtime_startmoney": "10000"
+  }
+}

@@ -6,6 +6,10 @@ import {
   type OrchestratorFrameOf,
   type RoundBackup,
 } from '@ezpug/protocol'
+import { mergeCvars } from '../match-config/cvars'
+import { buildMatchZyConfig } from '../match-config/matchzy'
+
+export { derivedCvars, mergeCvars } from '../match-config/cvars'
 
 /**
  * **The assignment, composed once** (PRD-02 T6): everything a server needs
@@ -18,9 +22,11 @@ import {
  * `cvars`): a request's `rules.cvars` sit **under** the mode's, which sit
  * **under** what the rules derive — a request can never undo what a mode
  * needs, and a mode never redirects the round format behind the rules'
- * back. `matchzyConfig` is absent until T9 builds it: for a `matchzy` flow
- * the round format travels in that document too, and MatchZy is what reads
- * it.
+ * back. For a `matchzy` flow the same flat map travels a second time inside
+ * `matchzyConfig` (`match-config/matchzy.ts`), because MatchZy's own
+ * `live.cfg` would undo a cvar the loader set and MatchZy re-applies its
+ * config's cvars after that cfg — the document is what keeps the round
+ * format in force, and MatchZy is what reads it.
  */
 
 /** The plugin folder the skins layer lives in (decision 20, T28); enabled when a loadout is on the roster and the image has it. */
@@ -35,25 +41,6 @@ export interface AssignInput {
   /** The plugin folders the server's `hello` listed. */
   installed: readonly string[]
   restore?: RoundBackup
-}
-
-/** The engine cvars the Match API's rules translate to, for a mode that reads cvars (T22) — MatchZy reads its own config. */
-export function derivedCvars(rules: MatchRequest['rules']): Record<string, string> {
-  if (!rules) return {}
-  return {
-    mp_maxrounds: String(rules.regulationRounds),
-    mp_overtime_enable: rules.overtime.enabled ? '1' : '0',
-    mp_overtime_maxrounds: String(rules.overtime.maxRounds),
-    mp_overtime_startmoney: String(rules.overtime.startMoney),
-  }
-}
-
-/** The flat cvar map the server applies: request under mode under rules. */
-export function mergeCvars(
-  request: MatchRequest,
-  manifest: GamemodeManifest,
-): Record<string, string> {
-  return { ...(request.rules?.cvars ?? {}), ...manifest.cvars, ...derivedCvars(request.rules) }
 }
 
 /** The roster with every pushed profile applied in place. */
@@ -105,6 +92,9 @@ export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'>
     plugins: pluginsFor(manifest, teams, installed),
     cfg: manifest.cfg,
     cvars: mergeCvars(request, manifest),
+    ...(manifest.flow === 'matchzy' && {
+      matchzyConfig: buildMatchZyConfig({ matchId, request, manifest }),
+    }),
     maps: request.maps,
     ...(request.rules && { rules: request.rules }),
     teams,

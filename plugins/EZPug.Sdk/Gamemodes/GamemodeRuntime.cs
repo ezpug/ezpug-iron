@@ -384,6 +384,16 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
+        if (_mapReady && Assignment.Gamemode.Flow == GamemodeFlow.Matchzy)
+        {
+            // A second map while assigned: MatchZy changed level for the next map of its
+            // series (its map_end reached the orchestrator over its own log, never this
+            // runtime), so the context follows it here. A mode that emits map_end itself
+            // already advanced it.
+            Match.MapNumber++;
+            Match.RoundNumber = 0;
+        }
+
         _mapReady = true;
         Commands?.Reset(PlayerCommandChargePeriod.Map);
         MapLoaded?.Invoke(Assignment, map);
@@ -455,7 +465,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
-        Match.RoundNumber++;
+        // The engine's own count when the world has one (warmup and a knife round never
+        // count, mp_restartgame resets it); a plain count when it does not (the harness).
+        Match.RoundNumber = World.Rules is { } rules ? rules.RoundsPlayed + 1 : Match.RoundNumber + 1;
         Commands?.Reset(PlayerCommandChargePeriod.Round);
         Active?.OnRoundStart(Match.RoundNumber);
     }

@@ -1,0 +1,12 @@
+{
+  "source": "schema",
+  "note": "A MatchZy still talking about an earlier match on the same server.",
+  "payload": {
+    "event": "going_live",
+    "matchid": 4711,
+    "map_number": 0
+  },
+  "expect": {
+    "dropped": "names matchid 4711, this server holds 1083740696"
+  }
+}

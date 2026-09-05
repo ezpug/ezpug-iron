@@ -198,25 +198,29 @@ async function contract(store: MatchStore, keyId: string): Promise<void> {
   expect((await store.findCommand(b.id, 'x'))?.resultJson?.status).toBe('applied')
   expect(await store.findCommand(b.id, 'y')).toBeUndefined()
 
-  // the ledger
+  // the ledger. Over Postgres the suite runs inside a transaction but still sees
+  // rows other suites committed (the extended conformance's sim servers, in the
+  // same test database, at the same time), so the handle is this run's own and
+  // every unfiltered listing is read through this run's key.
+  const handle = `contract-${randomUUID().slice(0, 8)}`
+  const mine = (rows: { id: string; keyId: string }[]) =>
+    rows.filter(s => s.keyId === keyId).map(s => s.id)
   const s1 = serverRow(keyId, b.id, at(0))
   const s2 = serverRow(keyId, b.id, at(1_000))
   await store.insertServer(s1)
   await store.insertServer(s2)
-  await store.updateServer(s1.id, { serverId: 'sim-1', state: 'configured' })
-  await store.updateServer(s2.id, { serverId: 'sim-1' })
-  expect((await store.findServerByHandle('sim', 'sim-1'))?.id).toBe(s2.id)
-  expect((await store.listOpenServers()).map(s => s.id)).toEqual([s2.id, s1.id])
+  await store.updateServer(s1.id, { serverId: handle, state: 'configured' })
+  await store.updateServer(s2.id, { serverId: handle })
+  expect((await store.findServerByHandle('sim', handle))?.id).toBe(s2.id)
+  expect(mine(await store.listOpenServers())).toEqual([s2.id, s1.id])
   await store.updateServer(s2.id, {
     state: 'released',
     releasedAt: at(2_000),
     releasedReason: 'test',
   })
-  expect((await store.listOpenServers('sim')).map(s => s.id)).toEqual([s1.id])
-  expect((await store.listOpenServers('dathost')).map(s => s.id)).toEqual([])
-  expect((await store.listLedger({ state: 'released' }, 0, 50)).items.map(s => s.id)).toEqual([
-    s2.id,
-  ])
+  expect(mine(await store.listOpenServers('sim'))).toEqual([s1.id])
+  expect(mine(await store.listOpenServers('dathost'))).toEqual([])
+  expect(mine((await store.listLedger({ state: 'released' }, 0, 50)).items)).toEqual([s2.id])
   expect((await store.listLedger({ matchId: b.id }, 0, 1)).nextOffset).toBe(1)
   // The link's facts (T6): what hello said, the acked seq, the token's use.
   await store.updateServer(s1.id, {

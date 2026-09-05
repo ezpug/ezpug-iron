@@ -153,6 +153,49 @@
           "mp_overtime_maxrounds": "2",
           "mp_overtime_startmoney": "10000"
         },
+        "matchzyConfig": {
+          "matchid": 1083740696,
+          "num_maps": 1,
+          "maplist": [
+            "de_mirage"
+          ],
+          "map_sides": [
+            "knife"
+          ],
+          "skip_veto": true,
+          "clinch_series": true,
+          "wingman": false,
+          "players_per_team": 5,
+          "min_players_to_ready": 2,
+          "min_spectators_to_ready": 0,
+          "team1": {
+            "name": "Team tk",
+            "players": {
+              "76561198279375306": "tk"
+            }
+          },
+          "team2": {
+            "name": "Team maex",
+            "players": {
+              "76561198279375307": "maex"
+            }
+          },
+          "spectators": {
+            "players": {}
+          },
+          "cvars": {
+            "mp_freezetime": "15",
+            "mp_maxrounds": "2",
+            "matchzy_kick_when_no_match_loaded": "false",
+            "matchzy_demo_recording_enabled": "true",
+            "matchzy_enable_tech_pause": "true",
+            "matchzy_stop_command_available": "true",
+            "matchzy_reset_cvars_on_series_end": "true",
+            "mp_overtime_enable": "0",
+            "mp_overtime_maxrounds": "2",
+            "mp_overtime_startmoney": "10000"
+          }
+        },
         "maps": [
           {
             "map": "de_mirage",

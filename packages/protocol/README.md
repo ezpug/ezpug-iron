@@ -15,7 +15,7 @@ frame with a `type` from a closed set:
   orchestrator: `hello`, `heartbeat`, `instances`. Orchestrator → node: `welcome`, `start`,
   `stop`, `drain`, `undrain`. Nothing is acked: `instances` is a snapshot.
 
-`src/constants.ts` holds the version, the paths, the limits and the close codes.
+`src/constants.ts` holds the version, the paths (the two upgrades and the MatchZy door's `POST /matchzy/log` with its token header), the limits and the close codes.
 
 ## From Zod to C#
 

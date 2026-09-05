@@ -136,14 +136,24 @@ swapped by a `side_swap`) for an open-join one, `team_a` for everyone in a one-t
 world's hooks: `server_ready`, `player_connected`, `player_disconnected`, `player_death`,
 `bomb_*`, `chat_message`, `chat_command`. Match-flow events — `going_live`, `round_start`,
 `round_end`, `side_swap`, `map_end`, `series_end`, the pauses — belong to the flow owner
-the manifest names (decision 19): MatchZy's forwards translated by the core plugin for
-`flow: matchzy`, the SDK's generic flow emitter for `flow: plugin | none` (PRD-02 T22), or
-the mode itself when it knows better. Emitting a flow event through the runtime advances
+the manifest names (decision 19): for `flow: matchzy` MatchZy's HTTP remote log, translated
+by the orchestrator (MatchZy 0.8.15 has no forwards), with the pauses, side swaps and
+backups MatchZy cannot say observed by the core plugin (`plugins/README.md`); the SDK's
+generic flow emitter for `flow: plugin | none` (PRD-02 T22); or the mode itself when it
+knows better. Emitting a flow event through the runtime advances
 the context: `going_live` sets `Live`, `map_end` bumps the map number and resets the
 round, `side_swap` swaps the sides.
 
 Every event a mode emits is stamped with the per-match `seq` hint (position ticks are
 not: they are ephemeral) and the link gives it the per-server link `seq`.
+
+**Rounds and maps.** The runtime numbers rounds from the engine's own count when the
+world exposes one (`IGameWorld.Rules`, the `cs_gamerules` snapshot: warmup, rounds played,
+pauses and timeouts, a pending side switch) — warmup and a knife round never count,
+`mp_restartgame` resets it — and by itself when it does not (the harness, unless a test
+sets `FakeGameWorld.Rules`). A second map while a `matchzy` flow is assigned is the series'
+next map: the map number advances, the round resets; a mode that owns its flow advances
+the map by emitting `map_end`.
 
 **Position ticks** are the runtime's too: every `GamemodeRuntime.PositionTickIntervalMs`
 (100 ms) while a match is assigned, the manifest's `positions` capability is on and the
@@ -253,7 +263,7 @@ hangs off three host events on the runtime, in the order a match goes through th
 | Hook | When | What the core does there |
 | ---- | ---- | ------------------------ |
 | `Assigned(Assignment)` | `assign` arrived, before the mode's `OnAssigned` | hostname, `css_plugins load` for each plugin the assignment names, `changelevel` / `host_workshop_map` to the first map |
-| `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow |
+| `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow (once per assignment; a later map is the series' next) and point MatchZy's remote log at the orchestrator |
 | `Released(reason)` | after the mode's `OnEnd`, its timers and state cleared | `css_plugins unload` in reverse, the lobby map, then the runtime says `idle` |
 
 A mode never needs these; a second host (the harness is one) hooks the same three.

@@ -155,7 +155,12 @@ export function attachStreamUpgrade(options: StreamUpgradeOptions): WebSocketSer
     // the second: a match being allocated right now publishes into that very
     // window, and the client's first frame is an `event`. So a frame that
     // arrives before the greeting is written waits behind it, in order,
-    // rather than overtaking it.
+    // rather than overtaking it. And a held *event* whose seq the greeting
+    // already covers is dropped, not written: the machine appends to the log
+    // before it publishes, so a frame that lands in the window can carry the
+    // very seq the hello reports — the client replays from that cursor and
+    // would see it twice (the conformance suite's stream-hello flow caught
+    // this; the T5 fix held the frame but flushed it unfiltered).
     let unsubscribe: (() => void) | undefined
     let greeted = false
     const held: StreamFrame[] = []
@@ -188,7 +193,10 @@ export function attachStreamUpgrade(options: StreamUpgradeOptions): WebSocketSer
     }
     write({ type: 'hello', matchId: row.id, seq: row.seq, state: row.state })
     greeted = true
-    for (const frame of held.splice(0)) write(frame)
+    for (const frame of held.splice(0)) {
+      if (frame.type === 'event' && frame.envelope.seq <= row.seq) continue
+      write(frame)
+    }
     if (isTerminalMatchState(row.state)) {
       unsubscribe()
       ws.close(STREAM_CLOSE_CODES.matchEnded, 'the match is over')

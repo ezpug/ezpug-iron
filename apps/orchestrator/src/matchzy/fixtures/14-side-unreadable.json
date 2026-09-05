@@ -1,0 +1,37 @@
+{
+  "source": "schema",
+  "note": "A winner side that is neither a side nor a team number cannot become a round_end; the vocabulary insists on one.",
+  "payload": {
+    "event": "round_end",
+    "matchid": 1083740696,
+    "map_number": 0,
+    "round_number": 5,
+    "round_time": 0,
+    "reason": 9,
+    "winner": {
+      "side": "spec",
+      "team": "team1"
+    },
+    "team1": {
+      "id": "",
+      "name": "Team tk",
+      "series_score": 0,
+      "score": 3,
+      "score_ct": 0,
+      "score_t": 0,
+      "players": []
+    },
+    "team2": {
+      "id": "",
+      "name": "Team maex",
+      "series_score": 0,
+      "score": 2,
+      "score_ct": 0,
+      "score_t": 0,
+      "players": []
+    }
+  },
+  "expect": {
+    "dropped": "winner.side \"spec\" is neither a side nor a team number"
+  }
+}

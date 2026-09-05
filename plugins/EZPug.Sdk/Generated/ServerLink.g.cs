@@ -21,6 +21,9 @@ public static class ProtocolConstants
     public const int ProtocolVersion = 1;
     public const string ServerLinkPath = "/link";
     public const string NodeLinkPath = "/node";
+    public const string MatchzyLogPath = "/matchzy/log";
+    public const string MatchzyTokenHeader = "x-ezpug-server-token";
+    public const int MatchzyPayloadMax = 262144;
     public const int HeartbeatIntervalMsDefault = 10000;
     public const int HelloTimeoutMs = 10000;
     public const int EventsBatchMax = 200;

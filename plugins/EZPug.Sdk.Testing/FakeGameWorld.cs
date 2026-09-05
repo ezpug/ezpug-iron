@@ -56,6 +56,8 @@ public sealed class FakeGameWorld : IGameWorld
     public IClock Clock => FakeClock;
     public string Map { get; private set; }
     public IReadOnlyList<IGamePlayer> Players => _players;
+    /// <summary>What the engine would report as its match state; a test sets it, <c>null</c> (the default) means no gamerules to read.</summary>
+    public GameRules? Rules { get; set; }
     public List<WorldAction> Actions { get; } = [];
     /// <summary>Every line said to everybody, and per player.</summary>
     public List<string> Broadcasts { get; } = [];

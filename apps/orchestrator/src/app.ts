@@ -7,12 +7,14 @@ import {
   MATCH_API_ERROR_STATUS,
   matchApiRoutes,
 } from '@ezpug/match-api'
+import { MATCHZY_LOG_PATH } from '@ezpug/protocol'
 import { Hono } from 'hono'
 import type { HealthReport } from './health'
 import type { Dispatch } from './http/dispatch'
 import type { RateLimiter } from './http/rate-limit'
 import { requestIdOf, requestLog } from './http/request-log'
 import type { Log } from './log'
+import type { MatchZyDoor } from './matchzy/door'
 
 /**
  * **The HTTP app** — Hono, with one handler per route of the Match API
@@ -23,8 +25,11 @@ import type { Log } from './log'
  * `internal` with a request id and a log line, never a stack trace on the
  * wire.
  *
- * `/healthz` is the one path outside `/v1/`: no key, no scope, the drain's
- * first step (`shutdown.ts`) is what turns it 503.
+ * Two paths live outside `/v1/`: `/healthz` — no key, no scope, the drain's
+ * first step (`shutdown.ts`) is what turns it 503 — and the MatchZy door
+ * (`matchzy/door.ts`), which a server authenticates with its own link token
+ * in a header rather than an API key, because it is a server speaking, not
+ * a client.
  *
  * The stream route is an upgrade and Hono never sees one: the listener
  * (T3) handles the upgrade on the raw server, and a plain GET on the path
@@ -40,6 +45,8 @@ export interface AppOptions {
   health: () => Promise<HealthReport>
   /** The first step of the drain: once true, `/healthz` answers 503. */
   isDraining?: () => boolean
+  /** The MatchZy remote-log door (T9); absent in a composition that serves no server. */
+  matchzy?: MatchZyDoor
 }
 
 type Variables = { requestId: string }
@@ -85,6 +92,21 @@ export function createApp(options: AppOptions): Hono<{ Variables: Variables }> {
       ok ? 200 : 503,
     )
   })
+
+  if (options.matchzy) {
+    const door = options.matchzy
+    app.post(MATCHZY_LOG_PATH, async c => {
+      const token = c.req.header(door.tokenHeader)
+      // The bucket is the token's own; a POST with none shares the strangers' bucket.
+      const taken = rateLimiter.take(rateLimitKey(token ?? null))
+      if (!taken.ok) {
+        c.header('retry-after', String(Math.ceil(taken.retryAfterMs / 1000)))
+        return c.json({ error: 'too many requests' }, 429)
+      }
+      const answer = await door.handle({ token, body: await c.req.text() })
+      return c.json(answer.body, answer.status as 200)
+    })
+  }
 
   for (const flat of flattenRoutes(matchApiRoutes)) {
     const { route } = flat

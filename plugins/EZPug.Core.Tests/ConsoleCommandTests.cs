@@ -54,7 +54,7 @@ public class ConsoleCommandTests
         Assert.Equal(SdkInfo.CounterStrikeSharpApiVersion, hello.Versions.CounterStrikeSharp);
         Assert.Equal(SdkInfo.Version, hello.Versions.Matchzy);
         Assert.Null(hello.Versions.Metamod);
-        Assert.Equal([GamemodeCapability.Positions, GamemodeCapability.Chat, GamemodeCapability.PlayerCommands, GamemodeCapability.Widget], hello.Capabilities);
+        Assert.Equal([GamemodeCapability.Positions, GamemodeCapability.Chat, GamemodeCapability.PlayerCommands, GamemodeCapability.Widget, GamemodeCapability.Backups], hello.Capabilities);
         Assert.Equal(["EZPug.Core", "MatchZy", "RetakesPlugin"], hello.Plugins);
         Assert.Equal("EZPug · pug · Mirage", hello.Hostname);
         Assert.Equal("ezpug", HelloFactsBuilder.Build(image.Catalog(), " ").Hostname);

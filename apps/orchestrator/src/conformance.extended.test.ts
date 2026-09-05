@@ -10,7 +10,7 @@ import {
 } from '@ezpug/match-api/fixtures'
 import { describeMatchApiConformance } from '@ezpug/match-api/fixtures/vitest'
 import { verifyWebhook } from '@ezpug/match-api/webhooks'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, like } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
 import { type OrchestratorConfig, readDatabaseConfig, readOrchestratorConfig } from './config'
@@ -88,6 +88,7 @@ beforeAll(async () => {
     await orchestrator.redis.ping()
     const { runMigrations } = await import('./db/migrate')
     await runMigrations(orchestrator.database)
+    await sweepNamespace()
     await orchestrator.start()
     url = (await orchestrator.listen({ port: 0, host: '127.0.0.1' })).url
 
@@ -133,17 +134,30 @@ beforeEach(ctx => {
   if (unavailable) ctx.skip(`dev world unavailable: ${unavailable}`)
 })
 
-afterAll(async () => {
-  endpoint?.close()
-  if (!orchestrator || !config) return
-  if (orchestrator.server.listening) await orchestrator.close('afterAll')
+/**
+ * Everything this file ever wrote to the shared test database — every key
+ * under its namespace (the names are stable per file, `testNamespace`), with
+ * the matches, servers, tokens, events, deliveries and commands hanging off
+ * them. Run before a suite as well as after it: a run Turbo cancelled
+ * mid-flight (a sibling task failed) never reaches `afterAll`, and its rows
+ * would otherwise make the next run's key names collide and its `sim-1` rows
+ * leak into other suites' listings.
+ */
+async function sweepNamespace(): Promise<void> {
+  if (!config) return
   const cleanup = createDatabase(config.database, { applicationName: 'ezpug-iron-test-cleanup' })
   try {
     const { db } = cleanup
+    const keys = await db
+      .select({ id: apiKeys.id })
+      .from(apiKeys)
+      .where(like(apiKeys.name, `${namespace}-%`))
+    const keyIds = [...new Set([...keys.map(row => row.id), ...minted])]
+    if (keyIds.length === 0) return
     const rows = await db
       .select({ id: matches.id })
       .from(matches)
-      .where(inArray(matches.keyId, minted))
+      .where(inArray(matches.keyId, keyIds))
     const ids = rows.map(row => row.id)
     if (ids.length > 0) {
       await db.delete(webhookDeliveries).where(inArray(webhookDeliveries.matchId, ids))
@@ -153,7 +167,7 @@ afterAll(async () => {
     const owned = await db
       .select({ id: servers.id })
       .from(servers)
-      .where(inArray(servers.keyId, minted))
+      .where(inArray(servers.keyId, keyIds))
     if (owned.length > 0)
       await db.delete(serverTokens).where(
         inArray(
@@ -161,15 +175,22 @@ afterAll(async () => {
           owned.map(row => row.id),
         ),
       )
-    await db.delete(servers).where(inArray(servers.keyId, minted))
-    await db.delete(matches).where(inArray(matches.keyId, minted))
-    for (const id of minted) {
+    await db.delete(servers).where(inArray(servers.keyId, keyIds))
+    await db.delete(matches).where(inArray(matches.keyId, keyIds))
+    for (const id of keyIds) {
       await db.delete(apiKeyWebhookSecrets).where(eq(apiKeyWebhookSecrets.keyId, id))
       await db.delete(apiKeys).where(eq(apiKeys.id, id))
     }
   } finally {
     await cleanup.close()
   }
+}
+
+afterAll(async () => {
+  endpoint?.close()
+  if (!orchestrator || !config) return
+  if (orchestrator.server.listening) await orchestrator.close('afterAll')
+  await sweepNamespace()
 }, 60_000)
 
 /** A fresh pair of keys per flow, on the one standing orchestrator. */

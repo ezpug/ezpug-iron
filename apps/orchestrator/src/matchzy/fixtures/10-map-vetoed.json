@@ -1,0 +1,13 @@
+{
+  "source": "schema",
+  "note": "The veto is the platform’s; the three veto events are dropped.",
+  "payload": {
+    "event": "map_vetoed",
+    "matchid": 1083740696,
+    "team": "team1",
+    "map_name": "de_nuke"
+  },
+  "expect": {
+    "dropped": "not a fact of ours"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "source": "schema",
+  "payload": {
+    "event": "series_end",
+    "matchid": 1083740696,
+    "time_until_restore": 10,
+    "winner": {
+      "side": "3",
+      "team": "team1"
+    },
+    "team1_series_score": 1,
+    "team2_series_score": 0
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "series_end",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "seriesScore": {
+          "teamA": 1,
+          "teamB": 0
+        },
+        "winner": "team_a"
+      }
+    ]
+  }
+}

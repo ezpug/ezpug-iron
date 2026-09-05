@@ -1,0 +1,32 @@
+{
+  "source": "schema",
+  "note": "Sent two seconds after map_result. A 0–0 series is a draw; \"none\" is not a team.",
+  "payload": {
+    "event": "series_end",
+    "matchid": 1083740696,
+    "time_until_restore": 10,
+    "winner": {
+      "side": "2",
+      "team": "none"
+    },
+    "team1_series_score": 0,
+    "team2_series_score": 0
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "series_end",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "seriesScore": {
+          "teamA": 0,
+          "teamB": 0
+        },
+        "winner": null
+      }
+    ]
+  }
+}

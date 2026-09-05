@@ -261,8 +261,11 @@ mirror the durable log, `presence` is re-sent whole on every join and leave,
 never stores them. The upgrade (`GET /v1/matches/:id/stream`) is matched on the raw
 server before Hono: an API key with `matches` owning the match, or a player token in
 `?token=` (T24 mints them; the check against `player_tokens` and the request's
-`streamAllowedOrigins` is here). The first frame is `hello`; a match that is over gets
-`4000` right after it; a subscriber a megabyte behind is closed `4008`.
+`streamAllowedOrigins` is here). The first frame is `hello`, and a frame published while
+the greeting was being read waits behind it — dropped rather than written when it is an
+event at or below the hello's `seq`, because replaying from that cursor already covers
+it; a match that is over gets `4000` right after the hello; a subscriber a megabyte
+behind is closed `4008`.
 
 **What is running** is `GET /v1/fleet/servers` (open rows), **what did tonight cost** is
 `GET /v1/fleet/ledger` with `cost.accruedCents` (hourly cents × the row's open time), and
@@ -295,8 +298,10 @@ manifest's, plus `WeaponPaints` when a roster entry carries a loadout and the im
 the plugin), the cfg files, the cvars merged flat (a request's `rules.cvars` under the
 mode's under what the rules derive: `mp_maxrounds`, the overtime cvars), the map plan,
 the rules, the roster, the warmup lines, the branding and the demo upload URL.
-`matchzyConfig` arrives with T9, `restore` with T14. A manifest naming a plugin the image
-lacks fails the match `provider_error` before anything is sent.
+For a `matchzy` flow `matchzyConfig` is the match file MatchZy loads, built from the same
+request (`match-config/matchzy.ts`, "The MatchZy door" below); `restore` arrives with T14.
+A manifest naming a plugin the image lacks fails the match `provider_error` before anything
+is sent.
 
 **Refusals are close codes** (`LINK_CLOSE_CODES`): `4001` for an unknown, revoked or
 foreign token or a row that is closed; `4002` for a protocol version this build does not
@@ -337,6 +342,34 @@ sequences, buffers and resends like the C# client must, and the exchanges it had
 the real `/link` are recorded under `packages/protocol/fixtures/link/` — the files the C#
 side round-trips. `link/server-link.test.ts` runs the whole thing over a real socket on a
 fake clock; `EZPUG_IRON_RECORD=1` rewrites the goldens.
+
+## The MatchZy door
+
+The one HTTP path a server speaks to besides its link: `POST /matchzy/log`
+(`MATCHZY_LOG_PATH` in `@ezpug/protocol`). MatchZy 0.8.15 has no in-process forwards —
+its match-flow events leave it only as one POST per event to `matchzy_remote_log_url`,
+with one custom header, a fifteen-second timeout and no retry — so the core plugin points
+that URL here and puts the server's own link token in the `x-ezpug-server-token` header,
+both from its sidecar (decision 19; `docs/gamemodes.md`, "The `matchzy` flow"). No API key,
+no scope: the token is the server's identity exactly as on the link. It travels in a
+header, never the path, so neither the request log nor a proxy's access log holds it.
+
+The door hashes the token, finds the `server_tokens` row, the open ledger row it was
+minted for and the match that row holds, translates the payload (`matchzy/translate.ts`:
+`going_live`, `round_end`, `map_result` → `map_end`, `series_end`; the veto trio,
+`series_start`, `demo_upload_ended` and `player_disconnect` dropped) and hands the events
+to the same sink the link feeds, attributed to the same `provider/serverId` — the machine
+cannot tell which door a fact came through. `going_live` still moves the match to `live`
+and `series_end` still ends it. A payload naming another `matchid` than the serial the
+config gave this match (`matchzySerial`) is a stale plugin and is dropped.
+
+Answers: `200` with `{ accepted, statuses }` for anything the door could read, dropped
+events included (`{ accepted: 0, dropped: <why> }` — MatchZy only logs the status);
+`401` for no or an unknown token, `409` when the row holds no open match, `400` for a body
+that is not JSON, `413` past `MATCHZY_PAYLOAD_MAX`, `429` from the same token bucket the
+Match API uses, keyed by the token's hash. The last score seen per match (how the round
+winner is found: MatchZy's `winner.team` names the map leader) lives in the process; a
+restart between rounds falls back to the map plan's side schedule and logs it.
 
 ## Keys, scopes, rate limits, logs
 

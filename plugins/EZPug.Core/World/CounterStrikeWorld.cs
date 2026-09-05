@@ -138,6 +138,32 @@ public sealed class CounterStrikeWorld : IGameWorld
 
     public IGamePlayer? Find(ulong steamId64) => Players.FirstOrDefault(player => player.SteamId64 == steamId64);
 
+    /// <summary>The <c>cs_gamerules</c> entity's state, read on the game thread; <c>null</c> when there is none (between maps) or the read fails.</summary>
+    public GameRules? Rules
+    {
+        get
+        {
+            try
+            {
+                var rules = Utilities.FindAllEntitiesByDesignerName<CCSGameRulesProxy>("cs_gamerules").FirstOrDefault()?.GameRules;
+                return rules is null
+                    ? null
+                    : new GameRules(
+                        rules.WarmupPeriod,
+                        rules.TotalRoundsPlayed,
+                        rules.MatchWaitingForResume,
+                        rules.TerroristTimeOutActive,
+                        rules.CTTimeOutActive,
+                        rules.TechnicalTimeOut,
+                        rules.SwitchingTeamsAtRoundReset);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ hooks
 
     public event Action<string>? MapStarted;

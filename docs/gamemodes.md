@@ -51,7 +51,7 @@ same data.
 | `tier` | `config`, `plugin` or `sdk` — see above |
 | `title`, `description` | `{ de, en }`, both always present, German first. The card's headline and its one paragraph |
 | `slots` | how many people play and how they arrive — `teamSize`, `teams`, `openJoin`, below |
-| `flow` | who owns match flow. `matchzy`: MatchZy runs ready-up, knife, live, the series, and its events are translated into the vocabulary once at the edge. `plugin`: the mode's plugin speaks `going_live`, `round_end`, `map_end`, `series_end` itself. `none`: nobody does; the match ends by `force_end`, `cancel` or the TTL |
+| `flow` | who owns match flow. `matchzy`: MatchZy runs ready-up, knife, live, the series; its events are translated into the vocabulary once, by the orchestrator, off the HTTP remote log the core plugin points at it ("The `matchzy` flow" below). `plugin`: the mode's plugin speaks `going_live`, `round_end`, `map_end`, `series_end` itself. `none`: nobody does; the match ends by `force_end`, `cancel` or the TTL |
 | `records` | `demo`: a demo is recorded and uploaded to the request's `demoUploadUrl`, `demo.uploaded` follows, and every durable event flows. `events`: the durable events only. `none`: orchestration facts only; the game's events still stream live but nothing is promised durably. Positions and chat are never records |
 | `ranked` | always `false`. The manifest states what the server records, never what counts |
 | `maps` | `"any"` — the request plans whatever it likes, workshop maps included; the platform's map pool decides. Or an allow-list `{ catalog: [engine names], workshop: [published-file ids] }`; a request planning a map outside it is refused `map_not_allowed` at the door. A plugin that ships spawn files per map lists them; a mode built for one map lists one |
@@ -80,7 +80,7 @@ same data.
 | `chat` | chat lines are relayed as `chat_message` and `chat_command` |
 | `playerCommands` | the verbs in `commands` are accepted from a widget or as `!verb` in chat. True exactly when `commands` is non-empty |
 | `widget` | a phone widget exists. True exactly when the `widget` block does; implies `playerCommands` |
-| `backups` | round backups are written and `restore` works, so a crashed server is recovered mid-match. Needs a flow owner (`flow` is not `none`) |
+| `backups` | round backups cross the link as they are written (`backup_written`), so a crashed server can be recovered mid-match (PRD-02 T14). Needs a flow owner (`flow` is not `none`); the core plugin honours it for `matchzy` |
 | `scoreboardRating` | EZ Rating shows on the scoreboard Premier-style from the roster's `rating` (decision 21) |
 
 ### Player commands
@@ -125,6 +125,43 @@ naming one does not parse:
 | `sv_setsteamaccount` | the GSLT the orchestrator leases per running server |
 | `logaddress_add_http`, `logaddress_add`, `logaddress_delall`, `logaddress_delall_http`, `sv_logsecret` | the event sink: a mode that redirected it would silence the match |
 | `sv_downloadurl` | the image's, so a client downloads what the image serves |
+
+## The `matchzy` flow
+
+MatchZy 0.8.15 has no in-process forwards: its "events & forwards" are one HTTP remote log
+(`matchzy_remote_log_url`, one custom header, no retry, no dedup) and nothing else — traced
+in PRD-02 T9 against `references/MatchZy/`. So for a `matchzy` mode the split of decision 19
+is:
+
+- **The orchestrator composes the match config** (`apps/orchestrator/src/match-config/`,
+  golden-tested): the request's teams and maps as MatchZy reads them, `skip_veto` (the
+  platform ran the veto), the flat cvars the assignment also carries — because MatchZy's
+  own `live.cfg` resets the round format and MatchZy re-applies its config's cvars after
+  it. `matchid` is a positive 31-bit serial folded from the match id (MatchZy parses an
+  `int`). No secret and no hostname in it.
+- **The core plugin writes and loads it** when the map is up, adds
+  `matchzy_hostname_format` (MatchZy rewrites the hostname from that cvar every round),
+  and *then* points MatchZy's remote log at the orchestrator's door `POST /matchzy/log`
+  with its own link token in the `x-ezpug-server-token` header — from its sidecar, after
+  `matchzy_loadmatch`, never inside the file: the file is serialised into every round
+  backup MatchZy writes.
+- **The door translates once**: `going_live`, `round_end`, `map_result` → `map_end`,
+  `series_end` become the vocabulary attributed to the same server as its link events.
+  The round winner is the score delta between rounds (MatchZy's `winner.team` names the
+  map *leader*), `winner.side` is read as `ct`/`t` or as the engine team number MatchZy
+  actually writes, round numbers are the score sum (1-based), a tied map or series is
+  `winner: null`. `series_start`, the veto trio, `demo_upload_ended` and
+  `player_disconnect` are dropped: not facts of ours, or the core plugin's own.
+- **What MatchZy cannot say, the core plugin observes** from the engine (`MatchZyFlow`):
+  `match_paused` / `match_unpaused` off the gamerules (a tactical timeout names its team;
+  the `pause` command over the link is MatchZy's `css_forcepause` and an admin pause),
+  `side_swap` at a round start when the rostered team A stands on the other side (or, with
+  nobody rostered, when the engine flagged the swap), and every round backup MatchZy writes
+  as a `backup` frame plus `backup_written`, the token scrubbed out of it first.
+
+Everything the plugin does here is on the SDK harness (`plugins/EZPug.Core.Tests`); the
+translation's fixtures are schema-sourced until T13 records a real MatchZy and replaces
+them.
 
 ## What the tier allows
 

@@ -21,6 +21,7 @@ import { FIXTURE_SERVER_TOKEN } from '@ezpug/protocol/fixtures'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createTestApp, type TestApp } from '../http/testing'
 import type { AuthenticatedKey } from '../keys/service'
+import { buildMatchZyConfig, matchzySerial } from '../match-config/matchzy'
 import type { GameServerProvider, ServerConfiguration } from '../providers/provider'
 import { attachUpgradeRouter } from '../stream/upgrade'
 import type { ServerRef } from './channels'
@@ -279,6 +280,19 @@ function eventsFor(matchId: string, serverId: string) {
   }
 }
 
+/**
+ * What a recording replaces before it is written: the match id, the token, and the
+ * serial MatchZy knows the match by inside `assign.matchzyConfig` (derived from the id,
+ * so it moves with it — matched as the whole `"matchid":<n>` pair, never a bare number).
+ */
+function scrub(matchId: string, token: string): Record<string, string> {
+  return {
+    [matchId]: FIXTURE_MATCH_ID,
+    [token]: FIXTURE_SERVER_TOKEN,
+    [`"matchid":${matchzySerial(matchId)}`]: `"matchid":${matchzySerial(FIXTURE_MATCH_ID)}`,
+  }
+}
+
 /** The golden under `fixtures/link/`: written when recording, compared as bytes otherwise. */
 function golden(name: string, entries: LinkExchangeEntry[], replacements: Record<string, string>) {
   const produced = stringifyRecording(scrubLinkExchange(entries, replacements))
@@ -354,7 +368,10 @@ describe('the link', () => {
     })
     expect(assign.gamemode).not.toHaveProperty('maps')
     expect(assign.gamemode).not.toHaveProperty('widget')
-    expect(assign.matchzyConfig).toBeUndefined()
+    // A matchzy flow carries the config MatchZy loads (T9), built from the same request.
+    expect(assign.matchzyConfig).toEqual(
+      buildMatchZyConfig({ matchId, request: request(), manifest: shippedGamemode('pug') }),
+    )
     expect(assign.restore).toBeUndefined()
     expect(fake.matchId()).toBe(matchId)
 
@@ -443,7 +460,7 @@ describe('the link', () => {
     const closure = await fake.close()
     expect(closure.code).toBe(1000)
     await eventually(() => expect(rig.link.sessions()).toEqual([]))
-    golden('match', record, { [matchId]: FIXTURE_MATCH_ID, [token]: FIXTURE_SERVER_TOKEN })
+    golden('match', record, scrub(matchId, token))
   })
 
   it('refuses at the door with the close code that says why', async () => {
@@ -530,7 +547,7 @@ describe('the link', () => {
       reason: 'no open server for this token',
     })
     expect(app.log.lines.join('\n')).not.toContain(token)
-    golden('refusals', record, { [matchId]: FIXTURE_MATCH_ID, [token]: FIXTURE_SERVER_TOKEN })
+    golden('refusals', record, scrub(matchId, token))
   })
 
   it('acks every event by its link seq: duplicates, ephemerals, strangers, and gaps', async () => {
@@ -589,7 +606,7 @@ describe('the link', () => {
     expect(logged).not.toContain('position_tick')
     expect((await app.matches.get(key, matchId)).state).toBe('live')
     await fake.close()
-    golden('events', record, { [matchId]: FIXTURE_MATCH_ID, [token]: FIXTURE_SERVER_TOKEN })
+    golden('events', record, scrub(matchId, token))
   })
 
   it('resumes a reconnecting server from welcome.ackedSeq and replaces a duplicate socket', async () => {
@@ -638,7 +655,7 @@ describe('the link', () => {
     expect(await twin.next('assign')).toMatchObject({ matchId })
     expect(await twin.emit(events.tick)).toEqual([{ seq: 1, status: 'ephemeral' }])
     await twin.close()
-    golden('reconnect', record, { [matchId]: FIXTURE_MATCH_ID, [token]: FIXTURE_SERVER_TOKEN })
+    golden('reconnect', record, scrub(matchId, token))
   })
 
   it('relays commands, player commands, profiles and the console by correlation id, with a deadline', async () => {
@@ -756,7 +773,7 @@ describe('the link', () => {
       await app.matches.command(key, matchId, { type: 'unpause', correlationId: 'cmd-0004' }),
     ).toMatchObject({ code: 'provider_unavailable' })
     await fake.close()
-    golden('commands', record, { [matchId]: FIXTURE_MATCH_ID, [token]: FIXTURE_SERVER_TOKEN })
+    golden('commands', record, scrub(matchId, token))
   })
 
   it('probes the provider after two silent intervals, and opens the recovery window when the server is gone', async () => {

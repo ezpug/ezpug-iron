@@ -11,7 +11,7 @@ import { createMemoryLog } from '../log'
 import { requestHash } from '../match/machine'
 import { createMemoryMatchStore } from '../match/memory-store'
 import type { MatchRow, MatchStore } from '../match/store'
-import { createStreamHub } from './hub'
+import { createStreamHub, type StreamHub } from './hub'
 import { attachStreamUpgrade, attachUpgradeRouter } from './upgrade'
 
 /**
@@ -165,6 +165,38 @@ describe('the stream upgrade', () => {
     expect(frames[0]).toEqual({ type: 'hello', matchId: MATCH_ID, seq: 3, state: 'allocating' })
     // Held, not dropped: the frame published in the window arrives next.
     expect(frames[1]?.type).toBe('presence')
+    client.close()
+  })
+
+  it('drops a held event the greeting already covers and keeps the one after it', async () => {
+    const w = await world()
+    w.hold()
+    const client = collect(w.url, w.secret)
+    await client.open
+    await eventually(() => expect(w.subscribers()).toBe(1))
+    // The machine appends before it publishes: an event with the row's own seq
+    // (3) can land in the window, and one past it (4) can too.
+    const event = (seq: number): Parameters<StreamHub['publish']>[1] =>
+      ({
+        type: 'event',
+        envelope: { deliveryId: `d-${seq}`, matchId: MATCH_ID, seq, type: 'match.allocated' },
+      }) as unknown as Parameters<StreamHub['publish']>[1]
+    w.hub.publish(MATCH_ID, event(3))
+    w.hub.publish(MATCH_ID, event(4))
+    w.hub.publish(MATCH_ID, {
+      type: 'presence',
+      players: [{ steamId64: '76561198000000001', name: 'a' }],
+    })
+    w.letGo()
+    const frames = await client.until(3)
+    expect(frames[0]).toEqual({ type: 'hello', matchId: MATCH_ID, seq: 3, state: 'allocating' })
+    // Seq 3 is the hello's own cursor — replaying from it starts after it — so the frame is dropped; 4 and the presence follow.
+    expect(
+      frames.slice(1).map(f => (f.type === 'event' ? `event:${f.envelope.seq}` : f.type)),
+    ).toEqual(['event:4', 'presence'])
+    await expect(
+      eventually(() => expect(client.frames.length).toBeGreaterThan(3), { timeout: 200 }),
+    ).rejects.toThrow()
     client.close()
   })
 

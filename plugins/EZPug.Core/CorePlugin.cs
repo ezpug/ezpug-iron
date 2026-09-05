@@ -43,6 +43,7 @@ public sealed class CorePlugin : BasePlugin
     private PluginCatalog? _catalog;
     private GamemodeRuntime? _runtime;
     private GamemodeLoader? _loader;
+    private MatchZyFlow? _flow;
     private RuntimeHost? _host;
     private IPlatformLink? _link;
     private LinkClient? _client;
@@ -86,8 +87,16 @@ public sealed class CorePlugin : BasePlugin
 
         _runtime = new GamemodeRuntime(_world, _link, _log);
         var lobby = Environment.GetEnvironmentVariable(LobbyMapVariable);
-        _loader = new GamemodeLoader(_world, _catalog, _paths.CsgoDirectory, string.IsNullOrWhiteSpace(lobby) ? _world.Map : lobby.Trim(), _log);
+        _loader = new GamemodeLoader(
+            _world,
+            _catalog,
+            _paths.CsgoDirectory,
+            string.IsNullOrWhiteSpace(lobby) ? _world.Map : lobby.Trim(),
+            _log,
+            sidecar is null ? null : MatchZyRemoteLog.From(sidecar));
         _loader.Bind(_runtime);
+        _flow = new MatchZyFlow(_world, _runtime, _paths.CsgoDirectory, _log);
+        _flow.Bind();
         _world.MapStarted += OnMapStarted;
         _host = new RuntimeHost(_runtime, _log);
         GamemodeHost.Publish(_host);

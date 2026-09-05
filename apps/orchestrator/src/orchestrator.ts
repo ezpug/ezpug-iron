@@ -19,6 +19,7 @@ import type { Log } from './log'
 import { createMatches, type Matches } from './match/machine'
 import { createPostgresMatchStore } from './match/postgres-store'
 import type { MatchStore } from './match/store'
+import { createMatchZyDoor } from './matchzy/door'
 import { createReaper, type Reaper } from './providers/reaper'
 import { createProviderRegistry, type ProviderRegistry } from './providers/registry'
 import { createSimProvider } from './providers/sim/provider'
@@ -191,6 +192,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     rateLimiter: createRateLimiter({ clock, ...config.rateLimit }),
     health,
     isDraining: () => shutdown?.draining === true,
+    matchzy: createMatchZyDoor({ store, matches, log }),
   })
 
   const server = createAdaptorServer({ fetch: app.fetch }) as HttpServer

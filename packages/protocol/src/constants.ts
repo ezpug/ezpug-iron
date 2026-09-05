@@ -22,6 +22,23 @@ export const SERVER_LINK_PATH = '/link'
 export const NODE_LINK_PATH = '/node'
 
 /**
+ * **The MatchZy door** (decision 19, PRD-02 T9). MatchZy 0.8.15 has no
+ * in-process forwards — its "events & forwards" are one HTTP remote log
+ * (`matchzy_remote_log_url`) with no retry and no dedup — so the core plugin
+ * points that log at this path on the orchestrator, which translates every
+ * payload into the vocabulary once. The server authenticates each POST with
+ * its own link token in {@link MATCHZY_TOKEN_HEADER}: a header, never the
+ * path, so no access log between the two ever holds it.
+ */
+export const MATCHZY_LOG_PATH = '/matchzy/log'
+
+/** The header a MatchZy remote-log POST carries the server token in (`matchzy_remote_log_header_key`). */
+export const MATCHZY_TOKEN_HEADER = 'x-ezpug-server-token'
+
+/** The largest MatchZy payload the door reads; a `round_end` with ten players' stats is a few kilobytes. */
+export const MATCHZY_PAYLOAD_MAX = 256 * 1024
+
+/**
  * What `welcome` says when nothing else is configured: a heartbeat every ten
  * seconds. Silence past two intervals is what makes the orchestrator probe
  * the provider (PRD-02 T6).
@@ -93,6 +110,9 @@ export const PROTOCOL_CONSTANTS = Object.freeze({
   PROTOCOL_VERSION,
   SERVER_LINK_PATH,
   NODE_LINK_PATH,
+  MATCHZY_LOG_PATH,
+  MATCHZY_TOKEN_HEADER,
+  MATCHZY_PAYLOAD_MAX,
   HEARTBEAT_INTERVAL_MS_DEFAULT,
   HELLO_TIMEOUT_MS,
   EVENTS_BATCH_MAX,

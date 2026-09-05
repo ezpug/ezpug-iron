@@ -14,9 +14,9 @@ namespace EZPug.Core;
 public static class HelloFactsBuilder
 {
     /// <summary>
-    /// The capabilities this build of the plugin can honour. <c>backups</c> arrives with
-    /// MatchZy's forwards (PRD-02 T9/T14) and <c>scoreboardRating</c> with T27; claiming
-    /// them before they exist would be a lie the fleet console repeats.
+    /// The capabilities this build of the plugin can honour. <c>backups</c> since PRD-02 T9
+    /// (MatchZy's round backups cross the link; the restore is T14); <c>scoreboardRating</c>
+    /// arrives with T27 — claiming it before it exists would be a lie the fleet console repeats.
     /// </summary>
     public static readonly IReadOnlyList<GamemodeCapability> Capabilities =
     [
@@ -24,6 +24,7 @@ public static class HelloFactsBuilder
         GamemodeCapability.Chat,
         GamemodeCapability.PlayerCommands,
         GamemodeCapability.Widget,
+        GamemodeCapability.Backups,
     ];
 
     public const string MatchZyPlugin = "MatchZy";

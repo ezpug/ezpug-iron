@@ -1,0 +1,23 @@
+{
+  "source": "schema",
+  "note": "map_number is 0-based on the wire; the map name is the plan’s, MatchZy never sends it.",
+  "payload": {
+    "event": "going_live",
+    "matchid": 1083740696,
+    "map_number": 0
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "going_live",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "mapNumber": 1,
+        "map": "de_mirage"
+      }
+    ]
+  }
+}

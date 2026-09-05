@@ -1,0 +1,20 @@
+{
+  "source": "schema",
+  "note": "MatchZy fires it at the end of matchzy_loadmatch; server_ready and going_live bracket it in the vocabulary.",
+  "payload": {
+    "event": "series_start",
+    "matchid": 1083740696,
+    "num_maps": 1,
+    "team1": {
+      "id": "",
+      "name": "Team tk"
+    },
+    "team2": {
+      "id": "",
+      "name": "Team maex"
+    }
+  },
+  "expect": {
+    "dropped": "not a fact of ours"
+  }
+}

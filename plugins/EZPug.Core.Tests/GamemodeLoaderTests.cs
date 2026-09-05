@@ -12,7 +12,7 @@ namespace EZPug.Core.Tests;
 /// </summary>
 public class GamemodeLoaderTests
 {
-    private sealed class Rig : IDisposable
+    internal sealed class Rig : IDisposable
     {
         public Rig(params string[] installed)
         {
@@ -25,7 +25,7 @@ public class GamemodeLoaderTests
             World = new FakeGameWorld(map: "de_dust2");
             Link = new FakePlatformLink();
             Runtime = new GamemodeRuntime(World, Link, Log);
-            Loader = new GamemodeLoader(World, Image.Catalog(), Image.CsgoDirectory, lobbyMap: "de_dust2", Log);
+            Loader = new GamemodeLoader(World, Image.Catalog(), Image.CsgoDirectory, lobbyMap: "de_dust2", Log, RemoteLog);
             Loader.Bind(Runtime);
             Link.Welcome();
         }
@@ -36,6 +36,10 @@ public class GamemodeLoaderTests
         public GamemodeRuntime Runtime { get; }
         public GamemodeLoader Loader { get; }
         public RecordingLog Log { get; } = new();
+
+        /// <summary>What the core builds from the sidecar: the door's URL and this server's token.</summary>
+        public static MatchZyRemoteLog RemoteLog { get; } =
+            MatchZyRemoteLog.From(new Sidecar(Sidecar.LinkUrlOf("http://127.0.0.1:3430"), "ezs_not-a-secret_0000000000000000000", null));
 
         public string MatchConfigPath => Path.Combine(Image.CsgoDirectory, GamemodeLoader.MatchConfigFile);
 
@@ -64,7 +68,7 @@ public class GamemodeLoaderTests
     public void APugAssignmentLoadsMatchZyChangesTheMapThenConfiguresItWhenTheMapIsUp()
     {
         using var rig = new Rig("MatchZy", "RetakesPlugin");
-        var config = JsonNode.Parse("""{"matchid":"6f1a2b3c","num_maps":1,"maplist":["de_mirage"]}""")!.AsObject();
+        var config = JsonNode.Parse("""{"matchid":"6f1a2b3c","num_maps":1,"maplist":["de_mirage"],"cvars":{}}""")!.AsObject();
         var assignment = GamemodeTestHost.AssignmentFor(Manifest("pug"), map: "de_mirage") with { MatchzyConfig = config };
 
         rig.Link.Assign(assignment);
@@ -98,12 +102,21 @@ public class GamemodeLoaderTests
                 "cvar matchzy_stop_command_available true",
                 "cvar matchzy_reset_cvars_on_series_end true",
                 "command matchzy_loadmatch cfg/ezpug/match.json",
+                // The remote log after loadmatch (loading replaces MatchZy's config object), the token last.
+                "command matchzy_remote_log_url http://127.0.0.1:3430/matchzy/log",
+                "command matchzy_remote_log_header_key x-ezpug-server-token",
+                "command matchzy_remote_log_header_value ezs_not-a-secret_0000000000000000000",
             ],
             rig.Actions.Skip(3));
         Assert.Equal("events=0", seenAtMapLoaded[0]);
-        Assert.Equal(7, seenAtMapLoaded.Count - 1);
+        Assert.Equal(10, seenAtMapLoaded.Count - 1);
         Assert.Equal(["server_ready"], rig.Link.EventTypes);
-        Assert.Equal(config.ToJsonString(ProtocolJson.Options), File.ReadAllText(rig.MatchConfigPath));
+        // The file is the orchestrator's config plus the hostname format MatchZy rewrites the hostname from; no token in it.
+        var written = JsonNode.Parse(File.ReadAllText(rig.MatchConfigPath))!.AsObject();
+        Assert.Equal("EZPug · pug · Mirage", written["cvars"]!["matchzy_hostname_format"]!.GetValue<string>());
+        Assert.DoesNotContain("not-a-secret", File.ReadAllText(rig.MatchConfigPath));
+        written["cvars"]!.AsObject().Remove("matchzy_hostname_format");
+        Assert.Equal(config.ToJsonString(ProtocolJson.Options), written.ToJsonString(ProtocolJson.Options));
 
         // Release: unload in reverse, the config gone, back to the lobby, idle.
         rig.Link.Release("ended: completed");
@@ -112,7 +125,7 @@ public class GamemodeLoaderTests
                 "command css_plugins unload plugins/disabled/MatchZy/MatchZy.dll",
                 "changelevel de_dust2",
             ],
-            rig.Actions.Skip(10));
+            rig.Actions.Skip(13));
         Assert.False(File.Exists(rig.MatchConfigPath));
         Assert.Empty(rig.Loader.Enabled);
         Assert.Equal(LinkServerState.Idle, rig.Link.States[^1].State);

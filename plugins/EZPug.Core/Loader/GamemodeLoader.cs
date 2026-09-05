@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using EZPug.Sdk;
 using EZPug.Sdk.Protocol;
@@ -8,10 +9,13 @@ namespace EZPug.Core;
 /// <b>The gamemode loader</b> (decision 16): on <c>assign</c>, enable exactly the plugin
 /// folders the assignment names, set the hostname and go to the first map; when that map
 /// is up (the runtime's <c>MapLoaded</c>, before <c>server_ready</c>), exec the mode's cfg,
-/// set the flat cvars, and for a <c>matchzy</c> flow write the match config and
-/// <c>matchzy_loadmatch</c> it; on <c>release</c>, unload what was enabled, in reverse,
-/// and go back to the lobby map. Pure over <see cref="IGameWorld"/> and the
-/// <see cref="PluginCatalog"/>, so the harness proves every line it issues.
+/// set the flat cvars, and for a <c>matchzy</c> flow write the match config (the
+/// hostname format added, so MatchZy keeps the hostname the loader set), <c>matchzy_loadmatch</c>
+/// it, once per assignment — MatchZy carries a series across its own map changes — and
+/// point its remote log at the orchestrator (<see cref="MatchZyRemoteLog"/>); on
+/// <c>release</c>, unload what was enabled, in reverse, and go back to the lobby map.
+/// Pure over <see cref="IGameWorld"/> and the <see cref="PluginCatalog"/>, so the harness
+/// proves every line it issues.
 ///
 /// <c>css_plugins</c> is spoken in one form only — the dll path relative to
 /// <c>addons/counterstrikesharp</c> — because CounterStrikeSharp composes the path
@@ -29,15 +33,18 @@ public sealed class GamemodeLoader
     private readonly PluginCatalog _catalog;
     private readonly string _csgoDirectory;
     private readonly ILinkLog _log;
+    private readonly MatchZyRemoteLog? _remoteLog;
     private readonly List<InstalledPlugin> _enabled = [];
+    private bool _matchLoaded;
 
-    public GamemodeLoader(IGameWorld world, PluginCatalog catalog, string csgoDirectory, string lobbyMap, ILinkLog? log = null)
+    public GamemodeLoader(IGameWorld world, PluginCatalog catalog, string csgoDirectory, string lobbyMap, ILinkLog? log = null, MatchZyRemoteLog? remoteLog = null)
     {
         _world = world;
         _catalog = catalog;
         _csgoDirectory = csgoDirectory;
         LobbyMap = lobbyMap;
         _log = log ?? NullLinkLog.Instance;
+        _remoteLog = remoteLog;
     }
 
     /// <summary>Where the server goes between matches: the map it booted with, or <c>EZPUG_LOBBY_MAP</c>.</summary>
@@ -57,6 +64,7 @@ public sealed class GamemodeLoader
     private void OnAssigned(Assignment assignment)
     {
         var map = assignment.Maps[0].Map;
+        _matchLoaded = false;
         _world.SetCvar("hostname", HostnameFor(assignment, map));
 
         foreach (var name in assignment.Plugins)
@@ -110,14 +118,54 @@ public sealed class GamemodeLoader
 
         if (assignment.MatchzyConfig is not { } config)
         {
-            _log.Warn("a matchzy flow with no matchzyConfig: MatchZy runs as its cfg left it (the config builder is PRD-02 T9)");
+            _log.Warn("a matchzy flow with no matchzyConfig: MatchZy runs as its cfg left it");
+            return;
+        }
+
+        if (_matchLoaded)
+        {
+            _log.Info($"map {map} is up mid-series; MatchZy carries the match across its own map changes and the config is not reloaded");
             return;
         }
 
         var path = Path.Combine(_csgoDirectory, MatchConfigFile);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, config.ToJsonString(ProtocolJson.Options));
+        File.WriteAllText(path, WithHostnameFormat(config, HostnameFor(assignment, map)).ToJsonString(ProtocolJson.Options));
         _world.ExecCommand($"matchzy_loadmatch {MatchConfigFile}");
+        _matchLoaded = true;
+
+        // After loadmatch, never before: loading replaces MatchZy's config object, and never
+        // in the file: the file is serialised into every round backup.
+        if (_remoteLog is { } remoteLog)
+        {
+            foreach (var line in remoteLog.Commands())
+            {
+                _world.ExecCommand(line);
+            }
+        }
+        else
+        {
+            _log.Warn("no sidecar, so MatchZy's remote log points nowhere: its match-flow events reach nobody");
+        }
+    }
+
+    /// <summary>
+    /// The config with <c>matchzy_hostname_format</c> set to the hostname the loader decided:
+    /// MatchZy rewrites <c>hostname</c> from that cvar on every round (its default is
+    /// <c>MatchZy | {TEAM1} vs {TEAM2}</c>), so setting <c>hostname</c> alone loses. The
+    /// original is not touched.
+    /// </summary>
+    public static JsonObject WithHostnameFormat(JsonObject config, string hostname)
+    {
+        var copy = (JsonObject)config.DeepClone();
+        if (copy["cvars"] is not JsonObject cvars)
+        {
+            cvars = new JsonObject();
+            copy["cvars"] = cvars;
+        }
+
+        cvars["matchzy_hostname_format"] = hostname;
+        return copy;
     }
 
     private void OnReleased(string? reason)
@@ -128,6 +176,7 @@ public sealed class GamemodeLoader
         }
 
         _enabled.Clear();
+        _matchLoaded = false;
         var config = Path.Combine(_csgoDirectory, MatchConfigFile);
         if (File.Exists(config))
         {

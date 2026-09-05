@@ -86,6 +86,28 @@ public sealed record Sidecar(Uri LinkUrl, string Token, string? BufferDir)
         return builder.Uri;
     }
 
+    /// <summary>
+    /// The orchestrator's HTTP origin the link URL implies (<c>wss://gs.ezpug.com/link</c> →
+    /// <c>https://gs.ezpug.com</c>) with <paramref name="path"/> — where MatchZy's remote log
+    /// is pointed (<c>ProtocolConstants.MatchzyLogPath</c>).
+    /// </summary>
+    public Uri HttpUrl(string path)
+    {
+        var builder = new UriBuilder(LinkUrl)
+        {
+            Scheme = LinkUrl.Scheme == "wss" ? "https" : "http",
+            Path = path,
+            Query = "",
+            Fragment = "",
+        };
+        if (builder.Port == (LinkUrl.Scheme == "wss" ? 443 : 80))
+        {
+            builder.Port = -1;
+        }
+
+        return builder.Uri;
+    }
+
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>For a log line: the URL and where the buffer goes, never the token.</summary>

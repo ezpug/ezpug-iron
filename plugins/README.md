@@ -90,8 +90,8 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
 - **Boot → sidecar → link → `hello`.** One outbound WebSocket to `/link` (decision 5),
   the token from the sidecar, versions (its own, the SDK's, CounterStrikeSharp's as the
   loaded assembly declares it, MatchZy's read off its dll), the capabilities this build
-  honours (`positions`, `chat`, `playerCommands`, `widget`; `backups` comes with MatchZy's
-  forwards in T9/T14, `scoreboardRating` with T27), the plugin folders in the image, the
+  honours (`positions`, `chat`, `playerCommands`, `widget`, `backups`; `scoreboardRating`
+  comes with T27), the plugin folders in the image, the
   hostname and map. Reconnects with capped backoff; events are buffered on disk until the
   orchestrator acks them (`docs/sdk.md`, "The link").
 - **`assign` → the loader.** Hostname from `branding.hostname` or `EZPug · <mode> · <Map>`;
@@ -100,15 +100,31 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   map. When the map is up — one second after the engine's `OnMapStart`, because the engine
   execs its own gamemode cfgs right after that listener and a cfg exec'd earlier is undone
   — the mode's cfg files are exec'd in order, the flat cvars set, and for a `matchzy` flow
-  the match config is written to `cfg/ezpug/match.json` and `matchzy_loadmatch`'d. Then
-  `server_ready` is emitted and the mode's `OnStart` runs. State: `assigned`.
+  the match config is written to `cfg/ezpug/match.json` (the orchestrator's document plus
+  `matchzy_hostname_format`, so MatchZy keeps the hostname), `matchzy_loadmatch`'d once
+  per assignment, and MatchZy's remote log is pointed at the orchestrator's
+  `POST /matchzy/log` with this server's token in the `x-ezpug-server-token` header — as
+  console commands after the load, never in the file, because MatchZy serialises the file
+  into every round backup. Then `server_ready` is emitted and the mode's `OnStart` runs.
+  State: `assigned`.
 - **The engine's hooks → the vocabulary**, emitted once by the SDK's runtime:
   `server_ready`, `player_connected` / `player_disconnected` (humans; bots are tracked but
   nobody's event), `player_death` with assists, weapon, headshot and the flags, `bomb_*`,
   `chat_message` / `chat_command` by the vocabulary's prefix rule, position ticks every
   100 ms while linked, heartbeats on the interval `welcome` gave. Match-flow events are
-  the flow owner's: MatchZy's forwards for `flow: matchzy` (T9), the SDK's generic emitter
-  for `flow: plugin | none` (T22).
+  the flow owner's: MatchZy's remote log for `flow: matchzy`, translated by the
+  orchestrator (T9), the SDK's generic emitter for `flow: plugin | none` (T22).
+- **What MatchZy cannot say, observed** (`MatchZyFlow`, `flow: matchzy` only): MatchZy
+  0.8.15 sends no pause, side-swap or backup event, so the core reads the engine —
+  `match_paused` / `match_unpaused` off `cs_gamerules` every 250 ms (a tactical timeout
+  names its team, a technical one its kind, a pause the orchestrator asked for is an admin
+  pause; a pause is reported when requested, as MatchZy's own chat line is), `side_swap` at
+  a round start outside warmup when the rostered team A stands on the other side (a knife
+  winner's `.switch`, halftime) or, with nobody rostered, when the engine flagged the swap,
+  and 1.5 s after each live round start the newest `MatchZyDataBackup/matchzy_<matchid>_<map>_round<NN>.json`
+  as a `backup` frame (restores to round `NN + 1`) plus `backup_written`, the remote-log
+  header value scrubbed out of MatchZy's serialised config first. A restore re-points the
+  remote log after loading the file (T14).
 - **Bots on the wire.** The vocabulary names a player by a 17-digit SteamID64 and a bot
   has none, so a bot is `90000000000000000 + slot` (`BotIdentity` in the SDK): stable for
   its connection, obviously synthetic, and a bot's death is a real event in a match bots
@@ -116,8 +132,9 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
 - **`release` → unload.** The plugins it enabled are unloaded in reverse, the match config
   removed, the server goes back to the lobby map, state `idle`.
 - **Commands over the link.** `announce`, `kick`, `rcon` and `profile` are answered by the
-  runtime; `pause`, `unpause`, `restart_round`, `force_end`, `restore` and `reroll` are the
-  flow owner's (MatchZy in T9, the mode otherwise) and `command_unsupported` until then.
+  runtime; for a `matchzy` flow `pause` and `unpause` are MatchZy's `css_forcepause` /
+  `css_forceunpause`; `restart_round`, `force_end`, `restore` and `reroll` are the flow
+  owner's (the mode, or T14 for `restore`) and `command_unsupported` until then.
 - **A gamemode plugin attaches through the host capability.** `EZPug.Sdk.Hosting.GamemodeHost`
   is a CounterStrikeSharp `PluginCapability` the core publishes; a mode's plugin derives
   from `GamemodePlugin`, which finds the host on load and attaches the mode. A mode
