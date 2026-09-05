@@ -30,8 +30,12 @@ import { createSimChannel } from './channel'
  * a {@link ServerChannel} attached to the same registry. Whoever sits on the
  * other end cannot tell the two apart; if they could, that is a bug here.
  *
- * This task registers it and plays matches with it; T4 adds the `sim.*`
- * commands, the fault knobs and the image the platform's dev world pulls.
+ * The story a server tells is decided by one seed per **match**, not per
+ * server (`<root>#<matchId>`, or the request's own `sim.seed`): a replacement
+ * server for a match that lost its box is handed the dead one's story, which
+ * is what makes {@link GameServerProvider.restore} — load a round backup and
+ * play on from it — mean anything at all (T14 walks that path; the verb and
+ * its determinism are here).
  */
 
 /** The game port and the GOTV port every simulated server states. */
@@ -199,7 +203,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
       if (entry.configured)
         return Promise.reject(new Error(`sim: ${serverId} is already configured`))
       const plan = simPlanFor(configuration.request, options.defaults)
-      const seed = plan.seed ?? `${root}#${configuration.matchId}#${serverId}`
+      const seed = plan.seed ?? `${root}#${configuration.matchId}`
       const { assignment } = simAssignmentFor(configuration, seed)
       const server = createSimulatedServer({
         clock,
@@ -284,6 +288,21 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
     // A simulated server has no RCON and no console backlog of its own.
     rcon: () => Promise.resolve(null),
     console: () => Promise.resolve(null),
+
+    /**
+     * Put a round backup on a configured, not yet started server: the story
+     * becomes a boot, the reconnects, `backup_restored` and the match from
+     * that round on (T14's recovery, offline). `false` when there is nothing
+     * to restore onto; a backup the story never wrote throws
+     * (`SimulatorRestoreError`), because asking for a round that does not
+     * exist is a bug in the caller, not a provider that cannot oblige.
+     */
+    restore(serverId, backup) {
+      const server = servers.get(serverId)?.server
+      if (!server) return Promise.resolve(false)
+      server.restore({ mapNumber: backup.mapNumber, roundNumber: backup.roundNumber })
+      return Promise.resolve(true)
+    },
 
     sim(serverId): SimStatus | null {
       return servers.get(serverId)?.server?.status().sim ?? null

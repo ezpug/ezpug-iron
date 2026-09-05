@@ -19,11 +19,13 @@ import type {
 import {
   ApiError,
   gamemodeAllowsMap,
+  isSimCommand,
   isTerminalMatchState,
   MATCH_API_ERROR_STATUS,
   STREAM_CLOSE_CODES,
 } from '@ezpug/match-api'
 import { HEARTBEAT_INTERVAL_MS_DEFAULT, SERVER_LINK_PATH } from '@ezpug/protocol'
+import { SIM_PROVIDER_ID } from '@ezpug/sim'
 import type { AuthenticatedKey } from '../keys/service'
 import type { IngestStatus, LinkRegistry, ServerEventSink, ServerRef } from '../link/channels'
 import { serverKey } from '../link/channels'
@@ -301,13 +303,29 @@ export function createMatches(options: MatchesOptions): Matches {
 
   // --- the durable log, the stream, the webhooks ------------------------------------
 
-  const emit = async (row: MatchRow, payload: WebhookPayload): Promise<WebhookEnvelope> => {
+  /**
+   * Write one fact to the durable log, publish it and queue its delivery.
+   *
+   * `patch` is the state change the fact *announces*, applied to the row in
+   * the same transaction as the append: a reader is never allowed to see the
+   * new state with the old `seq`, because the events route would then hold an
+   * envelope past the last one the client was told about. `matches.get` reads
+   * off the match's chain (a poll must not queue behind a provisioning walk),
+   * so this atomicity is the only thing standing between the two.
+   */
+  const emit = async (
+    row: MatchRow,
+    payload: WebhookPayload,
+    patch: Parameters<MatchStore['updateMatch']>[1] = {},
+  ): Promise<WebhookEnvelope> => {
     const at = now()
     const event = await store.appendEvent(
       row.id,
       { deliveryId: randomUUID(), type: payload.type, occurredAt: at, payload },
       at,
+      patch,
     )
+    Object.assign(row, patch)
     row.seq = event.seq
     row.updatedAt = at
     const envelope = envelopeOf(row, event)
@@ -421,9 +439,18 @@ export function createMatches(options: MatchesOptions): Matches {
     const sim = simOf(row)
     const server = await currentServer(row)
     if (server) await closeRow(server, rowState, `${state}: ${reason.kind}`, true)
-    await setState(row, state, { endedAt: now(), endedReason: reason, sim })
-    if (state === 'failed') await emit(row, { type: 'match.failed', state, reason })
-    else await emit(row, { type: 'match.ended', state, reason })
+    // The terminal state and the fact that announces it are one write.
+    const at = now()
+    const patch = {
+      state,
+      stateChangedAt: at,
+      updatedAt: at,
+      endedAt: at,
+      endedReason: reason,
+      sim,
+    }
+    if (state === 'failed') await emit(row, { type: 'match.failed', state, reason }, patch)
+    else await emit(row, { type: 'match.ended', state, reason }, patch)
     hub.closeMatch(row.id, STREAM_CLOSE_CODES.matchEnded)
     runtimes.delete(row.id)
   }
@@ -934,8 +961,15 @@ export function createMatches(options: MatchesOptions): Matches {
       default:
         break
     }
-    if (body.type.startsWith('sim.'))
-      return rejected('command_unsupported', 'the sim.* commands arrive with PRD-02 T4')
+    // The `sim.*` family belongs to simulated servers and to nothing else
+    // (decision 9): a real box has no time scale and no dice to load. Refused
+    // here rather than at the channel, so the answer is the same whether the
+    // match has a server yet or not.
+    if (isSimCommand(body.type) && row.provider !== SIM_PROVIDER_ID)
+      return rejected(
+        'command_unsupported',
+        `${body.type} needs a simulated server; this match runs on ${row.provider ?? 'no provider yet'}`,
+      )
     const channel =
       row.provider && row.serverId
         ? links.get({ provider: row.provider, serverId: row.serverId })

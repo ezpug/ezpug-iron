@@ -18,6 +18,7 @@ const rootManifest = JSON.parse(read('package.json'))
 const buildProps = read('plugins/Directory.Build.props')
 const globalJson = JSON.parse(read('plugins/global.json'))
 const workspace = read('pnpm-workspace.yaml')
+const orchestratorImage = read('docker/orchestrator/Dockerfile')
 
 /** The one line of a `catalog:` entry, or undefined. */
 const catalogVersion = name => workspace.match(new RegExp(`^\\s+"?${name}"?:\\s*(\\S+)$`, 'm'))?.[1]
@@ -35,6 +36,11 @@ const expected = [
     'TargetFramework',
     buildProps.match(/<TargetFramework>([^<]+)</)?.[1],
     'plugins/Directory.Build.props',
+  ],
+  [
+    'Node (the image)',
+    orchestratorImage.match(/^FROM node:(\S+) AS base$/m)?.[1],
+    'docker/orchestrator/Dockerfile',
   ],
   ...['typescript', 'vitest', 'zod', 'tsdown', 'hono', 'drizzle-orm', 'postgres', 'ioredis'].map(
     name => [name, catalogVersion(name), 'pnpm-workspace.yaml catalog'],

@@ -46,6 +46,18 @@ export interface AuthenticatedKey {
 export interface Keys {
   /** Mint a key. The secret is in the answer and nowhere else, ever. */
   mint: (request: ApiKeyCreateRequest) => Promise<ApiKeyCreated>
+  /**
+   * Mint a key whose secret is **given** rather than drawn, unless a live key
+   * already carries it. The one caller is the dev bootstrap key
+   * (`keys/bootstrap.ts`, PRD-02 T4), where another project's compose file
+   * decided the secret before this process existed; production refuses it a
+   * layer up, in the configuration. Idempotent: a restart adopts the key it
+   * adopted last time.
+   */
+  adopt: (
+    secret: string,
+    request: ApiKeyCreateRequest,
+  ) => Promise<ApiKeyCreated & { created: boolean }>
   /** Resolve a bearer to its key, or throw `unauthorized`. Touches `lastUsedAt` on the clock's schedule. */
   authenticate: (bearer: string | null) => Promise<AuthenticatedKey>
   list: () => Promise<ApiKey[]>
@@ -89,28 +101,37 @@ export function createKeys(options: KeysOptions): Keys {
     })
   }
 
-  return {
-    async mint(request) {
-      const secret = mintToken('apiKey', options.random)
-      try {
-        const record = await store.insert({
-          id: randomUUID(),
+  /** The one place a row is written, whoever decided the secret. */
+  const insert = async (secret: string, request: ApiKeyCreateRequest): Promise<ApiKeyCreated> => {
+    try {
+      const record = await store.insert({
+        id: randomUUID(),
+        name: request.name,
+        prefix: apiKeyPrefix(secret),
+        secretHash: hashToken(secret),
+        scopes: request.scopes,
+        budget: request.budget,
+        webhookSecrets: request.webhookSecrets,
+        createdAt: clock.date(),
+      })
+      return { key: record.key, secret }
+    } catch (error) {
+      if (error instanceof KeyNameTakenError)
+        throw new ApiError(MATCH_API_ERROR_STATUS.conflict, 'conflict', error.message, {
           name: request.name,
-          prefix: apiKeyPrefix(secret),
-          secretHash: hashToken(secret),
-          scopes: request.scopes,
-          budget: request.budget,
-          webhookSecrets: request.webhookSecrets,
-          createdAt: clock.date(),
         })
-        return { key: record.key, secret }
-      } catch (error) {
-        if (error instanceof KeyNameTakenError)
-          throw new ApiError(MATCH_API_ERROR_STATUS.conflict, 'conflict', error.message, {
-            name: request.name,
-          })
-        throw error
-      }
+      throw error
+    }
+  }
+
+  return {
+    mint: request => insert(mintToken('apiKey', options.random), request),
+
+    async adopt(secret, request) {
+      const existing = await store.findBySecretHash(hashToken(secret))
+      if (existing && !existing.key.revokedAt) return { key: existing.key, secret, created: false }
+      const { key } = await insert(secret, request)
+      return { key, secret, created: true }
     },
 
     async authenticate(bearer) {

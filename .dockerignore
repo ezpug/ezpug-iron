@@ -1,0 +1,39 @@
+# What never enters an image build's context (PRD-02 T4). The build needs the
+# workspace's sources, manifests and lockfile and nothing else: everything
+# below is either rebuilt inside the image, irrelevant to it, or must never
+# leave this machine.
+
+# Rebuilt in the image
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+**/bin
+**/obj
+**/TestResults
+
+# Local state and secrets — an image never carries either
+.env
+.env.*
+!.env.example
+!.env.production.example
+.cache
+downloads
+*.log
+test-results
+
+# Reference material is never imported by code (CLAUDE.md), and the clones
+# under it are gigabytes of somebody else's repository.
+references
+
+# History, CI and editor noise
+.git
+.github
+.vscode
+.idea
+**/.DS_Store
+
+# The loop's own files: PRDs, progress notes, runner scripts.
+ralph

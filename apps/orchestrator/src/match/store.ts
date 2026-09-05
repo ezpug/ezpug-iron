@@ -197,11 +197,18 @@ export interface MatchStore {
   /**
    * Append one envelope: `seq` is the match's next (its `seq` column plus
    * one), written together with the bumped column. Returns the row.
+   *
+   * `patch` is applied to the match **in the same transaction** as the
+   * append. That is what makes a state change and the fact that announces it
+   * one write: a `GET` never catches a terminal match whose `seq` is still
+   * the one before its own `match.ended` (the events route would then hold an
+   * envelope past the `seq` the client was told was the last).
    */
   appendEvent: (
     matchId: string,
     event: Omit<MatchEventRow, 'matchId' | 'seq'>,
     updatedAt: Date,
+    patch?: MatchPatch,
   ) => Promise<MatchEventRow>
   /** Envelopes after `afterSeq`, in order, at most `limit`. */
   listEvents: (matchId: string, afterSeq: number, limit: number) => Promise<MatchEventRow[]>

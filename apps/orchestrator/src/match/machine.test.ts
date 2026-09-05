@@ -266,8 +266,6 @@ describe('commands and cancel', () => {
     })
     expect(replay).toEqual(said)
     expect(app.store.rows.commands).toHaveLength(2)
-    const sim = await app.matches.command(key, match.id, { type: 'sim.kill', correlationId: 's1' })
-    expect(sim).toMatchObject({ status: 'rejected', code: 'command_unsupported' })
     const rcon = await refused(
       app.matches.command(key, match.id, { type: 'rcon', correlationId: 'r1', command: 'status' }),
     )

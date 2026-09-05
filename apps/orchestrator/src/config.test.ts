@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BOOTSTRAP_API_KEY_VAR,
   DATABASE_URL_VAR,
   REDIS_URL_VAR,
   readDatabaseConfig,
@@ -49,6 +50,47 @@ describe('readOrchestratorConfig', () => {
     expect(config.database.poolMax).toBe(3)
     expect(config.database.logQueries).toBe(true)
     expect(config.production).toBe(true)
+  })
+
+  it('takes the dev contract’s EZPUG_IRON_PUBLIC_URL over the repo’s own name', () => {
+    const config = readOrchestratorConfig({
+      ...env,
+      EZPUG_IRON_PUBLIC_URL: 'http://orchestrator:3430/',
+      EZPUG_IRON_BASE_URL: 'http://localhost:3430',
+    })
+    expect(config.baseUrl).toBe('http://orchestrator:3430')
+    expect(() =>
+      readOrchestratorConfig({ ...env, EZPUG_IRON_PUBLIC_URL: 'orchestrator 3430' }),
+    ).toThrow(/EZPUG_IRON_PUBLIC_URL/)
+  })
+
+  it('reads the image’s knobs: migrate on boot, where the SQL is, the bootstrap key', () => {
+    const config = readOrchestratorConfig({
+      ...env,
+      EZPUG_IRON_MIGRATE_ON_BOOT: 'true',
+      EZPUG_IRON_MIGRATIONS_DIR: '/app/drizzle',
+      [BOOTSTRAP_API_KEY_VAR]: `ezik_${'a'.repeat(43)}`,
+    })
+    expect(config.migrateOnBoot).toBe(true)
+    expect(config.migrationsDir).toBe('/app/drizzle')
+    expect(config.bootstrapApiKey).toBe(`ezik_${'a'.repeat(43)}`)
+    const defaults = readOrchestratorConfig(env)
+    expect(defaults.migrateOnBoot).toBe(false)
+    expect(defaults.migrationsDir).toBeNull()
+    expect(defaults.bootstrapApiKey).toBeNull()
+  })
+
+  it('refuses a bootstrap key that is not one of ours, and any of them in production', () => {
+    expect(() => readOrchestratorConfig({ ...env, [BOOTSTRAP_API_KEY_VAR]: 'hunter2' })).toThrow(
+      /EZPUG_IRON_BOOTSTRAP_API_KEY.*grammar/s,
+    )
+    expect(() =>
+      readOrchestratorConfig({
+        ...env,
+        NODE_ENV: 'production',
+        [BOOTSTRAP_API_KEY_VAR]: `ezik_${'a'.repeat(43)}`,
+      }),
+    ).toThrow(/EZPUG_IRON_BOOTSTRAP_API_KEY.*NODE_ENV=production/s)
   })
 
   it('names the variable that is wrong', () => {

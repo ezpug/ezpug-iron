@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { looksLikeToken } from './tokens'
 
 /**
  * **The orchestrator's configuration, read from the environment and
@@ -17,6 +18,14 @@ export type DatabaseTarget = 'app' | 'test'
 export const DATABASE_URL_VAR = 'EZPUG_IRON_DATABASE_URL'
 export const TEST_DATABASE_URL_VAR = 'EZPUG_IRON_TEST_DATABASE_URL'
 export const REDIS_URL_VAR = 'EZPUG_IRON_REDIS_URL'
+
+/**
+ * The dev-only bootstrap key (PRD-02 T4): a key with this exact secret is
+ * ensured at boot, so another project's compose can hand the orchestrator a
+ * key it already knows instead of running a mint step. **Refused under
+ * `NODE_ENV=production`** — a key nobody minted is a key nobody can rotate.
+ */
+export const BOOTSTRAP_API_KEY_VAR = 'EZPUG_IRON_BOOTSTRAP_API_KEY'
 
 /** The dev port, decided in `.env.example` against `ss -tlnp` on this box. */
 export const DEFAULT_PORT = 3430
@@ -63,6 +72,15 @@ export interface OrchestratorConfig {
   readonly production: boolean
   /** The providers to register, in `EZPUG_IRON_PROVIDERS` order (T3/T4 register them). */
   readonly providers: readonly string[]
+  /**
+   * The secret of the dev bootstrap key, or null. Never logged, never in an
+   * answer: `main.ts` hands it to `ensureBootstrapKey` and forgets it.
+   */
+  readonly bootstrapApiKey: string | null
+  /** Apply pending migrations before the port opens — what the image does. */
+  readonly migrateOnBoot: boolean
+  /** Where the migration SQL lives, when it is not beside the code (the image). */
+  readonly migrationsDir: string | null
   readonly database: DatabaseConfig
   readonly redis: RedisConfig
   readonly rateLimit: RateLimitConfig
@@ -159,29 +177,58 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       ),
       rateLimitBurst: numberFromEnv(120),
       rateLimitPerSecond: numberFromEnv(10),
+      bootstrapApiKey: z
+        .string()
+        .nullable()
+        .refine(
+          value => value === null || looksLikeToken('apiKey', value),
+          'must be an API key of this service’s own grammar (`ezik_` and 43 base64url characters)',
+        ),
+      migrateOnBoot: booleanFromEnv(false),
+      migrationsDir: z.string().min(1).nullable(),
     })
     .safeParse({
-      baseUrl: env.EZPUG_IRON_BASE_URL ?? `http://localhost:${env.EZPUG_IRON_PORT ?? DEFAULT_PORT}`,
+      // `EZPUG_IRON_PUBLIC_URL` is the name the dev contract other projects'
+      // compose files use (docs/operations.md); `EZPUG_IRON_BASE_URL` is the
+      // name this repo's own .env has always used. Same value, one wins.
+      baseUrl:
+        env.EZPUG_IRON_PUBLIC_URL ??
+        env.EZPUG_IRON_BASE_URL ??
+        `http://localhost:${env.EZPUG_IRON_PORT ?? DEFAULT_PORT}`,
       host: env.EZPUG_IRON_HOST ?? '127.0.0.1',
       port: env.EZPUG_IRON_PORT,
       providers: env.EZPUG_IRON_PROVIDERS ?? 'sim',
       rateLimitBurst: env.EZPUG_IRON_RATE_LIMIT_BURST,
       rateLimitPerSecond: env.EZPUG_IRON_RATE_LIMIT_PER_SECOND,
+      bootstrapApiKey: env[BOOTSTRAP_API_KEY_VAR] || null,
+      migrateOnBoot: env.EZPUG_IRON_MIGRATE_ON_BOOT,
+      migrationsDir: env.EZPUG_IRON_MIGRATIONS_DIR || null,
     })
   if (!parsed.success)
     fail(parsed.error.issues, {
-      baseUrl: 'EZPUG_IRON_BASE_URL',
+      baseUrl: env.EZPUG_IRON_PUBLIC_URL ? 'EZPUG_IRON_PUBLIC_URL' : 'EZPUG_IRON_BASE_URL',
       host: 'EZPUG_IRON_HOST',
       port: 'EZPUG_IRON_PORT',
       providers: 'EZPUG_IRON_PROVIDERS',
       rateLimitBurst: 'EZPUG_IRON_RATE_LIMIT_BURST',
       rateLimitPerSecond: 'EZPUG_IRON_RATE_LIMIT_PER_SECOND',
+      bootstrapApiKey: BOOTSTRAP_API_KEY_VAR,
+      migrateOnBoot: 'EZPUG_IRON_MIGRATE_ON_BOOT',
+      migrationsDir: 'EZPUG_IRON_MIGRATIONS_DIR',
     })
   const { rateLimitBurst, rateLimitPerSecond, ...rest } = parsed.data
+  const production = env.NODE_ENV === 'production'
+  // A key the environment carries in clear is a dev convenience and nothing
+  // else; in production keys are minted, shown once and stored hashed.
+  if (production && rest.bootstrapApiKey !== null)
+    throw new Error(
+      `invalid orchestrator configuration (${BOOTSTRAP_API_KEY_VAR}: refused under NODE_ENV=production — ` +
+        'mint a key instead, or set NODE_ENV=development if this is a dev world; the image defaults to production)',
+    )
   return {
     ...rest,
     baseUrl: rest.baseUrl.replace(/\/+$/, ''),
-    production: env.NODE_ENV === 'production',
+    production,
     database: readDatabaseConfig(env),
     redis: readRedisConfig(env),
     rateLimit: { burst: rateLimitBurst, perSecond: rateLimitPerSecond },

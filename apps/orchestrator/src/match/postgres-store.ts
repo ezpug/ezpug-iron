@@ -134,11 +134,11 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
           .orderBy(asc(matches.createdAt))
       ).map(toMatch),
 
-    appendEvent: async (matchId, event, updatedAt) =>
+    appendEvent: async (matchId, event, updatedAt, patch) =>
       executor.transaction(async tx => {
         const [bumped] = await tx
           .update(matches)
-          .set({ seq: sql`${matches.seq} + 1`, updatedAt })
+          .set({ ...patch, seq: sql`${matches.seq} + 1`, updatedAt })
           .where(eq(matches.id, matchId))
           .returning({ seq: matches.seq })
         if (!bumped) throw new Error(`no match ${matchId}`)

@@ -95,9 +95,10 @@ export function createMemoryMatchStore(): MatchStore & {
           .map(copy),
       ),
 
-    appendEvent: (matchId, event, updatedAt) => {
+    appendEvent: (matchId, event, updatedAt, patch) => {
       const row = byId(matchId)
       if (!row) throw new Error(`no match ${matchId}`)
+      if (patch) Object.assign(row, copy(patch))
       row.seq += 1
       row.updatedAt = updatedAt
       const stored: MatchEventRow = { matchId, seq: row.seq, ...copy(event) }

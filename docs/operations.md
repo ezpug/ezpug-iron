@@ -24,13 +24,17 @@ Ports and every setting are decided in `.env.example` and nowhere else. Every na
 | Variable | Default | What |
 | -------- | ------- | ---- |
 | `EZPUG_IRON_BASE_URL` | `http://localhost:3430` | the orchestrator's own public origin — a client's `baseUrl`, what tokens and webhooks are minted against |
+| `EZPUG_IRON_PUBLIC_URL` | — | the same value under the name the dev contract below uses; it wins over `EZPUG_IRON_BASE_URL` when both are set |
 | `EZPUG_IRON_HOST` / `EZPUG_IRON_PORT` | `127.0.0.1` / `3430` | where the process binds; the container sets `0.0.0.0` and compose publishes |
 | `EZPUG_IRON_PROVIDERS` | `sim` | the providers to register, comma-separated (`sim`, `dathost`, `nodes`; T3/T4/T12/T16) |
 | `EZPUG_IRON_DATABASE_URL` | — | `postgres://…`; `EZPUG_IRON_TEST_DATABASE_URL` is the Vitest database beside it |
 | `EZPUG_IRON_DATABASE_POOL_MAX`, `…_IDLE_TIMEOUT`, `…_CONNECT_TIMEOUT`, `…_STATEMENT_TIMEOUT`, `…_LOG` | `10`, `30`, `10`, `15000`, `false` | pool tuning; the statement timeout is what keeps a runaway query from wedging the pool |
 | `EZPUG_IRON_REDIS_URL` | — | `redis://…` |
 | `EZPUG_IRON_RATE_LIMIT_BURST` / `…_PER_SECOND` | `120` / `10` | the per-key token bucket (below) |
-| `NODE_ENV` | — | `production` refuses every dev-only door |
+| `EZPUG_IRON_MIGRATE_ON_BOOT` | `false` | apply pending migrations before the port opens; the image sets it |
+| `EZPUG_IRON_MIGRATIONS_DIR` | beside the code | where the migration SQL is, when it is not (`/app/drizzle` in the image) |
+| `EZPUG_IRON_BOOTSTRAP_API_KEY` | — | **dev only**: adopt an API key with this exact secret at boot (below); refused under `NODE_ENV=production` |
+| `NODE_ENV` | — | `production` refuses every dev-only door; **the image sets it**, so a dev world that pulls the image overrides it with `NODE_ENV=development` |
 
 A missing or malformed variable fails the boot with its name in the message; the process
 pings Postgres and Redis once before it listens, so a wrong URL is a boot failure, never a
@@ -53,8 +57,65 @@ reads. The compose project is `ezpug-iron-dev`, its containers `ezpug-iron-postg
 `ezpug-iron-redis`, published on loopback only, on the ports `.env.example` decides (5443,
 6383 — the platform's world holds 5442 and 6382 on the same box).
 
-Running the orchestrator *inside* another project's dev world (the platform's compose
-pulling this repo's image) is T4's section.
+Running the orchestrator *inside* another project's dev world is the next section.
+
+## The image, and running it inside another project's dev world
+
+```sh
+pnpm image:build   # ghcr.io/ezpug/ezpug-iron/orchestrator:dev, from docker/orchestrator/Dockerfile
+```
+
+`docker/orchestrator/Dockerfile` builds from the repo root: the workspace is installed
+once, `@ezpug/orchestrator` and everything it depends on are built, the internal packages
+are bundled into `dist/main.mjs`, and `pnpm deploy --prod` resolves the npm packages that
+are left. The result runs as **`node` (uid 1000), never root**, exposes **3430**, carries
+its `HEALTHCHECK` (`/healthz` through Node's own `fetch` — the image has no curl) and is
+labelled with the commit it was built from. `pnpm image:build` gives it the local `:dev`
+tag; CI publishes `ghcr.io/ezpug/ezpug-iron/orchestrator:<tag>` (T34), and a tag is
+recorded in `docs/pins.md`.
+
+**The dev contract.** Another project's `pnpm dev:up` — the platform's, today — brings this
+service up beside its own. What it may rely on, and what this repo will not break without
+a release note:
+
+| What | Value |
+| ---- | ----- |
+| image | `ghcr.io/ezpug/ezpug-iron/orchestrator:<tag>` (`:dev` when built locally) |
+| port | `3430` inside the container; publish it where you like |
+| `NODE_ENV` | set it to `development` — the image defaults to `production`, and the bootstrap key is refused there |
+| `EZPUG_IRON_PROVIDERS` | `sim` — the simulator needs nothing else in the world |
+| `EZPUG_IRON_PUBLIC_URL` | the origin *the other project's containers* reach it on (`http://ezpug-iron:3430`), because it is what webhooks, player tokens and a server's link URL are minted against |
+| `EZPUG_IRON_BOOTSTRAP_API_KEY` | an API key of this service's grammar — `ezik_` and 43 base64url characters — that the consumer decides |
+| `EZPUG_IRON_DATABASE_URL` / `EZPUG_IRON_REDIS_URL` | its own Postgres and Redis; the image migrates on boot |
+| `/healthz` | no key, `200` when the rails and the providers answer |
+
+The bootstrap key is the whole reason a compose file can drive this service unattended: a
+minted key is shown **once**, and a compose file has nobody to show it to — so the
+consumer decides the secret, puts it in its environment and the orchestrator *adopts* it
+at boot. It carries `matches`, `fleet` and `admin`, four concurrent servers and a
+four-hour lifetime ceiling — and **no webhook secret**, because the consumer's
+secret is the consumer's: register one with the `admin` scope it already holds
+(`PUT /v1/keys/:keyId/webhook-secrets`) before the first match request names it
+in `callbacks.webhookSecretId`. It is idempotent (a restart adopts the same key), and changing
+the value **revokes** the previous one, so the environment is always the one truth about
+which key the dev world holds. In production the variable fails the boot with its own name
+in the message: mint a key instead.
+
+```yaml
+# the consumer's compose.yaml, in outline
+ezpug-iron:
+  image: ghcr.io/ezpug/ezpug-iron/orchestrator:dev
+  environment:
+    NODE_ENV: development
+    EZPUG_IRON_PUBLIC_URL: http://ezpug-iron:3430
+    EZPUG_IRON_PROVIDERS: sim
+    EZPUG_IRON_BOOTSTRAP_API_KEY: ${EZPUG_IRON_BOOTSTRAP_API_KEY}
+    EZPUG_IRON_DATABASE_URL: postgres://…
+    EZPUG_IRON_REDIS_URL: redis://…
+  ports: ['127.0.0.1:3430:3430']
+```
+
+A key of the right shape is one line: `printf 'ezik_%s\n' "$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')"`.
 
 ## Health
 
@@ -147,7 +208,31 @@ is T14's, and so is the sim's crash door — which is why the conformance flows
 `force_end`, `restore` (`no_backup` this round), `profile` and the state checks are the
 machine's; everything else is relayed down the server's channel (`link/channels.ts`: the
 sim's in-process channel today, the `/link` socket from T6) and answered with what the
-server said. A `sim.*` command is `command_unsupported` until T4. `rcon` needs `admin`.
+server said. `rcon` needs `admin`. The **`sim.*` family** reaches a simulated server and
+nothing else: on any other provider it is `command_unsupported` with the provider named,
+before a channel is ever asked.
+
+**The `sim` provider** (`providers/sim/`, decision 9) is the engine of `packages/sim`
+behind the provider interface: a handle, an address nobody can connect to
+(`sim-1.sim.invalid`), a GOTV relay that does not exist, and — once started — the server
+side of the link, whose events reach the machine through the same sink a real plugin's
+do. Its knobs are Match API commands, answered with the simulator's state after each:
+
+| Command | What it does |
+| ------- | ------------ |
+| `sim.step` | deal the next story beat; `invalid_state` unless the match is in `step` mode. The answer names the beat it dealt (`stepped`), or `null` when the story is dry |
+| `sim.mode` | `auto` plays the story on the clock, `step` arms no timers at all |
+| `sim.speed` | 1 is real time, 60 is a minute of match per second (0.25–600) |
+| `sim.chaos` | delay and duplicate *this* server's deliveries; `null` makes it honest again |
+| `sim.kill` | pull the plug. Status answers `gone`, heartbeats stop, and the machine's loss detector opens the recovery window on its own — nothing announces it, exactly like a box that lost power |
+
+A request's own `sim` block (`scenario`, `seed`, `mode`, `timeScale`, `chaos`) decides
+where a match starts. The story is seeded **per match** (`sim#<matchId>` unless the
+request names a seed), not per server, so a replacement server for a match that lost its
+box tells the same story the dead one did — which is what makes the provider's `restore`
+verb (load a round backup, boot, play on from it) mean anything. Registered when
+`EZPUG_IRON_PROVIDERS` names `sim`, which is the dev default; selection never picks it
+unasked while another provider is registered.
 
 **The reaper** runs every minute: open rows past `expires_at` end their match
 `ttl_expired` (or are deallocated outright when no match holds them); every provider's

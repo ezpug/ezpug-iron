@@ -211,7 +211,7 @@ every offline proof here.
   provider — the round's first extended-tier gate. References: the platform files in
   Findings (walk, machine, reaper, probe), `packages/match-api`.
 
-- [ ] **T4: The sim provider and the dev image.** `packages/sim` behind the provider
+- [x] **T4: The sim provider and the dev image.** `packages/sim` behind the provider
   interface (`sim.*` commands allowed only on its servers; `timeScale`, `step`, `chaos`,
   `kill`, `restore`), registered when `EZPUG_IRON_PROVIDERS` includes `sim` (dev default).
   `docker/orchestrator/Dockerfile` (multi-stage, non-root, healthcheck) and the **dev
