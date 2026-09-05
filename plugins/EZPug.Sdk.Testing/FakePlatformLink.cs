@@ -6,7 +6,9 @@ namespace EZPug.Sdk.Testing;
 
 /// <summary>
 /// <b>The link without a socket.</b> Records every event a mode emitted (stamped, as the
-/// wire would carry it) and every state, backup and console frame; a test pushes the
+/// wire would carry it) in <see cref="Events"/> — position ticks apart, which are
+/// ephemeral on the wire and land in <see cref="Ticks"/> so a story's event list stays
+/// exact — and every state, backup and console frame; a test pushes the
 /// orchestrator's side in — <see cref="Assign"/>, <see cref="Release"/>, <see cref="Command"/>,
 /// <see cref="PlayerCommand"/>, <see cref="PushProfile"/> — and reads the answer back.
 /// Delivery is synchronous: a pushed frame reaches the handler before the call returns,
@@ -24,6 +26,8 @@ public sealed class FakePlatformLink : IPlatformLink
     public IPlatformLinkHandler? Handler { get; set; }
 
     public List<GameserverEvent> Events { get; } = [];
+    /// <summary>The position ticks the runtime streamed, apart from the durable events.</summary>
+    public List<PositionTickEvent> Ticks { get; } = [];
     public List<StateServerFrame> States { get; } = [];
     public List<BackupServerFrame> Backups { get; } = [];
     public List<ConsoleServerFrame> Consoles { get; } = [];
@@ -36,7 +40,17 @@ public sealed class FakePlatformLink : IPlatformLink
     /// <summary>The event types emitted, in order — the shape of a story.</summary>
     public IReadOnlyList<string> EventTypes => Events.Select(gameserverEvent => gameserverEvent.Discriminator).ToList();
 
-    public void Emit(GameserverEvent gameserverEvent) => Events.Add(gameserverEvent);
+    public void Emit(GameserverEvent gameserverEvent)
+    {
+        if (gameserverEvent is PositionTickEvent tick)
+        {
+            Ticks.Add(tick);
+        }
+        else
+        {
+            Events.Add(gameserverEvent);
+        }
+    }
 
     public void ReportState(LinkServerState state, string? matchId = null, string? detail = null) =>
         States.Add(new StateServerFrame { State = state, MatchId = matchId, Detail = detail });

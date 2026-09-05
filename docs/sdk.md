@@ -17,7 +17,7 @@ write:
 | ---- | ---------- | ---------- | ---- |
 | `IGameWorld` | players (SteamID64, slot, team, alive, position), say/print/center/HUD, give/strip, respawn, health/armor/speed, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, bomb, chat, map, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
 | `IPlatformLink` | emit an event, report state, send a backup or a console tail; receive assignment, commands, player commands, profiles through `IPlatformLinkHandler` | `LinkClient` — one outbound WebSocket to `/link` | `FakePlatformLink` |
-| `IClock` | monotonic milliseconds and timers; the only time a mode may read | `SystemClock` for the link's threads; the game-thread clock the core plugin builds on CounterStrikeSharp's timers for a mode | `FakeClock` |
+| `IClock` | monotonic milliseconds and timers; the only time a mode may read | `SystemClock` for the link's threads; `GameThreadClock` for a mode — the core plugin fires its timers from the engine's tick | `FakeClock` |
 | `GamemodeRuntime` | the link's handler and the world's listener, routing both to the attached mode; stamps the per-match `seq`; emits the plumbing and gameplay events once | owned by the core plugin | owned by `GamemodeTestHost` |
 
 A mode never sees a CounterStrikeSharp type. When a mode needs a verb the seam lacks, the
@@ -100,8 +100,8 @@ own test for its lines, and a mode should assert the same for its pair.
 
 | Hook | When | Notes |
 | ---- | ---- | ----- |
-| `OnAssigned(Assignment)` | the orchestrator assigned a match | plugins are enabled and cfg exec'd by the host first; the map may still be loading. `Assignment` holds the manifest, the map plan, the rules, the roster with profiles and loadouts, warmup lines, branding, the demo URL, and `Restore` when the match resumes here |
-| `OnStart()` | the first map is up; `server_ready` was emitted | go |
+| `OnAssigned(Assignment)` | the orchestrator assigned a match | the host has enabled the plugins and asked for the map, which is still loading; the cfg and cvars land when the map is up, before `OnStart`. `Assignment` holds the manifest, the map plan, the rules, the roster with profiles and loadouts, warmup lines, branding, the demo URL, and `Restore` when the match resumes here |
+| `OnStart()` | the first map is up; the host's cfg and cvars are applied; `server_ready` was emitted | go |
 | `OnPlayerJoined/Left(IGamePlayer)` | a connect / disconnect, bots included | the vocabulary event is emitted for humans by the runtime |
 | `OnPlayerSpawned(IGamePlayer)` | a spawn | `life` charges refill here |
 | `OnPlayerDied(PlayerDeath)` | a death | `player_death` is emitted by the runtime |
@@ -144,6 +144,19 @@ round, `side_swap` swaps the sides.
 
 Every event a mode emits is stamped with the per-match `seq` hint (position ticks are
 not: they are ephemeral) and the link gives it the per-server link `seq`.
+
+**Position ticks** are the runtime's too: every `GamemodeRuntime.PositionTickIntervalMs`
+(100 ms) while a match is assigned, the manifest's `positions` capability is on and the
+link is up, the alive players' positions go out as one `position_tick` — unsequenced, and
+never buffered for a link that is down, so an outage does not come back as a flood. The
+harness keeps them apart from the story (`FakePlatformLink.Ticks`, not `Events`), so a
+test's exact event list stays exact.
+
+**Bots** have no SteamID64, and the vocabulary insists on one: `BotIdentity.SteamId64Of(slot)`
+names a bot `90000000000000000 + slot`, stable for its connection and outside anything Steam
+issues; `BotIdentity.IsBot(id)` reads it back. The core plugin applies it, the harness may
+(`World.Connect(BotIdentity.SteamId64Of(1), "Bot Cliff", bot: true)`), and a bot's death is a
+real `player_death`.
 
 ## Player commands
 
@@ -230,11 +243,37 @@ the link records every event, state and answer; the clock only moves when the te
 `Link.Assign`, `Link.Command`, `Link.PlayerCommand`, `Link.PushProfile`, `Link.Release`.
 Nothing here needs CS2, Steam or a network, and a full match runs in milliseconds.
 
-## What the core plugin adds (PRD-02 T8)
+## The host: `EZPug.Core` and the runtime's host hooks
 
-The SDK has no CounterStrikeSharp code path yet. `EZPug.Core` — the plugin every server
-runs — provides the `IGameWorld` and `IClock` over CounterStrikeSharp, reads the sidecar,
-runs the `LinkClient`, owns the `GamemodeRuntime` and the gamemode loader (the runtime's
-`Assigned`/`Released` events: `css_plugins load`, exec, cvars, the map), and exposes the
-runtime to gamemode plugins through CounterStrikeSharp's shared plugin API so a hot-loaded
-mode calls `Attach`. A mode attached after the assignment hears `OnAssigned` at once.
+`EZPug.Core` — the plugin every server runs (PRD-02 T8, `plugins/README.md`) — provides
+`IGameWorld` and the game-thread `IClock` over CounterStrikeSharp, reads the sidecar, runs
+the `LinkClient`, owns the one `GamemodeRuntime`, and is the gamemode loader. The loader
+hangs off three host events on the runtime, in the order a match goes through them:
+
+| Hook | When | What the core does there |
+| ---- | ---- | ------------------------ |
+| `Assigned(Assignment)` | `assign` arrived, before the mode's `OnAssigned` | hostname, `css_plugins load` for each plugin the assignment names, `changelevel` / `host_workshop_map` to the first map |
+| `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow |
+| `Released(reason)` | after the mode's `OnEnd`, its timers and state cleared | `css_plugins unload` in reverse, the lobby map, then the runtime says `idle` |
+
+A mode never needs these; a second host (the harness is one) hooks the same three.
+
+**A gamemode plugin** is the mode plus a CounterStrikeSharp shell, and the shell is
+written once in `EZPug.Sdk.Hosting`: derive from `GamemodePlugin`, name the module, return
+the mode. It finds the core's runtime through `GamemodeHost` — a CounterStrikeSharp
+`PluginCapability` the core publishes — on load (or once every plugin has loaded, if the
+core came later) and attaches; a mode attached after the assignment hears `OnAssigned` at
+once, and `OnStart` if the map is already up.
+
+```csharp
+public sealed class PowerupDmPlugin : GamemodePlugin
+{
+    public override string ModuleName => "EZPug.PowerupDm";
+    public override string ModuleVersion => "0.1.0";
+    protected override Gamemode CreateMode() => new PowerupDm();
+}
+```
+
+The capability is keyed by a type in the SDK, which is why `EZPug.Sdk.dll` is installed
+once under `addons/counterstrikesharp/shared/` and never beside a plugin — one assembly,
+one type, one host. `plugins/README.md` draws the layout and says how to install by hand.

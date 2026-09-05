@@ -261,7 +261,7 @@ every offline proof here.
   starts: how to write a mode in fifty lines. References: decision 5 and the "SDK is the
   product" attitude, CounterStrikeSharp docs in Findings, the legacy `FiveStack.Events`.
 
-- [ ] **T8 (fable): `EZPug.Core` — the plugin every server runs.** The thin CounterStrikeSharp
+- [x] **T8 (fable): `EZPug.Core` — the plugin every server runs.** The thin CounterStrikeSharp
   shell over the SDK: boot → read sidecar → link → `hello`; `assign` → **the gamemode
   loader** (enable the manifest's plugins with `css_plugins load`, exec its cfg, set its
   cvars, `changelevel`/`host_workshop_map`, write the MatchZy config and `matchzy_loadmatch`

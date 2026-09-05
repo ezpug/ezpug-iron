@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    EZPug.Core: the plugin every server runs (PRD-02 T8) — the thin CounterStrikeSharp
+    shell over EZPug.Sdk. It provides the SDK's seams for the real game (the world, a
+    game-thread clock), reads the sidecar, runs the link client, owns the one
+    GamemodeRuntime, enables what a manifest names (the loader), and publishes the
+    runtime to gamemode plugins through the shared host capability. Nothing here is a
+    gamemode; everything two modes would both need is in the SDK.
+
+    Installed as plugins/EZPug.Core/ with EZPug.Sdk.dll *not* beside it: the SDK is the
+    shared contract every EZPug plugin resolves from shared/EZPug.Sdk/ (plugins/README.md).
+    `Private=false` on the reference keeps the build output honest about that.
+  -->
+  <PropertyGroup>
+    <RootNamespace>EZPug.Core</RootNamespace>
+    <AssemblyName>EZPug.Core</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CounterStrikeSharp.API" Version="$(CounterStrikeSharpApiVersion)" />
+    <ProjectReference Include="../EZPug.Sdk/EZPug.Sdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EZPug.Core.Tests" />
+  </ItemGroup>
+</Project>

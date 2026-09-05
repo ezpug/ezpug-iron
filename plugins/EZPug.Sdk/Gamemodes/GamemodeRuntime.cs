@@ -14,7 +14,12 @@ namespace EZPug.Sdk;
 /// (a plugin hot-loaded by the loader) gets <c>OnAssigned</c> the moment it attaches.</item>
 /// <item>the world's hooks → the vocabulary (<c>player_connected</c>, <c>player_death</c>,
 /// <c>bomb_*</c>, <c>chat_*</c>, <c>server_ready</c>) emitted once here, and the mode's
-/// hooks; match-flow events are the flow owner's and never emitted here.</item>
+/// hooks; match-flow events are the flow owner's and never emitted here. The map coming
+/// up runs the host's <see cref="MapLoaded"/> (cfg, cvars, the match config) <i>before</i>
+/// <c>server_ready</c> is emitted, so a mode's <c>OnStart</c> sees the server configured.</item>
+/// <item>position ticks every <see cref="PositionTickIntervalMs"/> while a match is assigned,
+/// the manifest asks for <c>positions</c> and the link is up — ephemeral, unsequenced,
+/// never buffered for a link that is down.</item>
 /// <item><c>player_command</c> and <c>!verb</c> in chat → the <see cref="CommandTable"/> →
 /// the mode → the verdict back.</item>
 /// <item><c>release</c> → the mode's <c>OnEnd</c>, its timers and player state cleared, the
@@ -33,6 +38,10 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     private Gamemode? _mode;
     private LinkServerState _state = LinkServerState.Booting;
     private bool _mapReady;
+    private IClockTimer? _positionTicker;
+
+    /// <summary>How often positions are streamed while a match is assigned and the mode asks for them.</summary>
+    public const long PositionTickIntervalMs = 100;
 
     public GamemodeRuntime(IGameWorld world, IPlatformLink link, ILinkLog? log = null)
     {
@@ -72,8 +81,11 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     /// <summary>The server's state as the link reports it.</summary>
     public LinkServerState State => _state;
 
-    /// <summary>The host's loader: enable the plugins, exec the cfg, set the cvars, change the map. Runs before the mode's <c>OnAssigned</c>.</summary>
+    /// <summary>The host's loader: enable the plugins, change the map, set the hostname. Runs before the mode's <c>OnAssigned</c>.</summary>
     public event Action<Assignment>? Assigned;
+
+    /// <summary>The host's map hook: the assigned match's map is up — exec the cfg, set the cvars, load the match config. Runs before <c>server_ready</c> is emitted and before the mode's <c>OnStart</c>.</summary>
+    public event Action<Assignment, string>? MapLoaded;
 
     /// <summary>The host's unloader, after the mode's <c>OnEnd</c>.</summary>
     public event Action<string?>? Released;
@@ -225,7 +237,32 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             }
         }
 
+        ArmPositionTicker(assignment);
         SetState(LinkServerState.Assigned, "plugins loaded");
+    }
+
+    private void ArmPositionTicker(Assignment assignment)
+    {
+        _positionTicker?.Cancel();
+        _positionTicker = null;
+        if (!assignment.Gamemode.Capabilities.Positions)
+        {
+            return;
+        }
+
+        _positionTicker = World.Clock.Every(PositionTickIntervalMs, () =>
+        {
+            if (Assignment is null || !Link.Connected)
+            {
+                return;
+            }
+
+            var tick = Facts.PositionTick(World.Players);
+            if (tick.Positions.Count > 0)
+            {
+                Emit(tick);
+            }
+        });
     }
 
     public void OnRelease(string? reason)
@@ -243,6 +280,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         finally
         {
             ClearModeState();
+            _positionTicker?.Cancel();
+            _positionTicker = null;
             Commands = null;
             var released = reason;
             Assignment = null;
@@ -347,6 +386,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
         _mapReady = true;
         Commands?.Reset(PlayerCommandChargePeriod.Map);
+        MapLoaded?.Invoke(Assignment, map);
         Emit(Facts.ServerReady(map));
         Active?.OnStart();
     }
@@ -522,6 +562,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     public void Dispose()
     {
         Detach();
+        _positionTicker?.Cancel();
+        _positionTicker = null;
         _stateClearers.Clear();
         _playerLeavers.Clear();
         World.MapStarted -= OnMapStarted;

@@ -16,6 +16,7 @@
     "boundaries": "turbo boundaries",
     "release": "node scripts/release.mjs",
     "dev": "turbo run dev --filter=@ezpug/orchestrator",
+    "plugins:publish": "./plugins/publish.sh",
     "image:build": "docker build -f docker/orchestrator/Dockerfile --build-arg EZPUG_GIT_SHA=$(git rev-parse --short HEAD) -t ghcr.io/ezpug/ezpug-iron/orchestrator:dev .",
     "dev:up": "./scripts/dev-env.sh up",
     "dev:down": "./scripts/dev-env.sh down",

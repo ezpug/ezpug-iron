@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The core plugin's tests: the loader, the catalog, the game-thread clock, the status
+    line, the hello, the restore door — everything in EZPug.Core that is not a
+    CounterStrikeSharp call, run on the SDK's harness. The CounterStrikeSharp adapters
+    (CounterStrikeWorld, CorePlugin) need the engine and are checked on the dev server
+    (PRD-02 T10/T13).
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../EZPug.Core/EZPug.Core.csproj" />
+    <ProjectReference Include="../EZPug.Sdk/EZPug.Sdk.csproj" />
+    <ProjectReference Include="../EZPug.Sdk.Testing/EZPug.Sdk.Testing.csproj" />
+  </ItemGroup>
+</Project>
