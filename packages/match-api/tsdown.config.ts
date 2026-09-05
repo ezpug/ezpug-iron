@@ -2,11 +2,13 @@ import { defineConfig } from 'tsdown'
 
 /**
  * The published build: one ESM bundle per entry point with its `.d.ts`.
- * `zod` stays external (a dependency and a peer, so the platform's own zod is
- * the one the schemas run on); `@ezpug/core` and `@ezpug/gamemodes` (the
- * manifests, as data) are *bundled* — they are private to this repo, and a
- * consumer must never need them (`turbo.json`'s `published` tag says the same
- * thing about the dependency edge).
+ * `zod` and `hono` stay external (dependencies and peers, so the platform's
+ * own copies are the ones the schemas and the fake's app run on; `ws` and
+ * `@hono/node-server` are optional and loaded on demand by `listen()`).
+ * `@ezpug/core`, `@ezpug/gamemodes` (the manifests, as data) and `@ezpug/sim`
+ * (the engine inside the fake) are *bundled* — they are private to this repo,
+ * and a consumer must never need them (`turbo.json`'s `published` tag says
+ * the same thing about the dependency edge).
  */
 export default defineConfig({
   entry: {
@@ -14,11 +16,14 @@ export default defineConfig({
     'client/index': 'src/client/index.ts',
     'webhooks/index': 'src/webhooks/index.ts',
     'fixtures/index': 'src/fixtures/index.ts',
+    'fake/index': 'src/fake/index.ts',
   },
   format: 'esm',
   platform: 'neutral',
-  dts: true,
+  // `eager`: emit every declaration with the TypeScript compiler up front, so
+  // the bundled packages' `export *` re-exports resolve in the `.d.ts` too.
+  dts: { eager: true },
   sourcemap: true,
   clean: true,
-  noExternal: [/^@ezpug\/(?:core|gamemodes)(\/.*)?$/],
+  deps: { alwaysBundle: [/^@ezpug\/(?:core|gamemodes|sim)(\/.*)?$/] },
 })

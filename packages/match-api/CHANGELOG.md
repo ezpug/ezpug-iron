@@ -19,3 +19,9 @@ A change to a schema is a release with a line here (decisions 3, 24).
 - `@ezpug/match-api/webhooks`: `signWebhook`, `verifyWebhookSignature`, the envelope, the
   facts and the retry constants.
 - `@ezpug/match-api/fixtures`: one valid event per type, one valid fact per type, `envelopeFixture`.
+- `@ezpug/match-api/fake`: `createFakeOrchestrator({ clock, prng?, gamemodes?, providers?,
+  webhooks?, fetch? })` — every route in-process (`fake.client`) and as a Hono app
+  (`fake.handler`, `fake.listen()` with the stream as a `ws` upgrade), matches played by the
+  simulator engine, signed webhooks on the published retry schedule, the stream, ledger and
+  budgets that refuse, `sim.*` commands, the fault knobs, `playerCommand` for the widget
+  round trip. `hono` becomes a peer dependency; `ws` and `@hono/node-server` optional.

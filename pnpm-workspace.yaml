@@ -25,3 +25,9 @@ catalog:
   zod: ^4.4.3
   tsdown: ^0.22.14
   "@types/node": ^22.18.0
+  # The fake orchestrator (`@ezpug/match-api/fake`) is a Hono app; `listen()`
+  # serves it over Node HTTP with the stream as a `ws` upgrade (PRD-01 T6).
+  hono: ^4.13.3
+  "@hono/node-server": ^2.1.1
+  ws: ^8.18.0
+  "@types/ws": ^8.18.1

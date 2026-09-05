@@ -493,6 +493,105 @@ origin of a browser socket must be in the request's `callbacks.streamAllowedOrig
 token for another match, origin), `4004` no such match, `4008` slow consumer (frames were
 dropped; reconnect and replay). Reconnect on a network close (`1006`), never on these.
 
+## The fake
+
+`@ezpug/match-api/fake` is the orchestrator without a network: every route of the table,
+in-process and over HTTP, matches played by the simulator engine on an injected clock,
+webhooks signed with the scheme above and retried on the schedule above, the stream as a
+subscription and as a WebSocket upgrade, a ledger and budgets that refuse. The platform's
+tests and its history seed run on it; the conformance suite runs on it first and on the
+real orchestrator second, and where the two disagree the recorded fixture decides.
+
+```ts
+import { createFakeClock } from '@ezpug/core'          // or any { now, date, after, at, sleep }
+import { createFakeOrchestrator } from '@ezpug/match-api/fake'
+
+const clock = createFakeClock()
+const fake = createFakeOrchestrator({ clock, webhooks: { deliver: request => 200 } })
+const { secret } = fake.mintKey({
+  name: 'platform', scopes: ['matches'],
+  budget: { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 0 },
+  webhookSecrets: [{ id: 'whsec-test', secret: 'a-test-secret-of-at-least-thirty-two-chars' }],
+})
+const client = fake.client(secret)                     // the same surface as the HTTP client
+const match = await client.matches.create({ body: request })
+await fake.playOut()                                   // the whole Bo1, its webhooks, their retries
+```
+
+**Doors.** `fake.client(apiKey)` is the typed in-process client (`ApiClient<typeof
+matchApiRoutes>`, interchangeable with `createMatchApiClient`). `fake.handler` is a Hono app
+with every route, for `handler.request()` in a test or mounting anywhere. `fake.listen()`
+serves it over Node HTTP on a free port and performs the stream upgrade with `ws`; close it
+before the test ends. `fake.stream({ matchId, apiKey | token }, onFrame, onClose)` is the
+stream in-process. `fake.admin` is a root `admin` key minted at creation; `fake.mintKey()`
+mints without the route. Every refusal is an `ApiError` with the code and status from the
+error table.
+
+**Options.** `clock` (required) and `prng` (seeded `ezpug-fake` by default) decide
+everything: ids, tokens, passwords, timings. `gamemodes` overrides the catalog (default:
+the four shipped manifests). `providers.sim` shapes the one provider: `capacity` (8),
+`region` (`sim`), `hourlyCents` (0, so a monthly ceiling can be reached when set),
+`allocateDelayMs` (1 s), `bootDelayMs` (4 s), `heartbeatIntervalMs` (10 s),
+`positionTickIntervalMs` (5 s), `readyTimeoutMs` (120 s), `heartbeatTimeoutMs` (30 s),
+`recoveryTimeoutMs` (5 min), `autoRecover` (true), `tvDelaySeconds` (90). `webhooks.deliver`
+receives every POST (`{ url, headers, body, envelope, attempt }`) and answers a status;
+without it the fake POSTs with `fetch` (injectable, also used for the demo `PUT`).
+`gsltTotal` fills `GET /v1/fleet/gslt`. `onError` hears what went wrong off the request path.
+
+**How a match plays.** Create writes the ledger row and answers `allocating`; after
+`allocateDelayMs` the provider answers (`match.allocated`, `serverId` `sim-N`, host
+`sim-N.sim.invalid`, ports 27015 and 27020) and the engine is assigned; after `bootDelayMs`
+`server_ready` arrives and the match is `ready` (`match.server_ready` with a `fake-join-…`
+password); `going_live` makes it `live`; every durable event is an envelope, every
+`player_connected` is followed by `player.joined` (`rostered: false` for a player the fake
+invented to fill an open-join roster), a `demo_available` on a `records: demo` mode is
+followed by the `PUT` to `demoUploadUrl` and `demo.uploaded` with the recording's real size
+and SHA-256; `series_end` ends the match `completed`, the row is released and
+`match.ended` is the last envelope. `ttlMinutes` ends it `ttl_expired` regardless. A server
+that says nothing for `heartbeatTimeoutMs` is lost: `match.recovering` with the newest
+backup's round, a new row and server, `match.allocated`, `match.server_ready`, then
+`match.recovered` on its `going_live` — or `match.failed` `server_lost` when there is no
+backup. With `autoRecover: false` the match waits in `recovering` for a `restore` command.
+
+Everything of one match runs in order on one queue, so the envelope order does not depend
+on how the clock is advanced; `fake.playOut()` (fake clock only) runs timers and in-flight
+work until the world is quiet, `fake.settle()` waits for in-flight work alone. Same clock,
+seed and options: same envelopes, same deliveries — the recorded fixtures rely on it.
+
+**Commands on a simulated server.** `announce` is echoed as a `plugin_event`
+`chat_announced`; `pause` parks the story (and the loss detector) and emits `match_paused`,
+`unpause` resumes with `match_unpaused`; `force_end` ends `force_ended`; `kick` removes a
+present player (`player_disconnected`, `player.left`); `profile` teaches the server a
+player; `restore` works while `recovering`; `restart_round`, `reroll` and `rcon` are
+`command_unsupported` (a scripted story cannot restart, a sim has no RCON); the `sim.*`
+family drives the engine and answers with its `sim` status (`sim.step` also `stepped`).
+Every result is also a `command_result` frame. A `correlationId` seen before returns the
+first result.
+
+**Fault knobs** (`providers.faults` at creation, `fake.setFaults()` later): `allocationRefused`
+(every create is `no_capable_server`, no row), `bootNeverEnds` (the ready deadline fails the
+match `provider_error`), `crash: { afterRound, backup }` (the server dies after that round's
+`round_end`; with `backup: false` the match fails `server_lost`), `webhookDuplicates` (every
+delivery POSTed twice, same `deliveryId`), `webhookOutOfOrder` (even `seq`s wait a second so
+odd ones overtake them), `webhookFailures: N` (the next N attempts fail with a synthetic 503
+before reaching the endpoint), `providerDown` (creates are `provider_unavailable`, capacity
+unhealthy, every open match hears `fleet.provider_unreachable`; `fake.providerDownFor(ms)`
+clears it on the clock). `fake.deliveries(matchId?)` lists every attempt with its status
+and outcome.
+
+**The widget door, until PRD-02 builds the socket.** `fake.playerCommand({ token, command,
+args? })` takes a player token and a command the gamemode's manifest declares and answers
+with the `plugin_event` the fake's plugin emits: `name: "player_command"`, `data: { command,
+steamId64, name?, args? }`. Cooldowns and charges are not enforced here; the SDK does that.
+
+What is refused at the door, in order: idempotent replay or `conflict` on `clientMatchId`;
+`validation_failed` for a `webhookSecretId` not registered on the key or an unknown
+`sim.scenario`; `unknown_gamemode`; `no_capable_server` for `csgo`; `game_unsupported`;
+`map_not_allowed`; `budget_exceeded` (concurrent, then lifetime, then monthly when the
+provider has a price); `no_capable_server` for `lan`, another `provider`, another `region`,
+a drained provider, `allocationRefused` or exhausted capacity; `provider_unavailable` while
+down.
+
 ## Invented here
 
 Fields and shapes with no counterpart in the platform on 2026-09-05. The platform loop
@@ -523,3 +622,10 @@ reads this list first; everything not on it is a copy.
   (`accepted | duplicate | ephemeral`, `applied`) stays on the plugin↔orchestrator side.
 - The stream frames (`hello`, `event`, `tick`, `command_result`, `presence`), `?token=`
   for browsers and the close codes. The platform's own realtime channels are unrelated.
+- The fake (`@ezpug/match-api/fake`), whole: its options and fault knobs, the `sim`
+  provider's facts (`sim-N`, `sim-N.sim.invalid`, region `sim`), the invented open-join
+  roster rule, the `player_command` plugin event and `playerCommand`, the `fake-key-`,
+  `fake-player-token-`, `fake-node-token-` and `fake-join-` secret prefixes
+  (`FAKE_SECRET_PREFIXES`, what a fixture scrub greps for). The platform's simulator
+  provider had `step`/`mode`/`speed`/`chaos`/`kill` handles; here they are the `sim.*`
+  commands of the Match API.

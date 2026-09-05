@@ -6,9 +6,18 @@ settings:
 
 catalogs:
   default:
+    '@hono/node-server':
+      specifier: ^2.1.1
+      version: 2.1.1
     '@types/node':
       specifier: ^22.18.0
       version: 22.20.1
+    '@types/ws':
+      specifier: ^8.18.1
+      version: 8.18.1
+    hono:
+      specifier: ^4.13.3
+      version: 4.13.7
     tsdown:
       specifier: ^0.22.14
       version: 0.22.14
@@ -18,6 +27,9 @@ catalogs:
     vitest:
       specifier: ^4.1.11
       version: 4.1.11
+    ws:
+      specifier: ^8.18.0
+      version: 8.21.3
     zod:
       specifier: ^4.4.3
       version: 4.5.4
@@ -46,6 +58,9 @@ importers:
 
   packages/match-api:
     dependencies:
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.7
       zod:
         specifier: 'catalog:'
         version: 4.5.4
@@ -56,9 +71,15 @@ importers:
       '@ezpug/gamemodes':
         specifier: workspace:*
         version: link:../../gamemodes
+      '@ezpug/sim':
+        specifier: workspace:*
+        version: link:../sim
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
       tsdown:
         specifier: 'catalog:'
         version: 0.22.14(typescript@5.9.3)
@@ -68,6 +89,13 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1))
+    optionalDependencies:
+      '@hono/node-server':
+        specifier: 'catalog:'
+        version: 2.1.1(hono@4.13.7)
+      ws:
+        specifier: 'catalog:'
+        version: 8.21.3
 
   packages/sim:
     dependencies:
@@ -148,6 +176,12 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@hono/node-server@2.1.1':
+    resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      hono: ^4
 
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
@@ -301,6 +335,9 @@ packages:
 
   '@types/node@22.20.1':
     resolution: {integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitest/expect@4.1.11':
     resolution: {integrity: sha512-VX2x5vNJXET47KAFzwERI+KRMtTTCSWTfSMKsW7JsUsXV4psq++e3DvZpuTDOpHcxytiDs6p2nhVb2tVDiiUYw==}
@@ -532,6 +569,10 @@ packages:
   get-tsconfig@5.0.0-beta.5:
     resolution: {integrity: sha512-/6gFNr0N04nob252sTQxyFLi3eKFRqIg1I87YcqAMT1i6SQrSF6KujUEQrtrjMV0H/eejTCltLdDSTEMzHbnsQ==}
     engines: {node: '>=20.20.0'}
+
+  hono@4.13.7:
+    resolution: {integrity: sha512-c8/gF9ac8Y78/agExVocyLevgR+JlpNB444Py0FSX8pJoPdYUfUzRcXtYEYGwt6l19qIlVZPN5Mfsw9jFShmQQ==}
+    engines: {node: '>=16.9.0'}
 
   hookable@6.1.1:
     resolution: {integrity: sha512-U9LYDy1CwhMCnprUfeAZWZGByVbhd54hwepegYTK7Pi5NvqEj63ifz5z+xukznehT7i6NIZRu89Ay1AZmRsLEQ==}
@@ -844,6 +885,18 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
+  ws@8.21.3:
+    resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   yuku-ast@0.8.7:
     resolution: {integrity: sha512-h6+4bDfyootiMB9vckk5uKo5r5j0GHrkr17FQTDNfEsFT3DWlN9uu1HJwQwc64pgmLCI945fWM3lbTIqxjT3GQ==}
 
@@ -891,6 +944,11 @@ snapshots:
     optional: true
 
   '@biomejs/cli-win32-x64@2.5.12':
+    optional: true
+
+  '@hono/node-server@2.1.1(hono@4.13.7)':
+    dependencies:
+      hono: 4.13.7
     optional: true
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
@@ -980,6 +1038,10 @@ snapshots:
   '@types/node@22.20.1':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.20.1
 
   '@vitest/expect@4.1.11':
     dependencies:
@@ -1132,6 +1194,8 @@ snapshots:
   get-tsconfig@5.0.0-beta.5:
     dependencies:
       resolve-pkg-maps: 1.0.0
+
+  hono@4.13.7: {}
 
   hookable@6.1.1: {}
 
@@ -1353,6 +1417,9 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  ws@8.21.3:
+    optional: true
 
   yuku-ast@0.8.7:
     dependencies:

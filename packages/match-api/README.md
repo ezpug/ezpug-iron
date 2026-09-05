@@ -10,7 +10,7 @@ fixtures and an in-process fake orchestrator.
 pnpm add @ezpug/match-api zod
 ```
 
-Four entry points:
+Five entry points:
 
 - `@ezpug/match-api` — every schema and type: `gameserverEventSchema`,
   `matchRequestSchema`, `matchSchema`, `matchCommandSchema`, the fleet shapes, the
@@ -23,6 +23,10 @@ Four entry points:
   policy as constants.
 - `@ezpug/match-api/fixtures` — one valid event and one valid fact per type, and the
   recorded conformance fixtures once they exist.
+- `@ezpug/match-api/fake` — `createFakeOrchestrator({ clock, ... })`: every route in-process
+  (`fake.client(apiKey)`) and as a Hono app (`fake.handler`, `fake.listen()`), matches played
+  by the simulator engine on your clock, real webhook signatures and retries, the stream,
+  fault knobs. What your tests run against.
 
 ```ts
 import { createMatchApiClient } from '@ezpug/match-api/client'
@@ -62,3 +66,17 @@ const envelope = webhookEnvelopeSchema.parse(JSON.parse(rawBody))
 The reference is [`docs/match-api.md`](https://github.com/ezpug/ezpug-iron/blob/main/docs/match-api.md)
 in the repo. A change to a schema is a semver release with a changelog line, never a
 silent edit.
+
+```ts
+import { createFakeClock } from '@ezpug/core'
+import { createFakeOrchestrator } from '@ezpug/match-api/fake'
+
+const clock = createFakeClock()
+const fake = createFakeOrchestrator({ clock, webhooks: { deliver: () => 200 } })
+const { secret } = fake.mintKey({ name: 'test', scopes: ['matches'], budget, webhookSecrets })
+const match = await fake.client(secret).matches.create({ body: request })
+await fake.playOut() // a whole Bo1 in milliseconds
+```
+
+`hono` is a peer dependency (the fake is a Hono app); `ws` and `@hono/node-server` are
+optional and only loaded by `fake.listen()`.

@@ -24,6 +24,7 @@
     "./client": "./src/client/index.ts",
     "./webhooks": "./src/webhooks/index.ts",
     "./fixtures": "./src/fixtures/index.ts",
+    "./fake": "./src/fake/index.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -45,6 +46,10 @@
         "types": "./dist/fixtures/index.d.ts",
         "import": "./dist/fixtures/index.js"
       },
+      "./fake": {
+        "types": "./dist/fake/index.d.ts",
+        "import": "./dist/fake/index.js"
+      },
       "./package.json": "./package.json"
     }
   },
@@ -54,17 +59,25 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "hono": "catalog:",
     "zod": "catalog:"
   },
   "peerDependencies": {
+    "hono": "^4.13.3",
     "zod": "^4.4.0"
   },
   "devDependencies": {
     "@ezpug/core": "workspace:*",
     "@ezpug/gamemodes": "workspace:*",
+    "@ezpug/sim": "workspace:*",
     "@types/node": "catalog:",
+    "@types/ws": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "optionalDependencies": {
+    "@hono/node-server": "catalog:",
+    "ws": "catalog:"
   }
 }
