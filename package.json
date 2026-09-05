@@ -11,7 +11,7 @@
     "test": "turbo run test",
     "lint": "biome check --error-on-warnings . && ./scripts/lint/guard-selftest.sh",
     "lint:fix": "biome check --write .",
-    "verify": "turbo run typecheck lint test && turbo boundaries",
+    "verify": "turbo run build typecheck lint test && turbo boundaries",
     "verify:extended": "./scripts/verify-extended.sh",
     "boundaries": "turbo boundaries"
   },

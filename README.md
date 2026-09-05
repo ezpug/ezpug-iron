@@ -37,7 +37,7 @@ pnpm verify            # typecheck + lint + test over TS and C#, then turbo boun
 pnpm verify:extended   # the same, plus the suites that need a running world
 ```
 
-`pnpm verify` is the definition of green: strict `tsc` per package, one Biome run over the
+`pnpm verify` is the definition of green: the published package's build (`tsdown`), strict `tsc` per package, one Biome run over the
 repo with the lint guards in `scripts/lint/` (the determinism guard makes a bare
 `Date.now()`, `new Date()`, `Math.random()` or `setTimeout` an error outside
 `packages/core`; the waiting-budget guard refuses `vi.waitFor` in tests), Vitest per

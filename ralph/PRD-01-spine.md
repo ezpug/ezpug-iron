@@ -155,7 +155,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   Dathost). `README.md` says how to run it. References: CLAUDE.md, the platform's tooling
   files named in Findings.
 
-- [ ] **T2 (fable): `@ezpug/match-api` — the vocabulary and the resources.**
+- [x] **T2 (fable): `@ezpug/match-api` — the vocabulary and the resources.**
   `packages/match-api` (`"name": "@ezpug/match-api"`, ESM, `exports` for `.`, `./client`,
   `./webhooks`, `./fake`, `./fixtures`, built with `tsdown` or `tsc` to `dist/` with
   types; `publishConfig.access: public`; `files` whitelist; zod as a peer + dep range the

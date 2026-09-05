@@ -1,0 +1,1692 @@
+{
+  "marker": "ezpug-simulated-match-record",
+  "version": 1,
+  "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+  "mapNumber": 1,
+  "map": "de_mirage",
+  "serverId": "sim-fixture",
+  "scenario": "happy-path",
+  "players": [
+    {
+      "steamId64": "76561198000000000",
+      "name": "hunzR",
+      "team": "team_a"
+    },
+    {
+      "steamId64": "76561198000000001",
+      "name": "maex",
+      "team": "team_a"
+    },
+    {
+      "steamId64": "76561198000000002",
+      "name": "Zerberus",
+      "team": "team_a"
+    },
+    {
+      "steamId64": "76561198000000003",
+      "name": "flippo",
+      "team": "team_a"
+    },
+    {
+      "steamId64": "76561198000000004",
+      "name": "Kessi",
+      "team": "team_a"
+    },
+    {
+      "steamId64": "76561198000000100",
+      "name": "wickeD",
+      "team": "team_b"
+    },
+    {
+      "steamId64": "76561198000000101",
+      "name": "Jörg",
+      "team": "team_b"
+    },
+    {
+      "steamId64": "76561198000000102",
+      "name": "schnitzL",
+      "team": "team_b"
+    },
+    {
+      "steamId64": "76561198000000103",
+      "name": "BastiGHG",
+      "team": "team_b"
+    },
+    {
+      "steamId64": "76561198000000104",
+      "name": "moepL",
+      "team": "team_b"
+    }
+  ],
+  "events": [
+    {
+      "type": "going_live",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "map": "de_mirage"
+    },
+    {
+      "type": "backup_written",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "filename": "matchzy_backup_map1_round01.cfg"
+    },
+    {
+      "type": "round_start",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "score": {
+        "teamA": 0,
+        "teamB": 0
+      }
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "victim": {
+        "steamId64": "76561198000000000",
+        "name": "hunzR",
+        "team": "team_a"
+      },
+      "killer": {
+        "steamId64": "76561198000000102",
+        "name": "schnitzL",
+        "team": "team_b"
+      },
+      "assists": [
+        {
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "flash": false
+        }
+      ],
+      "weapon": "deagle",
+      "headshot": false,
+      "roundTimeMs": 27468
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "victim": {
+        "steamId64": "76561198000000103",
+        "name": "BastiGHG",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000004",
+        "name": "Kessi",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "p250",
+      "headshot": false,
+      "roundTimeMs": 34743
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "victim": {
+        "steamId64": "76561198000000001",
+        "name": "maex",
+        "team": "team_a"
+      },
+      "killer": {
+        "steamId64": "76561198000000100",
+        "name": "wickeD",
+        "team": "team_b"
+      },
+      "assists": [],
+      "weapon": "tec9",
+      "headshot": false,
+      "roundTimeMs": 46626
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "victim": {
+        "steamId64": "76561198000000004",
+        "name": "Kessi",
+        "team": "team_a"
+      },
+      "killer": {
+        "steamId64": "76561198000000101",
+        "name": "Jörg",
+        "team": "team_b"
+      },
+      "assists": [],
+      "weapon": "tec9",
+      "headshot": false,
+      "roundTimeMs": 47478
+    },
+    {
+      "type": "bomb_planted",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "player": {
+        "steamId64": "76561198000000101",
+        "name": "Jörg",
+        "team": "team_b"
+      },
+      "site": "b",
+      "roundTimeMs": 52242
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "victim": {
+        "steamId64": "76561198000000104",
+        "name": "moepL",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000002",
+        "name": "Zerberus",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "deagle",
+      "headshot": false,
+      "penetrated": true,
+      "roundTimeMs": 66614
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "victim": {
+        "steamId64": "76561198000000002",
+        "name": "Zerberus",
+        "team": "team_a"
+      },
+      "killer": {
+        "steamId64": "76561198000000102",
+        "name": "schnitzL",
+        "team": "team_b"
+      },
+      "assists": [
+        {
+          "player": {
+            "steamId64": "76561198000000100",
+            "name": "wickeD",
+            "team": "team_b"
+          },
+          "flash": true
+        }
+      ],
+      "weapon": "deagle",
+      "headshot": false,
+      "roundTimeMs": 70920
+    },
+    {
+      "type": "bomb_exploded",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "site": "b",
+      "roundTimeMs": 92242
+    },
+    {
+      "type": "round_end",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 1,
+      "winner": {
+        "team": "team_b",
+        "side": "t"
+      },
+      "winCondition": "bomb_exploded",
+      "score": {
+        "teamA": 0,
+        "teamB": 1
+      },
+      "players": [
+        {
+          "player": {
+            "steamId64": "76561198000000000",
+            "name": "hunzR",
+            "team": "team_a"
+          },
+          "kills": 0,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 0,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 0
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000001",
+            "name": "maex",
+            "team": "team_a"
+          },
+          "kills": 0,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 0,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 0
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "kills": 1,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 86,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "kills": 0,
+          "deaths": 0,
+          "assists": 0,
+          "damage": 0,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 0
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "kills": 1,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 107,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000100",
+            "name": "wickeD",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 0,
+          "assists": 0,
+          "damage": 135,
+          "flashAssists": 1,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000101",
+            "name": "Jörg",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 0,
+          "assists": 0,
+          "damage": 82,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 1,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 4
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "kills": 2,
+          "deaths": 0,
+          "assists": 0,
+          "damage": 200,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 4
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "kills": 0,
+          "deaths": 1,
+          "assists": 1,
+          "damage": 26,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 1
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000104",
+            "name": "moepL",
+            "team": "team_b"
+          },
+          "kills": 0,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 0,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 0
+        }
+      ],
+      "roundTimeMs": 93242
+    },
+    {
+      "type": "chat_message",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "player": {
+        "steamId64": "76561198000000101",
+        "name": "Jörg",
+        "team": "team_b"
+      },
+      "text": "zusammen rein",
+      "scope": "team"
+    },
+    {
+      "type": "backup_written",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 2,
+      "filename": "matchzy_backup_map1_round02.cfg"
+    },
+    {
+      "type": "round_start",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 2,
+      "score": {
+        "teamA": 0,
+        "teamB": 1
+      }
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 2,
+      "victim": {
+        "steamId64": "76561198000000101",
+        "name": "Jörg",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000002",
+        "name": "Zerberus",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "mp9",
+      "headshot": false,
+      "roundTimeMs": 9328
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 2,
+      "victim": {
+        "steamId64": "76561198000000001",
+        "name": "maex",
+        "team": "team_a"
+      },
+      "killer": {
+        "steamId64": "76561198000000102",
+        "name": "schnitzL",
+        "team": "team_b"
+      },
+      "assists": [
+        {
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "flash": true
+        }
+      ],
+      "weapon": "ak47",
+      "headshot": false,
+      "roundTimeMs": 19826
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 2,
+      "victim": {
+        "steamId64": "76561198000000100",
+        "name": "wickeD",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000000",
+        "name": "hunzR",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "mp9",
+      "headshot": true,
+      "penetrated": true,
+      "roundTimeMs": 20202
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 2,
+      "victim": {
+        "steamId64": "76561198000000104",
+        "name": "moepL",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000003",
+        "name": "flippo",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "mp9",
+      "headshot": false,
+      "roundTimeMs": 20604
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 2,
+      "victim": {
+        "steamId64": "76561198000000102",
+        "name": "schnitzL",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000003",
+        "name": "flippo",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "mp5sd",
+      "headshot": false,
+      "roundTimeMs": 70404
+    },
+    {
+      "type": "round_end",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 2,
+      "winner": {
+        "team": "team_a",
+        "side": "ct"
+      },
+      "winCondition": "time_expired",
+      "score": {
+        "teamA": 1,
+        "teamB": 1
+      },
+      "players": [
+        {
+          "player": {
+            "steamId64": "76561198000000000",
+            "name": "hunzR",
+            "team": "team_a"
+          },
+          "kills": 1,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 115,
+          "flashAssists": 0,
+          "headshotKills": 1,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000001",
+            "name": "maex",
+            "team": "team_a"
+          },
+          "kills": 0,
+          "deaths": 2,
+          "assists": 0,
+          "damage": 0,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 0
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "kills": 2,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 176,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 4
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "kills": 2,
+          "deaths": 0,
+          "assists": 0,
+          "damage": 235,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 4
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "kills": 1,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 107,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000100",
+            "name": "wickeD",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 135,
+          "flashAssists": 1,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000101",
+            "name": "Jörg",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 82,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 1,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 4
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "kills": 3,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 302,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 6
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "kills": 0,
+          "deaths": 1,
+          "assists": 1,
+          "damage": 61,
+          "flashAssists": 1,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 1
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000104",
+            "name": "moepL",
+            "team": "team_b"
+          },
+          "kills": 0,
+          "deaths": 2,
+          "assists": 0,
+          "damage": 0,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 0
+        }
+      ],
+      "roundTimeMs": 115000
+    },
+    {
+      "type": "side_swap",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "sides": {
+        "teamA": "t",
+        "teamB": "ct"
+      }
+    },
+    {
+      "type": "backup_written",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "filename": "matchzy_backup_map1_round03.cfg"
+    },
+    {
+      "type": "round_start",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "score": {
+        "teamA": 1,
+        "teamB": 1
+      }
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "victim": {
+        "steamId64": "76561198000000004",
+        "name": "Kessi",
+        "team": "team_a"
+      },
+      "killer": {
+        "steamId64": "76561198000000102",
+        "name": "schnitzL",
+        "team": "team_b"
+      },
+      "assists": [
+        {
+          "player": {
+            "steamId64": "76561198000000104",
+            "name": "moepL",
+            "team": "team_b"
+          },
+          "flash": false
+        }
+      ],
+      "weapon": "p250",
+      "headshot": false,
+      "penetrated": true,
+      "roundTimeMs": 30886
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "victim": {
+        "steamId64": "76561198000000100",
+        "name": "wickeD",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000000",
+        "name": "hunzR",
+        "team": "team_a"
+      },
+      "assists": [
+        {
+          "player": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "flash": false
+        }
+      ],
+      "weapon": "tec9",
+      "headshot": false,
+      "roundTimeMs": 34378
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "victim": {
+        "steamId64": "76561198000000101",
+        "name": "Jörg",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000002",
+        "name": "Zerberus",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "glock",
+      "headshot": false,
+      "penetrated": true,
+      "roundTimeMs": 43279
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "victim": {
+        "steamId64": "76561198000000003",
+        "name": "flippo",
+        "team": "team_a"
+      },
+      "killer": {
+        "steamId64": "76561198000000103",
+        "name": "BastiGHG",
+        "team": "team_b"
+      },
+      "assists": [],
+      "weapon": "fiveseven",
+      "headshot": true,
+      "roundTimeMs": 48932
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "victim": {
+        "steamId64": "76561198000000001",
+        "name": "maex",
+        "team": "team_a"
+      },
+      "killer": {
+        "steamId64": "76561198000000104",
+        "name": "moepL",
+        "team": "team_b"
+      },
+      "assists": [
+        {
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "flash": true
+        }
+      ],
+      "weapon": "deagle",
+      "headshot": false,
+      "roundTimeMs": 55136
+    },
+    {
+      "type": "bomb_planted",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "player": {
+        "steamId64": "76561198000000000",
+        "name": "hunzR",
+        "team": "team_a"
+      },
+      "site": "a",
+      "roundTimeMs": 67886
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "victim": {
+        "steamId64": "76561198000000102",
+        "name": "schnitzL",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000002",
+        "name": "Zerberus",
+        "team": "team_a"
+      },
+      "assists": [
+        {
+          "player": {
+            "steamId64": "76561198000000000",
+            "name": "hunzR",
+            "team": "team_a"
+          },
+          "flash": false
+        }
+      ],
+      "weapon": "glock",
+      "headshot": false,
+      "roundTimeMs": 89971
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "victim": {
+        "steamId64": "76561198000000104",
+        "name": "moepL",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000002",
+        "name": "Zerberus",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "p250",
+      "headshot": true,
+      "throughSmoke": true,
+      "roundTimeMs": 105679
+    },
+    {
+      "type": "bomb_exploded",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "site": "a",
+      "roundTimeMs": 107886
+    },
+    {
+      "type": "round_end",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 3,
+      "winner": {
+        "team": "team_a",
+        "side": "t"
+      },
+      "winCondition": "bomb_exploded",
+      "score": {
+        "teamA": 2,
+        "teamB": 1
+      },
+      "players": [
+        {
+          "player": {
+            "steamId64": "76561198000000000",
+            "name": "hunzR",
+            "team": "team_a"
+          },
+          "kills": 2,
+          "deaths": 1,
+          "assists": 1,
+          "damage": 281,
+          "flashAssists": 0,
+          "headshotKills": 1,
+          "bombPlants": 1,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 7
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000001",
+            "name": "maex",
+            "team": "team_a"
+          },
+          "kills": 0,
+          "deaths": 3,
+          "assists": 0,
+          "damage": 0,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 0
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "kills": 5,
+          "deaths": 1,
+          "assists": 0,
+          "damage": 532,
+          "flashAssists": 0,
+          "headshotKills": 1,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 10
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "kills": 2,
+          "deaths": 1,
+          "assists": 1,
+          "damage": 259,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 5
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "kills": 1,
+          "deaths": 2,
+          "assists": 0,
+          "damage": 107,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000100",
+            "name": "wickeD",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 2,
+          "assists": 0,
+          "damage": 135,
+          "flashAssists": 1,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000101",
+            "name": "Jörg",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 2,
+          "assists": 0,
+          "damage": 82,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 1,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 4
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "kills": 4,
+          "deaths": 2,
+          "assists": 0,
+          "damage": 406,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 8
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 1,
+          "assists": 1,
+          "damage": 207,
+          "flashAssists": 2,
+          "headshotKills": 1,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 3
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000104",
+            "name": "moepL",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 3,
+          "assists": 1,
+          "damage": 122,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 3
+        }
+      ],
+      "roundTimeMs": 108886
+    },
+    {
+      "type": "backup_written",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "filename": "matchzy_backup_map1_round04.cfg"
+    },
+    {
+      "type": "round_start",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "score": {
+        "teamA": 2,
+        "teamB": 1
+      }
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "victim": {
+        "steamId64": "76561198000000103",
+        "name": "BastiGHG",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000004",
+        "name": "Kessi",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "sg556",
+      "headshot": true,
+      "penetrated": true,
+      "roundTimeMs": 9341
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "victim": {
+        "steamId64": "76561198000000104",
+        "name": "moepL",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000000",
+        "name": "hunzR",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "sg556",
+      "headshot": true,
+      "roundTimeMs": 9375
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "victim": {
+        "steamId64": "76561198000000100",
+        "name": "wickeD",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000003",
+        "name": "flippo",
+        "team": "team_a"
+      },
+      "assists": [
+        {
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "flash": false
+        }
+      ],
+      "weapon": "ak47",
+      "headshot": false,
+      "roundTimeMs": 44412
+    },
+    {
+      "type": "bomb_planted",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "player": {
+        "steamId64": "76561198000000000",
+        "name": "hunzR",
+        "team": "team_a"
+      },
+      "site": "b",
+      "roundTimeMs": 56203
+    },
+    {
+      "type": "player_death",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "victim": {
+        "steamId64": "76561198000000102",
+        "name": "schnitzL",
+        "team": "team_b"
+      },
+      "killer": {
+        "steamId64": "76561198000000002",
+        "name": "Zerberus",
+        "team": "team_a"
+      },
+      "assists": [],
+      "weapon": "ak47",
+      "headshot": true,
+      "roundTimeMs": 78168
+    },
+    {
+      "type": "bomb_exploded",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "site": "b",
+      "roundTimeMs": 96203
+    },
+    {
+      "type": "round_end",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "roundNumber": 4,
+      "winner": {
+        "team": "team_a",
+        "side": "t"
+      },
+      "winCondition": "bomb_exploded",
+      "score": {
+        "teamA": 3,
+        "teamB": 1
+      },
+      "players": [
+        {
+          "player": {
+            "steamId64": "76561198000000000",
+            "name": "hunzR",
+            "team": "team_a"
+          },
+          "kills": 3,
+          "deaths": 1,
+          "assists": 1,
+          "damage": 388,
+          "flashAssists": 0,
+          "headshotKills": 2,
+          "bombPlants": 2,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 11
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000001",
+            "name": "maex",
+            "team": "team_a"
+          },
+          "kills": 0,
+          "deaths": 3,
+          "assists": 0,
+          "damage": 0,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 0
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "kills": 6,
+          "deaths": 1,
+          "assists": 1,
+          "damage": 677,
+          "flashAssists": 0,
+          "headshotKills": 2,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 13
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "kills": 3,
+          "deaths": 1,
+          "assists": 1,
+          "damage": 366,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 7
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "kills": 2,
+          "deaths": 2,
+          "assists": 0,
+          "damage": 199,
+          "flashAssists": 0,
+          "headshotKills": 1,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 4
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000100",
+            "name": "wickeD",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 3,
+          "assists": 0,
+          "damage": 135,
+          "flashAssists": 1,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 2
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000101",
+            "name": "Jörg",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 2,
+          "assists": 0,
+          "damage": 82,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 1,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 4
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "kills": 4,
+          "deaths": 3,
+          "assists": 0,
+          "damage": 406,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 1,
+          "score": 8
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 2,
+          "assists": 1,
+          "damage": 207,
+          "flashAssists": 2,
+          "headshotKills": 1,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 3
+        },
+        {
+          "player": {
+            "steamId64": "76561198000000104",
+            "name": "moepL",
+            "team": "team_b"
+          },
+          "kills": 1,
+          "deaths": 4,
+          "assists": 1,
+          "damage": 122,
+          "flashAssists": 0,
+          "headshotKills": 0,
+          "bombPlants": 0,
+          "bombDefuses": 0,
+          "mvps": 0,
+          "score": 3
+        }
+      ],
+      "roundTimeMs": 97203
+    },
+    {
+      "type": "chat_message",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "player": {
+        "steamId64": "76561198000000002",
+        "name": "Zerberus",
+        "team": "team_a"
+      },
+      "text": "gg wp",
+      "scope": "all"
+    },
+    {
+      "type": "map_end",
+      "matchId": "7f3a1c22-2b64-4a5f-9c31-0d5e6f8a1b20",
+      "source": {
+        "provider": "simulator",
+        "serverId": "sim-fixture"
+      },
+      "mapNumber": 1,
+      "map": "de_mirage",
+      "score": {
+        "teamA": 3,
+        "teamB": 1
+      },
+      "winner": "team_a"
+    }
+  ]
+}

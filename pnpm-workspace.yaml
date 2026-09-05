@@ -20,3 +20,5 @@ catalog:
   typescript: ~5.9.3
   vitest: ^4.1.11
   zod: ^4.4.3
+  tsdown: ^0.22.14
+  "@types/node": ^22.18.0

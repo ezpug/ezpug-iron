@@ -1,0 +1,147 @@
+{
+  "note": "The wire contract for a chat-forwarding gameserver plugin (PRD-08 T8). Stock MatchZy publishes no chat event, so this file is the published shape rather than a captured one: a plugin that produces these payloads is understood, and `expected` is what the platform's normalized union (Match.md §5) turns each into. The platform match id and the source are the adapter's own context and never travel in the payload.",
+  "context": {
+    "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+    "source": { "provider": "lan-node", "serverId": "node-3" },
+    "seq": 412
+  },
+  "vectors": [
+    {
+      "name": "all-chat in warmup, before anybody has a side",
+      "payload": {
+        "event": "player_chat",
+        "matchid": 4711,
+        "map_number": 1,
+        "player": { "steamid": "76561198279375306", "name": "tk" },
+        "text": "wer hat gefehlt?"
+      },
+      "expected": {
+        "type": "chat_message",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": { "provider": "lan-node", "serverId": "node-3" },
+        "seq": 412,
+        "player": { "steamId64": "76561198279375306", "name": "tk" },
+        "text": "wer hat gefehlt?",
+        "scope": "all"
+      }
+    },
+    {
+      "name": "all-chat mid-round, team1 becomes team_a and the tick rides along",
+      "payload": {
+        "event": "player_chat",
+        "matchid": 4711,
+        "map_number": 1,
+        "round_number": 14,
+        "player": { "steamid": "76561198279375307", "name": "maex", "team": "team1" },
+        "text": "gg wp",
+        "team_chat": false,
+        "tick": 184320
+      },
+      "expected": {
+        "type": "chat_message",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": { "provider": "lan-node", "serverId": "node-3" },
+        "seq": 412,
+        "player": { "steamId64": "76561198279375307", "name": "maex", "team": "team_a" },
+        "text": "gg wp",
+        "scope": "all",
+        "tick": 184320
+      }
+    },
+    {
+      "name": "say_team from team2 is a team line and is never bridged",
+      "payload": {
+        "event": "player_chat",
+        "matchid": 4711,
+        "map_number": 1,
+        "round_number": 14,
+        "player": { "steamid": "76561198279375308", "name": "jörg", "team": "team2" },
+        "text": "rotate b",
+        "team_chat": true
+      },
+      "expected": {
+        "type": "chat_message",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": { "provider": "lan-node", "serverId": "node-3" },
+        "seq": 412,
+        "player": { "steamId64": "76561198279375308", "name": "jörg", "team": "team_b" },
+        "text": "rotate b",
+        "scope": "team"
+      }
+    },
+    {
+      "name": "a prefixed line is a command, bare and lowercase, with the remainder as args",
+      "payload": {
+        "event": "player_chat",
+        "matchid": 4711,
+        "map_number": 1,
+        "player": { "steamid": "76561198279375306", "name": "tk", "team": "team1" },
+        "text": "!Tech server lags",
+        "tick": 200000
+      },
+      "expected": {
+        "type": "chat_command",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": { "provider": "lan-node", "serverId": "node-3" },
+        "seq": 412,
+        "player": { "steamId64": "76561198279375306", "name": "tk", "team": "team_a" },
+        "command": "tech",
+        "args": "server lags"
+      }
+    },
+    {
+      "name": "a dotted command with no remainder carries no args",
+      "payload": {
+        "event": "player_chat",
+        "matchid": 4711,
+        "player": { "steamid": "76561198279375306", "name": "tk" },
+        "text": ".gg"
+      },
+      "expected": {
+        "type": "chat_command",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": { "provider": "lan-node", "serverId": "node-3" },
+        "seq": 412,
+        "player": { "steamId64": "76561198279375306", "name": "tk" },
+        "command": "gg"
+      }
+    },
+    {
+      "name": "a spectator's line is a line, and `spec` survives translation",
+      "payload": {
+        "event": "player_chat",
+        "matchid": 4711,
+        "player": { "steamid": "76561198279375309", "name": "kaz", "team": "spec" },
+        "text": "schöner clutch",
+        "team_chat": false
+      },
+      "expected": {
+        "type": "chat_message",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": { "provider": "lan-node", "serverId": "node-3" },
+        "seq": 412,
+        "player": { "steamId64": "76561198279375309", "name": "kaz", "team": "spec" },
+        "text": "schöner clutch",
+        "scope": "all"
+      }
+    },
+    {
+      "name": "punctuation is not a command: a line that only looks prefixed stays conversation",
+      "payload": {
+        "event": "player_chat",
+        "matchid": 4711,
+        "player": { "steamid": "76561198279375307", "name": "maex" },
+        "text": "...was das denn"
+      },
+      "expected": {
+        "type": "chat_message",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": { "provider": "lan-node", "serverId": "node-3" },
+        "seq": 412,
+        "player": { "steamId64": "76561198279375307", "name": "maex" },
+        "text": "...was das denn",
+        "scope": "all"
+      }
+    }
+  ]
+}
