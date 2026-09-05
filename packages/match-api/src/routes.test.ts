@@ -47,6 +47,13 @@ describe('the Match API route table', () => {
     }
   })
 
+  it('declares exactly one upgrade, the stream, and keeps it off the typed client', () => {
+    const upgrades = routes.filter(({ route }) => route.upgrade).map(({ key }) => key)
+    expect(upgrades).toEqual(['matches.stream'])
+    expect(matchApiRoutes.matches.stream.path).toBe('/v1/matches/:matchId/stream')
+    expect(matchApiRoutes.matches.events.path).toBe('/v1/matches/:matchId/events')
+  })
+
   it('has a section in docs/match-api.md for every route', () => {
     // The reference the platform loop reads instead of this code (PRD-01 T3,
     // T10): a route without a section is a route nobody was told about.

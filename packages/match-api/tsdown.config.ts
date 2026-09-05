@@ -11,6 +11,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'client/index': 'src/client/index.ts',
+    'webhooks/index': 'src/webhooks/index.ts',
     'fixtures/index': 'src/fixtures/index.ts',
   },
   format: 'esm',

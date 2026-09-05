@@ -12,12 +12,16 @@
  * - **The routes** (`routes.ts`): the table the orchestrator serves and the
  *   client is generated from; `rpc.ts` is the declaration helper.
  * - **Scopes and errors**: what a key may do, and the one error shape.
+ * - **The webhooks** (`webhooks/`): the envelope, the orchestration facts,
+ *   the events replay's page, the signature scheme and the retry policy.
+ * - **The stream** (`stream/`): the frames one socket per match carries.
  * - **The registry** (`schemas.ts`): every wire shape by its generated name,
  *   and the JSON Schema export the C# side reads.
  *
- * The client lives at `@ezpug/match-api/client`, the conformance fixtures at
- * `@ezpug/match-api/fixtures`; the webhook verifier and the fake orchestrator
- * join under their own entry points with the tasks that build them.
+ * The client lives at `@ezpug/match-api/client`, the webhook consumer's half
+ * at `@ezpug/match-api/webhooks`, the conformance fixtures at
+ * `@ezpug/match-api/fixtures`; the fake orchestrator joins under its own
+ * entry point with the task that builds it.
  */
 export * from './closed-set'
 export * from './errors'
@@ -26,4 +30,9 @@ export * from './routes'
 export * from './rpc'
 export * from './schemas'
 export * from './scopes'
+export * from './stream/frames'
 export * from './vocabulary'
+export * from './webhooks/envelope'
+export * from './webhooks/events'
+export * from './webhooks/retry'
+export * from './webhooks/signature'

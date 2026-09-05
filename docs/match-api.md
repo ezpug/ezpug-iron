@@ -9,8 +9,7 @@ The base URL is the orchestrator: `https://gs.ezpug.com` in production, `http://
 on a dev box, the in-process fake in tests. Every route lives under `/v1/`. Every request
 carries `Authorization: Bearer <api key>`. Bodies and responses are JSON.
 
-Webhooks, the events replay and the stream are added by PRD-01 T3; the gamemode manifest
-by T4. This file grows with them.
+The gamemode manifest is added by PRD-01 T4. This file grows with it.
 
 ## Authentication and scopes
 
@@ -235,6 +234,22 @@ Scope `matches`. Body `MatchCommand`, answers `MatchCommandResult`. Idempotent o
 
 Scope `matches`. Body `{ steamId64, ttlSeconds? }`, answers `201 PlayerToken`.
 
+### `GET /v1/matches/:matchId/events`
+
+Scope `matches`. The webhook replay: query `cursor?` (default `"0"`) and `limit?`, answers
+`{ items: WebhookEnvelope[], nextCursor }` in `seq` order. This is the one paged route whose
+cursor is not opaque: it is **the `seq` to resume after**, as a decimal string, so
+`Match.seq`, the stream's `hello.seq` and the last envelope you stored all plug in.
+`nextCursor` is the last `seq` on the page; it is `null` only when the page reached the end
+*and* the match is terminal. A live match never answers `null`. See [Webhooks](#webhooks).
+
+### `GET /v1/matches/:matchId/stream`
+
+Scope `matches`. A WebSocket upgrade, not a request: every message the socket sends is a
+`StreamFrame`, the first one a `hello`. Authenticated by the bearer header, or by a player
+token minted for this match in `?token=` for a browser. The typed client has no call for
+it; `subscribeStream(matchId)` opens it. See [The stream](#the-stream).
+
 ### `GET /v1/fleet/servers`
 
 Scope `fleet`. `{ servers: FleetServer[] }`: every open ledger row.
@@ -315,6 +330,133 @@ Scope `admin`. Revokes; answers the key with `revokedAt` set.
 
 Scope `admin`. Body `{ secrets: [{ id, secret }] }` replaces the set. Answers the key.
 
+## Webhooks
+
+Every durable thing the orchestrator has to say about a match is one **envelope**, POSTed
+to the request's `callbacks.webhookUrl` as `application/json`:
+
+```json
+{
+  "deliveryId": "0d3c1e2f-4a5b-4c6d-8e9f-000000000012",
+  "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+  "clientMatchId": "platform-match-4c1a2c7e",
+  "seq": 12,
+  "occurredAt": "2026-09-05T18:30:00.000Z",
+  "payload": { "type": "round_end", "...": "..." }
+}
+```
+
+| Field           | Meaning |
+| --------------- | ------- |
+| `deliveryId`    | names the envelope; a retry carries the same one |
+| `matchId`, `clientMatchId` | the match, both ways |
+| `seq`           | the match's own sequence: 1-based, gap-free, the order the orchestrator learned things. `Match.seq` is the last delivered |
+| `occurredAt`    | the orchestrator's clock when it learned the fact, never a server's |
+| `payload`       | a gameserver event or an orchestration fact, one discriminator (`payload.type`) |
+
+**Idempotency**: `(matchId, seq)` names the fact. A consumer that has seen it already has
+the fact whatever the `deliveryId`. Deliveries go out in `seq` order, but one stuck in
+retries does not hold later ones back, so `seq` 12 may arrive before 11; a gap is closed
+by replaying from the events route. A fact is never delivered under two sequence numbers.
+
+### Payloads
+
+**Gameserver events**: every type of the vocabulary except `position_tick`, which is
+ephemeral and travels on the stream only. Same JSON as the vocabulary.
+
+**Orchestration facts**, `domain.event` names (a dot, so they can never collide with an
+event type):
+
+| Type                         | Fields | When |
+| ---------------------------- | ------ | ---- |
+| `match.allocated`            | `provider, serverId, fleetServerId, region` | a server was obtained; the ledger row is open |
+| `match.server_ready`         | `connect { host, port, password? }, tv` | players may connect; `Match.state` is `ready` |
+| `match.recovering`           | `reason, backupRound` | the server was lost mid-match; a restore is being attempted. `backupRound` null means `match.failed` follows |
+| `match.recovered`            | `serverId, fleetServerId, resumedFromRound` | `live` again, possibly on a new server (a new `match.allocated` and `match.server_ready` came first) |
+| `match.failed`               | `state: failed, reason { kind, detail? }` | `kind ∈ server_lost, allocation_failed, provider_error` |
+| `match.ended`                | `state: ended \| cancelled, reason { kind, detail? }` | `kind ∈ completed, force_ended, cancelled, ttl_expired`; the last envelope of a match that did not fail |
+| `demo.uploaded`              | `mapNumber, key?, size, sha256, contentType` | the map's demo landed through `demoUploadUrl`; `sha256` lowercase hex |
+| `player.joined`              | `player { steamId64, name, team? }, rostered` | a person is on the server; `rostered: false` in an open-join mode is the cue for a `profile` command |
+| `player.left`                | `player` | |
+| `fleet.provider_unreachable` | `provider, since, lastError` | the provider behind this match's server stopped answering probes |
+| `fleet.node_disconnected`    | `node, lastSeenAt` | the node hosting this match's server dropped its link |
+| `fleet.orphan_found`         | `provider, serverId, fleetServerId, released` | the reaper found a server still running for a closed row or an ended match |
+| `fleet.budget_threshold`     | `limit, fraction, usage, limits` | the key crossed 80 % or 95 % of a ceiling (`maxConcurrentServers`, `maxServerLifetimeMinutes`, `monthlyCents`) |
+
+The fleet facts are about a key's capacity, not one match, and still travel as envelopes:
+the orchestrator fans each one out to every open match of the key it touches (the matches
+on the provider or node, the match the orphan was obtained for, every open match for a
+budget threshold), each in that match's own sequence. A key with no open match hears
+nothing and reads the fleet routes instead.
+
+`going_live` is a gameserver event and is what moves `Match.state` to `live`; no fact
+repeats it.
+
+### Signature
+
+```
+X-EZPug-Signature: t=1767225600,kid=whsec-2026-09,v1=<hex hmac-sha256>
+X-EZPug-Delivery: 0d3c1e2f-4a5b-4c6d-8e9f-000000000012
+X-EZPug-Attempt: 1
+```
+
+- `v1` is HMAC-SHA256 over `t + "." + body`, `body` being the exact bytes received, keyed
+  with the secret registered on the API key under `kid` (`PUT /v1/keys/:keyId/webhook-secrets`;
+  the request's `callbacks.webhookSecretId`). Lowercase hex.
+- `t` is unix seconds on the orchestrator's clock. Refuse a `t` more than **five minutes**
+  from your own clock, either way, before computing anything. A retry is re-signed with a
+  fresh `t`.
+- A header may carry more than one `v1=` (an orchestrator-side rotation in flight); any one
+  that verifies is enough. Unknown elements (`v2=`) are ignored.
+- Rotation: register a new id, switch new match requests to it, keep verifying with both
+  until the last match that named the old one has ended, then drop it.
+
+`@ezpug/match-api/webhooks` ships `signWebhook` and `verifyWebhookSignature` (Web Crypto,
+injected clock), so a consumer test can round-trip against the orchestrator's own signer.
+A refused signature is answered `401` and never retried by the consumer.
+
+### Retries
+
+Any `2xx` within 10 seconds is delivered; the answer body is ignored. Anything else
+(timeout, connection error, `5xx`, `429`, a `4xx`) is retried with the same `deliveryId`:
+
+| Retry | 1  | 2   | 3    | 4     | 5     | 6   | 7   | 8   | 9   |
+| ----- | -- | --- | ---- | ----- | ----- | --- | --- | --- | --- |
+| after | 5 s | 30 s | 2 min | 10 min | 30 min | 1 h | 2 h | 4 h | 8 h |
+
+Ten attempts in all, about sixteen hours; then the delivery is given up on. It is still in
+the events route — nothing is lost, only late. **`410 Gone`** stops retries early and
+stops every later delivery for the match: the endpoint said it no longer wants them. The
+events route and the stream keep working. The constants are `WEBHOOK_RETRY_DELAYS_MS`,
+`WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_ATTEMPT_TIMEOUT_MS`, `WEBHOOK_STOP_STATUS`.
+
+## The stream
+
+`GET /v1/matches/:matchId/stream`, a WebSocket upgrade, one socket per match per
+subscriber, the orchestrator speaking, the subscriber silent. It carries what a webhook
+cannot (position ticks, never stored) and mirrors what a webhook also carries, so a live
+page needs one socket and no polling. It is **best effort**: a missed frame is gone from
+the stream and is fetched from the events route instead; the stream never replays.
+
+Every message is one JSON frame with a `type`:
+
+| Frame            | Fields | Meaning |
+| ---------------- | ------ | ------- |
+| `hello`          | `matchId, seq, state` | the first frame: the match's current `seq` (compare with the last you hold and replay the gap) and its state |
+| `event`          | `envelope: WebhookEnvelope` | every durable fact, as the webhook carries it, `seq` and `deliveryId` included — one deduper serves both paths |
+| `tick`           | `ticks: position_tick[]` (1…64) | the ephemeral tier, batched |
+| `command_result` | `result: MatchCommandResult` | the late answer to a command acknowledged `accepted`, same `correlationId` |
+| `presence`       | `players: [{ steamId64, name, team? }]` | who is on the server, whole, every time it changes; spectators included |
+
+**Authentication**: the API key as `Authorization: Bearer` from a server; a browser cannot
+set headers on a socket and passes a player token minted for this match as `?token=`. The
+origin of a browser socket must be in the request's `callbacks.streamAllowedOrigins`.
+
+**Close codes** (`STREAM_CLOSE_CODES`): `4000` the match ended (the `event` frame with
+`match.ended` or `match.failed` came first), `4001` unauthorized, `4003` forbidden (scope,
+token for another match, origin), `4004` no such match, `4008` slow consumer (frames were
+dropped; reconnect and replay). Reconnect on a network close (`1006`), never on these.
+
 ## Invented here
 
 Fields and shapes with no counterpart in the platform on 2026-09-05. The platform loop
@@ -332,3 +474,10 @@ reads this list first; everything not on it is a copy.
   union with `correlationId` added), `MatchCommandResult`.
 - `PlayerToken`, `Gamemode`, `Capacity`, the whole fleet family, `ApiKey` and webhook
   secret registration, the scopes, the error code set and its status table.
+- The webhook envelope and its identities (`deliveryId`, `(matchId, seq)`, `occurredAt`);
+  the thirteen orchestration facts; the fan-out rule for fleet facts; the signature
+  scheme (`t`, `kid`, `v1`), the five-minute window, the retry schedule and the `410`
+  rule; the events route's transparent cursor. The platform's ingestion vocabulary
+  (`accepted | duplicate | ephemeral`, `applied`) stays on the plugin↔orchestrator side.
+- The stream frames (`hello`, `event`, `tick`, `command_result`, `presence`), `?token=`
+  for browsers and the close codes. The platform's own realtime channels are unrelated.

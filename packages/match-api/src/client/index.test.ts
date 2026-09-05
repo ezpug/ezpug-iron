@@ -22,4 +22,12 @@ describe('createMatchApiClient', () => {
     expect(url).toBe('https://gs.ezpug.example/v1/gamemodes')
     expect(auth).toBe('Bearer ezk_fake_platform_key')
   })
+
+  it('leaves the stream upgrade out — a socket is subscribed to, not called', () => {
+    const client = createMatchApiClient({ baseUrl: 'https://gs.ezpug.example', apiKey: 'ezk_x' })
+    expect('events' in client.matches).toBe(true)
+    expect('stream' in client.matches).toBe(false)
+    // @ts-expect-error the upgrade route is not a call on the client
+    expect(client.matches.stream).toBeUndefined()
+  })
 })

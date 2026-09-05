@@ -190,7 +190,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   Everything closed-set self-checked like the platform's union. References: Findings
   (the vocabulary, the match request), `docs/decisions.md` 3–8, 14–18.
 
-- [ ] **T3 (fable): Webhooks and the stream.** In the same package: the **webhook
+- [x] **T3 (fable): Webhooks and the stream.** In the same package: the **webhook
   envelope** `{deliveryId, matchId, clientMatchId, seq, occurredAt, payload}` where
   `payload` is either a gameserver event or an orchestration fact (`match.allocated`,
   `match.server_ready`, `match.recovering`, `match.recovered`, `match.failed`,

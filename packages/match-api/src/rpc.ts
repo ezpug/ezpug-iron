@@ -48,6 +48,15 @@ export interface RouteDef<
    * Declared so the conformance suite can assert it.
    */
   status?: 200 | 201 | 202
+  /**
+   * A route that is a WebSocket upgrade rather than a request/response: the
+   * stream. `response` is then the schema of every frame the socket sends.
+   * Declared in the same table so the docs check, the scope gate and the
+   * conformance suite see it; `createClient` leaves it out (a socket is
+   * opened by `subscribeStream`, not called), so the typed client cannot
+   * `await` it by mistake.
+   */
+  upgrade?: 'websocket'
 }
 
 /** Where every Match API route lives. A route outside it does not define. */
@@ -161,7 +170,9 @@ type Call<Def extends RouteDef> = keyof CallInput<Def> extends never
   : (input: CallInput<Def>) => Promise<z.output<Def['response']>>
 
 export type ApiClient<Routes extends RouteTree> = {
-  [K in keyof Routes]: Routes[K] extends RouteDef
+  [K in keyof Routes as Routes[K] extends { upgrade: string }
+    ? never
+    : K]: Routes[K] extends RouteDef
     ? Call<Routes[K]>
     : Routes[K] extends RouteTree
       ? ApiClient<Routes[K]>
@@ -239,7 +250,10 @@ export function createClient<const Routes extends RouteTree>(
       return (input: Parameters<typeof callRoute>[2] = {}) => callRoute(node, options, input)
     }
     const group: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(node)) group[key] = build(value)
+    for (const [key, value] of Object.entries(node)) {
+      if (isRouteDef(value) && value.upgrade) continue
+      group[key] = build(value)
+    }
     return group
   }
   return build(routes) as ApiClient<Routes>

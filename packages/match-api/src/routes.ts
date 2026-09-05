@@ -27,7 +27,9 @@ import { matchListFilterSchema, matchSchema } from './resources/match'
 import { matchRequestSchema } from './resources/match-request'
 import { playerTokenRequestSchema, playerTokenSchema } from './resources/player-token'
 import { defineRoute } from './rpc'
+import { streamFrameSchema, streamQuerySchema } from './stream/frames'
 import { kebabNameSchema } from './vocabulary/naming'
+import { eventsPageSchema, eventsQuerySchema } from './webhooks/events'
 
 /**
  * **The Match API, as a table** (decision 3, CLAUDE.md "The Match API is the
@@ -36,11 +38,6 @@ import { kebabNameSchema } from './vocabulary/naming'
  * this table, the fake implements this table, the client is generated from
  * it, `docs/match-api.md` has a section per entry (a test checks), and the
  * conformance suite walks it. A route that is not here does not exist.
- *
- * Two routes the table does not yet hold, by design of the round:
- * `GET /v1/matches/:matchId/events` (the webhook replay) and
- * `GET /v1/matches/:matchId/stream` (the upgrade) arrive with the envelope
- * and the frames they carry (PRD-01 T3).
  */
 
 const matchParams = z.object({ matchId: matchIdSchema })
@@ -129,6 +126,34 @@ export const matchApiRoutes = {
       params: matchParams,
       body: playerTokenRequestSchema,
       response: playerTokenSchema,
+    }),
+    /**
+     * The webhook replay (decision 6): the match's envelopes in `seq` order,
+     * from the cursor on. The cursor is the `seq` to resume after, as a
+     * decimal string — `Match.seq`, the stream's `hello.seq` and a stored
+     * envelope's `seq` all plug in; `"0"` (the default) is everything.
+     */
+    events: defineRoute({
+      method: 'get',
+      path: '/v1/matches/:matchId/events',
+      scope: 'matches',
+      params: matchParams,
+      query: eventsQuerySchema,
+      response: eventsPageSchema,
+    }),
+    /**
+     * The stream (decision 6): a WebSocket upgrade; every frame the socket
+     * sends parses as `StreamFrame`, the first is a `hello`. Authenticated by
+     * the bearer header or a player token in `?token=`.
+     */
+    stream: defineRoute({
+      method: 'get',
+      path: '/v1/matches/:matchId/stream',
+      scope: 'matches',
+      upgrade: 'websocket',
+      params: matchParams,
+      query: streamQuerySchema,
+      response: streamFrameSchema,
     }),
   },
   fleet: {

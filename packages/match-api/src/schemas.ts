@@ -25,8 +25,10 @@ import {
 import { capacitySchema } from './resources/capacity'
 import { matchCommandResultSchema, matchCommandSchema } from './resources/commands'
 import { matchApiScopeSchema } from './scopes'
+import { streamFrameSchema } from './stream/frames'
 import { gameserverEventSchema } from './vocabulary/gameserver'
 import { mapRadarSchema } from './vocabulary/radar'
+import { orchestrationFactSchema, webhookEnvelopeSchema } from './webhooks/envelope'
 
 /**
  * **Every wire shape, by the name its generated twin carries.** Zod is the
@@ -65,6 +67,9 @@ export const matchApiSchemas = {
   ApiKeyCreateRequest: apiKeyCreateRequestSchema,
   ApiKeyCreated: apiKeyCreatedSchema,
   WebhookSecretsRequest: webhookSecretsRequestSchema,
+  OrchestrationFact: orchestrationFactSchema,
+  WebhookEnvelope: webhookEnvelopeSchema,
+  StreamFrame: streamFrameSchema,
 } as const
 export type MatchApiSchemaName = keyof typeof matchApiSchemas
 

@@ -1,4 +1,10 @@
 import type { GameserverEvent, GameserverEventType } from '../vocabulary/gameserver'
+import type {
+  OrchestrationFact,
+  OrchestrationFactType,
+  WebhookEnvelope,
+  WebhookPayload,
+} from '../webhooks/envelope'
 
 /**
  * **One valid event per type** — the platform's own fixture table from
@@ -137,4 +143,100 @@ export const GAMESERVER_EVENT_FIXTURES: {
     name: 'drop_announced',
     data: { skin: 'AK-47 | Redline' },
   },
+}
+
+/**
+ * **One valid orchestration fact per type** — the same idea for the other
+ * branch of the webhook payload, so a consumer can prove its fact handling
+ * against every shape the orchestrator can send. Exhaustive by construction.
+ */
+export const ORCHESTRATION_FACT_FIXTURES: {
+  readonly [T in OrchestrationFactType]: OrchestrationFact & { type: T }
+} = {
+  'match.allocated': {
+    type: 'match.allocated',
+    provider: 'sim',
+    serverId: 'sim-1',
+    fleetServerId: '0b2c3d4e-5f60-4718-8a9b-0c1d2e3f4a5b',
+    region: 'eu-central',
+  },
+  'match.server_ready': {
+    type: 'match.server_ready',
+    connect: { host: '203.0.113.10', port: 27_015, password: 'ezpug-fixture-join' },
+    tv: { host: '203.0.113.10', port: 27_020, delaySeconds: 105 },
+  },
+  'match.recovering': {
+    type: 'match.recovering',
+    reason: 'heartbeat missed for 30 s; provider reports the server gone',
+    backupRound: 14,
+  },
+  'match.recovered': {
+    type: 'match.recovered',
+    serverId: 'sim-2',
+    fleetServerId: '1c3d4e5f-6071-4829-9bac-1d2e3f4a5b6c',
+    resumedFromRound: 14,
+  },
+  'match.failed': {
+    type: 'match.failed',
+    state: 'failed',
+    reason: { kind: 'server_lost', detail: 'no backup to restore from' },
+  },
+  'match.ended': {
+    type: 'match.ended',
+    state: 'ended',
+    reason: { kind: 'completed' },
+  },
+  'demo.uploaded': {
+    type: 'demo.uploaded',
+    mapNumber: 1,
+    key: 'demos/6f1a2b3c/map-1.dem',
+    size: 104_857_600,
+    sha256: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
+    contentType: 'application/octet-stream',
+  },
+  'player.joined': { type: 'player.joined', player: tk, rostered: true },
+  'player.left': { type: 'player.left', player: tk },
+  'fleet.provider_unreachable': {
+    type: 'fleet.provider_unreachable',
+    provider: 'sim',
+    since: '2026-09-05T18:30:00.000Z',
+    lastError: 'probe: connection refused',
+  },
+  'fleet.node_disconnected': {
+    type: 'fleet.node_disconnected',
+    node: 'saarlan-rack-2',
+    lastSeenAt: '2026-09-05T18:29:40.000Z',
+  },
+  'fleet.orphan_found': {
+    type: 'fleet.orphan_found',
+    provider: 'sim',
+    serverId: 'sim-7',
+    fleetServerId: '2d4e5f60-7182-493a-abcd-2e3f4a5b6c7d',
+    released: true,
+  },
+  'fleet.budget_threshold': {
+    type: 'fleet.budget_threshold',
+    limit: 'monthlyCents',
+    fraction: 0.8,
+    usage: { concurrentServers: 2, monthCents: 8_100, monthStartedAt: '2026-09-01T00:00:00.000Z' },
+    limits: { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 10_000 },
+  },
+}
+
+export const FIXTURE_CLIENT_MATCH_ID = 'platform-match-4c1a2c7e'
+
+/**
+ * An envelope around any payload, with fixture identities — what a test
+ * hands a verifier, a deduper or a stream frame. `seq` and `deliveryId`
+ * are derived from the sequence so a table of them is stable.
+ */
+export function envelopeFixture(payload: WebhookPayload, seq = 1): WebhookEnvelope {
+  return {
+    deliveryId: `0d3c1e2f-4a5b-4c6d-8e9f-${String(seq).padStart(12, '0')}`,
+    matchId: FIXTURE_MATCH_ID,
+    clientMatchId: FIXTURE_CLIENT_MATCH_ID,
+    seq,
+    occurredAt: '2026-09-05T18:30:00.000Z',
+    payload,
+  }
 }

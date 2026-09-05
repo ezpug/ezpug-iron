@@ -10,15 +10,19 @@ fixtures and an in-process fake orchestrator.
 pnpm add @ezpug/match-api zod
 ```
 
-Three entry points:
+Four entry points:
 
 - `@ezpug/match-api` — every schema and type: `gameserverEventSchema`,
-  `matchRequestSchema`, `matchSchema`, `matchCommandSchema`, the fleet shapes, the route
-  table `matchApiRoutes`, the error vocabulary, the scopes.
+  `matchRequestSchema`, `matchSchema`, `matchCommandSchema`, the fleet shapes, the
+  webhook envelope and the stream frames, the route table `matchApiRoutes`, the error
+  vocabulary, the scopes.
 - `@ezpug/match-api/client` — `createMatchApiClient({ baseUrl, apiKey, fetch? })`, typed
   from the route table.
-- `@ezpug/match-api/fixtures` — one valid event per type, and the recorded conformance
-  fixtures once they exist.
+- `@ezpug/match-api/webhooks` — the envelope, the orchestration facts,
+  `verifyWebhookSignature` (and `signWebhook`, so a test can round-trip), the retry
+  policy as constants.
+- `@ezpug/match-api/fixtures` — one valid event and one valid fact per type, and the
+  recorded conformance fixtures once they exist.
 
 ```ts
 import { createMatchApiClient } from '@ezpug/match-api/client'
@@ -40,6 +44,19 @@ await client.matches.command({
   params: { matchId: match.id },
   body: { type: 'announce', correlationId: crypto.randomUUID(), text: 'glhf' },
 })
+```
+
+```ts
+import { verifyWebhookSignature, webhookEnvelopeSchema } from '@ezpug/match-api/webhooks'
+
+const verdict = await verifyWebhookSignature({
+  header: request.headers.get('x-ezpug-signature'),
+  body: rawBody,
+  secrets: { 'whsec-2026-09': process.env.EZPUG_WEBHOOK_SECRET },
+  clock,
+})
+if (!verdict.ok) return new Response(null, { status: 401 })
+const envelope = webhookEnvelopeSchema.parse(JSON.parse(rawBody))
 ```
 
 The reference is [`docs/match-api.md`](https://github.com/ezpug/ezpug-iron/blob/main/docs/match-api.md)
