@@ -1,0 +1,40 @@
+{
+  "name": "@ezpug/orchestrator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The orchestrator of EZPug Iron (decision 2): the service behind gs.ezpug.com that serves the Match API over Hono, keeps the ledger in Postgres, fans out over Redis, and is the one thing every server and every node dials.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:extended": "EZPUG_IRON_DATABASE_TESTS=required vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:check": "drizzle-kit check",
+    "keys:mint": "tsx scripts/mint-key.ts"
+  },
+  "dependencies": {
+    "@ezpug/core": "workspace:*",
+    "@ezpug/gamemodes": "workspace:*",
+    "@ezpug/match-api": "workspace:*",
+    "@ezpug/protocol": "workspace:*",
+    "@hono/node-server": "catalog:",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "ioredis": "catalog:",
+    "postgres": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

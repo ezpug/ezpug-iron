@@ -31,3 +31,10 @@ catalog:
   "@hono/node-server": ^2.1.1
   ws: ^8.18.0
   "@types/ws": ^8.18.1
+  # The orchestrator's rails (PRD-02 T2), on the platform's versions so a
+  # migration or a Redis idiom ported from `/root/ezpug` behaves the same.
+  drizzle-orm: ^0.45.2
+  drizzle-kit: ^0.31.10
+  postgres: ^3.4.9
+  ioredis: ^5.9.0
+  tsx: ^4.23.12

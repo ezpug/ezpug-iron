@@ -36,11 +36,9 @@ const expected = [
     buildProps.match(/<TargetFramework>([^<]+)</)?.[1],
     'plugins/Directory.Build.props',
   ],
-  ...['typescript', 'vitest', 'zod', 'tsdown', 'hono'].map(name => [
-    name,
-    catalogVersion(name),
-    'pnpm-workspace.yaml catalog',
-  ]),
+  ...['typescript', 'vitest', 'zod', 'tsdown', 'hono', 'drizzle-orm', 'postgres', 'ioredis'].map(
+    name => [name, catalogVersion(name), 'pnpm-workspace.yaml catalog'],
+  ),
 ]
 
 const problems = []

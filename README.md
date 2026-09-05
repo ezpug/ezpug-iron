@@ -70,7 +70,21 @@ pnpm --filter @ezpug/plugins typecheck          # just the C# build
 
 Ports and every other setting the repo reads are decided in `.env.example`; copy it to
 `.env` for local overrides. Nothing in `pnpm verify` needs a database, a CS2 server or
-Dathost.
+Dathost — the orchestrator's database suites skip with a printed reason when the dev
+world is down, and `pnpm verify:extended` boots it and makes them required.
+
+## The dev world
+
+```sh
+pnpm dev:up      # Postgres (5443) and Redis (6383) from compose.yaml, migrated; creates .env
+pnpm dev         # the orchestrator on http://localhost:3430, restarting on change
+pnpm dev:status  # a real query against each service, and whether the orchestrator answers
+pnpm dev:down    # stop, keep the data
+```
+
+The first API key comes from the box: `pnpm --filter @ezpug/orchestrator keys:mint --
+--name root --scopes admin` prints it once. `docs/operations.md` is the operator's
+reference — the environment, the schema, migrations, keys, what is and is not stored.
 
 ## Releasing `@ezpug/match-api`
 

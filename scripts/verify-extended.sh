@@ -11,6 +11,17 @@ cd "$(dirname "$0")/.."
 
 pnpm verify
 
+# The dev world (PRD-02 T2): Postgres and Redis from compose.yaml, migrated.
+# `up` is idempotent, and the orchestrator's database suites are *required*
+# from here on — `pnpm verify` lets them skip when the world is down, this
+# tier does not. Without docker there is no world, and the tier says so.
+if command -v docker >/dev/null 2>&1; then
+  ./scripts/dev-env.sh up
+  export EZPUG_IRON_DATABASE_TESTS=required
+else
+  echo "verify:extended: docker is not installed — the database suites will skip" >&2
+fi
+
 # `turbo run` refuses a task no package defines, so only ask for it once one
 # does — the tier is scripted before it has content on purpose.
 # (`|| true` because a workspace directory that does not exist yet — `apps/`

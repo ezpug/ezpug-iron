@@ -21,7 +21,11 @@
       // one writer each, compared byte for byte by a test and round-tripped
       // by the C# side.
       "!packages/protocol/fixtures",
-      "!packages/protocol/schema"
+      "!packages/protocol/schema",
+      // The orchestrator's migrations (PRD-02 T2): the SQL and the snapshot
+      // journal are drizzle-kit's, immutable once committed and reviewed as
+      // they were generated.
+      "!apps/orchestrator/drizzle"
     ]
   },
   "formatter": {

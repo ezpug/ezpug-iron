@@ -175,7 +175,7 @@ every offline proof here.
   legacy `MatchEvents.cs` envelope, the platform's ack vocabulary in
   `@ezpug/match-api`.
 
-- [ ] **T2 (fable): The orchestrator, standing.** `apps/orchestrator`: Hono on 3430,
+- [x] **T2 (fable): The orchestrator, standing.** `apps/orchestrator`: Hono on 3430,
   Drizzle over Postgres 5443, Redis 6383, `compose.yaml` + `scripts/dev-env.sh`
   (`pnpm dev:up|down|logs|status`), a shutdown that drains in the order it opened things,
   health at `/healthz` (db, redis, providers). **The schema, designed once** (the round's

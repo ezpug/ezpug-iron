@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tags": ["app"],
+  "tasks": {
+    "test": {
+      // Not cacheable: the suite talks to a Postgres and a Redis that may be
+      // up or down, and a cached "skipped" would still read as green once
+      // they are up again (the platform's `packages/db` posture).
+      "cache": false
+    }
+  }
+}

@@ -1,0 +1,66 @@
+# EZPug Iron's offline dev world (CLAUDE.md "Offline-first", PRD-02 T2).
+#
+#   pnpm dev:up            — boot everything a fresh clone needs (recommended)
+#   docker compose up -d   — the same stack, without the .env bootstrap
+#
+# Infrastructure only: the orchestrator itself runs on the host via `pnpm dev`
+# (T4 adds the image and the node beside it). The production stack (the
+# orchestrator image, Traefik host-port bindings, its own Postgres and Redis)
+# is `compose.prod.yaml` and lands with T35 — never extend this one for it.
+#
+# Everything is published on 127.0.0.1 only and every port is configurable;
+# defaults are the ports decided in .env.example (checked against `ss -tlnp`
+# on a box that also runs the platform's world on 5442 and 6382). Images are
+# pinned so a rebuilt environment is the same environment (docs/pins.md).
+name: ezpug-iron-dev
+
+services:
+  # The ledger, the keys, the durable log. Ships with a second database
+  # (ezpug_iron_test) for the Vitest strategy — see docker/postgres/init.
+  postgres:
+    image: postgres:17-alpine
+    container_name: ezpug-iron-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${EZPUG_IRON_POSTGRES_USER:-ezpug_iron}
+      POSTGRES_PASSWORD: ${EZPUG_IRON_POSTGRES_PASSWORD:-ezpug_iron}
+      POSTGRES_DB: ${EZPUG_IRON_POSTGRES_DB:-ezpug_iron}
+      # Deterministic ordering everywhere: no locale-dependent sort surprises
+      # between this box, a laptop and production.
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+    ports:
+      - '127.0.0.1:${EZPUG_IRON_POSTGRES_PORT:-5443}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U "${EZPUG_IRON_POSTGRES_USER:-ezpug_iron}" -d "${EZPUG_IRON_POSTGRES_DB:-ezpug_iron}"',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # The stream hub's fan-out (T3) and the rate limit's shared state if it ever
+  # needs one. Append-only persistence so a restarted dev box keeps what it had.
+  redis:
+    image: redis:8-alpine
+    container_name: ezpug-iron-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '127.0.0.1:${EZPUG_IRON_REDIS_PORT:-6383}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
+  redis-data:

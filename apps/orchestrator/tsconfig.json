@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Server-only: it reads process.env, opens sockets and the migrations
+    // folder, so the Node types and nothing from the DOM.
+    "types": ["node"]
+  },
+  "include": ["src", "scripts", "drizzle.config.ts", "vitest.config.ts"]
+}
