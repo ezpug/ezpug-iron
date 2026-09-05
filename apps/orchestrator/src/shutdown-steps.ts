@@ -6,8 +6,7 @@
  * connection adds a line here, and the reading of the whole drain is one
  * screen. Later tasks insert their steps where the comments say: the links
  * (T6) and the node links (T12) close between the listener and the
- * requests; the machines, the reaper and the webhook worker (T3) drain
- * before the hub and the Redis clients; the pool is always last.
+ * requests; the pool is always last.
  */
 import type { Clock } from '@ezpug/core'
 import type { DrainStep, HttpDrain } from './shutdown'
@@ -35,10 +34,16 @@ export interface ShutdownStepsOptions {
   httpDrain: HttpDrain
   redis: Closable
   database: Closable
+  /** The stream sockets (T3). Absent in a composition without a listener. */
+  streams?: Closable
+  reaper?: { stop: () => Promise<void> }
+  webhooks?: Closable
+  matches?: Closable
+  hub?: Closable
 }
 
 export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
-  const { clock, httpDrain, redis, database } = options
+  const { clock, httpDrain, redis, database, streams, reaper, webhooks, matches, hub } = options
   return [
     // 1. Out of rotation first, while everything still works.
     { name: 'health', run: () => clock.sleep(HEALTH_GRACE_MS) },
@@ -48,14 +53,21 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     //    flight, it is *parked*, and its peer reconnects by itself with
     //    backoff — told to go while the machines below are still open, so a
     //    last `state` frame still lands.
-    // 4. Now the wait means what it says: only requests are left.
+    // 4. The stream's subscribers: told to go (1001) and to replay from the
+    //    events route when they come back, before the hub they hang off.
+    ...(streams ? [{ name: 'streams', run: () => streams.close() }] : []),
+    // 5. Now the wait means what it says: only requests are left.
     { name: 'requests', run: () => httpDrain.finish(REQUEST_GRACE_MS) },
-    // 5. (T3) The reaper, the webhook worker and the match machines drain
-    //    here — deadlines disarmed, transitions in progress awaited — before
-    //    the hub whose fan-out they publish into.
-    // 6. The Redis clients.
+    // 6. The reaper, the webhook worker and the match machines drain here —
+    //    sweeps disarmed, attempts in flight awaited, deadlines disarmed and
+    //    chains awaited — before the hub whose fan-out they publish into.
+    ...(reaper ? [{ name: 'reaper', run: () => reaper.stop() }] : []),
+    ...(webhooks ? [{ name: 'webhooks', run: () => webhooks.close() }] : []),
+    ...(matches ? [{ name: 'matches', run: () => matches.close() }] : []),
+    ...(hub ? [{ name: 'hub', run: () => hub.close() }] : []),
+    // 7. The Redis clients.
     { name: 'redis', run: () => redis.close() },
-    // 7. Last, because every step above may still have been writing.
+    // 8. Last, because every step above may still have been writing.
     { name: 'database', run: () => database.close() },
   ]
 }

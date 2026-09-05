@@ -11,10 +11,12 @@ checks every route, command and version it names.
 
 One process, `apps/orchestrator` (Hono on Node 22), over its own **Postgres** (the
 ledger, the keys, the durable log — every table in "The schema" below) and its own
-**Redis** (the stream hub's fan-out from T3; a `PING` for `/healthz` today). Nothing
-listens but the orchestrator: every server and every node dials *it*
-(`docs/decisions.md` 5, 23), and the platform speaks only the Match API
-(`docs/match-api.md`).
+**Redis** (the stream hub's fan-out; a `PING` for `/healthz`). Nothing listens but the
+orchestrator: every server and every node dials *it* (`docs/decisions.md` 5, 23), and the
+platform speaks only the Match API (`docs/match-api.md`). Inside the process: the
+**providers** (`sim` today; `dathost` and `nodes` with T16 and T12), the **match machine**
+with its provisioning walk and deadlines, the **reaper**, the **webhook worker** and the
+**stream hub** — "The match machine" below.
 
 Ports and every setting are decided in `.env.example` and nowhere else. Every name is
 `EZPUG_IRON_*`, because the platform runs on the same box with `EZPUG_*` names of its own:
@@ -65,23 +67,123 @@ deploy smoke and `pnpm dev:status` all read this one route.
 
 ## How it starts and stops
 
-Boot: read the environment → open the pool and the Redis client → build the app over the
-route table → create the server the links attach to → arm the drain → ping both rails →
-listen. The port opens **last**, so a probe during a slow boot gets a refused connection
-(a starting process) and never a half-composed API.
+Boot: read the environment → open the pool and the Redis client → register the providers
+`EZPUG_IRON_PROVIDERS` names → build the machine, the hub, the worker and the reaper over
+them → build the app over the route table → create the server and attach the upgrade
+router (the stream; the links in T6/T12) → arm the drain → ping both rails → **start**
+(the hub joins the Redis fan-out, every open match re-arms its deadlines from its row, the
+worker and the reaper arm their sweeps) → listen. The port opens **last**, so a probe
+during a slow boot gets a refused connection (a starting process) and never a
+half-composed API.
 
 Shutdown is an **order**, not a set of `close()` calls (`apps/orchestrator/src/shutdown-steps.ts`):
 
 1. `health` — `/healthz` turns 503, so whatever is in front stops sending work here.
 2. `listener` — the port closes; idle keep-alive sockets are hung up; in-flight requests keep running.
 3. *(T6, T12)* the server links and node links are closed; their peers reconnect by themselves.
-4. `requests` — in-flight requests get five seconds to answer, then every socket is destroyed.
-5. *(T3)* the reaper, the webhook worker and the match machines drain, before the hub they publish into.
-6. `redis`, then 7. `database` — last, because everything above may still have been writing.
+4. `streams` — every stream socket is closed `1001`; a subscriber replays from the events route when it returns.
+5. `requests` — in-flight requests get five seconds to answer, then every socket is destroyed.
+6. `reaper`, `webhooks`, `matches`, `hub` — the sweeps disarm, attempts in flight finish, every
+   match's deadlines disarm and its chain drains, then the hub leaves the fan-out. A match
+   mid-flight is *not* ended: its row says where it was, and the next boot re-arms it.
+7. `redis`, then 8. `database` — last, because everything above may still have been writing.
 
 The whole drain is bounded to eight seconds on the clock (compose waits ten and then
 SIGKILLs). A step that throws is logged and the drain continues; a second SIGTERM exits at
 once. `SIGINT` does the same, so `Ctrl-C` on `pnpm dev` is a real drain.
+
+## The match machine
+
+A match is a row in `matches` and a **chain** in memory: everything about one match — a
+server's event, a command, a cancel, a deadline firing — runs on that match's chain one
+step at a time, in the order it was asked, so the durable log's order never depends on
+which socket answered first or how the clock was advanced. The states are the Match API's
+(`pending → allocating → configuring → ready → live → ended | failed | cancelled`,
+`recovering` from `live`); the durable log (`match_events`) is written by `emit`, which
+also publishes the `event` frame to the stream hub and writes the `webhook_deliveries`
+row the worker picks up.
+
+**The door** (`POST /v1/matches`) refuses, in this order: a replay or a `conflict` on
+`clientMatchId`; `validation_failed` for a `webhookSecretId` not registered on the key or
+an unknown `sim.scenario`; `unknown_gamemode`; `no_capable_server` when no provider can
+host the request (every `csgo` request this round, `lan` with no node, a named
+`provider` or `region` nobody offers, every provider drained or full) and
+`provider_unavailable` when every asked provider failed to answer; `game_unsupported`;
+`map_not_allowed`; `budget_exceeded` for a `ttlMinutes` above the key's lifetime ceiling
+(the concurrent and monthly ceilings are T5's). Then the row is written `pending` and the
+walk is kicked.
+
+**The walk** (`provision`): selection filters every eligible provider's offerings on
+`game`, `region`, `lan` and `workshopMaps`, then orders them — a node first when the
+request asks for `lan`, cheapest first otherwise. The `sim` provider is eligible only
+when asked for (`requirements.simulated` or `provider: sim`) or when no other provider
+is registered, which is what makes the dev world work and production never simulate by
+accident. For each candidate: a ledger row (`servers`, state `allocated`, `server_id`
+null) **before** `allocate`; on success the row and the match are filled in and
+`match.allocated` is said; then a join password and a server token are minted, the token's
+hash stored, `configure` and `start` are called; any failure closes the row `failed`,
+deallocates what the candidate left behind and moves to the next one. An exhausted list
+fails the match `allocation_failed` with `no_capable_server` in the detail.
+
+**Deadlines**, every one on the injected clock, armed from `state_changed_at` so a
+restart re-arms each at the same absolute instant (`DEFAULT_MATCH_DEADLINES`):
+
+| Deadline | From | Default | On expiry |
+| -------- | ---- | ------- | --------- |
+| allocate | `allocating` | 2 min | `failed: allocation_failed` |
+| boot | `configuring` until `server_ready` | 5 min | `failed: provider_error` |
+| join | `ready` until `going_live` | 20 min | `ended: ttl_expired` |
+| recovery | `recovering` | 5 min | `failed: server_lost` |
+| ttl | the request's `ttlMinutes` | — | `ended: ttl_expired` |
+| the loss detector | no event from the server for three heartbeat intervals | 30 s | the provider is probed; `gone` or `stopped` opens `recovering` from `live`, fails `provider_error` before it |
+
+**Recovery** this round: a lost server's match says `match.recovering` with the newest
+backup's round (`backups`, written by the link from T6) and waits the window; with no
+backup it fails `server_lost` at once. Resuming onto the next candidate with the backup
+is T14's, and so is the sim's crash door — which is why the conformance flows
+`crash-restore` and `crash-lost` are *skipped*, not failed, against the orchestrator today.
+
+**Commands** are idempotent on `correlationId` across a restart (`match_commands`):
+`force_end`, `restore` (`no_backup` this round), `profile` and the state checks are the
+machine's; everything else is relayed down the server's channel (`link/channels.ts`: the
+sim's in-process channel today, the `/link` socket from T6) and answered with what the
+server said. A `sim.*` command is `command_unsupported` until T4. `rcon` needs `admin`.
+
+**The reaper** runs every minute: open rows past `expires_at` end their match
+`ttl_expired` (or are deallocated outright when no match holds them); every provider's
+`list()` is held against the open rows — an unaccounted-for server is deallocated after a
+two-minute grace and `fleet.orphan_found` is said to the match it was obtained for, and an
+open row the provider no longer lists is *surfaced* to the machine, which probes and
+opens the recovery window itself. A provider that cannot answer is reported and retried
+next pass; nothing is reaped on a failed listing.
+
+**The webhook worker** POSTs every `webhook_deliveries` row that is due: signed with the
+secret the request named (`X-EZPug-Signature`), `X-EZPug-Delivery`, `X-EZPug-Attempt`; any
+`2xx` within ten seconds is `delivered`; anything else is retried on the published
+schedule (`WEBHOOK_RETRY_DELAYS_MS`, ten attempts in all, then `given_up`); a `410` marks
+the delivery `stopped`, sets `matches.webhooks_stopped_at` and no later envelope of that
+match is even queued — the events route still has every fact. A row is attempted the
+moment it is written (`kick`) and by a sweep every five seconds that picks up what a
+restart or a retry left due; one match's deliveries go out in `seq` order, different
+matches side by side.
+
+**The stream hub** is one per process; every frame crosses the Redis fan-out
+(`ezpug-iron:stream`) on its way to subscribers, so two replicas would both stream every
+match — nothing runs two this round, the seam is where it would go. `event` frames
+mirror the durable log, `presence` is re-sent whole on every join and leave,
+`command_result` follows every command, `tick` batches position ticks per clock tick and
+never stores them. The upgrade (`GET /v1/matches/:id/stream`) is matched on the raw
+server before Hono: an API key with `matches` owning the match, or a player token in
+`?token=` (T24 mints them; the check against `player_tokens` and the request's
+`streamAllowedOrigins` is here). The first frame is `hello`; a match that is over gets
+`4000` right after it; a subscriber a megabyte behind is closed `4008`.
+
+**What is running** is `GET /v1/fleet/servers` (open rows), **what did tonight cost** is
+`GET /v1/fleet/ledger` with `cost.accruedCents` (hourly cents × the row's open time), and
+`POST /v1/fleet/servers/:id/release` (by row id or by the provider's handle) deallocates
+now and fails the match `provider_error` — the row itself is `released`, because a person
+did it. `GET /v1/capacity` asks every provider's offerings; `POST
+/v1/fleet/providers/:id/drain` keeps what it runs and allocates nothing more.
 
 ## Keys, scopes, rate limits, logs
 
@@ -194,10 +296,17 @@ pnpm --filter @ezpug/orchestrator db:migrate --target=test   # …or to the test
 
 ## Tests and the tiers
 
-`pnpm verify` needs no database: the orchestrator's database suites skip with a printed
-reason (and the command that fixes it) when the dev world is down. They run against
+`pnpm verify` needs no database: the machine, the walk, the reaper, the webhook worker
+and the stream are proven over the in-memory match store on a fake clock
+(`match/machine.test.ts`), and the **conformance suite runs in process** against the whole
+composition over memory (`conformance.test.ts`). The orchestrator's database suites — the
+key store, the match store contract that both implementations pass, the standing
+orchestrator over a real socket, and **the conformance suite against the real service**
+(`conformance.extended.test.ts`: system clock, Postgres, Redis, a real port, the stream over
+a real `ws` upgrade, every webhook POSTed to a real endpoint that verifies it) — skip with a
+printed reason (and the command that fixes it) when the dev world is down. They run against
 `EZPUG_IRON_TEST_DATABASE_URL`, a second database on the same server, each test inside a
-transaction that is always rolled back; the one suite that must commit (the standing
-orchestrator over a real socket) stamps its rows and deletes them. `pnpm verify:extended`
-runs `pnpm dev:up` first and sets `EZPUG_IRON_DATABASE_TESTS=required`, so a missing world
-is red there.
+transaction that is always rolled back; the suites that must commit stamp their rows and
+delete them. `pnpm verify:extended` runs `pnpm dev:up` first and sets
+`EZPUG_IRON_DATABASE_TESTS=required`, so a missing world is red there, and the conformance
+run against the real service is the round's first extended-tier gate.

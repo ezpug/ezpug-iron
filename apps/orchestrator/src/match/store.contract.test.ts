@@ -1,0 +1,249 @@
+import { randomUUID } from 'node:crypto'
+import { matchRequestSchema } from '@ezpug/match-api'
+import { describe, expect, it } from 'vitest'
+import { useTestDatabase } from '../db/testing'
+import { createPostgresKeyStore } from '../keys/postgres-store'
+import { hashToken, mintToken } from '../tokens'
+import { requestHash } from './machine'
+import { createMemoryMatchStore } from './memory-store'
+import { createPostgresMatchStore } from './postgres-store'
+import type { MatchRow, MatchStore, ServerRow } from './store'
+
+/**
+ * **The store contract, run against both implementations** (PRD-02 T3):
+ * every operation the machine relies on, with the same expectations, over
+ * the memory store (always) and over Postgres inside a rolled-back
+ * transaction (when the dev world is up; required in the extended tier).
+ * Where the two ever disagree, the machine's tests over memory have been
+ * proving the wrong thing — which is what this file exists to catch.
+ */
+
+const database = useTestDatabase()
+const at = (offsetMs = 0) => new Date(Date.parse('2026-09-05T18:00:00.000Z') + offsetMs)
+
+const request = matchRequestSchema.parse({
+  clientMatchId: 'c-1',
+  game: 'cs2',
+  gamemode: 'pug',
+  teams: { teamA: { name: 'A', players: [] }, teamB: { name: 'B', players: [] } },
+  maps: [{ map: 'de_mirage', sides: 'ct' }],
+  callbacks: { webhookUrl: 'https://platform.invalid/hooks', webhookSecretId: 'whsec' },
+  ttlMinutes: 60,
+})
+
+function matchRow(keyId: string, clientMatchId = 'c-1', createdAt = at()): MatchRow {
+  return {
+    id: randomUUID(),
+    keyId,
+    clientMatchId,
+    state: 'pending',
+    stateChangedAt: createdAt,
+    game: 'cs2',
+    gamemode: 'pug',
+    provider: null,
+    serverId: null,
+    fleetServerId: null,
+    connect: null,
+    tv: null,
+    seq: 0,
+    requestJson: { ...request, clientMatchId },
+    requestHash: requestHash({ ...request, clientMatchId }),
+    endedReason: null,
+    sim: null,
+    expiresAt: at(60 * 60_000),
+    readyAt: null,
+    liveAt: null,
+    endedAt: null,
+    webhooksStoppedAt: null,
+    createdAt,
+    updatedAt: createdAt,
+  }
+}
+
+function serverRow(keyId: string, matchId: string, allocatedAt = at()): ServerRow {
+  return {
+    id: randomUUID(),
+    provider: 'sim',
+    serverId: null,
+    nodeId: null,
+    matchId,
+    keyId,
+    state: 'allocated',
+    game: 'cs2',
+    region: 'sim',
+    lan: false,
+    address: null,
+    tv: null,
+    costHourlyCents: 0,
+    providerMeta: null,
+    lastSeenAt: null,
+    lastError: null,
+    releasedReason: null,
+    allocatedAt,
+    releasedAt: null,
+    expiresAt: at(60 * 60_000),
+  }
+}
+
+/** The same assertions for every store; `keyId` must exist for the Postgres foreign keys. */
+async function contract(store: MatchStore, keyId: string): Promise<void> {
+  // matches
+  const a = matchRow(keyId, 'a', at(0))
+  const b = matchRow(keyId, 'b', at(1_000))
+  await store.insertMatch(a)
+  await store.insertMatch(b)
+  expect((await store.findMatch(a.id))?.clientMatchId).toBe('a')
+  expect(await store.findMatch(randomUUID())).toBeUndefined()
+  expect((await store.findMatchByClientId(keyId, 'b'))?.id).toBe(b.id)
+  const listed = await store.listMatches(keyId, {}, 0, 1)
+  expect(listed.items.map(m => m.clientMatchId)).toEqual(['b'])
+  expect(listed.nextOffset).toBe(1)
+  const rest = await store.listMatches(keyId, {}, 1, 1)
+  expect(rest.items.map(m => m.clientMatchId)).toEqual(['a'])
+  expect(rest.nextOffset).toBeNull()
+  expect((await store.listMatches(keyId, { clientMatchId: 'a' }, 0, 50)).items).toHaveLength(1)
+  await store.updateMatch(a.id, {
+    state: 'ended',
+    endedReason: { kind: 'completed' },
+    updatedAt: at(2_000),
+  })
+  expect((await store.findMatch(a.id))?.endedReason).toEqual({ kind: 'completed' })
+  expect((await store.listMatches(keyId, { state: 'ended' }, 0, 50)).items.map(m => m.id)).toEqual([
+    a.id,
+  ])
+  expect((await store.listOpenMatches(keyId)).map(m => m.id)).toEqual([b.id])
+
+  // the durable log: seq is per match, gap-free, and bumps the match
+  const e1 = await store.appendEvent(
+    b.id,
+    {
+      deliveryId: randomUUID(),
+      type: 'match.allocated',
+      occurredAt: at(3_000),
+      payload: {
+        type: 'match.allocated',
+        provider: 'sim',
+        serverId: 'sim-1',
+        fleetServerId: randomUUID(),
+        region: 'sim',
+      },
+    },
+    at(3_000),
+  )
+  const e2 = await store.appendEvent(
+    b.id,
+    {
+      deliveryId: randomUUID(),
+      type: 'heartbeat',
+      occurredAt: at(4_000),
+      payload: { type: 'heartbeat', matchId: b.id, source: { provider: 'sim', serverId: 'sim-1' } },
+    },
+    at(4_000),
+  )
+  expect([e1.seq, e2.seq]).toEqual([1, 2])
+  expect((await store.findMatch(b.id))?.seq).toBe(2)
+  expect((await store.listEvents(b.id, 1, 10)).map(e => e.seq)).toEqual([2])
+  expect((await store.listEvents(b.id, 0, 1)).map(e => e.seq)).toEqual([1])
+
+  // deliveries: due rows, ordered, patched
+  for (const event of [e2, e1]) {
+    await store.insertDelivery({
+      deliveryId: event.deliveryId,
+      matchId: b.id,
+      seq: event.seq,
+      url: 'https://platform.invalid/hooks',
+      secretId: 'whsec',
+      status: 'pending',
+      attempt: 0,
+      nextAttemptAt: event.occurredAt,
+      lastStatus: null,
+      lastError: null,
+      deliveredAt: null,
+      createdAt: event.occurredAt,
+      updatedAt: event.occurredAt,
+    })
+  }
+  expect((await store.listDueDeliveries(at(3_500), 10)).map(d => d.seq)).toEqual([1])
+  expect((await store.listDueDeliveries(at(5_000), 10)).map(d => d.seq)).toEqual([1, 2])
+  await store.updateDelivery(e1.deliveryId, {
+    status: 'delivered',
+    attempt: 1,
+    deliveredAt: at(5_000),
+  })
+  expect((await store.listDueDeliveries(at(5_000), 10)).map(d => d.seq)).toEqual([2])
+  expect((await store.findDelivery(e1.deliveryId))?.status).toBe('delivered')
+  expect((await store.listDeliveries(b.id)).map(d => d.seq)).toEqual([1, 2])
+
+  // commands
+  await store.insertCommand({
+    matchId: b.id,
+    correlationId: 'x',
+    commandJson: { type: 'pause', correlationId: 'x' },
+    resultJson: null,
+    createdAt: at(),
+    updatedAt: at(),
+  })
+  expect((await store.findCommand(b.id, 'x'))?.resultJson).toBeNull()
+  await store.setCommandResult(
+    b.id,
+    'x',
+    { correlationId: 'x', type: 'pause', status: 'applied' },
+    at(),
+  )
+  expect((await store.findCommand(b.id, 'x'))?.resultJson?.status).toBe('applied')
+  expect(await store.findCommand(b.id, 'y')).toBeUndefined()
+
+  // the ledger
+  const s1 = serverRow(keyId, b.id, at(0))
+  const s2 = serverRow(keyId, b.id, at(1_000))
+  await store.insertServer(s1)
+  await store.insertServer(s2)
+  await store.updateServer(s1.id, { serverId: 'sim-1', state: 'configured' })
+  await store.updateServer(s2.id, { serverId: 'sim-1' })
+  expect((await store.findServerByHandle('sim', 'sim-1'))?.id).toBe(s2.id)
+  expect((await store.listOpenServers()).map(s => s.id)).toEqual([s2.id, s1.id])
+  await store.updateServer(s2.id, {
+    state: 'released',
+    releasedAt: at(2_000),
+    releasedReason: 'test',
+  })
+  expect((await store.listOpenServers('sim')).map(s => s.id)).toEqual([s1.id])
+  expect((await store.listOpenServers('dathost')).map(s => s.id)).toEqual([])
+  expect((await store.listLedger({ state: 'released' }, 0, 50)).items.map(s => s.id)).toEqual([
+    s2.id,
+  ])
+  expect((await store.listLedger({ matchId: b.id }, 0, 1)).nextOffset).toBe(1)
+  await store.insertServerToken({
+    id: randomUUID(),
+    fleetServerId: s1.id,
+    tokenHash: hashToken(mintToken('server')),
+    createdAt: at(),
+  })
+
+  // nothing written by later tasks yet
+  expect(await store.latestBackup(b.id)).toBeUndefined()
+  expect(await store.findPlayerTokenByHash(hashToken(mintToken('player')))).toBeUndefined()
+}
+
+describe('the match store contract', () => {
+  it('holds over memory', async () => {
+    await contract(createMemoryMatchStore(), randomUUID())
+  })
+
+  it('holds over Postgres', async () => {
+    await database.rollback(async tx => {
+      const secret = mintToken('apiKey')
+      const key = await createPostgresKeyStore(tx).insert({
+        id: randomUUID(),
+        name: `${database.namespace}-store`,
+        prefix: secret.slice(0, 12),
+        secretHash: hashToken(secret),
+        scopes: ['matches'],
+        budget: { maxConcurrentServers: 1, maxServerLifetimeMinutes: 60, monthlyCents: 0 },
+        webhookSecrets: [],
+        createdAt: at(),
+      })
+      await contract(createPostgresMatchStore(tx), key.key.id)
+    })
+  })
+})

@@ -5,8 +5,10 @@ import type {
   RouteHandler,
   RouteTree,
 } from '@ezpug/match-api'
-import { ApiError, MATCH_API_ERROR_STATUS } from '@ezpug/match-api'
+import { ApiError, MATCH_API_ERROR_STATUS, parseEventsCursor } from '@ezpug/match-api'
+import type { Fleet } from '../fleet/service'
 import type { AuthenticatedKey, Keys } from '../keys/service'
+import type { Matches } from '../match/machine'
 
 /**
  * **One handler per route, the shape of the table itself, typed by it**: a
@@ -14,10 +16,9 @@ import type { AuthenticatedKey, Keys } from '../keys/service'
  * handler that answers the wrong shape does not either. The dispatch walks
  * this object; nothing registers a path by hand.
  *
- * This task (PRD-02 T2) serves what a standing orchestrator owns outright —
- * the catalog and the keys. Everything about a match, the fleet and the
- * providers answers {@link notServedYet} until the task that builds it
- * replaces the entry: T3 (matches, capacity, fleet servers/providers/ledger),
+ * Served: the catalog and the keys (T2), matches, capacity, the fleet's
+ * servers, providers and ledger (T3). Everything else answers
+ * {@link notServedYet} until the task that builds it replaces the entry:
  * T5 (budget), T12 (nodes), T17 (gslt), T20 (console, rcon), T24 (player
  * tokens). A route that is not yet served still exists: it authenticates,
  * gates its scope and validates its input like every other, and then says
@@ -44,6 +45,8 @@ export interface HandlerDependencies {
   keys: Keys
   /** The catalog `GET /v1/gamemodes` serves, `pug` first. */
   gamemodes: readonly GamemodeManifest[]
+  matches: Matches
+  fleet: Fleet
 }
 
 /** A handler for a route a later task serves; names the task so the answer is honest. */
@@ -71,7 +74,7 @@ function upgradeRequired(): ApiError {
 }
 
 export function createHandlers(deps: HandlerDependencies): RouteHandlers {
-  const { keys, gamemodes } = deps
+  const { keys, gamemodes, matches, fleet } = deps
   return {
     gamemodes: {
       list: () => ({ gamemodes: [...gamemodes] }),
@@ -82,33 +85,41 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
       },
     },
     capacity: {
-      get: notServedYet('T3'),
+      get: () => fleet.capacity(),
     },
     matches: {
-      create: notServedYet('T3'),
-      list: notServedYet('T3'),
-      get: notServedYet('T3'),
-      cancel: notServedYet('T3'),
-      command: notServedYet('T3'),
+      create: async ({ body }, ctx) => {
+        const { match, replayed } = await matches.create(ctx.key, body)
+        if (replayed) ctx.status = 200
+        return match
+      },
+      list: ({ query }, ctx) => {
+        const { cursor, limit, ...filter } = query
+        return matches.list(ctx.key, filter, cursor, limit)
+      },
+      get: ({ params }, ctx) => matches.get(ctx.key, params.matchId),
+      cancel: ({ params }, ctx) => matches.cancel(ctx.key, params.matchId),
+      command: ({ params, body }, ctx) => matches.command(ctx.key, params.matchId, body),
       mintPlayerToken: notServedYet('T24'),
-      events: notServedYet('T3'),
+      events: ({ params, query }, ctx) =>
+        matches.events(ctx.key, params.matchId, parseEventsCursor(query.cursor), query.limit),
       // The stream is an upgrade, not a request; a plain GET here gets the
-      // explanation and the upgrade itself is T3's.
+      // explanation and `stream/upgrade.ts` performs the upgrade.
       stream: () => {
         throw upgradeRequired()
       },
     },
     fleet: {
       servers: {
-        list: notServedYet('T3'),
-        release: notServedYet('T3'),
+        list: async () => ({ servers: await fleet.servers() }),
+        release: ({ params, body }) => fleet.release(params.serverId, body.reason),
         console: notServedYet('T20'),
         rcon: notServedYet('T20'),
       },
       providers: {
-        list: notServedYet('T3'),
-        drain: notServedYet('T3'),
-        undrain: notServedYet('T3'),
+        list: async () => ({ providers: await fleet.providers() }),
+        drain: ({ params }) => fleet.setDrained(params.providerId, true),
+        undrain: ({ params }) => fleet.setDrained(params.providerId, false),
       },
       nodes: {
         list: notServedYet('T12'),
@@ -117,7 +128,10 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
         drain: notServedYet('T12'),
         undrain: notServedYet('T12'),
       },
-      ledger: notServedYet('T3'),
+      ledger: ({ query }) => {
+        const { cursor, limit, ...filter } = query
+        return fleet.ledger(filter, cursor, limit)
+      },
       budget: notServedYet('T5'),
       gslt: notServedYet('T17'),
     },

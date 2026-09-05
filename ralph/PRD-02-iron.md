@@ -193,7 +193,7 @@ every offline proof here.
   References: `/root/ezpug/apps/api/src/{shutdown-steps.ts,origins.ts}`,
   `/root/ezpug/packages/db/README.md`, the spine's `docs/match-api.md`.
 
-- [ ] **T3 (fable): Providers, the match machine, webhooks and the stream.** The provider
+- [x] **T3 (fable): Providers, the match machine, webhooks and the stream.** The provider
   interface (ported from the platform, grown: `rcon`, `restore`, `console`), the
   registry, selection (capability match on `game`, `region`, `workshopMaps`, `lan`;
   ordering `lan` requested → nodes first, else cheapest; `simulated` → sim only; **the

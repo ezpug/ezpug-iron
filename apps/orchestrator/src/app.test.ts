@@ -173,14 +173,14 @@ describe('the routes a later task serves', () => {
   it('exist, authenticate, gate and validate, then say honestly which task serves them', async () => {
     const t = createTestApp()
     const key = (await t.keys.mint(keyRequest('platform', ['matches', 'fleet']))).secret
-    const unauthenticated = await t.request('/v1/capacity')
+    const unauthenticated = await t.request('/v1/fleet/budget')
     expect(unauthenticated.status).toBe(401)
-    const unserved = await t.request('/v1/capacity', { key })
+    const unserved = await t.request('/v1/fleet/budget', { key })
     expect(unserved.status).toBe(500)
     expect(unserved.body.error).toMatchObject({
       code: 'internal',
-      message: expect.stringContaining('PRD-02 T3'),
-      details: { task: 'T3' },
+      message: expect.stringContaining('PRD-02 T5'),
+      details: { task: 'T5' },
     })
     const invalid = await t.request('/v1/matches/not-a-uuid', { key })
     expect(invalid.status).toBe(400)

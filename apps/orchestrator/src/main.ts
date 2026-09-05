@@ -26,6 +26,7 @@ try {
 }
 
 orchestrator.shutdown.listen()
+await orchestrator.start()
 const { url } = await orchestrator.listen()
 log.info(
   `listening on ${url} (${config.baseUrl}); providers=${config.providers.join(',') || 'none'}; ` +

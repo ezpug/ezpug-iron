@@ -41,6 +41,7 @@ beforeAll(async () => {
     await orchestrator.redis.ping()
     const { runMigrations } = await import('./db/migrate')
     await runMigrations(orchestrator.database)
+    await orchestrator.start()
     url = (await orchestrator.listen({ port: 0, host: '127.0.0.1' })).url
   } catch (error) {
     unavailable = error instanceof Error ? error.message : String(error)
@@ -131,7 +132,12 @@ describe('the orchestrator over a real socket', () => {
     expect(result.steps.map(step => step.name)).toEqual([
       'health',
       'listener',
+      'streams',
       'requests',
+      'reaper',
+      'webhooks',
+      'matches',
+      'hub',
       'redis',
       'database',
     ])

@@ -23,15 +23,18 @@
     "@ezpug/gamemodes": "workspace:*",
     "@ezpug/match-api": "workspace:*",
     "@ezpug/protocol": "workspace:*",
+    "@ezpug/sim": "workspace:*",
     "@hono/node-server": "catalog:",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "ioredis": "catalog:",
     "postgres": "catalog:",
+    "ws": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/ws": "catalog:",
     "drizzle-kit": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",

@@ -1,0 +1,264 @@
+import { createServer, type Server } from 'node:http'
+import { systemClock } from '@ezpug/core'
+import type { WebhookEnvelope } from '@ezpug/match-api'
+import { createMatchApiClient } from '@ezpug/match-api/client'
+import {
+  type ConformanceTarget,
+  formatConformanceReport,
+  MATCH_API_CONFORMANCE_FLOWS,
+  runMatchApiConformance,
+} from '@ezpug/match-api/fixtures'
+import { describeMatchApiConformance } from '@ezpug/match-api/fixtures/vitest'
+import { verifyWebhook } from '@ezpug/match-api/webhooks'
+import { eq, inArray } from 'drizzle-orm'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import WebSocket from 'ws'
+import { type OrchestratorConfig, readDatabaseConfig, readOrchestratorConfig } from './config'
+import { createDatabase } from './db/client'
+import {
+  apiKeys,
+  apiKeyWebhookSecrets,
+  matchCommands,
+  matchEvents,
+  matches,
+  servers,
+  serverTokens,
+  webhookDeliveries,
+} from './db/schema'
+import { testNamespace } from './db/testing'
+import { loadRootEnv } from './env'
+import { createMemoryLog } from './log'
+import { createOrchestrator, type Orchestrator } from './orchestrator'
+
+/**
+ * **The conformance suite against the real service** — the round's first
+ * extended-tier gate (PRD-02 T3): the orchestrator composed as `main.ts`
+ * composes it, on the system clock, over the dev world's Postgres and
+ * Redis, listening on a real port with the sim provider registered; the
+ * published client over HTTP, the stream over a real `ws` upgrade through
+ * the Redis fan-out, every webhook POSTed to a real endpoint that verifies
+ * the signature with the published verifier before the runner hears it.
+ *
+ * The sim plays at sixty times real time, so a Bo1 takes ten seconds or so and a
+ * command still finds it live; the runner polls every quarter second. Skips loudly when the dev
+ * world is down; `EZPUG_IRON_DATABASE_TESTS=required` (what
+ * `pnpm verify:extended` sets) makes that red.
+ */
+
+const SECRET_ID = 'whsec-conformance'
+const SECRET = 'orchestrator-conformance-webhook-secret-not-a-real-one-0123456789'
+const namespace = testNamespace(import.meta.url)
+
+let orchestrator: Orchestrator | undefined
+let config: OrchestratorConfig | undefined
+let url = ''
+let unavailable: string | undefined
+let endpoint: Server | undefined
+let endpointUrl = ''
+const log = createMemoryLog()
+const minted: string[] = []
+let mints = 0
+const handlers = new Set<(envelope: WebhookEnvelope) => void>()
+const unverified: string[] = []
+
+function listen(server: Server): Promise<string> {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      resolve(`http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`)
+    })
+  })
+}
+
+beforeAll(async () => {
+  loadRootEnv()
+  try {
+    config = {
+      ...readOrchestratorConfig({ ...process.env, EZPUG_IRON_PROVIDERS: 'sim' }),
+      database: readDatabaseConfig(process.env, { target: 'test' }),
+    }
+    orchestrator = createOrchestrator({
+      config,
+      clock: systemClock,
+      log,
+      sim: { timeScale: 60, positionTickIntervalMs: 60_000 },
+    })
+    await orchestrator.database.ping()
+    await orchestrator.redis.ping()
+    const { runMigrations } = await import('./db/migrate')
+    await runMigrations(orchestrator.database)
+    await orchestrator.start()
+    url = (await orchestrator.listen({ port: 0, host: '127.0.0.1' })).url
+
+    // The consumer's door: read the bytes, verify, then act — the shape
+    // `docs/match-api.md` "Handling one" prescribes.
+    endpoint = createServer((request, response) => {
+      const chunks: Buffer[] = []
+      request.on('data', chunk => chunks.push(chunk as Buffer))
+      request.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8')
+        void verifyWebhook({
+          headers: request.headers,
+          body,
+          secrets: { [SECRET_ID]: SECRET },
+          clock: systemClock,
+        }).then(result => {
+          if (!result.ok) {
+            unverified.push(result.reason)
+            response.writeHead(result.status).end()
+            return
+          }
+          for (const handler of handlers) handler(result.envelope)
+          response.writeHead(200).end()
+        })
+      })
+    })
+    endpointUrl = await listen(endpoint)
+  } catch (error) {
+    unavailable = error instanceof Error ? error.message : String(error)
+    await orchestrator?.database.close().catch(() => {})
+    await orchestrator?.redis.close().catch(() => {})
+    orchestrator = undefined
+    if (process.env.EZPUG_IRON_DATABASE_TESTS === 'required')
+      throw new Error(`the extended conformance suite is required but ${unavailable}`)
+    process.stderr.write(
+      `\n[orchestrator] skipping the extended conformance suite — ${unavailable}\n` +
+        '               boot the dev world with `pnpm dev:up`.\n\n',
+    )
+  }
+}, 60_000)
+
+beforeEach(ctx => {
+  if (unavailable) ctx.skip(`dev world unavailable: ${unavailable}`)
+})
+
+afterAll(async () => {
+  endpoint?.close()
+  if (!orchestrator || !config) return
+  if (orchestrator.server.listening) await orchestrator.close('afterAll')
+  const cleanup = createDatabase(config.database, { applicationName: 'ezpug-iron-test-cleanup' })
+  try {
+    const { db } = cleanup
+    const rows = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .where(inArray(matches.keyId, minted))
+    const ids = rows.map(row => row.id)
+    if (ids.length > 0) {
+      await db.delete(webhookDeliveries).where(inArray(webhookDeliveries.matchId, ids))
+      await db.delete(matchEvents).where(inArray(matchEvents.matchId, ids))
+      await db.delete(matchCommands).where(inArray(matchCommands.matchId, ids))
+    }
+    const owned = await db
+      .select({ id: servers.id })
+      .from(servers)
+      .where(inArray(servers.keyId, minted))
+    if (owned.length > 0)
+      await db.delete(serverTokens).where(
+        inArray(
+          serverTokens.fleetServerId,
+          owned.map(row => row.id),
+        ),
+      )
+    await db.delete(servers).where(inArray(servers.keyId, minted))
+    await db.delete(matches).where(inArray(matches.keyId, minted))
+    for (const id of minted) {
+      await db.delete(apiKeyWebhookSecrets).where(eq(apiKeyWebhookSecrets.keyId, id))
+      await db.delete(apiKeys).where(eq(apiKeys.id, id))
+    }
+  } finally {
+    await cleanup.close()
+  }
+}, 60_000)
+
+/** A fresh pair of keys per flow, on the one standing orchestrator. */
+async function target(flow: { id: string }): Promise<ConformanceTarget> {
+  const o = orchestrator as Orchestrator
+  const budget = { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 0 }
+  const webhookSecrets = [{ id: SECRET_ID, secret: SECRET }]
+  mints += 1
+  const platform = await o.keys.mint({
+    name: `${namespace}-${flow.id}-${mints}`,
+    scopes: ['matches'],
+    budget,
+    webhookSecrets,
+  })
+  const thrifty = await o.keys.mint({
+    name: `${namespace}-${flow.id}-${mints}-thrifty`,
+    scopes: ['matches'],
+    budget: { ...budget, maxServerLifetimeMinutes: 60 },
+    webhookSecrets,
+  })
+  minted.push(platform.key.id, thrifty.key.id)
+  const options = {
+    baseUrl: url,
+    clock: systemClock,
+    retry: false as const,
+    WebSocket: WebSocket as unknown as NonNullable<
+      Parameters<typeof createMatchApiClient>[0]['WebSocket']
+    >,
+  }
+  const client = createMatchApiClient({ ...options, apiKey: platform.secret })
+  const budgetClient = createMatchApiClient({ ...options, apiKey: thrifty.secret })
+  // Deliveries for this key only: the endpoint hears every key's.
+  const mine = new Set<string>()
+  return {
+    client,
+    webhooks: handler => {
+      const filtered = (envelope: WebhookEnvelope): void => {
+        if (mine.has(envelope.matchId)) handler(envelope)
+      }
+      handlers.add(filtered)
+      const seen = client.matches.list
+      void seen
+      return () => {
+        handlers.delete(filtered)
+      }
+    },
+    callbacks: { webhookUrl: `${endpointUrl}/hooks/ezpug`, webhookSecretId: SECRET_ID },
+    clock: systemClock,
+    pollIntervalMs: 250,
+    maxWaitMs: 120_000,
+    advance: async ms => {
+      // Which matches are ours is learned from the list, so the filter above
+      // never needs the flow to say.
+      const page = await client.matches.list({ query: {} })
+      for (const match of page.items) mine.add(match.id)
+      await systemClock.sleep(Math.min(ms, 250))
+    },
+    settle: async () => {
+      const page = await client.matches.list({ query: {} })
+      for (const match of page.items) mine.add(match.id)
+      // Deliveries leave within the tick; a real endpoint answers in milliseconds.
+      await systemClock.sleep(500)
+    },
+    stream: (subscription, onFrame) => {
+      const handle = client.subscribeStream({
+        matchId: subscription.matchId,
+        onFrame,
+        ...(subscription.token === undefined ? {} : { token: subscription.token }),
+      })
+      return () => handle.close()
+    },
+    budget: { client: budgetClient, maxServerLifetimeMinutes: 60 },
+  }
+}
+
+describeMatchApiConformance('the orchestrator over a real socket, Postgres and Redis', {
+  target,
+})
+
+describe('the extended gate', () => {
+  it('passes every flow it can run, verified every delivery, and left no server running', async () => {
+    const report = await runMatchApiConformance({ target })
+    expect(formatConformanceReport(report)).toContain('0 failed')
+    expect(report.ok).toBe(true)
+    expect(report.passed + report.skipped).toBe(MATCH_API_CONFORMANCE_FLOWS.length)
+    expect(unverified).toEqual([])
+    const o = orchestrator as Orchestrator
+    expect(await o.fleet.servers()).toEqual([])
+    expect(await o.providers.get('sim')?.list()).toEqual([])
+    expect(log.lines.filter(line => line.startsWith('error'))).toEqual([])
+  }, 120_000)
+})

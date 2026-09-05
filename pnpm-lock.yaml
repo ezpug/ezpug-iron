@@ -80,6 +80,9 @@ importers:
       '@ezpug/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@ezpug/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.1.1(hono@4.13.7)
@@ -95,6 +98,9 @@ importers:
       postgres:
         specifier: 'catalog:'
         version: 3.4.9
+      ws:
+        specifier: 'catalog:'
+        version: 8.21.3
       zod:
         specifier: 'catalog:'
         version: 4.5.4
@@ -102,6 +108,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
       drizzle-kit:
         specifier: 'catalog:'
         version: 0.31.10
@@ -2966,8 +2975,7 @@ snapshots:
       string-width: 4.2.3
       strip-ansi: 6.0.1
 
-  ws@8.21.3:
-    optional: true
+  ws@8.21.3: {}
 
   y18n@5.0.8: {}
 
