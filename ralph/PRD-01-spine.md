@@ -279,7 +279,7 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   still produces them byte-for-byte — the contract's golden files, the ones the C#
   generation in PRD-02 round-trips and the platform's translator is proven against.
 
-- [ ] **T9: Release 0.1.0.** `pnpm changeset`-style or a plain `scripts/release.mjs`:
+- [x] **T9: Release 0.1.0.** `pnpm changeset`-style or a plain `scripts/release.mjs`:
   version, CHANGELOG entry, build, `npm publish --access public --provenance` from CI on
   a tag (`NPM_TOKEN` secret) with a local fallback (`npm publish` by the owner's login),
   `npm view @ezpug/match-api version` as the smoke. Package hygiene: `README.md` inside the
@@ -288,6 +288,29 @@ properties in `/root/ezpug/packages/ui/app/assets/css/signal.css`, mirrored by
   test with `arethetypeswrong` or `publint`). Tag `match-api@0.1.0`. If npm is not logged
   in on this box and CI has no token: `> blocked:` with the exact commands and finish the
   round — the platform loop cannot start until this lands, so the closing note shouts it.
+
+  > blocked: **`@ezpug/match-api@0.1.0` is not on npm.** Everything up to the registry is
+  > done and verified — version, CHANGELOG, tag `match-api@0.1.0`, `scripts/release.mjs`,
+  > `.github/workflows/release.yml`, and an audit (`publint --strict`,
+  > `arethetypeswrong` under `node16` + `bundler`) that runs in `pnpm verify:extended`;
+  > `node scripts/release.mjs publish --dry-run` builds the exact 438.5 kB, 44-file
+  > tarball. It cannot be pushed: `npm whoami` on this box is `ENEEDAUTH` and no
+  > `NPM_TOKEN` exists. **The platform loop (`/root/ezpug`, PRD-09) cannot start until
+  > this lands.** The owner runs either:
+  >
+  > ```sh
+  > # locally, as the owner of the @ezpug scope
+  > npm login
+  > cd /root/ezpug-iron && node scripts/release.mjs publish
+  > ```
+  >
+  > ```sh
+  > # or from CI: add an npm automation token as the NPM_TOKEN repository secret, then
+  > cd /root/ezpug-iron && git push origin main && git push origin match-api@0.1.0
+  > ```
+  >
+  > Either way the smoke is `npm view @ezpug/match-api version` → `0.1.0`
+  > (`node scripts/release.mjs smoke` asserts it).
 
 - [ ] **T10: Docs, pins and the handoff.** `docs/match-api.md` complete and checked
   against the route table by a test (every route has a section); `docs/gamemodes.md`

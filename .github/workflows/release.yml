@@ -1,0 +1,67 @@
+# Publishing `@ezpug/match-api` (PRD-01 T9, decision 24). One trigger: pushing a
+# `match-api@<version>` tag. The job re-runs `pnpm verify:extended` — the
+# conformance suite is the gate, nothing publishes that has not passed it — then
+# packs with pnpm (so `catalog:` and `publishConfig` resolve), audits the tarball
+# with publint and arethetypeswrong, and hands it to `npm publish --provenance`.
+#
+# `NPM_TOKEN` is an npm automation token for the `@ezpug` scope, stored as a
+# repository secret. `id-token: write` is what lets npm attest that this run,
+# in this repo, at this commit, built the tarball.
+#
+#   node scripts/release.mjs version 0.1.0
+#   git commit -am 'chore(match-api): 0.1.0' && git push
+#   git tag match-api@0.1.0 && git push origin match-api@0.1.0
+name: release
+
+on:
+  push:
+    tags: ['match-api@*']
+  # A dry run against any ref: everything except the publish itself.
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+  DOTNET_NOLOGO: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # npm provenance signs the attestation with this run's OIDC identity.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          # Writes the registry line NODE_AUTH_TOKEN is read against.
+          registry-url: https://registry.npmjs.org
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: plugins/global.json
+
+      - run: pnpm install --frozen-lockfile
+
+      # `publish` runs verify:extended, then check (pack + audit + publint + attw),
+      # then npm publish with provenance, then `npm view` as the smoke.
+      - name: publish
+        if: github.event_name == 'push'
+        run: node scripts/release.mjs publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: dry run
+        if: github.event_name != 'push'
+        run: node scripts/release.mjs publish --dry-run

@@ -13,10 +13,13 @@
     "lint:fix": "biome check --write .",
     "verify": "turbo run build typecheck lint test && turbo boundaries",
     "verify:extended": "./scripts/verify-extended.sh",
-    "boundaries": "turbo boundaries"
+    "boundaries": "turbo boundaries",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@biomejs/biome": "^2.5.10",
+    "publint": "^0.3.24",
     "turbo": "^2.10.11"
   }
 }

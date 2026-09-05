@@ -4,6 +4,15 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.1.0 — 2026-09-05
+
+The first release: the whole contract, exercised end to end by the fake orchestrator and
+the conformance suite before it left the repo. ESM only, Node 22+, `zod` and `hono` as
+peers, `@ezpug/core`, `@ezpug/gamemodes` and `@ezpug/sim` bundled into `dist` so a
+consumer never sees them.
+
 - The vocabulary: the platform's gameserver event union (22 types, contract version 1)
   copied verbatim, the SteamID64 grammar, `game`, `locale`, `mapRadar`.
 - The Match API resources — `MatchRequest`, `Match`, `MatchCommand`,

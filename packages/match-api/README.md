@@ -2,13 +2,21 @@
 
 The contract between [EZPug](https://ezpug.com) and its gameserver side,
 [EZPug Iron](https://github.com/ezpug/ezpug-iron): the gameserver event vocabulary, the
-Match API's resources and routes, a typed client, and — as the spine round completes —
-the webhook envelope and verifier, the stream frames, the gamemode manifest, conformance
-fixtures and an in-process fake orchestrator.
+Match API's resources and routes, the webhook envelope and its verifier, the stream
+frames, the gamemode manifest, a typed client, a conformance suite with recorded golden
+exchanges, and an in-process fake orchestrator that plays real matches on a simulator
+engine under your own clock.
+
+Everything a client needs to create a match, watch it and be told how it went. Nothing
+about *how* a server is acquired: providers, nodes and plugins stay behind the door.
 
 ```sh
 pnpm add @ezpug/match-api zod
 ```
+
+ESM only, Node 22 or newer. `zod` is a peer dependency (the schemas run on yours); `hono`
+is one too, but only `@ezpug/match-api/fake` touches it, and `ws` plus `@hono/node-server`
+are optional and loaded on demand by `fake.listen()`.
 
 Five entry points:
 
@@ -84,5 +92,16 @@ const match = await fake.client(secret).matches.create({ body: request })
 await fake.playOut() // a whole Bo1 in milliseconds
 ```
 
-`hono` is a peer dependency (the fake is a Hono app); `ws` and `@hono/node-server` are
-optional and only loaded by `fake.listen()`.
+## Versioning
+
+The package *is* the contract, so a change to a schema is a release with a
+[CHANGELOG](./CHANGELOG.md) line, never a silent edit. A new optional field, route, event
+or error code is a minor; a field becoming required, a rename or a narrowed enum is a
+major. While this is `0.x`, pin it exactly — a minor is the breaking bump.
+
+`GAMESERVER_EVENT_CONTRACT_VERSION` is a separate number: it moves only when the
+gameserver event union changes shape, and it is what a server and an orchestrator check
+against each other.
+
+MIT. Issues and the full reference live in
+[the repo](https://github.com/ezpug/ezpug-iron).

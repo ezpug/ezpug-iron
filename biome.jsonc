@@ -99,6 +99,15 @@
     {
       "includes": ["**/*.grit"],
       "formatter": { "enabled": false }
+    },
+    {
+      // The ops scripts (`release.mjs`) are run by a human or by a GitHub
+      // Actions job, never by Turbo — `noUndeclaredEnvVars` would have us
+      // declare `NPM_TOKEN` and the `GITHUB_*` variables as Turbo cache inputs
+      // for tasks that never read them. Everything Turbo *does* run declares
+      // its environment in `turbo.json` as before.
+      "includes": ["scripts/*.mjs"],
+      "linter": { "rules": { "suspicious": { "noUndeclaredEnvVars": "off" } } }
     }
   ]
 }

@@ -56,3 +56,24 @@ pnpm --filter @ezpug/plugins typecheck          # just the C# build
 Ports and every other setting the repo reads are decided in `.env.example`; copy it to
 `.env` for local overrides. Nothing in `pnpm verify` needs a database, a CS2 server or
 Dathost.
+
+## Releasing `@ezpug/match-api`
+
+The package is the contract, so a schema change is a release with a changelog line, never
+a silent edit (`docs/decisions.md` 24). `scripts/release.mjs` is the whole path:
+
+```sh
+pnpm release version 0.2.0   # bump packages/match-api, roll its CHANGELOG, print the tag
+pnpm verify:extended         # the conformance suite is the gate
+git commit -am 'chore(match-api): 0.2.0'
+git tag match-api@0.2.0 && git push origin match-api@0.2.0
+```
+
+The tag fires `.github/workflows/release.yml`, which re-verifies, packs, audits the tarball
+(`publint`, `arethetypeswrong`) and runs `npm publish --access public --provenance` with the
+`NPM_TOKEN` repository secret. `pnpm release publish` is the same path locally for an owner
+who is `npm login`ed, and `pnpm release check` is the audit alone — it also runs inside
+`pnpm verify:extended`, so a tarball that would break on install goes red long before a
+release. Packing goes through pnpm on purpose: `npm pack` resolves neither the workspace's
+`catalog:` versions nor `publishConfig.exports`. The reference for what is in the package is
+`docs/match-api.md`.

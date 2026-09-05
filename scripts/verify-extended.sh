@@ -22,3 +22,9 @@ if (grep -rl --include=package.json --exclude-dir=node_modules --exclude-dir=ref
 else
   echo "verify:extended: no package defines test:extended yet — nothing beyond pnpm verify to run"
 fi
+
+# The published artifact itself (PRD-01 T9): pack `@ezpug/match-api` the way a
+# release would, audit the tarball, and run publint and arethetypeswrong over it
+# (`node16` and `bundler`). It needs the build `pnpm verify` just made, which is
+# why it lives here and not in a unit test.
+node scripts/release.mjs check --no-build

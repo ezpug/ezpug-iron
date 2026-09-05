@@ -742,6 +742,49 @@ field name (`password`, `token`, `secret`, `apiKey` → `"<redacted>"`) and a te
 files for the fake's known prefixes. Re-record with `pnpm --filter @ezpug/match-api record`,
 read the diff, and ship it with the change that caused it.
 
+## Versioning and releases
+
+The package is the contract, so a change to a schema is a **release with a changelog
+line**, never a silent edit (decision 24). `packages/match-api/CHANGELOG.md` is that line's
+home; `## Unreleased` collects them until someone cuts a version.
+
+Semver, read against a *consumer of the API*:
+
+| Change                                                                     | Bump  |
+| -------------------------------------------------------------------------- | ----- |
+| A new optional field, a new route, a new event or fact, a new error code    | minor |
+| A field becoming required, a removed or renamed field, a narrowed enum      | major |
+| A doc comment, a fixture, the fake's behaviour under an unchanged contract  | patch |
+
+While the version is `0.x`, a minor is the breaking bump — pin exactly.
+
+`GAMESERVER_EVENT_CONTRACT_VERSION` is a *separate* number and moves only when the
+gameserver event union itself changes shape; it is the platform's and the plugin's
+compatibility check, not npm's.
+
+Cutting one:
+
+```sh
+node scripts/release.mjs version 0.2.0   # bump + roll the CHANGELOG, print the tag
+pnpm verify:extended                     # the conformance suite is the gate
+git commit -am 'chore(match-api): 0.2.0'
+git tag match-api@0.2.0 && git push origin match-api@0.2.0
+```
+
+The tag fires `.github/workflows/release.yml`, which re-runs `pnpm verify:extended`, packs
+with pnpm (so `catalog:` versions and `publishConfig.exports` resolve — `npm pack` does
+neither, and its tarball would be broken on install), audits the tarball, and publishes it
+with `npm publish --access public --provenance`. `node scripts/release.mjs publish` is the
+same path locally for an owner who is `npm login`ed; `node scripts/release.mjs check` is
+the audit alone and runs in `pnpm verify:extended` on every box.
+
+The audit refuses: an unresolved `catalog:`/`workspace:` range, a `@ezpug/*` dependency
+escaping to a consumer (`core`, `gamemodes` and `sim` are bundled into `dist`), a file
+outside the `files` whitelist, `src/` in the tarball, an entry point whose target is not
+packed, a version with no CHANGELOG section, and anything `publint --strict` or
+`arethetypeswrong` (`node16` + `bundler`; `esm-only`, the package ships no CJS on purpose)
+objects to.
+
 ## Invented here
 
 Fields and shapes with no counterpart in the platform on 2026-09-05. The platform loop
