@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // A daemon on a docker host: it reads process.env, opens a socket to the
+    // orchestrator and one to docker, and writes a state file — the Node
+    // types and nothing from the DOM.
+    "types": ["node"]
+  },
+  "include": ["src", "tsdown.config.ts", "vitest.config.ts"]
+}

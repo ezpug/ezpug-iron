@@ -96,6 +96,11 @@ pnpm cs2:up        # a dedicated server on 27415 (GOTV 27420), dialling the orch
 pnpm cs2:console   # attach to its console (detach: Ctrl-P Ctrl-Q)
 ```
 
+That server is started by hand today; a venue box runs the same image under **`ezpug-node`**
+(`apps/node`), the agent that enrols against an orchestrator and starts server containers
+when it is told to. `docs/nodes.md` installs one in five commands; on this box it is
+`pnpm node enrol <token>` and `pnpm node run`.
+
 ## Releasing `@ezpug/match-api`
 
 The package is the contract, so a schema change is a release with a changelog line, never

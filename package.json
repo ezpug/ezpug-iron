@@ -25,6 +25,8 @@
     "cs2:status": "./scripts/cs2-env.sh status",
     "cs2:logs": "./scripts/cs2-env.sh logs",
     "cs2:console": "./scripts/cs2-env.sh console",
+    "node": "pnpm --filter @ezpug/node start",
+    "node:build": "docker build -f docker/node/Dockerfile --build-arg EZPUG_GIT_SHA=$(git rev-parse --short HEAD) -t ghcr.io/ezpug/ezpug-iron/node:dev .",
     "dev:up": "./scripts/dev-env.sh up",
     "dev:down": "./scripts/dev-env.sh down",
     "dev:reset": "./scripts/dev-env.sh reset",

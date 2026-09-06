@@ -38,3 +38,8 @@ catalog:
   postgres: ^3.4.9
   ioredis: ^5.9.0
   tsx: ^4.23.12
+  # The node agent's docker client (PRD-02 T11): dockerode 4 with the typings
+  # of the same major. 5.x adds a BuildKit client and the gRPC stack behind it;
+  # the agent only creates, starts, stops and lists containers.
+  dockerode: ^4.0.12
+  "@types/dockerode": ^4.0.1

@@ -20,6 +20,7 @@ const buildProps = read('plugins/Directory.Build.props')
 const globalJson = JSON.parse(read('plugins/global.json'))
 const workspace = read('pnpm-workspace.yaml')
 const orchestratorImage = read('docker/orchestrator/Dockerfile')
+const nodeImage = read('docker/node/Dockerfile')
 const cs2Image = read('docker/cs2/Dockerfile')
 
 /** The value of an `ARG NAME=value` line in a Dockerfile, or undefined. */
@@ -48,6 +49,13 @@ const expected = [
     orchestratorImage.match(/^FROM node:(\S+) AS base$/m)?.[1],
     'docker/orchestrator/Dockerfile',
   ],
+  // The node agent's image runs on the same Node as the orchestrator's: one
+  // row, two homes, and this is the second.
+  [
+    'Node (the node image)',
+    nodeImage.match(/^FROM node:(\S+) AS base$/m)?.[1],
+    'docker/node/Dockerfile',
+  ],
   // The server image: everything it downloads is a version *and* a checksum,
   // so a row here is two numbers and both have to be in the table.
   ['Metamod:Source', dockerArg(cs2Image, 'METAMOD_VERSION'), 'docker/cs2/Dockerfile'],
@@ -68,9 +76,17 @@ const expected = [
       .join('@sha256:'),
     'docker/cs2/Dockerfile',
   ],
-  ...['typescript', 'vitest', 'zod', 'tsdown', 'hono', 'drizzle-orm', 'postgres', 'ioredis'].map(
-    name => [name, catalogVersion(name), 'pnpm-workspace.yaml catalog'],
-  ),
+  ...[
+    'typescript',
+    'vitest',
+    'zod',
+    'tsdown',
+    'hono',
+    'drizzle-orm',
+    'postgres',
+    'ioredis',
+    'dockerode',
+  ].map(name => [name, catalogVersion(name), 'pnpm-workspace.yaml catalog']),
 ]
 
 const problems = []

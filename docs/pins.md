@@ -24,7 +24,8 @@ server boots with half its plugins missing.
 | drizzle-orm | `^0.45.2` | `pnpm-workspace.yaml` catalog (drizzle-kit `^0.31.10` beside it) |
 | postgres (postgres.js) | `^3.4.9` | `pnpm-workspace.yaml` catalog |
 | ioredis | `^5.9.0` | `pnpm-workspace.yaml` catalog |
-| Node (the image) | `22.19.0-bookworm-slim` | `docker/orchestrator/Dockerfile` (`FROM node:…`) — the runtime the orchestrator image ships, the version this repo's `engines` allows |
+| dockerode | `^4.0.12` | `pnpm-workspace.yaml` catalog (`@types/dockerode` `^4.0.1` beside it) — the node agent's docker client (PRD-02 T11); 4.x because 5.x adds a BuildKit client and the gRPC stack behind it for nothing the agent does |
+| Node (the image) | `22.19.0-bookworm-slim` | `docker/orchestrator/Dockerfile` and `docker/node/Dockerfile` (`FROM node:…`) — the runtime the orchestrator and node images ship, the version this repo's `engines` allows |
 | Postgres | `17` | `compose.yaml` (`postgres:17-alpine`); production's own instance is PRD-02 T35's |
 | Redis | `8` | `compose.yaml` (`redis:8-alpine`) |
 

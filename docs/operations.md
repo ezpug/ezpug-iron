@@ -16,7 +16,10 @@ orchestrator: every server and every node dials *it* (`docs/decisions.md` 5, 23)
 platform speaks only the Match API (`docs/match-api.md`). Inside the process: the
 **providers** (`sim` today; `dathost` and `nodes` with T16 and T12), the **match machine**
 with its provisioning walk and deadlines, the **reaper**, the **webhook worker** and the
-**stream hub** — "The match machine" below.
+**stream hub** — "The match machine" below. Beside it, `apps/node` is **`ezpug-node`**, the
+agent a venue box runs to become capacity: it enrols once, dials the orchestrator on the
+node link and starts server containers from the CS2 image on request — `docs/nodes.md` is
+its runbook, and the orchestrator's `nodes` provider that drives it is T12's.
 
 Ports and every setting are decided in `.env.example` and nowhere else. Every name is
 `EZPUG_IRON_*`, because the platform runs on the same box with `EZPUG_*` names of its own:

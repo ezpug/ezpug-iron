@@ -335,7 +335,7 @@ every offline proof here.
   true, and prove it by the loaded reproduction above run ten times green. Never retried
   into green (working rules).
 
-- [ ] **T11 (fable): `ezpug-node`.** `apps/node`: one process (and a container image) on
+- [x] **T11 (fable): `ezpug-node`.** `apps/node`: one process (and a container image) on
   any docker host — enrol once with a one-time token (`ezpug-node enrol <token>`), then
   `hello` with labels (`region`, `lan: true`, tickrate, cores), capacity (`maxInstances`),
   the image digest it holds; on `start` it runs a server container from the image with

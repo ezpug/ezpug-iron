@@ -21,6 +21,10 @@ TestResults/
 .cache/
 downloads/
 
+# A node's identity on this box (`ezpug-node enrol`, PRD-02 T11): the node
+# token lives here and nowhere else
+.ezpug-node/
+
 # Upstream reference clones — external repos, restorable via references/README.md
 references/CounterStrikeSharp/
 references/MatchZy/

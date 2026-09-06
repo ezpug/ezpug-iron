@@ -1,0 +1,37 @@
+{
+  "name": "@ezpug/node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ezpug-node, the agent that turns a docker host into EZPug Iron capacity (decision 23): it enrols once, dials the orchestrator on the node link, starts and stops CS2 server containers from the one image on request, and keeps a warm pool dialled in so a `lan` request is ready in seconds.",
+  "type": "module",
+  "bin": {
+    "ezpug-node": "./bin/ezpug-node.mjs"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsx src/main.ts run",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ezpug/core": "workspace:*",
+    "@ezpug/protocol": "workspace:*",
+    "dockerode": "catalog:",
+    "ws": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/dockerode": "catalog:",
+    "@types/node": "catalog:",
+    "@types/ws": "catalog:",
+    "tsdown": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

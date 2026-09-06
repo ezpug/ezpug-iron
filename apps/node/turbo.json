@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tags": ["app"],
+  "tasks": {
+    "test": {
+      // Not cacheable: the dockerode adapter's suite talks to the docker
+      // daemon on this box when there is one and skips with a printed reason
+      // when there is not, and a cached "skipped" would read as green once the
+      // daemon is back (the orchestrator's posture for its database suites).
+      "cache": false
+    }
+  }
+}
