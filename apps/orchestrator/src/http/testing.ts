@@ -4,6 +4,9 @@ import type { SimPlan } from '@ezpug/sim'
 import { createApp } from '../app'
 import { type Budgets, createBudgets } from '../budget/service'
 import { createFleet, type Fleet } from '../fleet/service'
+import { createFakeSteam, type FakeSteam } from '../gslt/fake-steam'
+import { createGsltPool, type GsltPool } from '../gslt/pool'
+import { createSteamGameServers } from '../gslt/steam'
 import { createHealth, type HealthReport } from '../health'
 import { createMemoryKeyStore } from '../keys/memory-store'
 import { createKeys, type Keys } from '../keys/service'
@@ -61,6 +64,10 @@ export interface TestApp {
   hub: StreamHub
   webhooks: WebhookWorker
   reaper: Reaper
+  /** The GSLT pool over the fake Steam (T17). */
+  gslt: GsltPool
+  /** The fake Steam behind it — a test reads its accounts and injects its faults. */
+  steam: FakeSteam
   /** Every webhook POST the worker made, in order, as the endpoint saw it. */
   posted: { url: string; headers: Record<string, string>; body: string }[]
   /** Every attempt's outcome. */
@@ -112,7 +119,13 @@ export interface TestAppOptions {
   budgetSweepIntervalMs?: number
   /** What a revoke hangs up with, when a test has a node link attached (T12). */
   disconnectNode?: (nodeId: string, code: number, reason: string) => boolean
+  /** The GSLT pool's ceiling (T17). */
+  gsltMax?: number
+  gsltSweepIntervalMs?: number
 }
+
+/** The key the test world's fake Steam expects — obviously not a real one. */
+const FAKE_STEAM_KEY = 'fake-steam-key'
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
   const clock = createFakeClock({ start: '2026-09-05T18:00:00.000Z' })
@@ -192,6 +205,26 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   else if (!options.noProviders) providers.register(sim)
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
   const fleet = createFleet({ clock, store, registry: providers, matches })
+  // Every test world has a working pool: the fake Steam is in process, so
+  // `GET /v1/fleet/gslt` answers real numbers and a Dathost-shaped provider
+  // in a test leases a real (fake) token rather than a `null` nobody notices.
+  const steam = createFakeSteam({ clock, apiKey: FAKE_STEAM_KEY })
+  const gslt = createGsltPool({
+    clock,
+    log,
+    store,
+    steam: createSteamGameServers({
+      clock,
+      log,
+      apiKey: FAKE_STEAM_KEY,
+      fetch: steam.fetch,
+      baseUrl: 'http://fake-steam.invalid',
+    }),
+    ...(options.gsltMax !== undefined && { max: options.gsltMax }),
+    ...(options.gsltSweepIntervalMs !== undefined && {
+      sweepIntervalMs: options.gsltSweepIntervalMs,
+    }),
+  })
   const nodes = createNodes({
     clock,
     log,
@@ -210,7 +243,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet, nodes }),
+      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet, nodes, gslt }),
     ),
     rateLimiter: createRateLimiter({
       clock,
@@ -267,6 +300,8 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     hub,
     webhooks,
     reaper,
+    gslt,
+    steam,
     posted,
     attempts,
     get respond() {
@@ -319,6 +354,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
       await webhooks.close()
       await reaper.stop()
       await budgets.stop()
+      await gslt.stop()
       await hub.close()
     },
   }

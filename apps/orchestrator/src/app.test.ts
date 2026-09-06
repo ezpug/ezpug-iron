@@ -173,14 +173,22 @@ describe('the routes a later task serves', () => {
   it('exist, authenticate, gate and validate, then say honestly which task serves them', async () => {
     const t = createTestApp()
     const key = (await t.keys.mint(keyRequest('platform', ['matches', 'fleet']))).secret
-    const unauthenticated = await t.request('/v1/fleet/gslt')
+    const unauthenticated = await t.request(
+      '/v1/matches/00000000-0000-4000-8000-000000000000/player-tokens',
+      {
+        method: 'POST',
+      },
+    )
     expect(unauthenticated.status).toBe(401)
-    const unserved = await t.request('/v1/fleet/gslt', { key })
+    const unserved = await t.request(
+      '/v1/matches/00000000-0000-4000-8000-000000000000/player-tokens',
+      { key, method: 'POST', json: { steamId64: '76561198000000000' } },
+    )
     expect(unserved.status).toBe(500)
     expect(unserved.body.error).toMatchObject({
       code: 'internal',
-      message: expect.stringContaining('PRD-02 T17'),
-      details: { task: 'T17' },
+      message: expect.stringContaining('PRD-02 T24'),
+      details: { task: 'T24' },
     })
     const invalid = await t.request('/v1/matches/not-a-uuid', { key })
     expect(invalid.status).toBe(400)

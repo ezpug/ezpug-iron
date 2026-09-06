@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   BOOTSTRAP_API_KEY_VAR,
   DATABASE_URL_VAR,
+  DEFAULT_GSLT_POOL_MAX,
   REDIS_URL_VAR,
   readDatabaseConfig,
   readDathostConfig,
+  readGsltConfig,
   readOrchestratorConfig,
   readRedisConfig,
   redactUrl,
+  STEAM_FAKE_TOKENS_VAR,
   TEST_DATABASE_URL_VAR,
 } from './config'
 
@@ -144,6 +147,41 @@ describe('readDathostConfig', () => {
     expect(() =>
       readDathostConfig({ ...env, EZPUG_IRON_DATHOST_EMAIL: account.EZPUG_IRON_DATHOST_EMAIL }),
     ).toThrow(/EZPUG_IRON_DATHOST_PASSWORD, EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID missing/)
+  })
+})
+
+describe('readGsltConfig', () => {
+  it('has no Steam door by default — a rented server would be LAN only', () => {
+    expect(readGsltConfig(env, false)).toEqual({
+      steamApiKey: null,
+      fakeSteam: false,
+      poolMax: DEFAULT_GSLT_POOL_MAX,
+    })
+    expect(readOrchestratorConfig(env).gslt.steamApiKey).toBeNull()
+  })
+
+  it('reads the key under either name, and the ceiling under either', () => {
+    expect(readGsltConfig({ STEAM_WEB_API_KEY: ' a-key ' }, false)).toMatchObject({
+      steamApiKey: 'a-key',
+    })
+    expect(
+      readGsltConfig(
+        { EZPUG_IRON_STEAM_WEB_API_KEY: 'prefixed', STEAM_WEB_API_KEY: 'plain' },
+        false,
+      ).steamApiKey,
+    ).toBe('prefixed')
+    expect(readGsltConfig({ EZPUG_GSLT_POOL_MAX: '4' }, false).poolMax).toBe(4)
+    expect(readGsltConfig({ EZPUG_IRON_GSLT_POOL_MAX: '8' }, false).poolMax).toBe(8)
+  })
+
+  it('refuses the dev fake in production, and beside a real key anywhere', () => {
+    expect(readGsltConfig({ [STEAM_FAKE_TOKENS_VAR]: 'true' }, false).fakeSteam).toBe(true)
+    expect(() => readGsltConfig({ [STEAM_FAKE_TOKENS_VAR]: 'true' }, true)).toThrow(
+      /refused under NODE_ENV=production/,
+    )
+    expect(() =>
+      readGsltConfig({ [STEAM_FAKE_TOKENS_VAR]: 'true', STEAM_WEB_API_KEY: 'a-key' }, false),
+    ).toThrow(/one of the two would be ignored/)
   })
 })
 

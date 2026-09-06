@@ -75,6 +75,7 @@ function serverRow(keyId: string, matchId: string, allocatedAt = at()): ServerRo
     address: null,
     tv: null,
     costHourlyCents: 0,
+    gsltTokenId: null,
     providerMeta: null,
     versions: null,
     hostname: null,
@@ -279,6 +280,46 @@ async function contract(store: MatchStore, keyId: string): Promise<void> {
   ])
   expect((await store.latestBackup(b.id))?.roundNumber).toBe(4)
   expect(await store.listBackups(a.id)).toEqual([])
+  // the GSLT pool (T17): the claim is one write, the free lease is the
+  // longest-idle one, and a lease whose ledger row closed is leaked
+  const gslt = (steamId: string, createdAt: Date) => ({
+    id: randomUUID(),
+    steamId,
+    appId: 730,
+    loginToken: `fake-gslt-${steamId}`,
+    memo: 'ezpug-iron test',
+    leasedByServerId: null,
+    leasedAt: null,
+    lastResetAt: null,
+    createdAt,
+    deletedAt: null,
+  })
+  expect(await store.listGsltTokens()).toEqual([])
+  expect(await store.claimFreeGsltToken(s1.id, at(6_000))).toBeUndefined()
+  const g1 = gslt('90000000000000001', at(0))
+  const g2 = gslt('90000000000000002', at(1_000))
+  await store.insertGsltToken(g1)
+  await store.insertGsltToken(g2)
+  expect((await store.listGsltTokens()).map(row => row.steamId)).toEqual([g1.steamId, g2.steamId])
+  expect((await store.findGsltTokenBySteamId(g2.steamId))?.id).toBe(g2.id)
+  expect(await store.findGsltTokenBySteamId('90000000000000009')).toBeUndefined()
+
+  // Never leased beats leased-and-freed; among the freed, longest idle first.
+  await store.updateGsltToken(g1.id, { leasedAt: at(7_000) })
+  const claimed = await store.claimFreeGsltToken(s1.id, at(8_000))
+  expect(claimed?.id).toBe(g2.id)
+  expect(claimed?.leasedByServerId).toBe(s1.id)
+  expect((await store.findGsltTokenByLease(s1.id))?.id).toBe(g2.id)
+  expect(await store.findGsltTokenByLease(s2.id)).toBeUndefined()
+  // s1 is the open row, s2 the closed one: only a lease on a closed (or
+  // absent) row leaks.
+  expect(await store.listLeakedGsltLeases()).toEqual([])
+  await store.updateGsltToken(g1.id, { leasedByServerId: s2.id, leasedAt: at(8_000) })
+  expect((await store.listLeakedGsltLeases()).map(row => row.id)).toEqual([g1.id])
+  await store.updateGsltToken(g1.id, { leasedByServerId: null, deletedAt: at(9_000) })
+  expect((await store.listGsltTokens()).map(row => row.id)).toEqual([g2.id])
+  expect(await store.listLeakedGsltLeases()).toEqual([])
+
   // nothing written by later tasks yet
   expect(await store.findPlayerTokenByHash(hashToken(mintToken('player')))).toBeUndefined()
 }

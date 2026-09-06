@@ -193,6 +193,11 @@ export const gsltTokens = pgTable(
     memo: text().notNull(),
     /** The ledger row holding it, or null in the pool. */
     leasedByServerId: uuid('leased_by_server_id'),
+    /**
+     * When it was last *taken*, kept after the release: the pool hands out
+     * the longest-idle account, so a token has the most possible time to be
+     * forgotten by whatever was logged in with it before it is lent again.
+     */
     leasedAt: timestamptz('leased_at'),
     /** The last `ResetLoginToken` after a lost server. */
     lastResetAt: timestamptz('last_reset_at'),

@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, isNull, lte, notInArray, or, sql } from 'drizz
 import type { DatabaseExecutor } from '../db/client'
 import {
   backups,
+  gsltTokens,
   matchCommands,
   matchEvents,
   matches,
@@ -57,6 +58,7 @@ function toServer(row: ServerDb): ServerRow {
     address: row.address,
     tv: row.tv,
     costHourlyCents: row.costHourlyCents,
+    gsltTokenId: row.gsltTokenId,
     providerMeta: row.providerMeta,
     versions: row.versions,
     hostname: row.hostname,
@@ -345,6 +347,61 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
     reassignServerToken: async (id, fleetServerId) => {
       await executor.update(serverTokens).set({ fleetServerId }).where(eq(serverTokens.id, id))
     },
+
+    insertGsltToken: async row => {
+      await executor.insert(gsltTokens).values(row)
+    },
+    listGsltTokens: async () =>
+      executor
+        .select()
+        .from(gsltTokens)
+        .where(isNull(gsltTokens.deletedAt))
+        .orderBy(asc(gsltTokens.createdAt)),
+    findGsltTokenBySteamId: steamId =>
+      one(executor.select().from(gsltTokens).where(eq(gsltTokens.steamId, steamId))),
+    findGsltTokenByLease: fleetServerId =>
+      one(
+        executor
+          .select()
+          .from(gsltTokens)
+          .where(and(eq(gsltTokens.leasedByServerId, fleetServerId), isNull(gsltTokens.deletedAt))),
+      ),
+    updateGsltToken: async (id, patch) => {
+      await executor.update(gsltTokens).set(patch).where(eq(gsltTokens.id, id))
+    },
+    claimFreeGsltToken: async (fleetServerId, at) => {
+      // One statement: the row is picked and taken together, so two
+      // allocations racing cannot both walk away with the same token.
+      // `skip locked` means the loser takes the next free one instead of
+      // waiting for a decision it already knows.
+      const [row] = await executor
+        .update(gsltTokens)
+        .set({ leasedByServerId: fleetServerId, leasedAt: at })
+        .where(
+          eq(
+            gsltTokens.id,
+            sql`(select ${gsltTokens.id} from ${gsltTokens}
+                 where ${gsltTokens.leasedByServerId} is null and ${gsltTokens.deletedAt} is null
+                 order by ${gsltTokens.leasedAt} asc nulls first, ${gsltTokens.createdAt} asc
+                 limit 1 for update skip locked)`,
+          ),
+        )
+        .returning()
+      return row
+    },
+    listLeakedGsltLeases: async () =>
+      executor
+        .select({ gslt: gsltTokens })
+        .from(gsltTokens)
+        .leftJoin(servers, eq(servers.id, gsltTokens.leasedByServerId))
+        .where(
+          and(
+            isNull(gsltTokens.deletedAt),
+            sql`${gsltTokens.leasedByServerId} is not null`,
+            or(isNull(servers.id), sql`${servers.releasedAt} is not null`),
+          ),
+        )
+        .then(rows => rows.map(row => row.gslt)),
 
     insertNode: async row => {
       await executor.insert(nodes).values(row)

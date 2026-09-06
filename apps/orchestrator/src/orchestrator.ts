@@ -7,6 +7,9 @@ import { type Budgets, createBudgets } from './budget/service'
 import type { OrchestratorConfig } from './config'
 import { createDatabase, type DatabaseHandle } from './db/client'
 import { createFleet, type Fleet } from './fleet/service'
+import { createFakeSteam } from './gslt/fake-steam'
+import { createGsltPool, type GsltPool } from './gslt/pool'
+import { createSteamGameServers, type SteamGameServers } from './gslt/steam'
 import { createHealth } from './health'
 import { createDispatch } from './http/dispatch'
 import { createHandlers } from './http/handlers'
@@ -77,6 +80,8 @@ export interface Orchestrator {
   readonly hub: StreamHub
   readonly webhooks: WebhookWorker
   readonly reaper: Reaper
+  /** The Steam login tokens rented servers need (T17). */
+  readonly gslt: GsltPool
   readonly upgrades: UpgradeRouter
   readonly app: ReturnType<typeof createApp>
   readonly server: HttpServer
@@ -103,6 +108,15 @@ export interface CreateOrchestratorOptions {
    * (T15) hands its door here; nothing in production sets it.
    */
   dathostFetch?: Parameters<typeof createDathostProvider>[0]['fetch']
+}
+
+/** The host of a URL, for a name a human reads — never the whole URL. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return 'unknown'
+  }
 }
 
 export function createOrchestrator(options: CreateOrchestratorOptions): Orchestrator {
@@ -169,6 +183,37 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     baseUrl: config.baseUrl,
   })
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
+
+  // **The GSLT pool** (T17): the Steam accounts a rented server logs in
+  // with. Always built — `GET /v1/fleet/gslt` is a route whether or not a
+  // key exists, and a pool with no Steam door still leases the accounts the
+  // table holds. Where it mints from is the one decision:
+  const steam: SteamGameServers | undefined = config.gslt.steamApiKey
+    ? createSteamGameServers({ clock, log, apiKey: config.gslt.steamApiKey })
+    : config.gslt.fakeSteam
+      ? createSteamGameServers({
+          clock,
+          log,
+          apiKey: 'fake-steam-key',
+          fetch: createFakeSteam({ clock, apiKey: 'fake-steam-key' }).fetch,
+          baseUrl: 'http://fake-steam.invalid',
+        })
+      : undefined
+  if (config.gslt.fakeSteam)
+    log.warn(
+      'gslt: minting login tokens against the in-process fake Steam — every server this ' +
+        'deployment starts accepts LAN connections only',
+    )
+  const gslt = createGsltPool({
+    clock,
+    log,
+    store,
+    max: config.gslt.poolMax,
+    // One Steam key may serve two deployments; the memo says whose an
+    // account is, and the sweep only ever adopts its own.
+    deployment: hostOf(config.baseUrl),
+    ...(steam && { steam }),
+  })
   const fleet = createFleet({ clock, store, registry: providers, matches })
 
   // The node provider needs the server link (a claimed warm instance is
@@ -215,6 +260,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
             password: config.dathost.password,
             templateServerId: config.dathost.templateServerId,
             location: config.dathost.location,
+            gslt,
             ...(options.dathostFetch && { fetch: options.dathostFetch }),
           }),
         )
@@ -263,7 +309,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet, nodes }),
+      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet, nodes, gslt }),
     ),
     rateLimiter: createRateLimiter({ clock, ...config.rateLimit }),
     health,
@@ -322,6 +368,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       },
       reaper,
       budgets,
+      gslt,
       webhooks,
       matches,
       hub,
@@ -347,6 +394,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     hub,
     webhooks,
     reaper,
+    gslt,
     upgrades,
     app,
     server,
@@ -358,6 +406,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       webhooks.start()
       reaper.start()
       budgets.start()
+      gslt.start()
     },
     listen: ({ port = config.port, host = config.host } = {}) =>
       new Promise((resolve, reject) => {

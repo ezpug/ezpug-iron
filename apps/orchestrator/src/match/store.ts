@@ -132,6 +132,8 @@ export interface ServerRow {
   address: FleetServerAddress | null
   tv: ServerTv | null
   costHourlyCents: number
+  /** The GSLT this row holds (T17); null on a node, on the sim, and while the pool is dry. */
+  gsltTokenId: string | null
   providerMeta: Record<string, unknown> | null
   /** What the server said in `hello` over the link (T6); null until it dialled in. */
   versions: ServerVersions | null
@@ -223,6 +225,29 @@ export interface PlayerTokenRow {
   createdAt: Date
   revokedAt: Date | null
 }
+
+/**
+ * **One Steam game server account** (T17): the login token a CS2 server
+ * needs to accept anything but a LAN connection. Leased to a ledger row at
+ * allocation, freed when the row closes, reset at Steam when the server it
+ * was on was lost. Held in clear because it is a credential this process has
+ * to *present* to a provider, like a webhook secret.
+ */
+export interface GsltTokenRow {
+  id: string
+  steamId: string
+  appId: number
+  loginToken: string
+  memo: string
+  /** The ledger row holding it (`servers.id`), or null in the pool. */
+  leasedByServerId: string | null
+  leasedAt: Date | null
+  lastResetAt: Date | null
+  createdAt: Date
+  deletedAt: Date | null
+}
+
+export type GsltTokenPatch = Partial<Omit<GsltTokenRow, 'id' | 'steamId' | 'createdAt'>>
 
 /** A page of rows and the offset the next one starts at. */
 export interface Page<T> {
@@ -328,6 +353,27 @@ export interface MatchStore {
    * the warm one it was minted for.
    */
   reassignServerToken: (id: string, fleetServerId: string) => Promise<void>
+
+  // --- the GSLT pool (T17) ---------------------------------------------------------
+  insertGsltToken: (row: GsltTokenRow) => Promise<void>
+  /** Every account this deployment holds and has not deleted, oldest first. */
+  listGsltTokens: () => Promise<GsltTokenRow[]>
+  findGsltTokenBySteamId: (steamId: string) => Promise<GsltTokenRow | undefined>
+  /** The account a ledger row is holding, if any. */
+  findGsltTokenByLease: (fleetServerId: string) => Promise<GsltTokenRow | undefined>
+  updateGsltToken: (id: string, patch: GsltTokenPatch) => Promise<void>
+  /**
+   * Take the longest-idle free account for `fleetServerId`, in one write —
+   * `undefined` when the pool is dry. Atomic because "one token per running
+   * server" is Valve's rule and two servers sharing one evicts the first.
+   */
+  claimFreeGsltToken: (fleetServerId: string, at: Date) => Promise<GsltTokenRow | undefined>
+  /**
+   * Every lease whose ledger row is closed or gone — what a process that
+   * died between `deallocate` and `release` leaves behind, and what the
+   * pool's sweep frees.
+   */
+  listLeakedGsltLeases: () => Promise<GsltTokenRow[]>
 
   // --- nodes (T12) ----------------------------------------------------------------
   insertNode: (row: NodeRow) => Promise<void>

@@ -243,6 +243,8 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
       address: connectOf(node, instance.ports),
       tv: tvOf(node, instance.ports),
       costHourlyCents: 0,
+      // A node is a LAN box; nothing there needs a Steam login token (T17).
+      gsltTokenId: null,
       providerMeta: { instanceId: instance.id, purpose: 'warm', node: nodeRow.id },
       versions: null,
       hostname: null,

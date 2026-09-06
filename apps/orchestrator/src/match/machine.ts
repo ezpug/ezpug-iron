@@ -704,6 +704,8 @@ export function createMatches(options: MatchesOptions): Matches {
         address: null,
         tv: null,
         costHourlyCents: offering.hourlyCents,
+        // Written by the GSLT pool when the provider leases one (T17).
+        gsltTokenId: null,
         providerMeta: null,
         versions: null,
         hostname: null,

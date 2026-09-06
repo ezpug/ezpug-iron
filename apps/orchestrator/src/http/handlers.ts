@@ -8,6 +8,7 @@ import type {
 import { ApiError, MATCH_API_ERROR_STATUS, parseEventsCursor } from '@ezpug/match-api'
 import type { Budgets } from '../budget/service'
 import type { Fleet } from '../fleet/service'
+import type { GsltPool } from '../gslt/pool'
 import type { AuthenticatedKey, Keys } from '../keys/service'
 import type { Matches } from '../match/machine'
 import type { Nodes } from '../nodes/service'
@@ -20,9 +21,9 @@ import type { Nodes } from '../nodes/service'
  *
  * Served: the catalog and the keys (T2), matches, capacity, the fleet's
  * servers, providers and ledger (T3), the budget and the keys' rotation and
- * ceilings (T5), the nodes (T12). Everything else answers {@link notServedYet} until the task
- * that builds it replaces the entry: T17 (gslt), T20 (console, rcon), T24
- * (player tokens). A route that is not yet served still exists: it authenticates,
+ * ceilings (T5), the nodes (T12), the GSLT pool (T17). Everything else answers
+ * {@link notServedYet} until the task that builds it replaces the entry:
+ * T20 (console, rcon), T24 (player tokens). A route that is not yet served still exists: it authenticates,
  * gates its scope and validates its input like every other, and then says
  * so with `internal` — never a `404` that would lie about the contract.
  */
@@ -51,6 +52,8 @@ export interface HandlerDependencies {
   matches: Matches
   fleet: Fleet
   nodes: Nodes
+  /** The GSLT pool (T17) — two integers, never a token. */
+  gslt: GsltPool
 }
 
 /** A handler for a route a later task serves; names the task so the answer is honest. */
@@ -78,7 +81,7 @@ function upgradeRequired(): ApiError {
 }
 
 export function createHandlers(deps: HandlerDependencies): RouteHandlers {
-  const { keys, budgets, gamemodes, matches, fleet, nodes } = deps
+  const { keys, budgets, gamemodes, matches, fleet, nodes, gslt } = deps
   return {
     gamemodes: {
       list: () => ({ gamemodes: [...gamemodes] }),
@@ -137,7 +140,9 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
         return fleet.ledger(filter, cursor, limit)
       },
       budget: (_input, ctx) => budgets.of(ctx.key.key),
-      gslt: notServedYet('T17'),
+      // How many Steam accounts this deployment holds and how many are on a
+      // server. Never a login token: a health tile counts, it does not connect.
+      gslt: () => gslt.stats(),
     },
     keys: {
       create: ({ body }) => keys.mint(body),

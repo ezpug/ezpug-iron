@@ -2,6 +2,7 @@ import type {
   BackupRow,
   CommandRow,
   DeliveryRow,
+  GsltTokenRow,
   MatchEventRow,
   MatchRow,
   MatchStore,
@@ -33,6 +34,7 @@ export function createMemoryMatchStore(): MatchStore & {
     playerTokens: PlayerTokenRow[]
     nodes: NodeRow[]
     nodeEnrolments: NodeEnrolmentRow[]
+    gsltTokens: GsltTokenRow[]
   }
 } {
   const matches: MatchRow[] = []
@@ -45,6 +47,7 @@ export function createMemoryMatchStore(): MatchStore & {
   const playerTokens: PlayerTokenRow[] = []
   const nodes: NodeRow[] = []
   const nodeEnrolments: NodeEnrolmentRow[] = []
+  const gsltTokens: GsltTokenRow[] = []
 
   const copy = <T>(value: T): T => structuredClone(value)
   const byId = (id: string): MatchRow | undefined => matches.find(row => row.id === id)
@@ -73,6 +76,7 @@ export function createMemoryMatchStore(): MatchStore & {
       playerTokens,
       nodes,
       nodeEnrolments,
+      gsltTokens,
     },
 
     insertMatch: row => {
@@ -290,6 +294,49 @@ export function createMemoryMatchStore(): MatchStore & {
       row.fleetServerId = fleetServerId
       return Promise.resolve()
     },
+
+    insertGsltToken: row => {
+      gsltTokens.push(copy(row))
+      return Promise.resolve()
+    },
+    listGsltTokens: () =>
+      Promise.resolve(gsltTokens.filter(row => row.deletedAt === null).map(copy)),
+    findGsltTokenBySteamId: steamId =>
+      Promise.resolve(copy(gsltTokens.find(row => row.steamId === steamId))),
+    findGsltTokenByLease: fleetServerId =>
+      Promise.resolve(
+        copy(
+          gsltTokens.find(row => row.deletedAt === null && row.leasedByServerId === fleetServerId),
+        ),
+      ),
+    updateGsltToken: (id, patch) => {
+      const row = gsltTokens.find(candidate => candidate.id === id)
+      if (!row) throw new Error(`no gslt token ${id}`)
+      Object.assign(row, copy(patch))
+      return Promise.resolve()
+    },
+    claimFreeGsltToken: (fleetServerId, at) => {
+      // The longest-idle free account, so a token that was just released has
+      // the most time to be forgotten by whatever was logged in with it.
+      const free = gsltTokens
+        .filter(row => row.deletedAt === null && row.leasedByServerId === null)
+        .sort((a, b) => (a.leasedAt?.getTime() ?? 0) - (b.leasedAt?.getTime() ?? 0))
+      const row = free[0]
+      if (!row) return Promise.resolve(undefined)
+      row.leasedByServerId = fleetServerId
+      row.leasedAt = at
+      return Promise.resolve(copy(row))
+    },
+    listLeakedGsltLeases: () =>
+      Promise.resolve(
+        gsltTokens
+          .filter(row => row.deletedAt === null && row.leasedByServerId !== null)
+          .filter(row => {
+            const server = servers.find(candidate => candidate.id === row.leasedByServerId)
+            return !server || server.releasedAt !== null
+          })
+          .map(copy),
+      ),
 
     insertNode: row => {
       nodes.push(copy(row))

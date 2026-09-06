@@ -118,20 +118,28 @@ export const DATHOST_RETRY_AFTER_MAX_MS = 60_000
 export const DATHOST_CONSOLE_LINES = 200
 
 /**
- * The GSLT pool's seam (T17 fills it). Without a Steam Game Server Login
- * Token a CS2 server accepts LAN connections only, which is useless on
- * rented hardware — but the pool, its Steam Web API calls and its table are
- * T17's, so this provider only ever asks for one and gives it back.
+ * The GSLT pool's seam (`../../gslt/pool.ts`, T17). Without a Steam Game
+ * Server Login Token a CS2 server accepts LAN connections only, which is
+ * useless on rented hardware — but the pool, its Steam Web API calls and its
+ * table are T17's, so this provider only ever asks for one and gives it back.
  *
- * Leases are keyed by the **Dathost server id**, because "one token per
- * running server" is the vendor's rule and the running server is what a
- * restart can still find.
+ * Leases are keyed by the **ledger row** (`fleetServerId`), not by the
+ * Dathost id: the row exists before the clone does and outlives it, so a
+ * lease can never be stranded by a clone that was created and never named,
+ * and the pool's sweep can free every lease whose row has closed. `stop`
+ * and `deallocate` know the row from this adapter's own record of the
+ * allocation; after a restart they do not, and the sweep is what frees the
+ * lease then (which is why it exists).
  */
 export interface DathostGsltPool {
-  /** A token for this server, or `null` when the pool is empty (LAN only, said out loud). */
-  lease: (serverId: string) => Promise<string | null>
-  /** Give the lease back. Idempotent — a server with no lease releases successfully. */
-  release: (serverId: string) => Promise<void>
+  /** A token for this ledger row, or `null` when the pool is dry (LAN only, said out loud). */
+  lease: (fleetServerId: string) => Promise<string | null>
+  /**
+   * Give the lease back. Idempotent — a row with no lease releases
+   * successfully. `lost` means the server could not be proven stopped, and
+   * the token is reset at Steam before it is lent to anybody else.
+   */
+  release: (fleetServerId: string, options?: { lost?: boolean }) => Promise<void>
 }
 
 export interface DathostProviderOptions {
@@ -489,7 +497,7 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
   }
 
   /** Stop and delete, for a clone that must not survive. Never throws. */
-  const scrap = async (serverId: string, why: string): Promise<void> => {
+  const scrap = async (serverId: string, fleetServerId: string, why: string): Promise<void> => {
     try {
       await send('POST', `/game-servers/${encodeURIComponent(serverId)}/stop`, {
         idempotent: true,
@@ -504,7 +512,9 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
         allowMissing: true,
       })
       records.delete(serverId)
-      await options.gslt?.release(serverId)
+      // The clone is deleted, so nothing is logged in with the token — a
+      // clean release, and the account goes straight back into the pool.
+      await options.gslt?.release(fleetServerId)
     } catch (error) {
       // The reaper holds the rest: the clone carries our template as its
       // `duplicate_source_server`, so `list()` claims it and the next pass
@@ -555,11 +565,12 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
       const serverId = String(clone.id)
 
       try {
-        const gslt = (await options.gslt?.lease(serverId)) ?? null
+        const gslt = (await options.gslt?.lease(request.fleetServerId)) ?? null
         if (!gslt && !warnedAboutGslt) {
           warnedAboutGslt = true
           log?.warn(
-            'dathost: no GSLT lease — the server will accept LAN connections only (T17 mints the pool)',
+            'dathost: no GSLT lease — the server will accept LAN connections only ' +
+              '(the pool is dry or STEAM_WEB_API_KEY is unset)',
           )
         }
         const rconPassword = mintRconPassword()
@@ -598,7 +609,7 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
       } catch (error) {
         // Half an allocation is a server nobody will ever use and everybody
         // pays for: take it back before the walk moves to the next candidate.
-        await scrap(serverId, 'an allocation that failed half-way')
+        await scrap(serverId, request.fleetServerId, 'an allocation that failed half-way')
         throw error
       }
     },
@@ -684,12 +695,17 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
         // A box that will not stop is still a box that must be deleted.
         log?.warn(`dathost: stopping ${serverId} before deletion failed (${errorText(error)})`)
       }
-      await send('DELETE', `/game-servers/${encodeURIComponent(serverId)}`, {
+      const deleted = await send('DELETE', `/game-servers/${encodeURIComponent(serverId)}`, {
         idempotent: true,
         allowMissing: true,
       })
+      const fleetServerId = records.get(serverId)?.fleetServerId
       records.delete(serverId)
-      await options.gslt?.release(serverId)
+      // A server that was already gone when we came to delete it was never
+      // proven stopped: it may still be logged in with the token, so the
+      // pool resets it before lending it out again. A restart in between
+      // loses the record and the pool's sweep frees the lease instead.
+      if (fleetServerId) await options.gslt?.release(fleetServerId, { lost: deleted === null })
     },
 
     /**

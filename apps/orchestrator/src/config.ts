@@ -44,6 +44,16 @@ export const TRACE_FILE_VAR = 'EZPUG_IRON_TRACE_FILE'
  */
 export const DEFAULT_NODE_SERVER_IMAGE = 'ghcr.io/ezpug/ezpug-iron/cs2:dev'
 
+/**
+ * The dev-only fake Steam (PRD-02 T17): the pool mints its login tokens
+ * against the in-process fake instead of Valve, so a developer's box has a
+ * working pool without a partner key. **Refused under `NODE_ENV=production`.**
+ */
+export const STEAM_FAKE_TOKENS_VAR = 'EZPUG_IRON_STEAM_FAKE_TOKENS'
+
+/** How many Steam game server accounts a deployment holds unless it says otherwise. */
+export const DEFAULT_GSLT_POOL_MAX = 16
+
 /** The dev port, decided in `.env.example` against `ss -tlnp` on this box. */
 export const DEFAULT_PORT = 3430
 
@@ -101,6 +111,29 @@ export interface DathostConfig {
   readonly location: string
 }
 
+/**
+ * **The GSLT pool** (PRD-02 T17). A CS2 server without a Steam Game Server
+ * Login Token accepts LAN connections only, so a rented server needs one and
+ * a node at a venue does not. `STEAM_WEB_API_KEY` (the name the PRD and
+ * every Steam document use; `EZPUG_IRON_STEAM_WEB_API_KEY` is the prefixed
+ * alias) is what mints them.
+ *
+ * Without a key the pool leases whatever accounts the table already holds
+ * and mints nothing, which is the honest state of a developer's box —
+ * `EZPUG_IRON_STEAM_FAKE_TOKENS` gives that box a working pool against the
+ * in-process fake Steam instead, and is refused under `NODE_ENV=production`
+ * for the same reason the bootstrap key is: a token nobody at Valve minted
+ * would let a server boot believing it can be joined.
+ */
+export interface GsltConfig {
+  /** `STEAM_WEB_API_KEY`, or null. Never logged, never in an answer. */
+  readonly steamApiKey: string | null
+  /** Mint against the in-process fake Steam. Dev only. */
+  readonly fakeSteam: boolean
+  /** How many Steam accounts this deployment will hold (`EZPUG_IRON_GSLT_POOL_MAX`). */
+  readonly poolMax: number
+}
+
 export interface OrchestratorConfig {
   /** The orchestrator's own public origin — `baseUrl` for clients, webhook and token audience. */
   readonly baseUrl: string
@@ -135,6 +168,8 @@ export interface OrchestratorConfig {
   readonly rateLimit: RateLimitConfig
   /** The Dathost account, or `null` when this deployment has no credentials. */
   readonly dathost: DathostConfig | null
+  /** The GSLT pool's Steam door and ceiling (T17). */
+  readonly gslt: GsltConfig
 }
 
 function numberFromEnv(fallback: number) {
@@ -245,6 +280,41 @@ export function readDathostConfig(env: EnvRecord): DathostConfig | null {
   }
 }
 
+/**
+ * The Steam key, the dev fake and the pool's ceiling. A key and the fake
+ * together are a configuration mistake worth refusing: one of them is being
+ * ignored and the operator does not know which.
+ */
+export function readGsltConfig(env: EnvRecord, production: boolean): GsltConfig {
+  const steamApiKey =
+    (env.EZPUG_IRON_STEAM_WEB_API_KEY ?? env.STEAM_WEB_API_KEY ?? '').trim() || null
+  const parsed = z
+    .object({
+      fakeSteam: booleanFromEnv(false),
+      poolMax: numberFromEnv(DEFAULT_GSLT_POOL_MAX),
+    })
+    .safeParse({
+      fakeSteam: env[STEAM_FAKE_TOKENS_VAR],
+      poolMax: env.EZPUG_IRON_GSLT_POOL_MAX ?? env.EZPUG_GSLT_POOL_MAX,
+    })
+  if (!parsed.success)
+    fail(parsed.error.issues, {
+      fakeSteam: STEAM_FAKE_TOKENS_VAR,
+      poolMax: 'EZPUG_IRON_GSLT_POOL_MAX',
+    })
+  if (parsed.data.fakeSteam && production)
+    throw new Error(
+      `invalid orchestrator configuration (${STEAM_FAKE_TOKENS_VAR}: refused under NODE_ENV=production — ` +
+        'a token Valve never minted lets a server boot believing it can be joined; set STEAM_WEB_API_KEY)',
+    )
+  if (parsed.data.fakeSteam && steamApiKey !== null)
+    throw new Error(
+      `invalid orchestrator configuration (${STEAM_FAKE_TOKENS_VAR} is set beside STEAM_WEB_API_KEY: ` +
+        'one of the two would be ignored; set exactly one)',
+    )
+  return { steamApiKey, ...parsed.data }
+}
+
 /** Read the whole configuration; throws with every problem named. */
 export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
   const parsed = z
@@ -327,6 +397,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
     redis: readRedisConfig(env),
     rateLimit: { burst: rateLimitBurst, perSecond: rateLimitPerSecond },
     dathost: readDathostConfig(env),
+    gslt: readGsltConfig(env, production),
   }
 }
 

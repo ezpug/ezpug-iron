@@ -414,7 +414,7 @@ every offline proof here.
   present (`EZPUG_DATHOST_LOCATION` defaults to `dusseldorf`). Tests against T15 including
   every fault and "deallocate after allocate failed half-way leaves nothing behind".
 
-- [ ] **T17: The GSLT pool.** A CS2 server without a Steam Game Server Login Token takes
+- [x] **T17: The GSLT pool.** A CS2 server without a Steam Game Server Login Token takes
   LAN connections only. `gslt_tokens`: lease on allocate, release on deallocate, mint via
   the Steam Web API `IGameServersService` (`CreateAccount` app 730, `DeleteAccount`,
   `ResetLoginToken` on a lost server, `GetAccountList` to reconcile) with

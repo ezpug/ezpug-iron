@@ -331,27 +331,50 @@ describe('allocation', () => {
     ).toHaveLength(2)
   })
 
-  it('leases a GSLT for the clone and puts it in the settings', async () => {
+  it('leases a GSLT for the ledger row and puts it in the clone’s settings', async () => {
     const leased: string[] = []
-    const released: string[] = []
+    const released: { fleetServerId: string; lost: boolean }[] = []
     const gslt: DathostGsltPool = {
-      lease: serverId => {
-        leased.push(serverId)
+      lease: fleetServerId => {
+        leased.push(fleetServerId)
         return Promise.resolve('a-fake-gslt')
       },
-      release: serverId => {
-        released.push(serverId)
+      release: (fleetServerId, releaseOptions) => {
+        released.push({ fleetServerId, lost: releaseOptions?.lost === true })
         return Promise.resolve()
       },
     }
     const adapter = provider({ gslt })
     const allocated = await drive(adapter.allocate(allocation()))
-    expect(leased).toEqual([allocated.serverId])
+    // The lease is keyed by the row, not the clone: the row exists before
+    // the clone does and outlives it (T17).
+    expect(leased).toEqual([FLEET_SERVER_ID])
     const settings = fake.server(allocated.serverId)?.raw.cs2_settings as Record<string, unknown>
     expect(settings.steam_game_server_login_token).toBe('a-fake-gslt')
 
     await drive(adapter.deallocate(allocated.serverId))
-    expect(released).toEqual([allocated.serverId])
+    // The clone was there to be deleted, so nothing is still logged in with
+    // the token: a clean release, and no `ResetLoginToken` at Steam.
+    expect(released).toEqual([{ fleetServerId: FLEET_SERVER_ID, lost: false }])
+  })
+
+  it('releases the lease as lost when the server was already gone', async () => {
+    const released: { fleetServerId: string; lost: boolean }[] = []
+    const adapter = provider({
+      gslt: {
+        lease: () => Promise.resolve('a-fake-gslt'),
+        release: (fleetServerId, releaseOptions) => {
+          released.push({ fleetServerId, lost: releaseOptions?.lost === true })
+          return Promise.resolve()
+        },
+      },
+    })
+    const allocated = await drive(adapter.allocate(allocation()))
+    // The box vanished off the account: nothing proved it stopped, so the
+    // token it carries may still be logged in somewhere.
+    fake.setFaults({ vanished: [allocated.serverId] })
+    await drive(adapter.deallocate(allocated.serverId))
+    expect(released).toEqual([{ fleetServerId: FLEET_SERVER_ID, lost: true }])
   })
 
   it('says out loud, once, that a server without a GSLT is LAN only', async () => {

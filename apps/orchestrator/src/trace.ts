@@ -49,6 +49,8 @@ const SECRET_KEYS = new Set([
   'rconPassword',
   'headerValue',
   'secret',
+  'loginToken',
+  'steam_game_server_login_token',
 ])
 
 /** Keys holding a presigned URL: the path is a fact, the query is the signature. */

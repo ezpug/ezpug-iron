@@ -562,6 +562,58 @@ so the reaper takes it within a grace window instead of billing quietly for it.
 `providers/dathost/provider.test.ts` proves each of those against the fake Dathost (T15);
 the one live lane is T19's smoke behind `EZPUG_DATHOST_TESTS=required`.
 
+## The GSLT pool
+
+A CS2 server started without a **Steam Game Server Login Token** logs in anonymously and
+prints, in its own console, that *connections will be restricted to LAN only*. So every
+**rented** server needs one and a **node** at a venue needs none — which is why only the
+Dathost provider holds the pool's seam, and why a dev box that only ever runs `sim` and
+`nodes` never notices the pool is empty.
+
+`gslt_tokens` is the pool: one row per Steam game server account this deployment owns,
+holding the account's SteamID, its login token, and the ledger row currently using it.
+
+**Configure it** with `STEAM_WEB_API_KEY` (`EZPUG_IRON_STEAM_WEB_API_KEY` is the prefixed
+alias) — a Steam Web API key from <https://steamcommunity.com/dev/apikey> belonging to an
+account that may manage game servers. `EZPUG_IRON_GSLT_POOL_MAX` (default 16) is the
+ceiling. On a developer's box, `EZPUG_IRON_STEAM_FAKE_TOKENS=true` mints against the
+in-process fake Steam instead, so the leasing is exercised without a partner key; it is
+refused under `NODE_ENV=production`, and so is setting it beside a real key.
+
+**How a token moves.** `allocate` asks the pool for a lease keyed by the **ledger row**;
+the pool hands back a free account's token, or mints one from `IGameServersService`
+`CreateAccount` when it is short of the ceiling, and the Dathost provider writes it into
+`cs2_settings.steam_game_server_login_token` on the clone. `deallocate` gives the lease
+back. The row's `gslt_token_id` says which account it holds, so "which server has which
+token" is one query.
+
+The rules, each with a test in `gslt/pool.test.ts`:
+
+- **One token, one running server.** Valve evicts the first login when a token appears
+  twice, so a lease is a single atomic claim and the pool hands out the *longest-idle*
+  free account — the one whose last holder has had the most time to disappear.
+- **The ceiling is a wall, not a target.** Nothing is minted until a lease asks for a
+  token there is none of; the pool grows to peak concurrency and stops. `CreateAccount`
+  is never retried — a repeated create is a Steam account nobody tracks.
+- **A dry pool is a warning, never a refusal.** The lease answers nothing, the provider
+  says "LAN connections only" once in the log, and the match still runs. Read
+  `GET /v1/fleet/gslt` (`fleet` scope: `{ total, inUse }`, never a token) and raise the
+  ceiling, or find out why nothing is releasing.
+- **A lost server's token is reset.** A box that vanished before it could be stopped may
+  still be logged in with its token, so the release runs `ResetLoginToken` before the
+  account goes back into the pool. A reset that fails is logged and the account is kept:
+  the old token still works.
+- **A crash cannot leak a lease.** Every five minutes the sweep frees each lease whose
+  ledger row has closed or gone, then reconciles with `GetAccountList`: an account Steam
+  no longer knows is dropped, one Steam let expire is reset, one carrying this
+  deployment's memo (`ezpug-iron <public host>`) that this database does not know is
+  adopted. Two deployments may share a Steam key; neither ever touches the other's memo.
+
+**When a Saturday goes wrong**: servers boot but nobody outside the datacentre can join →
+check `GET /v1/fleet/gslt` first. `total: 0` means no key, a wrong key (the log says
+`STEAM_WEB_API_KEY is wrong`) or a ceiling of zero; `inUse == total` means the pool is
+saturated — raise `EZPUG_IRON_GSLT_POOL_MAX` and restart, and the next allocation mints.
+
 ## The MatchZy door
 
 The one HTTP path a server speaks to besides its link: `POST /matchzy/log`

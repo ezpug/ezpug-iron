@@ -43,6 +43,8 @@ export interface ShutdownStepsOptions {
   reaper?: { stop: () => Promise<void> }
   /** The budget sweep (T5) — a timer, disarmed with the reaper's. */
   budgets?: { stop: () => Promise<void> }
+  /** The GSLT pool's sweep (T17) — disarmed here, and its lease chain awaited. */
+  gslt?: { stop: () => Promise<void> }
   webhooks?: Closable
   matches?: Closable
   hub?: Closable
@@ -59,6 +61,7 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     streams,
     reaper,
     budgets,
+    gslt,
     webhooks,
     matches,
     hub,
@@ -87,6 +90,7 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     //    they publish into.
     ...(reaper ? [{ name: 'reaper', run: () => reaper.stop() }] : []),
     ...(budgets ? [{ name: 'budgets', run: () => budgets.stop() }] : []),
+    ...(gslt ? [{ name: 'gslt', run: () => gslt.stop() }] : []),
     ...(webhooks ? [{ name: 'webhooks', run: () => webhooks.close() }] : []),
     ...(matches ? [{ name: 'matches', run: () => matches.close() }] : []),
     ...(hub ? [{ name: 'hub', run: () => hub.close() }] : []),
