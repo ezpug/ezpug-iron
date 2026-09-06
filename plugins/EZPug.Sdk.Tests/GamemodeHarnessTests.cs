@@ -183,4 +183,25 @@ public class GamemodeHarnessTests
         Assert.Equal((2L, 0L, false), (runtime.Match.MapNumber, runtime.Match.RoundNumber, runtime.Match.Live));
         Assert.Equal(["server_ready", "player_connected", "player_connected", "going_live", "side_swap", "map_end"], host.Link.EventTypes);
     }
+
+    [Fact]
+    public void AnAssignmentWithARestoreStartsTheContextWhereTheDeadServerLeftOff()
+    {
+        using var host = new GamemodeTestHost(new PowerupDemo());
+        var pug = GamemodeTestHost.ManifestFrom(File.ReadAllText(Repo.Path("gamemodes", "pug", "manifest.json")));
+        var assignment = GamemodeTestHost.AssignmentFor(pug) with
+        {
+            Maps = [new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Knife }, new MapPlan { Map = "de_inferno", Sides = MapPlanSides.Knife }],
+            Restore = new RoundBackup { MapNumber = 2, RoundNumber = 7, Filename = "matchzy_1_1_round06.json", Content = "{}" },
+        };
+        host.Link.Assign(assignment);
+        var runtime = host.Runtime;
+        // Map 2, six rounds played: the next round start is the seventh, and a backup
+        // frame or a round event names the series' map, not this box's first.
+        Assert.Equal((2L, 6L, false), (runtime.Match.MapNumber, runtime.Match.RoundNumber, runtime.Match.Live));
+        host.World.StartMap("de_inferno");
+        Assert.Equal(2L, runtime.Match.MapNumber);
+        host.World.StartRound();
+        Assert.Equal(7L, runtime.Match.RoundNumber);
+    }
 }

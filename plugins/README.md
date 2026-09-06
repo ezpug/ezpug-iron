@@ -124,8 +124,19 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   winner's `.switch`, halftime) or, with nobody rostered, when the engine flagged the swap,
   and 1.5 s after each live round start the newest `MatchZyDataBackup/matchzy_<matchid>_<map>_round<NN>.json`
   as a `backup` frame (restores to round `NN + 1`) plus `backup_written`, the remote-log
-  header value scrubbed out of MatchZy's serialised config first. A restore re-points the
-  remote log after loading the file (T14).
+  header value scrubbed out of MatchZy's serialised config first.
+- **A restore** (T14). An assignment whose match resumes here after its server was lost
+  carries `restore`: the loader goes to the backup's map (not the plan's first), and after
+  `matchzy_loadmatch` writes the backup into `MatchZyDataBackup/` with this server's remote
+  log put back inside it (`MatchZyBackups.WithRemoteLog`, the inverse of the scrub — MatchZy
+  deserialises its config from that file, twice) and runs `matchzy_loadbackup <file>`, then
+  points the remote log once more. MatchZy in warmup marks the restore pending and applies
+  it when the match starts (`mp_backup_restore_load_file`, then its own pause both teams
+  lift with `.unpause`); players reconnect, ready up, and find their round. The plugin says
+  `backup_restored` as a `plugin_event` (the simulator's word too); `going_live` stays
+  MatchZy's, and is what closes the orchestrator's recovery window. The runtime's context
+  starts at the backup's map and round. A file name that is not a bare `.json` name is
+  refused; a non-`matchzy` flow warns that it has no round backups and starts over.
 - **Bots on the wire.** The vocabulary names a player by a 17-digit SteamID64 and a bot
   has none, so a bot is `90000000000000000 + slot` (`BotIdentity` in the SDK): stable for
   its connection, obviously synthetic, and a bot's death is a real event in a match bots
@@ -134,8 +145,9 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   removed, the server goes back to the lobby map, state `idle`.
 - **Commands over the link.** `announce`, `kick`, `rcon` and `profile` are answered by the
   runtime; for a `matchzy` flow `pause` and `unpause` are MatchZy's `css_forcepause` /
-  `css_forceunpause`; `restart_round`, `force_end`, `restore` and `reroll` are the flow
-  owner's (the mode, or T14 for `restore`) and `command_unsupported` until then.
+  `css_forceunpause`; `restart_round`, `force_end` and `reroll` are the flow owner's (the
+  mode) and `command_unsupported` until then. `restore` never reaches a server: the
+  orchestrator restores onto a *new* server through the assignment (above).
 - **A gamemode plugin attaches through the host capability.** `EZPug.Sdk.Hosting.GamemodeHost`
   is a CounterStrikeSharp `PluginCapability` the core publishes; a mode's plugin derives
   from `GamemodePlugin`, which finds the host on load and attaches the mode. A mode
@@ -149,7 +161,7 @@ Server console or RCON only (`CommandUsage.SERVER_ONLY`):
 | ------- | ------------ |
 | `ezpug_status` | versions; the link (unlinked / connecting / connected to `<host>` as `<provider>/<serverId>`); the buffer's `lastSeq` and unacked count; state, map, player count; the match, mode and round; the plugins enabled and installed |
 | `ezpug_announce <text>` | says the line to everybody, as the `announce` command over the link would; logged to the console tail |
-| `ezpug_restore <file> <round>` | loads a round backup already on disk under `game/csgo` by file name (`mp_backup_restore_load_file`). The whole recovery flow — the backup arriving in the assignment, written here, `server_ready` re-announced with the round — is T14 and builds on this |
+| `ezpug_restore <file> <round>` | loads an engine round backup already on disk under `game/csgo` by file name (`mp_backup_restore_load_file`) — the operator's hand door. The recovery flow itself (the backup arriving in the assignment, `MatchZyDataBackup/`, `matchzy_loadbackup`) needs no console: see *A restore* above |
 
 The console tail the fleet console reads over the link (T20) holds what the plugin itself
 logged, the announcements and the restores; CounterStrikeSharp offers no hook on the

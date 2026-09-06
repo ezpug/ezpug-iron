@@ -4,7 +4,12 @@ import type {
   MatchCommandResult,
   RosterEntry,
 } from '@ezpug/match-api'
-import type { LinkConsoleLine, OrchestratorFrameOf, ServerFrameOf } from '@ezpug/protocol'
+import type {
+  LinkConsoleLine,
+  OrchestratorFrameOf,
+  RoundBackup,
+  ServerFrameOf,
+} from '@ezpug/protocol'
 
 /**
  * **The inner half of the link** (decision 5, PRD-02 T3/T6). A server's only
@@ -41,6 +46,12 @@ export type IngestStatus = 'accepted' | 'duplicate' | 'ephemeral' | 'rejected'
  */
 export interface ServerEventSink {
   ingest: (source: ServerRef, event: GameserverEvent) => Promise<IngestStatus>
+  /**
+   * A round backup as the server wrote it — recovery fuel (T14). Persisted
+   * for the match this server holds, the newest few kept; `false` when the
+   * server holds no open match, in which case nothing is written.
+   */
+  backup: (source: ServerRef, backup: RoundBackup) => Promise<boolean>
 }
 
 /**

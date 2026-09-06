@@ -1,11 +1,12 @@
 import type { Clock } from '@ezpug/core'
 import { createPrng } from '@ezpug/core'
 import type { GameserverPlayer, MatchRequest, RosterEntry, SimStatus } from '@ezpug/match-api'
-import type { MatchAssignment, SimPlan, SimulatedServer } from '@ezpug/sim'
+import type { MatchAssignment, SimPlan, SimulatedServer, SimulatorScenario } from '@ezpug/sim'
 import {
   assignmentFromMatchRequest,
   createSimulatedServer,
   findScenario,
+  resolveScenario,
   SIM_PROVIDER_ID,
 } from '@ezpug/sim'
 import type { LinkRegistry, ServerEventSink, ServerRef } from '../../link/channels'
@@ -36,7 +37,21 @@ import { createSimChannel } from './channel'
  * is what makes {@link GameServerProvider.restore} — load a round backup and
  * play on from it — mean anything at all (T14 walks that path; the verb and
  * its determinism are here).
+ *
+ * **Backups** (T14): a real plugin follows every `backup_written` with a
+ * `backup` frame carrying the file; a simulated server has no file, so the
+ * provider reports a small stand-in through the same sink verb the link
+ * uses, and the machine cannot tell the two apart. {@link SimProvider.setFaults}
+ * is the conformance suite's crash door: the same knobs the published fake
+ * takes (`crash.afterRound`, `crash.backup`), mapped onto the `server-crash`
+ * scenario and onto whether backups are reported at all.
  */
+
+/** The fault knobs a test arms before a match is created — the conformance suite's `faults`. */
+export interface SimFaults {
+  /** The server dies after this round of map 1; `backup: false` takes its backups with it. */
+  crash?: { afterRound: number; backup: boolean } | null
+}
 
 /** The game port and the GOTV port every simulated server states. */
 export const SIM_SERVER_PORT = 27_015
@@ -69,6 +84,8 @@ interface SimServer {
   fleetServerId: string
   server: SimulatedServer | null
   configured: boolean
+  /** Whether this box's round backups reach the orchestrator (a faulted box keeps them). */
+  reportsBackups: boolean
 }
 
 /** A real request may carry an empty roster (open join); the story needs names. */
@@ -152,6 +169,9 @@ export interface SimProvider extends GameServerProvider {
   pending: () => number
   /** Resolve once every event spoken so far has been taken (T10a). */
   settle: () => Promise<void>
+  /** Arm (or clear, with `{}`) the fault knobs for every server configured from now on. */
+  setFaults: (faults: SimFaults) => void
+  faults: () => SimFaults
 }
 
 export function createSimProvider(options: SimProviderOptions): SimProvider {
@@ -166,6 +186,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
     ((error: unknown, context: Record<string, unknown>) => console.error('[sim]', context, error))
   const servers = new Map<string, SimServer>()
   let counter = 0
+  let faults: SimFaults = {}
 
   const ref = (serverId: string): ServerRef => ({ provider: SIM_PROVIDER_ID, serverId })
   const host = (serverId: string): string => `${serverId}.sim.invalid`
@@ -182,6 +203,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
    */
   const ingesting = new Set<Promise<unknown>>()
   const trackedSink: ServerEventSink = {
+    backup: (source, backup) => sink.backup(source, backup),
     ingest: (source, event) => {
       const promise = sink.ingest(source, event)
       ingesting.add(promise)
@@ -191,6 +213,18 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
       )
       return promise
     },
+  }
+
+  /** The plan for a server: the request's over the defaults, then the armed crash on top. */
+  const planFor = (request: MatchRequest): SimPlan => {
+    const plan = simPlanFor(request, options.defaults)
+    const crash = faults.crash
+    if (!crash) return plan
+    const base: SimulatorScenario = resolveScenario(plan.scenario)
+    return {
+      ...plan,
+      scenario: { ...base, name: 'server-crash', crashAfterRound: crash.afterRound },
+    }
   }
 
   const offering = (): ServerOffering => ({
@@ -220,6 +254,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
         fleetServerId: request.fleetServerId,
         server: null,
         configured: false,
+        reportsBackups: faults.crash?.backup !== false,
       })
       return Promise.resolve({
         serverId,
@@ -233,7 +268,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
       if (!entry) return Promise.reject(new Error(`sim: no server ${serverId}`))
       if (entry.configured)
         return Promise.reject(new Error(`sim: ${serverId} is already configured`))
-      const plan = simPlanFor(configuration.request, options.defaults)
+      const plan = planFor(configuration.request)
       const seed = plan.seed ?? `${root}#${configuration.matchId}`
       const { assignment } = simAssignmentFor(configuration, seed)
       const server = createSimulatedServer({
@@ -252,6 +287,30 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
         void trackedSink.ingest(ref(serverId), event).catch((error: unknown) => {
           report(error, { serverId, matchId: configuration.matchId, where: 'ingest' })
         })
+        // What a plugin does after `backup_written`: the file, up the link.
+        // A faulted box keeps its files, and the loss is then a real one.
+        if (event.type === 'backup_written' && entry.reportsBackups) {
+          const promise = sink.backup(ref(serverId), {
+            mapNumber: event.mapNumber,
+            roundNumber: event.roundNumber,
+            filename: event.filename,
+            content: JSON.stringify({
+              simulated: true,
+              serverId,
+              matchId: configuration.matchId,
+              mapNumber: event.mapNumber,
+              roundNumber: event.roundNumber,
+            }),
+          })
+          ingesting.add(promise)
+          void promise.then(
+            () => ingesting.delete(promise),
+            (error: unknown) => {
+              ingesting.delete(promise)
+              report(error, { serverId, matchId: configuration.matchId, where: 'backup' })
+            },
+          )
+        }
       })
       entry.server = server
       entry.configured = true
@@ -342,6 +401,10 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
     engine: serverId => servers.get(serverId)?.server ?? null,
     size: () => servers.size,
     pending: () => ingesting.size,
+    setFaults: next => {
+      faults = { ...next }
+    },
+    faults: () => ({ ...faults }),
     async settle() {
       while (ingesting.size > 0) await Promise.allSettled([...ingesting])
     },

@@ -111,7 +111,11 @@ these are the parts a venue operator can see:
   and the agent adopts them when it dials back; the orchestrator says
   `fleet.node_disconnected` into every match the node was holding and keeps listing those
   servers, so the reaper does not call a live match lost. Only after a minute away are its
-  servers reported gone — and then the recovery window is T14's business.
+  servers reported gone — and then the recovery window takes over: the match comes back on
+  the next candidate with its newest backup (`docs/operations.md`, "Recovery"). A container
+  that vanishes while the node is fine (a `docker kill`, an OOM) is the same story sooner:
+  the plugin's link goes quiet, the orchestrator probes, the node's snapshot no longer
+  lists the container, and a replacement is started — on this node when it has room.
 
 ## What the agent does
 

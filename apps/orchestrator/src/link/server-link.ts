@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import type { Clock, Timer } from '@ezpug/core'
 import type {
   LinkAckStatus,
@@ -74,9 +73,6 @@ import { serverKey } from './channels'
 
 /** How long a relayed command may go unanswered before the machine hears `provider_unavailable`. */
 export const COMMAND_TIMEOUT_MS_DEFAULT = 15_000
-
-/** Round backups kept per match — MatchZy writes one a round; recovery wants the newest. */
-export const BACKUPS_KEPT_PER_MATCH = 8
 
 /** `last_seen_at` is a heartbeat's fact, not a write per frame. */
 const LAST_SEEN_WRITE_INTERVAL_MS = 5_000
@@ -434,19 +430,8 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
             log.warn(`link ${key}: a backup for ${frame.matchId}, which this server does not hold`)
             return
           }
-          await store.upsertBackup(
-            {
-              id: randomUUID(),
-              matchId: frame.matchId,
-              fleetServerId,
-              mapNumber: frame.backup.mapNumber,
-              roundNumber: frame.backup.roundNumber,
-              filename: frame.backup.filename,
-              content: frame.backup.content,
-              createdAt: clock.date(),
-            },
-            BACKUPS_KEPT_PER_MATCH,
-          )
+          if (!(await matches.backup(ref, frame.backup)))
+            log.warn(`link ${key}: a backup for ${frame.matchId}, which holds no open match`)
           return
         case 'console':
           cacheTail(frame)

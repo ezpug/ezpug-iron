@@ -27,6 +27,7 @@ import {
 import {
   HEARTBEAT_INTERVAL_MS_DEFAULT,
   type OrchestratorFrameOf,
+  type RoundBackup,
   SERVER_LINK_PATH,
 } from '@ezpug/protocol'
 import { SIM_PROVIDER_ID } from '@ezpug/sim'
@@ -42,7 +43,7 @@ import { selectCandidates } from '../providers/selection'
 import { SimPlanError, simPlanFor } from '../providers/sim/provider'
 import type { StreamHub } from '../stream/hub'
 import { hashToken, mintToken, type RandomBytes } from '../tokens'
-import type { MatchRow, MatchStore, ServerRow } from './store'
+import type { BackupRow, MatchRow, MatchStore, ServerRow } from './store'
 import { envelopeOf, matchView } from './views'
 
 /**
@@ -78,9 +79,20 @@ import { envelopeOf, matchView } from './views'
  * also asks here for the assignment on `hello` and re-arms the loss detector
  * on a heartbeat) — and are deduplicated per server `seq`, logged as
  * envelopes (`emit`), mirrored to the stream and handed to the webhook
- * worker. Recovery onto a new server with a backup
- * (`assign.restore`) is T14's; here a lost server with no backup fails the
- * match honestly and one with a backup waits the window.
+ * worker.
+ *
+ * **Recovery** (T14) is the walk again, from `recovering`: a live match whose
+ * server is gone says `match.recovering` with the newest backup's round,
+ * closes the dead row, and — when there is a backup — walks the candidates
+ * a second time (`recover`), with the backup: the provider gets it through
+ * `restore` when that is its way (the sim), and the plugin gets it in
+ * `assign.restore` over the link (a node, Dathost). The replacement's
+ * `server_ready` re-announces the connect facts (`match.server_ready` with
+ * `restored: true` and the round) and re-arms the join deadline; its
+ * `going_live` says `match.recovered` and the match is `live` again. No
+ * backup, an exhausted list, the window or the join deadline running out,
+ * or the replacement dying too: `failed: server_lost`, with everything
+ * recorded kept.
  */
 
 export interface MatchDeadlines {
@@ -196,7 +208,14 @@ interface Runtime {
   currentMap: number
   paused: boolean
   lastSeenWrittenAt: number
+  /** While `recovering`: the backup the replacement is (to be) handed. */
+  restoring: { mapNumber: number; roundNumber: number } | null
+  /** While `recovering`: a replacement walk is queued or running. */
+  recovering: boolean
 }
+
+/** Round backups kept per match — MatchZy writes one a round; recovery wants the newest. */
+export const BACKUPS_KEPT_PER_MATCH = 8
 
 const LAST_SEEN_WRITE_INTERVAL_MS = 5_000
 
@@ -274,6 +293,8 @@ export function createMatches(options: MatchesOptions): Matches {
         currentMap: 1,
         paused: false,
         lastSeenWrittenAt: 0,
+        restoring: null,
+        recovering: false,
       }
       runtimes.set(row.id, runtime)
     }
@@ -516,16 +537,24 @@ export function createMatches(options: MatchesOptions): Matches {
     )
 
   const armJoin = (row: MatchRow): void =>
-    setTimer(row, 'join', row.stateChangedAt.getTime() + deadlines.joinMs, fresh =>
-      fresh.state === 'ready'
-        ? end(
-            fresh,
-            'ended',
-            { kind: 'ttl_expired', detail: `no going_live within ${deadlines.joinMs} ms of ready` },
-            'released',
-          )
-        : Promise.resolve(),
-    )
+    setTimer(row, 'join', row.stateChangedAt.getTime() + deadlines.joinMs, fresh => {
+      if (fresh.state === 'ready')
+        return end(
+          fresh,
+          'ended',
+          { kind: 'ttl_expired', detail: `no going_live within ${deadlines.joinMs} ms of ready` },
+          'released',
+        )
+      // The replacement stood ready and nobody came back: the match was
+      // live and could not be restored, which is what `server_lost` means.
+      if (fresh.state === 'recovering')
+        return fail(
+          fresh,
+          'server_lost',
+          `no going_live within ${deadlines.joinMs} ms of the replacement being ready`,
+        )
+      return Promise.resolve()
+    })
 
   const armRecovery = (row: MatchRow): void =>
     setTimer(row, 'recovery', row.stateChangedAt.getTime() + deadlines.recoveryMs, fresh =>
@@ -545,7 +574,7 @@ export function createMatches(options: MatchesOptions): Matches {
   }
 
   const probe = async (row: MatchRow): Promise<void> => {
-    if (row.state !== 'ready' && row.state !== 'live' && row.state !== 'configuring') return
+    if (!probeable(row.state)) return
     const server = await currentServer(row)
     const provider = row.provider ? providers.get(row.provider) : undefined
     if (!server?.serverId || !provider) return
@@ -570,14 +599,26 @@ export function createMatches(options: MatchesOptions): Matches {
     armHeartbeat(row)
   }
 
-  /** The server is gone. Before `live` the match fails; from `live` the window opens. */
+  /**
+   * The server is gone. Before `live` the match fails; from `live` the
+   * window opens and the replacement walk is queued behind this step. A
+   * replacement that dies while the window is open ends the match — one
+   * recovery per loss, never a chase.
+   */
   const lost = async (row: MatchRow, reason: string): Promise<void> => {
-    if (isTerminalMatchState(row.state) || row.state === 'recovering') return
+    if (isTerminalMatchState(row.state)) return
+    if (row.state === 'recovering') {
+      const replacement = await currentServer(row)
+      if (!replacement || replacement.releasedAt) return
+      await fail(row, 'server_lost', `the replacement server was lost while restoring: ${reason}`)
+      return
+    }
     if (row.state !== 'live') {
       await fail(row, 'provider_error', `server lost before going live: ${reason}`)
       return
     }
     cancelTimer(row, 'heartbeat')
+    const runtime = runtimeOf(row)
     const backup = await store.latestBackup(row.id)
     await emit(row, {
       type: 'match.recovering',
@@ -587,21 +628,57 @@ export function createMatches(options: MatchesOptions): Matches {
     await setState(row, 'recovering')
     const server = await currentServer(row)
     if (server) await closeRow(server, 'failed', `server lost: ${reason}`, true)
+    // Whoever was on the dead box is not on the next one until it says so.
+    runtime.presence.clear()
+    presenceFrame(row)
     if (!backup) {
       await fail(row, 'server_lost', 'no backup to restore from')
       return
     }
-    // T14 resumes the walk from here with `assign.restore`; until then the
-    // window is honest about what it can do.
     armRecovery(row)
+    runtime.restoring = { mapNumber: backup.mapNumber, roundNumber: backup.roundNumber }
+    kickRecovery(row)
+  }
+
+  /** Queue the replacement walk behind the step that is running, once. */
+  const kickRecovery = (row: MatchRow): void => {
+    const runtime = runtimeOf(row)
+    if (runtime.recovering) return
+    runtime.recovering = true
+    void enqueue(row, recover)
+      .catch((error: unknown) => report(error, { phase: 'recover', matchId: row.id }))
+      .finally(() => {
+        runtime.recovering = false
+      })
+  }
+
+  /** The backup a recovering match resumes from: the point chosen at the loss (or by `restore`), else the newest. */
+  const restorePoint = async (row: MatchRow): Promise<BackupRow | undefined> => {
+    const point = runtimeOf(row).restoring
+    if (point) {
+      const chosen = (await store.listBackups(row.id)).find(
+        backup => backup.mapNumber === point.mapNumber && backup.roundNumber === point.roundNumber,
+      )
+      if (chosen) return chosen
+    }
+    return store.latestBackup(row.id)
   }
 
   // --- the provisioning walk ----------------------------------------------------------------
 
-  const provision = async (row: MatchRow): Promise<void> => {
-    if (row.state !== 'pending' && row.state !== 'allocating') return
-    if (row.state === 'pending') await setState(row, 'allocating')
-    armAllocate(row)
+  /**
+   * The walk itself, shared by a fresh match (`provision`) and a recovering
+   * one (`recover`): a ledger row before each candidate is asked, the next
+   * candidate on any failure, and `true` once a server is configured and
+   * started. `restore` is the backup a replacement is handed — through the
+   * provider's own verb where it has one, and always in the assignment the
+   * link composes for it (`assignment`).
+   */
+  const walk = async (
+    row: MatchRow,
+    until: number,
+    restore: BackupRow | undefined,
+  ): Promise<{ found: boolean; candidates: number }> => {
     const request = row.requestJson
     const manifest = manifestOf(row)
     const selection = await selectCandidates(providers, request, { now: () => now().toISOString() })
@@ -609,7 +686,7 @@ export function createMatches(options: MatchesOptions): Matches {
       report(failure.error, { phase: `offerings:${failure.provider}`, matchId: row.id })
 
     for (const candidate of selection.candidates) {
-      if (clock.now() >= row.stateChangedAt.getTime() + deadlines.allocateMs) break
+      if (clock.now() >= until) break
       const { provider, offering } = candidate
       const fleetServerId = randomUUID()
       const at = now()
@@ -716,6 +793,20 @@ export function createMatches(options: MatchesOptions): Matches {
         const connect = allocated.connect ? { ...allocated.connect, password: joinPassword } : null
         await store.updateMatch(row.id, { connect, tv: allocated.tv ?? null, updatedAt: now() })
         Object.assign(row, { connect, tv: allocated.tv ?? null })
+        if (restore && provider.restore) {
+          // A provider whose servers take the backup through the control
+          // plane (the sim; Dathost's file upload one day). `false` means
+          // not its way, and the assignment over the link carries it instead.
+          const taken = await provider.restore(allocated.serverId, {
+            mapNumber: restore.mapNumber,
+            roundNumber: restore.roundNumber,
+            filename: restore.filename,
+            content: restore.content,
+          })
+          log.info(
+            `match ${row.id}: backup round ${restore.roundNumber} ${taken ? 'loaded through' : 'left to the link on'} ${provider.id}/${allocated.serverId}`,
+          )
+        }
         await provider.start(allocated.serverId)
       } catch (error) {
         report(error, { phase: `configure:${provider.id}`, matchId: row.id })
@@ -731,20 +822,62 @@ export function createMatches(options: MatchesOptions): Matches {
         continue
       }
 
-      cancelTimer(row, 'allocate')
       await store.updateServer(fleetServerId, { state: 'configured' })
-      await setState(row, 'configuring')
-      armBoot(row)
-      armHeartbeat(row)
+      return { found: true, candidates: selection.candidates.length }
+    }
+    return { found: false, candidates: selection.candidates.length }
+  }
+
+  const noCapableServer = (candidates: number): string =>
+    candidates === 0
+      ? 'no_capable_server: no provider could host the request'
+      : `no_capable_server: all ${candidates} candidates failed`
+
+  const provision = async (row: MatchRow): Promise<void> => {
+    if (row.state !== 'pending' && row.state !== 'allocating') return
+    if (row.state === 'pending') await setState(row, 'allocating')
+    armAllocate(row)
+    const { found, candidates } = await walk(
+      row,
+      row.stateChangedAt.getTime() + deadlines.allocateMs,
+      undefined,
+    )
+    cancelTimer(row, 'allocate')
+    if (!found) {
+      await fail(row, 'allocation_failed', noCapableServer(candidates))
       return
     }
+    await setState(row, 'configuring')
+    armBoot(row)
+    armHeartbeat(row)
+  }
 
-    cancelTimer(row, 'allocate')
-    const detail =
-      selection.candidates.length === 0
-        ? 'no_capable_server: no provider could host the request'
-        : `no_capable_server: all ${selection.candidates.length} candidates failed`
-    await fail(row, 'allocation_failed', detail)
+  /**
+   * The walk for a recovering match: the same candidates, the same rules,
+   * with the backup. The match stays `recovering` throughout — the window
+   * armed at the loss is the deadline for the replacement's `server_ready`,
+   * and `server_ready` is where the join deadline takes over.
+   */
+  const recover = async (row: MatchRow): Promise<void> => {
+    if (row.state !== 'recovering') return
+    const open = await currentServer(row)
+    if (open && !open.releasedAt) return
+    const backup = await restorePoint(row)
+    if (!backup) {
+      await fail(row, 'server_lost', 'no backup to restore from')
+      return
+    }
+    const { found, candidates } = await walk(
+      row,
+      row.stateChangedAt.getTime() + deadlines.recoveryMs,
+      backup,
+    )
+    if (row.state !== 'recovering') return
+    if (!found) {
+      await fail(row, 'server_lost', `no server to restore onto: ${noCapableServer(candidates)}`)
+      return
+    }
+    armHeartbeat(row)
   }
 
   // --- events from the server -----------------------------------------------------------
@@ -778,8 +911,9 @@ export function createMatches(options: MatchesOptions): Matches {
     await emit(row, event)
     switch (event.type) {
       case 'server_ready': {
-        if (row.state !== 'configuring') break
-        cancelTimer(row, 'boot')
+        if (row.state !== 'configuring' && row.state !== 'recovering') break
+        const restoring = row.state === 'recovering'
+        cancelTimer(row, restoring ? 'recovery' : 'boot')
         const server = await currentServer(row)
         if (server?.address === null && row.provider && row.serverId) {
           // A provider that learns the address after allocation says so now.
@@ -797,9 +931,22 @@ export function createMatches(options: MatchesOptions): Matches {
           }
         }
         if (server) await store.updateServer(server.id, { state: 'running' })
-        await setState(row, 'ready', { readyAt: now(), connect: row.connect, tv: row.tv })
-        if (row.connect)
-          await emit(row, { type: 'match.server_ready', connect: row.connect, tv: row.tv })
+        // A replacement stays `recovering` until it goes live; the state is
+        // re-stamped so the join deadline (and a restart) count from here.
+        await setState(row, restoring ? 'recovering' : 'ready', {
+          readyAt: now(),
+          connect: row.connect,
+          tv: row.tv,
+        })
+        if (row.connect) {
+          const round = runtime.restoring?.roundNumber
+          await emit(row, {
+            type: 'match.server_ready',
+            connect: row.connect,
+            tv: row.tv,
+            ...(restoring && round !== undefined && { restored: true, round }),
+          })
+        }
         armJoin(row)
         break
       }
@@ -822,6 +969,17 @@ export function createMatches(options: MatchesOptions): Matches {
         if (row.state === 'ready') {
           cancelTimer(row, 'join')
           await setState(row, 'live', { liveAt: now() })
+        } else if (row.state === 'recovering' && row.fleetServerId) {
+          cancelTimer(row, 'join')
+          cancelTimer(row, 'recovery')
+          await emit(row, {
+            type: 'match.recovered',
+            serverId: source.serverId,
+            fleetServerId: row.fleetServerId,
+            resumedFromRound: runtime.restoring?.roundNumber ?? null,
+          })
+          runtime.restoring = null
+          await setState(row, 'live')
         }
         break
       case 'series_end':
@@ -856,8 +1014,27 @@ export function createMatches(options: MatchesOptions): Matches {
     if (closed) return
     const row = await matchOf(source)
     if (!row) return
-    if (row.state === 'configuring' || row.state === 'ready' || row.state === 'live')
-      armHeartbeat(row)
+    if (probeable(row.state)) armHeartbeat(row)
+  }
+
+  const backup: ServerEventSink['backup'] = async (source, backup) => {
+    if (closed) return false
+    const row = await matchOf(source)
+    if (!row || isTerminalMatchState(row.state)) return false
+    await store.upsertBackup(
+      {
+        id: randomUUID(),
+        matchId: row.id,
+        fleetServerId: row.fleetServerId,
+        mapNumber: backup.mapNumber,
+        roundNumber: backup.roundNumber,
+        filename: backup.filename,
+        content: backup.content,
+        createdAt: now(),
+      },
+      BACKUPS_KEPT_PER_MATCH,
+    )
+    return true
   }
 
   const assignment: Matches['assignment'] = async (source, hello) => {
@@ -877,12 +1054,14 @@ export function createMatches(options: MatchesOptions): Matches {
         )
         return null
       }
+      const restore = fresh.state === 'recovering' ? await restorePoint(fresh) : undefined
       return composeAssign({
         matchId: fresh.id,
         request: fresh.requestJson,
         manifest,
         profiles: runtimeOf(fresh).known,
         installed: hello.plugins,
+        ...(restore && { restore: roundBackupOf(restore) }),
       })
     })
   }
@@ -1015,15 +1194,23 @@ export function createMatches(options: MatchesOptions): Matches {
         )
         return { ...base, status: 'applied' }
       case 'restore': {
+        // The orchestrator restores by itself the moment a live server is
+        // lost; this is the door for the gap it cannot cover — a process
+        // that restarted with the window open and no walk running.
         if (state !== 'recovering')
           return rejected('invalid_state', 'restore only while recovering')
-        const backup = await store.latestBackup(row.id)
-        if (!backup || (body.roundNumber !== undefined && backup.roundNumber !== body.roundNumber))
-          return rejected('no_backup', 'no backup to restore from')
-        return rejected(
-          'command_unsupported',
-          'restoring onto a new server arrives with PRD-02 T14',
-        )
+        const backups = await store.listBackups(row.id)
+        const chosen =
+          body.roundNumber === undefined
+            ? backups[0]
+            : backups.find(candidate => candidate.roundNumber === body.roundNumber)
+        if (!chosen) return rejected('no_backup', 'no backup to restore from')
+        const open = await currentServer(row)
+        if (runtime.recovering || (open && !open.releasedAt))
+          return rejected('invalid_state', 'a restore is already in progress')
+        runtime.restoring = { mapNumber: chosen.mapNumber, roundNumber: chosen.roundNumber }
+        kickRecovery(row)
+        return { ...base, status: 'applied' }
       }
       case 'profile': {
         const manifest = manifestOf(row)
@@ -1140,7 +1327,7 @@ export function createMatches(options: MatchesOptions): Matches {
   }
 
   const probeOrLose = async (row: MatchRow, detail: string): Promise<void> => {
-    if (row.state !== 'configuring' && row.state !== 'ready' && row.state !== 'live') return
+    if (!probeable(row.state)) return
     const provider = row.provider ? providers.get(row.provider) : undefined
     if (!provider || !row.serverId) return
     try {
@@ -1199,9 +1386,29 @@ export function createMatches(options: MatchesOptions): Matches {
         case 'live':
           armHeartbeat(row)
           break
-        case 'recovering':
-          armRecovery(row)
+        case 'recovering': {
+          // A replacement already running waits for its players (join);
+          // one still booting has the window; none at all means the walk
+          // died with the process — run it again.
+          const replacement = await currentServer(row)
+          const newest = await store.latestBackup(row.id)
+          if (newest)
+            runtimeOf(row).restoring = {
+              mapNumber: newest.mapNumber,
+              roundNumber: newest.roundNumber,
+            }
+          if (replacement && !replacement.releasedAt && replacement.state === 'running') {
+            armJoin(row)
+            armHeartbeat(row)
+          } else if (replacement && !replacement.releasedAt) {
+            armRecovery(row)
+            armHeartbeat(row)
+          } else {
+            armRecovery(row)
+            kickRecovery(row)
+          }
           break
+        }
         default:
           break
       }
@@ -1214,6 +1421,7 @@ export function createMatches(options: MatchesOptions): Matches {
 
   return {
     ingest,
+    backup,
     create,
     get: async (key, matchId) => view(await require(key, matchId)),
     list: async (key, filter, cursor, limit) => {
@@ -1273,4 +1481,19 @@ export function linkUrl(baseUrl: string): string {
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** The states in which a server is expected to be heard from, and is probed when it is not. */
+function probeable(state: MatchState): boolean {
+  return state === 'configuring' || state === 'ready' || state === 'live' || state === 'recovering'
+}
+
+/** A stored backup as the link carries it down in `assign.restore`. */
+function roundBackupOf(backup: BackupRow): RoundBackup {
+  return {
+    mapNumber: backup.mapNumber,
+    roundNumber: backup.roundNumber,
+    filename: backup.filename,
+    content: backup.content,
+  }
 }

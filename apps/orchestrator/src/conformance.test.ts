@@ -19,9 +19,10 @@ import { createTestApp, type TestApp } from './http/testing'
  * the tier that runs in plain `pnpm verify`; `conformance.extended.test.ts`
  * runs the same flows over a real socket, Postgres and Redis.
  *
- * What this target cannot offer, the runner skips with a reason: the fault
- * knobs (a crash door arrives with T14), the widget's tap (T24), a demo
- * landing anywhere (T21).
+ * What this target cannot offer, the runner skips with a reason: the
+ * widget's tap (T24), a demo landing anywhere (T21). The fault knobs are the
+ * sim provider's (`setFaults`, T14): a crash after a round, with or without
+ * the backups to come back from.
  */
 
 const SECRET_ID = 'whsec-conformance'
@@ -103,6 +104,7 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
     },
     callbacks: { webhookUrl: 'https://platform.invalid/hooks/ezpug', webhookSecretId: SECRET_ID },
     clock: app.clock,
+    faults: faults => app.sim.setFaults(faults.crash === undefined ? {} : { crash: faults.crash }),
     advance: async ms => {
       await app.advance(ms)
       await drainReceived()
@@ -136,8 +138,6 @@ describe('the suite against the orchestrator', () => {
     expect(report.ok).toBe(true)
     expect(report.results.filter(r => r.status === 'skipped').map(r => r.flow)).toEqual([
       'player-command',
-      'crash-restore',
-      'crash-lost',
     ])
     expect(report.passed + report.skipped).toBe(MATCH_API_CONFORMANCE_FLOWS.length)
   })

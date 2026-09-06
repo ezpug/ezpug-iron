@@ -272,19 +272,38 @@ restart re-arms each at the same absolute instant (`DEFAULT_MATCH_DEADLINES`):
 | allocate | `allocating` | 2 min | `failed: allocation_failed` |
 | boot | `configuring` until `server_ready` | 5 min | `failed: provider_error` |
 | join | `ready` until `going_live` | 20 min | `ended: ttl_expired` |
-| recovery | `recovering` | 5 min | `failed: server_lost` |
+| recovery | `recovering` until the replacement's `server_ready` | 5 min | `failed: server_lost` |
+| join, again | the replacement's `server_ready` until `going_live` | 20 min | `failed: server_lost` |
 | ttl | the request's `ttlMinutes` | — | `ended: ttl_expired` |
-| the loss detector | no event from the server for three heartbeat intervals | 30 s | the provider is probed; `gone` or `stopped` opens `recovering` from `live`, fails `provider_error` before it |
+| the loss detector | no event from the server for three heartbeat intervals | 30 s | the provider is probed; `gone` or `stopped` opens `recovering` from `live`, fails `provider_error` before it, and fails `server_lost` when it is the replacement that died |
 
-**Recovery** this round: a lost server's match says `match.recovering` with the newest
-backup's round (`backups`, written by the link — see *The link*) and waits the window; with no
-backup it fails `server_lost` at once. Resuming onto the next candidate with the backup
-is T14's, and so is the sim's crash door — which is why the conformance flows
-`crash-restore` and `crash-lost` are *skipped*, not failed, against the orchestrator today.
+**Recovery** (T14) is the walk a second time. A live match whose server the probe finds
+`gone` says `match.recovering` with the newest backup's round (`backups`, written by
+`matches.backup` from a plugin's `backup` frame — see *The link* — or from the sim after
+its `backup_written`), closes the dead row `failed` (stopped and deallocated on the spot;
+the reaper backs that up), clears presence, and, when there is a backup, queues the
+replacement walk behind the step that noticed: the same candidates and rules as a fresh
+match, a new ledger row and `match.allocated`, and the backup handed over — through the
+provider's `restore` verb where that is its way (the sim loads the story point), and in
+`assign.restore` down the link for every server whose plugin does the loading (a node
+today, Dathost when T16 exists). The match stays `recovering` throughout: the recovery
+window is the deadline for the replacement's `server_ready`, which re-announces the
+connect facts as `match.server_ready` with `restored: true` and the round, and re-arms
+the join deadline; the replacement's `going_live` says `match.recovered`
+(`resumedFromRound`) and the match is `live` again, on its second server. No backup, an
+exhausted candidate list, the window or the join deadline running out, or the
+replacement dying too: `failed: server_lost`, with everything recorded kept. Events the
+dead server sends late are rejected by handle; a restart with the window open re-arms
+what fits (`resume`: a running replacement waits for players, a booting one has the
+window, none at all re-runs the walk). The conformance flows `crash-restore` and
+`crash-lost` run against the orchestrator through the sim provider's `setFaults`, the
+same knobs the published fake takes.
 
 **Commands** are idempotent on `correlationId` across a restart (`match_commands`):
-`force_end`, `restore` (`no_backup` this round), `profile` and the state checks are the
-machine's; everything else is relayed down the server's channel (`link/channels.ts`: the
+`force_end`, `restore` (`no_backup` with nothing to restore from, `invalid_state` while
+the orchestrator's own restore is under way — it always is, unless a restart left the
+window open with no walk running, which is the gap this door exists for), `profile` and
+the state checks are the machine's; everything else is relayed down the server's channel (`link/channels.ts`: the
 sim's in-process channel, or the `/link` socket a real plugin holds) and answered with what
 the server said. `rcon` needs `admin`. The **`sim.*` family** reaches a simulated server and
 nothing else: on any other provider it is `command_unsupported` with the provider named,
@@ -302,13 +321,18 @@ do. Its knobs are Match API commands, answered with the simulator's state after 
 | `sim.mode` | `auto` plays the story on the clock, `step` arms no timers at all |
 | `sim.speed` | 1 is real time, 60 is a minute of match per second (0.25–600) |
 | `sim.chaos` | delay and duplicate *this* server's deliveries; `null` makes it honest again |
-| `sim.kill` | pull the plug. Status answers `gone`, heartbeats stop, and the machine's loss detector opens the recovery window on its own — nothing announces it, exactly like a box that lost power |
+| `sim.kill` | pull the plug. Status answers `gone`, heartbeats stop, and the machine's loss detector opens the recovery window on its own — nothing announces it, exactly like a box that lost power. With a backup written by then the match comes back on `sim-N+1` |
 
 A request's own `sim` block (`scenario`, `seed`, `mode`, `timeScale`, `chaos`) decides
 where a match starts. The story is seeded **per match** (`sim#<matchId>` unless the
 request names a seed), not per server, so a replacement server for a match that lost its
 box tells the same story the dead one did — which is what makes the provider's `restore`
-verb (load a round backup, boot, play on from it) mean anything. Registered when
+verb (load a round backup, boot, play on from it) mean anything. A simulated server has
+no backup file, so the provider reports a small stand-in through the machine's `backup`
+verb after every `backup_written` — the same door a plugin's `backup` frame takes.
+`setFaults({ crash: { afterRound, backup } })` is the conformance suite's crash door:
+the `server-crash` scenario after that round, and with `backup: false` a box that keeps
+its files, so the loss is a real one. Registered when
 `EZPUG_IRON_PROVIDERS` names `sim`, which is the dev default; selection never picks it
 unasked while another provider is registered.
 
@@ -376,7 +400,8 @@ the plugin), the cfg files, the cvars merged flat (a request's `rules.cvars` und
 mode's under what the rules derive: `mp_maxrounds`, the overtime cvars), the map plan,
 the rules, the roster, the warmup lines, the branding and the demo upload URL.
 For a `matchzy` flow `matchzyConfig` is the match file MatchZy loads, built from the same
-request (`match-config/matchzy.ts`, "The MatchZy door" below); `restore` arrives with T14.
+request (`match-config/matchzy.ts`, "The MatchZy door" below); `restore` is the backup the
+match resumes from when this server is the replacement (*The match machine*, "Recovery").
 A manifest naming a plugin the image lacks fails the match `provider_error` before anything
 is sent.
 

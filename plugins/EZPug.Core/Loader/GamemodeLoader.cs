@@ -17,6 +17,18 @@ namespace EZPug.Core;
 /// Pure over <see cref="IGameWorld"/> and the <see cref="PluginCatalog"/>, so the harness
 /// proves every line it issues.
 ///
+/// <b>A restore</b> (PRD-02 T14, <c>assign.restore</c>): the match resumes here after its
+/// server was lost. The map loaded is the backup's, not the plan's first; after
+/// <c>matchzy_loadmatch</c> the backup is written where MatchZy keeps its own
+/// (<c>MatchZyDataBackup/</c>, the remote log put back inside it — <see cref="MatchZyBackups.WithRemoteLog"/>)
+/// and <c>matchzy_loadbackup</c> loads it. MatchZy in warmup marks the restore pending and
+/// applies it the moment the match starts (<c>HandleMatchStart</c> → <c>RestoreRoundBackup</c>:
+/// the engine's <c>mp_backup_restore_load_file</c>, then a pause both teams lift with
+/// <c>.unpause</c>, MatchZy's <c>matchzy_pause_after_restore</c> default), so players reconnect
+/// into warmup, ready up, and find the round they were in. <c>backup_restored</c> is emitted
+/// as a <c>plugin_event</c> — the same one the simulator speaks — and <c>going_live</c> is
+/// still MatchZy's to say, which is what the orchestrator closes the recovery window on.
+///
 /// <c>css_plugins</c> is spoken in one form only — the dll path relative to
 /// <c>addons/counterstrikesharp</c> — because CounterStrikeSharp composes the path
 /// differently for <c>load</c> and <c>unload</c> when given a bare name, and only the
@@ -35,6 +47,7 @@ public sealed class GamemodeLoader
     private readonly ILinkLog _log;
     private readonly MatchZyRemoteLog? _remoteLog;
     private readonly List<InstalledPlugin> _enabled = [];
+    private GamemodeRuntime? _runtime;
     private bool _matchLoaded;
 
     public GamemodeLoader(IGameWorld world, PluginCatalog catalog, string csgoDirectory, string lobbyMap, ILinkLog? log = null, MatchZyRemoteLog? remoteLog = null)
@@ -56,6 +69,7 @@ public sealed class GamemodeLoader
     /// <summary>Hook the runtime's host events.</summary>
     public void Bind(GamemodeRuntime runtime)
     {
+        _runtime = runtime;
         runtime.Assigned += OnAssigned;
         runtime.MapLoaded += OnMapLoaded;
         runtime.Released += OnReleased;
@@ -63,7 +77,7 @@ public sealed class GamemodeLoader
 
     private void OnAssigned(Assignment assignment)
     {
-        var map = assignment.Maps[0].Map;
+        var map = MapFor(assignment);
         _matchLoaded = false;
         _world.SetCvar("hostname", HostnameFor(assignment, map));
 
@@ -84,9 +98,9 @@ public sealed class GamemodeLoader
             _enabled.Add(plugin);
         }
 
-        if (assignment.Restore is { } restore)
+        if (assignment.Restore is { } restore && assignment.Gamemode.Flow != GamemodeFlow.Matchzy)
         {
-            _log.Warn($"the assignment carries a backup for round {restore.RoundNumber}; restoring on assign is PRD-02 T14 and is not done here");
+            _log.Warn($"the assignment carries a backup for round {restore.RoundNumber}, but a {assignment.Gamemode.Flow} flow has no round backups to restore; the match starts over");
         }
 
         if (WorkshopId.IsMatch(map))
@@ -136,6 +150,16 @@ public sealed class GamemodeLoader
 
         // After loadmatch, never before: loading replaces MatchZy's config object, and never
         // in the file: the file is serialised into every round backup.
+        PointRemoteLog();
+
+        if (assignment.Restore is { } restore)
+        {
+            RestoreBackup(assignment, restore);
+        }
+    }
+
+    private void PointRemoteLog()
+    {
         if (_remoteLog is { } remoteLog)
         {
             foreach (var line in remoteLog.Commands())
@@ -147,6 +171,52 @@ public sealed class GamemodeLoader
         {
             _log.Warn("no sidecar, so MatchZy's remote log points nowhere: its match-flow events reach nobody");
         }
+    }
+
+    /// <summary>
+    /// Write the backup the assignment carries where MatchZy looks for its own and load it.
+    /// The file name is MatchZy's, checked to be a name and nothing else; the content is
+    /// what crossed the link with the remote log put back (the header value was scrubbed
+    /// on the way up). MatchZy answers a load in warmup with a pending restore it applies at
+    /// match start, which is why <c>backup_restored</c> is said here and <c>going_live</c> later.
+    /// </summary>
+    private void RestoreBackup(Assignment assignment, RoundBackup restore)
+    {
+        if (!MatchZyBackups.IsSafeFileName(restore.Filename))
+        {
+            _log.Warn($"the backup for round {restore.RoundNumber} is named {restore.Filename}, which is not a MatchZy backup file name; not restored");
+            return;
+        }
+
+        var folder = Path.Combine(_csgoDirectory, MatchZyBackups.Folder);
+        Directory.CreateDirectory(folder);
+        var content = _remoteLog is { } remoteLog ? MatchZyBackups.WithRemoteLog(restore.Content, remoteLog) : restore.Content;
+        File.WriteAllText(Path.Combine(folder, restore.Filename), content);
+        _world.ExecCommand($"matchzy_loadbackup {restore.Filename}");
+        // Loading deserialised the config from the file; the remote log is said once more so
+        // the console's own value and the file's agree whichever MatchZy reads last.
+        PointRemoteLog();
+        _log.Info($"restoring map {restore.MapNumber} round {restore.RoundNumber} from {restore.Filename}; MatchZy applies it when the match starts");
+        _runtime?.Emit(_runtime.Facts.Plugin(BackupRestoredEvent, new JsonObject
+        {
+            ["mapNumber"] = restore.MapNumber,
+            ["roundNumber"] = restore.RoundNumber,
+            ["filename"] = restore.Filename,
+        }));
+    }
+
+    /// <summary>The <c>plugin_event</c> name a restored server says, the simulator's word for it (its <c>data</c> too: <c>mapNumber</c>, <c>roundNumber</c>, <c>filename</c>).</summary>
+    public const string BackupRestoredEvent = "backup_restored";
+
+    /// <summary>The map to load: the backup's when the match resumes here, the plan's first otherwise.</summary>
+    public static string MapFor(Assignment assignment)
+    {
+        if (assignment.Restore is { } restore && restore.MapNumber >= 1 && restore.MapNumber <= assignment.Maps.Count)
+        {
+            return assignment.Maps[(int)restore.MapNumber - 1].Map;
+        }
+
+        return assignment.Maps[0].Map;
     }
 
     /// <summary>

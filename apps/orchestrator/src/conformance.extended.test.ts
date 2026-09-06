@@ -18,6 +18,7 @@ import { createDatabase } from './db/client'
 import {
   apiKeys,
   apiKeyWebhookSecrets,
+  backups,
   matchCommands,
   matchEvents,
   matches,
@@ -29,6 +30,7 @@ import { testNamespace } from './db/testing'
 import { loadRootEnv } from './env'
 import { createMemoryLog } from './log'
 import { createOrchestrator, type Orchestrator } from './orchestrator'
+import type { SimProvider } from './providers/sim/provider'
 
 /**
  * **The conformance suite against the real service** — the round's first
@@ -193,6 +195,8 @@ async function sweepNamespace(): Promise<void> {
       await db.delete(webhookDeliveries).where(inArray(webhookDeliveries.matchId, ids))
       await db.delete(matchEvents).where(inArray(matchEvents.matchId, ids))
       await db.delete(matchCommands).where(inArray(matchCommands.matchId, ids))
+      // Round backups hang off a match too (the sim reports them since T14).
+      await db.delete(backups).where(inArray(backups.matchId, ids))
     }
     const owned = await db
       .select({ id: servers.id })
@@ -294,6 +298,13 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
     clock: systemClock,
     pollIntervalMs: 250,
     maxWaitMs: 120_000,
+    // The one sim provider serves every flow, so the knobs are armed for
+    // this flow's match and cleared when it is done with the target.
+    faults: faults =>
+      (o.providers.get('sim') as SimProvider).setFaults(
+        faults.crash === undefined ? {} : { crash: faults.crash },
+      ),
+    close: () => (o.providers.get('sim') as SimProvider).setFaults({}),
     advance: async ms => {
       // Which matches are ours is learned from the list, so the filter above
       // never needs the flow to say.

@@ -222,6 +222,15 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         var assignment = new Assignment(frame);
         Assignment = assignment;
         Match.Reset(frame.MatchId, frame.Maps[0].Sides == MapPlanSides.T ? TeamSide.T : TeamSide.Ct);
+        if (frame.Restore is { } restore)
+        {
+            // The match resumes here from a backup (PRD-02 T14): the context starts where
+            // the dead server left off, so the map number a backup frame or a round event
+            // carries is the series' and not this box's.
+            Match.MapNumber = restore.MapNumber;
+            Match.RoundNumber = Math.Max(0, restore.RoundNumber - 1);
+        }
+
         Commands = new CommandTable(frame.Gamemode.Commands, World.Clock, Localizer);
         _mapReady = false;
         Assigned?.Invoke(assignment);

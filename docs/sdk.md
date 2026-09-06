@@ -262,8 +262,8 @@ hangs off three host events on the runtime, in the order a match goes through th
 
 | Hook | When | What the core does there |
 | ---- | ---- | ------------------------ |
-| `Assigned(Assignment)` | `assign` arrived, before the mode's `OnAssigned` | hostname, `css_plugins load` for each plugin the assignment names, `changelevel` / `host_workshop_map` to the first map |
-| `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow (once per assignment; a later map is the series' next) and point MatchZy's remote log at the orchestrator |
+| `Assigned(Assignment)` | `assign` arrived, before the mode's `OnAssigned` | hostname, `css_plugins load` for each plugin the assignment names, `changelevel` / `host_workshop_map` to the first map — or to the backup's map when `Assignment.Restore` is set (the runtime's `Match.MapNumber` / `RoundNumber` then start where the lost server left off) |
+| `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow (once per assignment; a later map is the series' next), point MatchZy's remote log at the orchestrator, and for a restore write the backup where MatchZy looks and `matchzy_loadbackup` it (`backup_restored` is emitted as a `plugin_event`) |
 | `Released(reason)` | after the mode's `OnEnd`, its timers and state cleared | `css_plugins unload` in reverse, the lobby map, then the runtime says `idle` |
 
 A mode never needs these; a second host (the harness is one) hooks the same three.

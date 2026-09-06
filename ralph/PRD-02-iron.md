@@ -376,7 +376,7 @@ every offline proof here.
   > relay and nothing else; it also owns adding the `demo.uploaded` assertion to the
   > `EZPUG_CS2_TESTS` lane (`apps/orchestrator/src/cs2.extended.test.ts`).
 
-- [ ] **T14 (fable): A server that dies comes back.** `backup` frames persisted per round;
+- [x] **T14 (fable): A server that dies comes back.** `backup` frames persisted per round;
   on `recovering` the walk resumes from the next candidate with `assign.restore` (the
   backup content and round) → the core plugin writes the file and runs MatchZy's restore
   (`mp_backup_restore_load_file`, legacy `RestoreRound`), players get the same connect

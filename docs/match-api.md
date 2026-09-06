@@ -423,7 +423,7 @@ event type):
 | Type                         | Fields | When |
 | ---------------------------- | ------ | ---- |
 | `match.allocated`            | `provider, serverId, fleetServerId, region` | a server was obtained; the ledger row is open |
-| `match.server_ready`         | `connect { host, port, password? }, tv` | players may connect; `Match.state` is `ready` |
+| `match.server_ready`         | `connect { host, port, password? }, tv, restored?, round?` | players may connect; `Match.state` is `ready`. Said again on a replacement server while `recovering`, then with `restored: true` and `round`, the round play resumes from |
 | `match.recovering`           | `reason, backupRound` | the server was lost mid-match; a restore is being attempted. `backupRound` null means `match.failed` follows |
 | `match.recovered`            | `serverId, fleetServerId, resumedFromRound` | `live` again, possibly on a new server (a new `match.allocated` and `match.server_ready` came first) |
 | `match.failed`               | `state: failed, reason { kind, detail? }` | `kind ∈ server_lost, allocation_failed, provider_error` |

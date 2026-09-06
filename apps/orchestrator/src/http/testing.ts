@@ -7,7 +7,7 @@ import { createFleet, type Fleet } from '../fleet/service'
 import { createHealth, type HealthReport } from '../health'
 import { createMemoryKeyStore } from '../keys/memory-store'
 import { createKeys, type Keys } from '../keys/service'
-import { createLinkRegistry, type LinkRegistry } from '../link/channels'
+import { createLinkRegistry, type LinkRegistry, type ServerEventSink } from '../link/channels'
 import { createMemoryLog } from '../log'
 import { createMatches, type MatchDeadlines, type Matches } from '../match/machine'
 import { createMemoryMatchStore } from '../match/memory-store'
@@ -46,6 +46,13 @@ export interface TestApp {
   store: ReturnType<typeof createMemoryMatchStore>
   providers: ProviderRegistry
   sim: SimProvider
+  /**
+   * Where the sim's events and backups go. A test that restarts the machine
+   * (`createMatches` over the same store after `matches.close()`) points
+   * this at the revived one, or the simulated servers keep talking to a
+   * machine that has hung up.
+   */
+  sink: { current: ServerEventSink }
   links: LinkRegistry
   nodeRegistry: NodeRegistry
   nodes: Nodes
@@ -168,9 +175,13 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     deadlines: options.deadlines,
     random: options.random,
   })
+  const sink = { current: matches as ServerEventSink }
   const sim = createSimProvider({
     clock,
-    sink: matches,
+    sink: {
+      ingest: (source, event) => sink.current.ingest(source, event),
+      backup: (source, backup) => sink.current.backup(source, backup),
+    },
     links,
     capacity: options.simCapacity,
     hourlyCents: options.simHourlyCents,
@@ -247,6 +258,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     store,
     providers,
     sim,
+    sink,
     links,
     nodeRegistry,
     nodes,

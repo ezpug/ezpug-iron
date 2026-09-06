@@ -186,7 +186,9 @@ describe('deadlines', () => {
   })
 
   it('opens the recovery window on a lost server and fails server_lost with no backup', async () => {
-    const app = createTestApp({ sim: { scenario: 'server-crash', positionTickIntervalMs: null } })
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    // The box takes its backups with it: nothing to come back from.
+    app.sim.setFaults({ crash: { afterRound: 9, backup: false } })
     const { key } = await platformKey(app)
     const { match } = await app.matches.create(
       key,
@@ -360,9 +362,221 @@ describe('the reaper', () => {
     expect(third.lost.map(r => r.serverId)).toEqual(['sim-1'])
     await app.settle()
     const after = await app.matches.get(key, match.id)
-    // Lost while live opens the window (no backup: server_lost); lost before that is the provider's fault.
-    expect(after.endedReason?.kind).toBe(before === 'live' ? 'server_lost' : 'provider_error')
+    // Lost while live opens the window and the replacement walk; lost before that is the provider's fault.
     expect(types(app, match.id).includes('match.recovering')).toBe(before === 'live')
+    if (before === 'live') {
+      expect(after.state).toBe('recovering')
+      expect(after.serverId).toBe('sim-3')
+    } else {
+      expect(after.endedReason?.kind).toBe('provider_error')
+    }
+    await app.close()
+  })
+})
+
+describe('recovery', () => {
+  const crash = (afterRound: number, backup: boolean) => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    app.sim.setFaults({ crash: { afterRound, backup } })
+    return app
+  }
+  const rules = { ...request().rules, regulationRounds: 4 } as never
+
+  it('brings a lost match back on a replacement from its newest backup, and the match finishes there', async () => {
+    const app = crash(2, true)
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request({ rules }))
+    await app.playOut()
+
+    const final = await app.matches.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.endedReason).toEqual({ kind: 'completed' })
+    expect(final.serverId).toBe('sim-2')
+    const order = types(app, match.id)
+    expect(order.filter(t => t === 'match.allocated')).toHaveLength(2)
+    expect(order.indexOf('match.recovering')).toBeLessThan(order.lastIndexOf('match.allocated'))
+    expect(order.lastIndexOf('match.server_ready')).toBeLessThan(order.indexOf('match.recovered'))
+    expect(order.at(-1)).toBe('match.ended')
+
+    const facts = app.store.rows.events.filter(e => e.matchId === match.id).map(e => e.payload)
+    const recovering = facts.find(f => f.type === 'match.recovering')
+    expect(recovering).toMatchObject({ backupRound: 2, reason: expect.stringContaining('gone') })
+    // The replacement's connect facts are said again, marked as a return.
+    const readies = facts.filter(f => f.type === 'match.server_ready')
+    expect(readies).toHaveLength(2)
+    expect(readies[0]).not.toHaveProperty('restored')
+    expect(readies[1]).toMatchObject({
+      restored: true,
+      round: 2,
+      connect: expect.objectContaining({ host: 'sim-2.sim.invalid' }),
+    })
+    expect(facts.find(f => f.type === 'match.recovered')).toMatchObject({
+      serverId: 'sim-2',
+      resumedFromRound: 2,
+    })
+    // The rounds after the crash were played by the replacement, from the backup's round on.
+    const rounds = facts.filter(f => f.type === 'round_end') as {
+      source: { serverId: string }
+      roundNumber: number
+    }[]
+    expect(rounds.map(r => `${r.source.serverId}#${r.roundNumber}`)).toEqual([
+      'sim-1#1',
+      'sim-1#2',
+      'sim-2#2',
+      'sim-2#3',
+      'sim-2#4',
+    ])
+
+    // The ledger: the corpse failed and deallocated, the replacement released at the end.
+    const rows = app.store.rows.servers.filter(r => r.matchId === match.id)
+    expect(rows.map(r => [r.serverId, r.state])).toEqual([
+      ['sim-1', 'failed'],
+      ['sim-2', 'released'],
+    ])
+    expect(rows.every(r => r.releasedAt !== null)).toBe(true)
+    expect(app.sim.size()).toBe(0)
+    expect(app.links.size()).toBe(0)
+    await app.close()
+  })
+
+  it('fails server_lost when the replacement stands ready and nobody comes back', async () => {
+    const app = crash(2, true)
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request({ rules }))
+    await app.settle()
+    while ((await app.matches.get(key, match.id)).state !== 'recovering') {
+      await app.clock.next()
+      await app.settle()
+    }
+    // The replacement boots and says ready; then its story is parked before anyone goes live.
+    while (
+      !types(app, match.id).some(
+        (t, i, all) => t === 'match.server_ready' && i > all.indexOf('match.recovering'),
+      )
+    ) {
+      await app.clock.next()
+      await app.settle()
+    }
+    // Parked in step mode: up (the probe finds it running), heartbeating nothing, going live never.
+    const replacement = (await app.matches.get(key, match.id)).serverId as string
+    app.sim.engine(replacement)?.setMode('step')
+    expect((await app.matches.get(key, match.id)).state).toBe('recovering')
+    await app.advance(20 * 60_000 + 1)
+    const final = await app.matches.get(key, match.id)
+    expect(final.state).toBe('failed')
+    expect(final.endedReason).toMatchObject({
+      kind: 'server_lost',
+      detail: expect.stringContaining('no going_live'),
+    })
+    expect(types(app, match.id)).not.toContain('match.recovered')
+    expect(app.sim.size()).toBe(0)
+    await app.close()
+  })
+
+  it('refuses a restore while one is in progress, and takes one after a restart left the window open', async () => {
+    const app = crash(2, true)
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request({ rules }))
+    await app.settle()
+    while ((await app.matches.get(key, match.id)).state !== 'recovering') {
+      await app.clock.next()
+      await app.settle()
+    }
+    const busy = await app.matches.command(key, match.id, { type: 'restore', correlationId: 'r1' })
+    expect(busy).toMatchObject({ status: 'rejected', code: 'invalid_state' })
+    const none = await app.matches.command(key, match.id, {
+      type: 'restore',
+      correlationId: 'r2',
+      roundNumber: 9,
+    })
+    expect(none).toMatchObject({ status: 'rejected', code: 'no_backup' })
+
+    // The process dies with the window open and the replacement gone with it.
+    await app.matches.close()
+    const replacement = (await app.matches.get(key, match.id)).serverId as string
+    await app.sim.deallocate(replacement)
+    await app.store.updateServer(
+      app.store.rows.servers.find(r => r.serverId === replacement)?.id as string,
+      { state: 'failed', releasedAt: app.clock.date(), releasedReason: 'died with the process' },
+    )
+    const revived = createMatches({
+      clock: app.clock,
+      log: app.log,
+      store: app.store,
+      providers: app.providers,
+      links: app.links,
+      gamemodes: (await import('@ezpug/match-api')).SHIPPED_GAMEMODES,
+      hub: app.hub,
+      webhooks: app.webhooks,
+      budget: app.budgets,
+      baseUrl: 'http://localhost:3430',
+    })
+    app.sink.current = revived
+    // No resume: the door for exactly this gap.
+    const taken = await revived.command(key, match.id, {
+      type: 'restore',
+      correlationId: 'r3',
+      roundNumber: 1,
+    })
+    expect(taken).toMatchObject({ status: 'applied' })
+    for (let i = 0; i < 2_000 && (await revived.get(key, match.id)).state !== 'ended'; i += 1) {
+      await revived.settle()
+      await app.sim.settle()
+      await app.clock.next()
+    }
+    await revived.settle()
+    const final = await revived.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.serverId).toBe('sim-3')
+    const recovered = app.store.rows.events.find(
+      e => e.matchId === match.id && e.payload.type === 'match.recovered',
+    )?.payload
+    expect(recovered).toMatchObject({ serverId: 'sim-3', resumedFromRound: 1 })
+    await revived.close()
+    await app.close()
+  })
+
+  it('resumes the walk after a restart with the window open, and waits for players when the replacement is up', async () => {
+    const app = crash(2, true)
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request({ rules }))
+    await app.settle()
+    while ((await app.matches.get(key, match.id)).state !== 'recovering') {
+      await app.clock.next()
+      await app.settle()
+    }
+    await app.matches.close()
+    const replacement = (await app.matches.get(key, match.id)).serverId as string
+    await app.sim.deallocate(replacement)
+    await app.store.updateServer(
+      app.store.rows.servers.find(r => r.serverId === replacement)?.id as string,
+      { state: 'failed', releasedAt: app.clock.date(), releasedReason: 'died with the process' },
+    )
+    const revived = createMatches({
+      clock: app.clock,
+      log: app.log,
+      store: app.store,
+      providers: app.providers,
+      links: app.links,
+      gamemodes: (await import('@ezpug/match-api')).SHIPPED_GAMEMODES,
+      hub: app.hub,
+      webhooks: app.webhooks,
+      budget: app.budgets,
+      baseUrl: 'http://localhost:3430',
+    })
+    app.sink.current = revived
+    await revived.resume()
+    await revived.settle()
+    expect((await revived.get(key, match.id)).serverId).toBe('sim-3')
+    for (let i = 0; i < 2_000 && (await revived.get(key, match.id)).state !== 'ended'; i += 1) {
+      await revived.settle()
+      await app.sim.settle()
+      await app.clock.next()
+    }
+    await revived.settle()
+    expect((await revived.get(key, match.id)).state).toBe('ended')
+    expect(types(app, match.id).filter(t => t === 'match.allocated')).toHaveLength(3)
+    await revived.close()
     await app.close()
   })
 })

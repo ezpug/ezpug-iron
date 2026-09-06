@@ -6,6 +6,19 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.3.0 — 2026-09-06
+
+Additive: the recovery flow's second `match.server_ready` says that it is one. Serves
+PRD-02 T14 (a server that dies comes back) and the platform's `PRD-09` handling of
+`match.recovering` / `match.recovered`, which otherwise cannot tell a replacement
+server's connect facts from a first boot without consulting `Match.state`.
+
+- `match.server_ready` gains two optional fields, present together and only on the
+  replacement server's announcement while the match is `recovering`: `restored: true`
+  and `round`, the round play resumes from (the same number `match.recovered` then
+  carries as `resumedFromRound`). A first boot's fact is byte-for-byte what it was.
+- The fake says both on its recovery path; the `crash-restore` recording carries them.
+
 ## 0.2.0 — 2026-09-05
 
 Additive: two `admin` routes the operator half of decision 7 was missing. Serves the

@@ -124,4 +124,77 @@ public static class MatchZyBackups
 
     private static bool IsRemoteLogSecret(string cvar) =>
         cvar.EndsWith("remote_log_header_value", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The inverse of <see cref="Scrub"/>, for a backup that crossed the link and is about to
+    /// be written for MatchZy on <i>this</i> server (PRD-02 T14): the remote log inside
+    /// <c>match_config</c> pointed at the orchestrator with this server's token, because
+    /// MatchZy's restore deserialises that config — twice, once when the file is loaded and
+    /// again when the match starts — and the URL alone, with the header blanked, would post
+    /// every match-flow event of the resumed match at a door that refuses it. The cvar maps
+    /// get the same value where the dead server's config carried the key. Anything that is
+    /// not a JSON object comes back as it was.
+    /// </summary>
+    public static string WithRemoteLog(string json, MatchZyRemoteLog remoteLog)
+    {
+        JsonNode? node;
+        try
+        {
+            node = JsonNode.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
+
+        if (node is not JsonObject backup)
+        {
+            return json;
+        }
+
+        if (backup["match_config"] is not JsonValue configValue || !configValue.TryGetValue<string>(out var configJson))
+        {
+            return json;
+        }
+
+        JsonNode? config;
+        try
+        {
+            config = JsonNode.Parse(configJson);
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
+
+        if (config is not JsonObject configObject)
+        {
+            return json;
+        }
+
+        configObject["RemoteLogURL"] = remoteLog.Url.ToString();
+        configObject["RemoteLogHeaderKey"] = remoteLog.HeaderKey;
+        configObject["RemoteLogHeaderValue"] = remoteLog.HeaderValue;
+        foreach (var map in new[] { "changed_cvars", "original_cvars" })
+        {
+            if (configObject[map] is JsonObject cvars)
+            {
+                foreach (var name in cvars.Select(pair => pair.Key).Where(IsRemoteLogSecret).ToList())
+                {
+                    cvars[name] = remoteLog.HeaderValue;
+                }
+            }
+        }
+
+        backup["match_config"] = configObject.ToJsonString();
+        return backup.ToJsonString();
+    }
+
+    /// <summary>A backup file name as MatchZy wrote it and the link carried it: a name, never a path.</summary>
+    public static bool IsSafeFileName(string filename) =>
+        !string.IsNullOrWhiteSpace(filename)
+        && !filename.Contains('/')
+        && !filename.Contains('\\')
+        && !filename.Contains("..")
+        && filename.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
 }

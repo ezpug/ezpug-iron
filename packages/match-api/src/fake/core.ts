@@ -1112,6 +1112,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
           type: 'match.server_ready',
           connect: { ...record.match.connect },
           tv: { ...record.match.tv },
+          ...(record.restoring && { restored: true, round: record.restoring.roundNumber }),
         })
         break
       }

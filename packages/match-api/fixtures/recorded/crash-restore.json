@@ -1913,7 +1913,9 @@
           "host": "sim-2.sim.invalid",
           "port": 27020,
           "delaySeconds": 90
-        }
+        },
+        "restored": true,
+        "round": 2
       }
     },
     {

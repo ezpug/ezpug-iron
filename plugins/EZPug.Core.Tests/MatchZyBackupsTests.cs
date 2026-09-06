@@ -29,6 +29,50 @@ public class MatchZyBackupsTests : IDisposable
     }
 
     [Fact]
+    public void WithRemoteLogPutsThisServersRemoteLogBackWhereScrubTookItOut()
+    {
+        var config = new JsonObject
+        {
+            ["RemoteLogURL"] = "http://10.0.0.9:3430/matchzy/log",
+            ["RemoteLogHeaderKey"] = "x-ezpug-server-token",
+            ["RemoteLogHeaderValue"] = "",
+            ["changed_cvars"] = new JsonObject { ["mp_maxrounds"] = "24", ["matchzy_remote_log_header_value"] = "" },
+            ["original_cvars"] = new JsonObject { ["get5_remote_log_header_value"] = "" },
+        };
+        var crossed = new JsonObject { ["matchid"] = "7", ["match_config"] = config.ToJsonString(), ["valve_backup"] = "text" }.ToJsonString();
+        var remoteLog = new MatchZyRemoteLog(new Uri("http://127.0.0.1:3430/matchzy/log"), "x-ezpug-server-token", "ezs_not-a-secret_1111111111111111111");
+
+        var restored = JsonNode.Parse(MatchZyBackups.WithRemoteLog(crossed, remoteLog))!.AsObject();
+        var inside = JsonNode.Parse(restored["match_config"]!.GetValue<string>())!.AsObject();
+        Assert.Equal("http://127.0.0.1:3430/matchzy/log", inside["RemoteLogURL"]!.GetValue<string>());
+        Assert.Equal("x-ezpug-server-token", inside["RemoteLogHeaderKey"]!.GetValue<string>());
+        Assert.Equal("ezs_not-a-secret_1111111111111111111", inside["RemoteLogHeaderValue"]!.GetValue<string>());
+        Assert.Equal("ezs_not-a-secret_1111111111111111111", inside["changed_cvars"]!["matchzy_remote_log_header_value"]!.GetValue<string>());
+        Assert.Equal("ezs_not-a-secret_1111111111111111111", inside["original_cvars"]!["get5_remote_log_header_value"]!.GetValue<string>());
+        Assert.Equal("24", inside["changed_cvars"]!["mp_maxrounds"]!.GetValue<string>());
+        Assert.Equal("text", restored["valve_backup"]!.GetValue<string>());
+
+        // Scrubbing what was put back yields what crossed: the two are inverses on the secret.
+        Assert.DoesNotContain("1111111111", MatchZyBackups.Scrub(MatchZyBackups.WithRemoteLog(crossed, remoteLog)));
+
+        // Not a backup: untouched.
+        Assert.Equal("not json", MatchZyBackups.WithRemoteLog("not json", remoteLog));
+        Assert.Equal("[1]", MatchZyBackups.WithRemoteLog("[1]", remoteLog));
+        Assert.Equal("{\"matchid\":\"7\"}", MatchZyBackups.WithRemoteLog("{\"matchid\":\"7\"}", remoteLog));
+    }
+
+    [Theory]
+    [InlineData("matchzy_2065155295_0_round02.json", true)]
+    [InlineData("backup.JSON", true)]
+    [InlineData("../cfg/server.json", false)]
+    [InlineData("sub/file.json", false)]
+    [InlineData("sub\\file.json", false)]
+    [InlineData("backup.txt", false)]
+    [InlineData("", false)]
+    public void ABackupFileNameIsANameAndNothingElse(string filename, bool safe) =>
+        Assert.Equal(safe, MatchZyBackups.IsSafeFileName(filename));
+
+    [Fact]
     public void ScrubBlanksTheRemoteLogHeaderValueWhereverMatchZyPutIt()
     {
         var config = new JsonObject

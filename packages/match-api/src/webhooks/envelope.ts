@@ -90,11 +90,21 @@ export const matchAllocatedFactSchema = factBase.extend({
   region: kebabNameSchema.nullable(),
 })
 
-/** Players may connect. The same facts as `Match.connect` / `Match.tv`, pushed. */
+/**
+ * Players may connect. The same facts as `Match.connect` / `Match.tv`, pushed.
+ * Said a second time when a lost server's match comes back on a replacement
+ * (`Match.state` is then `recovering`, not `ready`): `restored: true` and
+ * `round`, the round play resumes from, mark that one so a consumer can
+ * re-announce the connect facts as a return rather than a first call.
+ */
 export const matchServerReadyFactSchema = factBase.extend({
   type: z.literal('match.server_ready'),
   connect: serverConnectSchema,
   tv: serverTvSchema.nullable(),
+  /** Present, and true, only on the replacement server's announcement. */
+  restored: z.literal(true).optional(),
+  /** The round the replacement resumes from; with `restored` only. */
+  round: z.number().int().positive().optional(),
 })
 
 /**

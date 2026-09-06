@@ -6,6 +6,7 @@ import type {
   MatchRequestInput,
 } from '@ezpug/match-api'
 import { matchRequestSchema, SHIPPED_GAMEMODES } from '@ezpug/match-api'
+import type { RoundBackup } from '@ezpug/protocol'
 import { describe, expect, it } from 'vitest'
 import { createTestApp, type TestApp } from '../../http/testing'
 import type { AuthenticatedKey } from '../../keys/service'
@@ -238,10 +239,15 @@ describe('the sim provider', () => {
   function rig() {
     const clock = createFakeClock({ start: '2026-09-05T18:00:00.000Z' })
     const events: { serverId: string; event: GameserverEvent }[] = []
+    const backups: { serverId: string; backup: RoundBackup }[] = []
     const sink: ServerEventSink = {
       ingest: (source, event) => {
         events.push({ serverId: source.serverId, event })
         return Promise.resolve('accepted')
+      },
+      backup: (source, backup) => {
+        backups.push({ serverId: source.serverId, backup })
+        return Promise.resolve(true)
       },
     }
     const sim = createSimProvider({ clock, sink, links: createLinkRegistry() })
@@ -261,7 +267,7 @@ describe('the sim provider', () => {
       }
       throw new Error('the story never finished')
     }
-    return { clock, sim, events, configuration, playOut }
+    return { clock, sim, events, backups, configuration, playOut }
   }
 
   const allocation = (matchId: string, offering: ServerOffering) => ({
@@ -305,6 +311,7 @@ describe('the sim provider', () => {
         new Promise(resolve => {
           answer.push(() => resolve('accepted'))
         }),
+      backup: () => Promise.resolve(true),
     }
     const sim = createSimProvider({ clock, sink, links: createLinkRegistry() })
     const [offering] = await sim.offerings()

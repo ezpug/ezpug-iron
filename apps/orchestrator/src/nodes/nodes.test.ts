@@ -538,6 +538,91 @@ describe('a node that goes away', () => {
     expect(await rig.provider.status(serverId)).toMatchObject({ state: 'gone' })
   })
 
+  it('replaces a container that vanished mid-match on the node, and hands the replacement the backup', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    const { match } = await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    const first = node.starts()[0]
+    if (!first) throw new Error('the node was never told to start anything')
+    const server = rig.dial(first.serverToken)
+    await server.connect()
+    await server.next('assign')
+    const source = { provider: 'nodes', serverId: first.id }
+    await server.emit([
+      { type: 'server_ready', matchId: match.id, source, map: 'de_mirage' },
+      { type: 'going_live', matchId: match.id, source, mapNumber: 1, map: 'de_mirage' },
+    ])
+    // MatchZy wrote round 3's backup; the plugin sent it up. The heartbeat
+    // behind it is acked only after the backup was taken, frames being in order.
+    const backup = {
+      mapNumber: 1,
+      roundNumber: 3,
+      filename: 'matchzy_2065155295_0_round02.json',
+      content: '{"matchid":"2065155295","round":"02","match_config":"{}"}',
+    }
+    server.backup(backup)
+    await server.emit({ type: 'heartbeat', matchId: match.id, source, playerCount: 10 })
+    await rig.settle()
+    expect((await rig.app.matches.get(rig.key, match.id)).state).toBe('live')
+
+    // Docker lost the container: its socket dies and the node's next
+    // snapshot no longer lists it. Nothing announces that; the loss detector
+    // probes the provider after three silent heartbeat intervals.
+    await server.close()
+    node.forget(first.id)
+    node.report()
+    await rig.settle()
+    // The agent itself keeps heartbeating meanwhile — the node is fine, the container is not.
+    for (let i = 0; i < 12; i += 1) {
+      node.heartbeat()
+      await rig.app.advance(5_000)
+    }
+
+    const recovering = await rig.app.matches.get(rig.key, match.id)
+    expect(recovering.state).toBe('recovering')
+    expect(node.stops()).toContain(first.id)
+    expect(node.starts()).toHaveLength(2)
+    const second = node.starts()[1]
+    if (!second) throw new Error('no replacement was started')
+    expect(second.matchId).toBe(match.id)
+    expect(second.id).not.toBe(first.id)
+    expect(second.serverToken).not.toBe(first.serverToken)
+    expect(recovering.serverId).toBe(second.id)
+
+    // The replacement dials in with its own token and is assigned the same
+    // match with the backup to restore from.
+    const replacement = rig.dial(second.serverToken)
+    await replacement.connect()
+    const assign = await replacement.next('assign')
+    expect(assign.matchId).toBe(match.id)
+    expect(assign.restore).toEqual(backup)
+    const resumed = { provider: 'nodes', serverId: second.id }
+    await replacement.emit([
+      { type: 'server_ready', matchId: match.id, source: resumed, map: 'de_mirage' },
+      { type: 'going_live', matchId: match.id, source: resumed, mapNumber: 1, map: 'de_mirage' },
+    ])
+    await rig.settle()
+
+    expect((await rig.app.matches.get(rig.key, match.id)).state).toBe('live')
+    const events = await rig.app.matches.events(rig.key, match.id, 0, 200)
+    const facts = events.items.map(item => item.payload)
+    expect(facts.find(fact => fact.type === 'match.recovering')).toMatchObject({ backupRound: 3 })
+    const readies = facts.filter(fact => fact.type === 'match.server_ready')
+    expect(readies).toHaveLength(2)
+    expect(readies[1]).toMatchObject({ restored: true, round: 3 })
+    expect(facts.find(fact => fact.type === 'match.recovered')).toMatchObject({
+      serverId: second.id,
+      resumedFromRound: 3,
+    })
+    // The ledger: the corpse failed, the replacement is the one open row.
+    const rows = rig.app.store.rows.servers.filter(row => row.matchId === match.id)
+    expect(rows.map(row => [row.serverId, row.state, row.releasedAt !== null])).toEqual([
+      [first.id, 'failed', true],
+      [second.id, 'running', false],
+    ])
+  })
+
   it('adopts the containers it already owns when the agent dials back', async () => {
     const rig = await createNodeRig()
     const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })

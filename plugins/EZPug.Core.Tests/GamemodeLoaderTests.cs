@@ -184,19 +184,115 @@ public class GamemodeLoaderTests
     }
 
     [Fact]
-    public void AMatchzyFlowWithoutAConfigAndABackupToRestoreAreSaidPlainly()
+    public void AMatchzyFlowWithoutAConfigIsSaidPlainlyAndRestoresNothing()
     {
         using var rig = new Rig("MatchZy");
         var assignment = GamemodeTestHost.AssignmentFor(Manifest("pug")) with
         {
-            Restore = new RoundBackup { MapNumber = 1, RoundNumber = 7, Filename = "backup_round07.txt", Content = "x" },
+            Restore = new RoundBackup { MapNumber = 1, RoundNumber = 7, Filename = "matchzy_1_0_round06.json", Content = "{}" },
         };
         rig.Link.Assign(assignment);
         rig.World.StartMap();
-        Assert.Contains("warn: the assignment carries a backup for round 7; restoring on assign is PRD-02 T14 and is not done here", rig.Log.Lines);
         Assert.Contains(rig.Log.Lines, line => line.StartsWith("warn: a matchzy flow with no matchzyConfig"));
         Assert.DoesNotContain(rig.Actions, action => action.Contains("matchzy_loadmatch"));
+        Assert.DoesNotContain(rig.Actions, action => action.Contains("matchzy_loadbackup"));
         Assert.False(File.Exists(rig.MatchConfigPath));
+        Assert.False(Directory.Exists(Path.Combine(rig.Image.CsgoDirectory, MatchZyBackups.Folder)));
+    }
+
+    [Fact]
+    public void ARestoreLoadsTheBackupsMapWritesTheFileWithTheRemoteLogInsideAndLoadsItAfterTheConfig()
+    {
+        using var rig = new Rig("MatchZy");
+        var config = JsonNode.Parse("""{"matchid":"2065155295","num_maps":2,"maplist":["de_mirage","de_inferno"],"cvars":{}}""")!.AsObject();
+        // What crossed the link: the dead server's file, its remote log scrubbed of the token.
+        var crossed = new JsonObject
+        {
+            ["matchid"] = "2065155295",
+            ["round"] = "06",
+            ["map_name"] = "de_inferno",
+            ["match_config"] = new JsonObject
+            {
+                ["RemoteLogURL"] = "http://127.0.0.1:3430/matchzy/log",
+                ["RemoteLogHeaderKey"] = "x-ezpug-server-token",
+                ["RemoteLogHeaderValue"] = "",
+                ["changed_cvars"] = new JsonObject { ["matchzy_remote_log_header_value"] = "" },
+            }.ToJsonString(),
+            ["valve_backup"] = "backup text",
+        }.ToJsonString();
+        var assignment = GamemodeTestHost.AssignmentFor(Manifest("pug")) with
+        {
+            MatchzyConfig = config,
+            Maps = [new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Knife }, new MapPlan { Map = "de_inferno", Sides = MapPlanSides.Knife }],
+            Restore = new RoundBackup { MapNumber = 2, RoundNumber = 7, Filename = "matchzy_2065155295_1_round06.json", Content = crossed },
+        };
+
+        rig.Link.Assign(assignment);
+        // The backup's map, not the plan's first; the hostname names it too.
+        Assert.Equal("cvar hostname EZPug · pug · Inferno", rig.Actions[0]);
+        Assert.Equal("changelevel de_inferno", rig.Actions[^1]);
+        Assert.Equal((2L, 6L), (rig.Runtime.Match.MapNumber, rig.Runtime.Match.RoundNumber));
+
+        rig.World.StartMap("de_inferno");
+        var afterCvars = rig.Actions.SkipWhile(action => !action.StartsWith("command matchzy_loadmatch")).ToList();
+        Assert.Equal(
+            [
+                "command matchzy_loadmatch cfg/ezpug/match.json",
+                "command matchzy_remote_log_url \"http://127.0.0.1:3430/matchzy/log\"",
+                "command matchzy_remote_log_header_key \"x-ezpug-server-token\"",
+                "command matchzy_remote_log_header_value \"ezs_not-a-secret_0000000000000000000\"",
+                // The backup, after the config: loading it replaces MatchZy's config from the file.
+                "command matchzy_loadbackup matchzy_2065155295_1_round06.json",
+                "command matchzy_remote_log_url \"http://127.0.0.1:3430/matchzy/log\"",
+                "command matchzy_remote_log_header_key \"x-ezpug-server-token\"",
+                "command matchzy_remote_log_header_value \"ezs_not-a-secret_0000000000000000000\"",
+            ],
+            afterCvars);
+
+        // The file is where MatchZy looks, with this server's remote log put back inside.
+        var written = Path.Combine(rig.Image.CsgoDirectory, MatchZyBackups.Folder, "matchzy_2065155295_1_round06.json");
+        Assert.True(File.Exists(written));
+        var backup = JsonNode.Parse(File.ReadAllText(written))!.AsObject();
+        Assert.Equal("backup text", backup["valve_backup"]!.GetValue<string>());
+        var restoredConfig = JsonNode.Parse(backup["match_config"]!.GetValue<string>())!.AsObject();
+        Assert.Equal("ezs_not-a-secret_0000000000000000000", restoredConfig["RemoteLogHeaderValue"]!.GetValue<string>());
+        Assert.Equal("ezs_not-a-secret_0000000000000000000", restoredConfig["changed_cvars"]!["matchzy_remote_log_header_value"]!.GetValue<string>());
+        // The match config file itself still carries no token.
+        Assert.DoesNotContain("not-a-secret", File.ReadAllText(rig.MatchConfigPath));
+
+        // Said on the link: the restore, before the map is announced ready. going_live stays MatchZy's.
+        Assert.Equal(["plugin_event", "server_ready"], rig.Link.EventTypes);
+        var restored = Assert.Single(rig.Link.EventsOf<PluginEvent>());
+        Assert.Equal(GamemodeLoader.BackupRestoredEvent, restored.Name);
+        Assert.Equal(2, restored.Data["mapNumber"]!.GetValue<long>());
+        Assert.Equal(7, restored.Data["roundNumber"]!.GetValue<long>());
+        Assert.Equal("matchzy_2065155295_1_round06.json", restored.Data["filename"]!.GetValue<string>());
+        Assert.Contains(rig.Log.Lines, line => line.StartsWith("info: restoring map 2 round 7 from matchzy_2065155295_1_round06.json"));
+    }
+
+    [Fact]
+    public void ARestoreWithAPathForAFileNameIsRefusedAndAConfigOnlyFlowSaysItCannotRestore()
+    {
+        using var rig = new Rig("MatchZy");
+        var config = JsonNode.Parse("""{"matchid":"1","num_maps":1,"maplist":["de_mirage"],"cvars":{}}""")!.AsObject();
+        var unsafeName = GamemodeTestHost.AssignmentFor(Manifest("pug")) with
+        {
+            MatchzyConfig = config,
+            Restore = new RoundBackup { MapNumber = 1, RoundNumber = 3, Filename = "../cfg/server.json", Content = "{}" },
+        };
+        rig.Link.Assign(unsafeName);
+        rig.World.StartMap();
+        Assert.DoesNotContain(rig.Actions, action => action.Contains("matchzy_loadbackup"));
+        Assert.Contains(rig.Log.Lines, line => line.StartsWith("warn: the backup for round 3 is named ../cfg/server.json"));
+        Assert.False(File.Exists(Path.Combine(rig.Image.CsgoDirectory, "cfg", "server.json")));
+        Assert.Equal(["server_ready"], rig.Link.EventTypes);
+
+        using var scoutsman = new Rig();
+        scoutsman.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman")) with
+        {
+            Restore = new RoundBackup { MapNumber = 1, RoundNumber = 3, Filename = "matchzy_1_0_round02.json", Content = "{}" },
+        });
+        Assert.Contains(scoutsman.Log.Lines, line => line.StartsWith("warn: the assignment carries a backup for round 3, but a"));
     }
 
     [Theory]
