@@ -512,7 +512,7 @@ every offline proof here.
   owns rather than one pid, and make the orchestrator debounce a node identity that
   re-`hello`s in a loop instead of billing a `fleet.node_disconnected` per flap.
 
-- [ ] **T21c (P1): the extended conformance suite's `happy-bo1` fails a match before it is
+- [x] **T21c (P1): the extended conformance suite's `happy-bo1` fails a match before it is
   ready, under a whole-verify load.** Found in T21b, pre-existing, not caused by it:
   `apps/orchestrator/src/conformance.extended.test.ts` failed
   `happy-bo1` 7/8 on `the flow ran to its end — the match failed before it was ready`
@@ -534,6 +534,29 @@ every offline proof here.
   tier's deadlines as generous as `SIM_TIME_SCALE` already made its story. Never retried
   into green (working rules); the verify this was found in was re-run for the commit gate
   and the progress line says which runs were which.
+
+- [ ] **T21d (P1): `machine.test.ts`'s ttl deadline loses a race with the sim's own
+  ending, under a whole-verify load.** Found in T21c, pre-existing, not caused by it:
+  `deadlines > ends ttl_expired when the request's lifetime runs out, whatever the server
+  says` (`apps/orchestrator/src/match/machine.test.ts:226`) failed once inside
+  `pnpm verify:extended` with `expected 'completed' to be 'ttl_expired'` — the match
+  reached its own end inside the ten fake minutes the ttl was supposed to close first. It
+  then passed **8 of 8** alone, and the whole orchestrator suite and two full `pnpm verify`
+  runs were green either side of it, which is why it has been green. Not traced further.
+  Two things are worth the next author's first hour: the test is a **fake-clock** one
+  (`createTestApp`, `advance(10 * 60_000)`), so a wall-clock-dependent outcome means
+  something is escaping the barrier — the sim's un-awaited ingest that T10a named
+  (`providers/sim/channel.ts:51`, `void emitted.done`) is the obvious suspect, and this
+  would be its third appearance; and the story the sim plays is seeded on
+  `${root}#${matchId}` with a **`randomUUID()` match id**
+  (`providers/sim/provider.ts`, `simAssignmentFor`), so its length is not the same twice —
+  a test whose margin is one story-length away from a deadline is a coin toss nobody can
+  reproduce. Fix whichever of the two it is (a seed the test pins would make the margin
+  legible even if the barrier is the real fault), and prove it under a real
+  `pnpm verify:extended`. Nothing this task changed is in the path — the three reads it
+  narrowed are per-deployment filters that a single in-memory store satisfies
+  tautologically — but the run that found it is the run T21c was verified with, and the
+  progress line says which runs were which. Never retried into green (working rules).
 
 - [ ] **T22: `flying-scoutsman` and the generic flow.** The SDK's generic flow emitter
   for `flow: plugin | none` modes: `round_start`/`round_end` from game events (winner,

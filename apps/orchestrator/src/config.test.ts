@@ -13,6 +13,7 @@ import {
   STEAM_FAKE_TOKENS_VAR,
   TEST_DATABASE_URL_VAR,
 } from './config'
+import { DEFAULT_DEPLOYMENT } from './deployment'
 
 const env = {
   EZPUG_IRON_DATABASE_URL: 'postgres://ezpug_iron:secret@127.0.0.1:5443/ezpug_iron',
@@ -27,6 +28,7 @@ describe('readOrchestratorConfig', () => {
     expect(config.host).toBe('127.0.0.1')
     expect(config.baseUrl).toBe('http://localhost:3430')
     expect(config.providers).toEqual(['sim'])
+    expect(config.deployment).toBe(DEFAULT_DEPLOYMENT)
     expect(config.production).toBe(false)
     expect(config.rateLimit).toEqual({ burst: 120, perSecond: 10 })
     expect(config.database.source).toBe(DATABASE_URL_VAR)
@@ -40,6 +42,7 @@ describe('readOrchestratorConfig', () => {
       EZPUG_IRON_HOST: '0.0.0.0',
       EZPUG_IRON_PORT: '3431',
       EZPUG_IRON_PROVIDERS: 'dathost, nodes ,',
+      EZPUG_IRON_DEPLOYMENT: 'ezpug-prod',
       EZPUG_IRON_RATE_LIMIT_BURST: '10',
       EZPUG_IRON_RATE_LIMIT_PER_SECOND: '1',
       EZPUG_IRON_DATABASE_POOL_MAX: '3',
@@ -50,10 +53,17 @@ describe('readOrchestratorConfig', () => {
     expect(config.host).toBe('0.0.0.0')
     expect(config.port).toBe(3431)
     expect(config.providers).toEqual(['dathost', 'nodes'])
+    expect(config.deployment).toBe('ezpug-prod')
     expect(config.rateLimit).toEqual({ burst: 10, perSecond: 1 })
     expect(config.database.poolMax).toBe(3)
     expect(config.database.logQueries).toBe(true)
     expect(config.production).toBe(true)
+  })
+
+  it('refuses a deployment name that is not one', () => {
+    expect(() => readOrchestratorConfig({ ...env, EZPUG_IRON_DEPLOYMENT: 'EZPug Prod!' })).toThrow(
+      /EZPUG_IRON_DEPLOYMENT/,
+    )
   })
 
   it('takes the dev contract’s EZPUG_IRON_PUBLIC_URL over the repo’s own name', () => {

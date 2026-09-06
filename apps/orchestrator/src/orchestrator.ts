@@ -142,7 +142,11 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     clock,
     onError: (error, context) => log.error(`keys ${String(context.op)}`, error),
   })
-  const store = createPostgresMatchStore(database.db)
+  // Whose rows these are (T21c): the reaper, the boot's resume, the webhook
+  // worker and the fleet's "what is running" see this deployment's and nobody
+  // else's — a second orchestrator on the same database is otherwise a second
+  // machine on every one of this one's matches.
+  const store = createPostgresMatchStore(database.db, { deployment: config.deployment })
   const providers = createProviderRegistry()
   const links = createLinkRegistry()
   const nodeRegistry = createNodeRegistry()
@@ -260,6 +264,9 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
             password: config.dathost.password,
             templateServerId: config.dathost.templateServerId,
             location: config.dathost.location,
+            // The provider side of the same identity: only clones whose
+            // `user_data` carries this deployment's name are ours (T21c).
+            tag: config.deployment,
             gslt,
             ...(options.dathostFetch && { fetch: options.dathostFetch }),
           }),

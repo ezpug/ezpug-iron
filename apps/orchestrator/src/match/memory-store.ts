@@ -1,4 +1,5 @@
 import type { RconAuditEntry } from '../db/schema/servers'
+import { DEFAULT_DEPLOYMENT } from '../deployment'
 import type {
   BackupRow,
   CommandRow,
@@ -22,8 +23,14 @@ import { RCON_AUDIT_KEEP } from './store'
  * and the stream that has nothing to prove about a database. Rows are
  * copied on the way in and out so a test cannot mutate the store's truth by
  * accident, which is what a database would also refuse.
+ *
+ * `deployment` is the same stamp the Postgres store carries (T21c): whose
+ * ledger rows these are. One store is one deployment, so nothing here can
+ * see a neighbour's rows anyway — it is kept so the two implementations
+ * answer `listOpenServers` identically and `store.contract.test.ts` can hold
+ * them to it.
  */
-export function createMemoryMatchStore(): MatchStore & {
+export function createMemoryMatchStore(options: { deployment?: string } = {}): MatchStore & {
   /** The whole state, for a test's assertions. */
   readonly rows: {
     matches: MatchRow[]
@@ -52,6 +59,7 @@ export function createMemoryMatchStore(): MatchStore & {
   const nodes: NodeRow[] = []
   const nodeEnrolments: NodeEnrolmentRow[] = []
   const gsltTokens: GsltTokenRow[] = []
+  const deployment = options.deployment ?? DEFAULT_DEPLOYMENT
 
   const copy = <T>(value: T): T => structuredClone(value)
   const byId = (id: string): MatchRow | undefined => matches.find(row => row.id === id)
@@ -69,6 +77,8 @@ export function createMemoryMatchStore(): MatchStore & {
     )
 
   return {
+    deployment,
+
     rows: {
       matches,
       events,
@@ -85,7 +95,7 @@ export function createMemoryMatchStore(): MatchStore & {
 
     insertMatch: row => {
       if (byId(row.id)) throw new Error(`match ${row.id} exists`)
-      matches.push(copy(row))
+      matches.push(copy({ ...row, deployment }))
       return Promise.resolve()
     },
     findMatch: id => Promise.resolve(copy(byId(id))),
@@ -115,6 +125,7 @@ export function createMemoryMatchStore(): MatchStore & {
     listOpenMatches: keyId =>
       Promise.resolve(
         matches
+          .filter(row => row.deployment === deployment)
           .filter(row => !['ended', 'failed', 'cancelled'].includes(row.state))
           .filter(row => keyId === undefined || row.keyId === keyId)
           .map(copy),
@@ -145,9 +156,11 @@ export function createMemoryMatchStore(): MatchStore & {
     },
     findDelivery: deliveryId =>
       Promise.resolve(copy(deliveries.find(row => row.deliveryId === deliveryId))),
+    // A delivery is its match's deployment's (T21c).
     listDueDeliveries: (now, limit) =>
       Promise.resolve(
         deliveries
+          .filter(row => byId(row.matchId)?.deployment === deployment)
           .filter(
             row =>
               row.status === 'pending' && row.nextAttemptAt !== null && row.nextAttemptAt <= now,
@@ -187,7 +200,7 @@ export function createMemoryMatchStore(): MatchStore & {
     },
 
     insertServer: row => {
-      servers.push(copy(row))
+      servers.push(copy({ ...row, deployment }))
       return Promise.resolve()
     },
     findServer: id => Promise.resolve(copy(servers.find(row => row.id === id))),
@@ -206,6 +219,7 @@ export function createMemoryMatchStore(): MatchStore & {
     listOpenServers: provider =>
       Promise.resolve(
         newestFirst(servers)
+          .filter(row => row.deployment === deployment)
           .filter(row => row.releasedAt === null)
           .filter(row => provider === undefined || row.provider === provider)
           .map(copy),

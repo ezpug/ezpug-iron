@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DEFAULT_DEPLOYMENT } from './deployment'
 import { DATHOST_DEFAULT_LOCATION } from './providers/dathost/provider'
 import { looksLikeToken } from './tokens'
 
@@ -141,6 +142,16 @@ export interface OrchestratorConfig {
   readonly port: number
   /** `NODE_ENV === 'production'`: refuses dev-only doors. */
   readonly production: boolean
+  /**
+   * **Which deployment this process is** (T21c, `EZPUG_IRON_DEPLOYMENT`,
+   * default {@link DEFAULT_DEPLOYMENT}). It is stamped on every ledger row
+   * and it is the Dathost `user_data` tag, so both halves of "these servers
+   * are ours" are one setting: the reaper acts only on rows carrying this
+   * name, and the provider claims only clones carrying it. Two deployments
+   * sharing a database or a Dathost account — dev beside production, two
+   * test suites on one test database — must not reap each other.
+   */
+  readonly deployment: string
   /** The providers to register, in `EZPUG_IRON_PROVIDERS` order (T3/T4/T12 register them). */
   readonly providers: readonly string[]
   /**
@@ -322,6 +333,11 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       baseUrl: z.url(),
       host: z.string().min(1),
       port: numberFromEnv(DEFAULT_PORT),
+      deployment: z
+        .string()
+        .min(1)
+        .max(64)
+        .regex(/^[a-z0-9]+(?:[-_][a-z0-9]+)*$/, 'must be a lower-case name, e.g. `ezpug-prod`'),
       providers: z.string().transform(value =>
         value
           .split(',')
@@ -352,6 +368,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
         `http://localhost:${env.EZPUG_IRON_PORT ?? DEFAULT_PORT}`,
       host: env.EZPUG_IRON_HOST ?? '127.0.0.1',
       port: env.EZPUG_IRON_PORT,
+      deployment: env.EZPUG_IRON_DEPLOYMENT || DEFAULT_DEPLOYMENT,
       providers: env.EZPUG_IRON_PROVIDERS ?? 'sim',
       rateLimitBurst: env.EZPUG_IRON_RATE_LIMIT_BURST,
       rateLimitPerSecond: env.EZPUG_IRON_RATE_LIMIT_PER_SECOND,
@@ -366,6 +383,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       baseUrl: env.EZPUG_IRON_PUBLIC_URL ? 'EZPUG_IRON_PUBLIC_URL' : 'EZPUG_IRON_BASE_URL',
       host: 'EZPUG_IRON_HOST',
       port: 'EZPUG_IRON_PORT',
+      deployment: 'EZPUG_IRON_DEPLOYMENT',
       providers: 'EZPUG_IRON_PROVIDERS',
       rateLimitBurst: 'EZPUG_IRON_RATE_LIMIT_BURST',
       rateLimitPerSecond: 'EZPUG_IRON_RATE_LIMIT_PER_SECOND',

@@ -33,7 +33,9 @@ beforeAll(async () => {
   loadRootEnv()
   try {
     config = {
-      ...readOrchestratorConfig(process.env),
+      // This suite's own deployment (T21c) — its reaper must not judge the
+      // ledger rows another suite is holding open in the same test database.
+      ...readOrchestratorConfig({ ...process.env, EZPUG_IRON_DEPLOYMENT: namespace }),
       database: readDatabaseConfig(process.env, { target: 'test' }),
     }
     orchestrator = createOrchestrator({ config, clock: systemClock, log })

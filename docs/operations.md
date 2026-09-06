@@ -30,6 +30,7 @@ Ports and every setting are decided in `.env.example` and nowhere else. Every na
 | `EZPUG_IRON_PUBLIC_URL` | — | the same value under the name the dev contract below uses; it wins over `EZPUG_IRON_BASE_URL` when both are set |
 | `EZPUG_IRON_HOST` / `EZPUG_IRON_PORT` | `127.0.0.1` / `3430` | where the process binds; the container sets `0.0.0.0` and compose publishes |
 | `EZPUG_IRON_PROVIDERS` | `sim` | the providers to register, comma-separated (`sim`, `dathost`, `nodes`; T3/T4/T12/T16) |
+| `EZPUG_IRON_DEPLOYMENT` | `ezpug` | which deployment this process is: the stamp on every ledger row and the Dathost `user_data` tag (below) |
 | `EZPUG_IRON_DATABASE_URL` | — | `postgres://…`; `EZPUG_IRON_TEST_DATABASE_URL` is the Vitest database beside it |
 | `EZPUG_IRON_DATABASE_POOL_MAX`, `…_IDLE_TIMEOUT`, `…_CONNECT_TIMEOUT`, `…_STATEMENT_TIMEOUT`, `…_LOG` | `10`, `30`, `10`, `15000`, `false` | pool tuning; the statement timeout is what keeps a runaway query from wedging the pool |
 | `EZPUG_IRON_REDIS_URL` | — | `redis://…` |
@@ -343,6 +344,28 @@ two-minute grace and `fleet.orphan_found` is said to the match it was obtained f
 open row the provider no longer lists is *surfaced* to the machine, which probes and
 opens the recovery window itself. A provider that cannot answer is reported and retried
 next pass; nothing is reaped on a failed listing.
+
+**Everything a process does on its own initiative is one deployment's**
+(`EZPUG_IRON_DEPLOYMENT`, T21c). Provider truth is per-deployment — the Dathost
+`user_data` tag says which clones on a shared account are ours, a `sim` server lives in
+the process that made it, a node dials exactly one orchestrator — so a row another
+deployment opened is one this process cannot judge. Three reads used to ignore that and
+each of them acts on what it finds:
+
+- **the reaper**, which would find no server behind a neighbour's ledger row, call it
+  lost and end that match `provider_error: server lost before going live`;
+- **the boot's `resume()`**, which would re-arm a neighbour's open matches and restart
+  the walks it believed had died — two machines on one row, and a second server allocated
+  for a match that already has one;
+- **the webhook worker**, which would POST a neighbour's due deliveries and race it for
+  the row.
+
+Every match and every ledger row now carries the deployment that wrote it, and those
+three (and `GET /v1/fleet/servers`) ask only for their own. Read-only history —
+`GET /v1/fleet/ledger`, a key's matches, a month's spend — is not narrowed: money and the
+past belong to the key, not to the process. One world per database needs no setting; two
+that share one — dev beside production, two Vitest suites on the test database — each need
+their own name, and `src/deployments.extended.test.ts` is what holds that true.
 
 **The webhook worker** POSTs every `webhook_deliveries` row that is due: signed with the
 secret the request named (`X-EZPug-Signature`), `X-EZPug-Delivery`, `X-EZPug-Attempt`; any
@@ -1024,11 +1047,11 @@ from the injected clock.
 | `api_keys` | a key: name, public prefix, secret hash, scopes, the three budget ceilings, the per-key fleet webhook (T31), created / last used / revoked | keys (T2), budgets (T5) |
 | `api_key_budget_notices` | which `fleet.budget_threshold` was already said, per key, ceiling, fraction and month — so a restart never repeats a crossing | budgets (T5) |
 | `api_key_webhook_secrets` | the HMAC secrets a key registered, by id, **in clear** — they sign | keys |
-| `matches` | the Match API resource as a row, plus the request whole, its hash (the `clientMatchId` conflict check), when the state was entered (deadlines re-arm from it), and `webhooks_stopped_at` (a `410`) | the match machine (T3) |
+| `matches` | the Match API resource as a row, plus the deployment running it (T21c), the request whole, its hash (the `clientMatchId` conflict check), when the state was entered (deadlines re-arm from it), and `webhooks_stopped_at` (a `410`) | the match machine (T3) |
 | `match_events` | the per-match durable log: `(match, seq)` unique, the payload, the `delivery_id`; what the events route replays and the webhooks carry | the machine, the link (T6) |
 | `webhook_deliveries` | one row per envelope: attempts, next try on the clock, status | the webhook worker (T3) |
 | `match_commands` | commands by `correlationId`, with their result — a retry answers the first result across a restart | commands (T3) |
-| `servers` | **the ledger**: one row per server ever asked for — provider, handle, node, match, key, state, address (never a password), hourly cost, the GSLT lease, the link's facts (`last_seen_at`, versions, acked seq), the RCON audit (T20), allocated / released / expires | the provisioning walk and the reaper (T3), the link (T6) |
+| `servers` | **the ledger**: one row per server ever asked for — the deployment that opened it (T21c), provider, handle, node, match, key, state, address (never a password), hourly cost, the GSLT lease, the link's facts (`last_seen_at`, versions, acked seq), the RCON audit (T20), allocated / released / expires | the provisioning walk and the reaper (T3), the link (T6) |
 | `server_tokens` | the per-server link credential, hashed; one live token per row | providers (T3, T12, T16) |
 | `nodes` | every `ezpug-node` enrolled: region, labels, capacity, connection facts, the node token's hash, and the key that enrolled it (whose warm containers are charged to it) | enrolment and the node link (T12) |
 | `node_enrolments` | the one-time enrolment tokens, hashed, spent on first hello | enrolment (T12) |

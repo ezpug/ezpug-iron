@@ -15,6 +15,7 @@ import {
   serverTokens,
   webhookDeliveries,
 } from '../db/schema'
+import { DEFAULT_DEPLOYMENT } from '../deployment'
 import type {
   DeliveryRow,
   DeliveryStatus,
@@ -47,6 +48,7 @@ function toMatch(row: MatchDb): MatchRow {
 function toServer(row: ServerDb): ServerRow {
   return {
     id: row.id,
+    deployment: row.deployment,
     provider: row.provider,
     serverId: row.serverId,
     nodeId: row.nodeId,
@@ -95,12 +97,19 @@ async function first<T, R>(rows: Promise<T[]>, map: (row: T) => R): Promise<R | 
   return row === undefined ? undefined : map(row)
 }
 
-export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore {
+export function createPostgresMatchStore(
+  executor: DatabaseExecutor,
+  options: { deployment?: string } = {},
+): MatchStore {
   const one = <T>(rows: Promise<T[]>): Promise<T | undefined> => first(rows, row => row)
+  /** Whose rows these are (T21c) — stamped on insert, asked for on every open read. */
+  const deployment = options.deployment ?? DEFAULT_DEPLOYMENT
 
   return {
+    deployment,
+
     insertMatch: async row => {
-      await executor.insert(matches).values(row)
+      await executor.insert(matches).values({ ...row, deployment })
     },
     findMatch: id => first(executor.select().from(matches).where(eq(matches.id, id)), toMatch),
     findMatchByClientId: (keyId, clientMatchId) =>
@@ -139,6 +148,7 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
           .from(matches)
           .where(
             and(
+              eq(matches.deployment, deployment),
               notInArray(matches.state, TERMINAL),
               keyId === undefined ? undefined : eq(matches.keyId, keyId),
             ),
@@ -179,17 +189,24 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
           .where(eq(webhookDeliveries.deliveryId, deliveryId)),
         toDelivery,
       ),
+    // A delivery has no deployment of its own; its match has one, and the
+    // join is what keeps two workers off one queue (T21c).
     listDueDeliveries: async (now, limit) =>
       (
         await executor
-          .select()
+          .select({ delivery: webhookDeliveries })
           .from(webhookDeliveries)
+          .innerJoin(matches, eq(webhookDeliveries.matchId, matches.id))
           .where(
-            and(eq(webhookDeliveries.status, 'pending'), lte(webhookDeliveries.nextAttemptAt, now)),
+            and(
+              eq(matches.deployment, deployment),
+              eq(webhookDeliveries.status, 'pending'),
+              lte(webhookDeliveries.nextAttemptAt, now),
+            ),
           )
           .orderBy(asc(webhookDeliveries.matchId), asc(webhookDeliveries.seq))
           .limit(limit)
-      ).map(toDelivery),
+      ).map(row => toDelivery(row.delivery)),
     updateDelivery: async (deliveryId, patch) => {
       await executor
         .update(webhookDeliveries)
@@ -227,7 +244,7 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
     },
 
     insertServer: async row => {
-      await executor.insert(servers).values(row)
+      await executor.insert(servers).values({ ...row, deployment })
     },
     findServer: id => first(executor.select().from(servers).where(eq(servers.id, id)), toServer),
     findServerByHandle: (provider, serverId) =>
@@ -250,6 +267,7 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
           .from(servers)
           .where(
             and(
+              eq(servers.deployment, deployment),
               isNull(servers.releasedAt),
               provider === undefined ? undefined : eq(servers.provider, provider),
             ),

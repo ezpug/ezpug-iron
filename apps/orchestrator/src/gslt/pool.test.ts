@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createTestApp, keyRequest } from '../http/testing'
 import { createMemoryLog } from '../log'
 import { createMemoryMatchStore } from '../match/memory-store'
-import type { ServerRow } from '../match/store'
+import type { ServerInsert } from '../match/store'
 import type { FakeSteam } from './fake-steam'
 import { createFakeSteam } from './fake-steam'
 import { createGsltPool, type GsltPool } from './pool'
@@ -35,7 +35,7 @@ let log: ReturnType<typeof createMemoryLog>
 const at = (offsetMs = 0) => new Date(Date.parse('2026-09-06T12:00:00.000Z') + offsetMs)
 
 /** A ledger row for a lease to hang off; the pool writes the lease onto it. */
-function serverRow(overrides: Partial<ServerRow> = {}): ServerRow {
+function serverRow(overrides: Partial<ServerInsert> = {}): ServerInsert {
   return {
     id: randomUUID(),
     provider: 'dathost',
@@ -67,7 +67,7 @@ function serverRow(overrides: Partial<ServerRow> = {}): ServerRow {
   }
 }
 
-async function openRow(overrides: Partial<ServerRow> = {}): Promise<string> {
+async function openRow(overrides: Partial<ServerInsert> = {}): Promise<string> {
   const row = serverRow(overrides)
   await store.insertServer(row)
   return row.id

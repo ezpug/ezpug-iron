@@ -1242,6 +1242,7 @@ export function createMatches(options: MatchesOptions): Matches {
     const at = now()
     const row: MatchRow = {
       id: randomUUID(),
+      deployment: store.deployment,
       keyId: key.key.id,
       clientMatchId: request.clientMatchId,
       state: 'pending',

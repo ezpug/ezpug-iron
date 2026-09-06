@@ -109,7 +109,15 @@ beforeAll(async () => {
   loadRootEnv()
   try {
     config = {
-      ...readOrchestratorConfig({ ...process.env, EZPUG_IRON_PROVIDERS: 'sim' }),
+      // A deployment of this suite's own (T21c): the test database is shared
+      // with every other suite that stands an orchestrator, and a neighbour's
+      // reaper reading these rows would find no `sim` server behind them and
+      // fail every match this file is playing.
+      ...readOrchestratorConfig({
+        ...process.env,
+        EZPUG_IRON_PROVIDERS: 'sim',
+        EZPUG_IRON_DEPLOYMENT: namespace,
+      }),
       database: readDatabaseConfig(process.env, { target: 'test' }),
     }
     orchestrator = createOrchestrator({

@@ -18,6 +18,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { DEFAULT_DEPLOYMENT } from '../../deployment'
 import { createdAt, timestamptz, updatedAt, uuidPk } from '../columns'
 import { apiKeys } from './api-keys'
 
@@ -38,6 +39,15 @@ export const matches = pgTable(
   'matches',
   {
     id: uuidPk(),
+    /**
+     * **Which deployment is running this match** (T21c) — the same stamp the
+     * ledger carries and for the same reason: on boot a process re-arms every
+     * open match's deadlines and restarts the walks that died with it, and
+     * doing that to a match another process is running means two machines on
+     * one row, two servers for one match, and a probe against a provider that
+     * has never heard of the other's server (`server lost before going live`).
+     */
+    deployment: text().notNull().default(DEFAULT_DEPLOYMENT),
     keyId: uuid('key_id')
       .notNull()
       .references(() => apiKeys.id),
@@ -84,6 +94,8 @@ export const matches = pgTable(
     // The key's list, newest first; and the machine's own "what is open" read.
     index('matches_key_created_idx').on(table.keyId, table.createdAt),
     index('matches_state_idx').on(table.state),
+    // "What is *this deployment* still running" — the boot's resume (T21c).
+    index('matches_deployment_state_idx').on(table.deployment, table.state),
   ],
 )
 

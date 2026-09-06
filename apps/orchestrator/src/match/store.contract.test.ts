@@ -7,7 +7,7 @@ import { hashToken, mintToken } from '../tokens'
 import { requestHash } from './machine'
 import { createMemoryMatchStore } from './memory-store'
 import { createPostgresMatchStore } from './postgres-store'
-import type { MatchRow, MatchStore, ServerRow } from './store'
+import type { MatchInsert, MatchStore, ServerInsert } from './store'
 import { RCON_AUDIT_KEEP } from './store'
 
 /**
@@ -32,7 +32,7 @@ const request = matchRequestSchema.parse({
   ttlMinutes: 60,
 })
 
-function matchRow(keyId: string, clientMatchId = 'c-1', createdAt = at()): MatchRow {
+function matchRow(keyId: string, clientMatchId = 'c-1', createdAt = at()): MatchInsert {
   return {
     id: randomUUID(),
     keyId,
@@ -61,7 +61,7 @@ function matchRow(keyId: string, clientMatchId = 'c-1', createdAt = at()): Match
   }
 }
 
-function serverRow(keyId: string, matchId: string, allocatedAt = at()): ServerRow {
+function serverRow(keyId: string, matchId: string, allocatedAt = at()): ServerInsert {
   return {
     id: randomUUID(),
     provider: 'sim',
@@ -222,6 +222,9 @@ async function contract(store: MatchStore, keyId: string): Promise<void> {
   })
   expect(mine(await store.listOpenServers('sim'))).toEqual([s1.id])
   expect(mine(await store.listOpenServers('dathost'))).toEqual([])
+  // Whoever wrote a row, wrote its deployment (T21c): the store stamps it,
+  // never the caller, and the open listing is that deployment's alone.
+  expect(new Set((await store.listOpenServers()).map(row => row.deployment)).size).toBe(1)
   expect(mine((await store.listLedger({ state: 'released' }, 0, 50)).items)).toEqual([s2.id])
   expect((await store.listLedger({ matchId: b.id }, 0, 1)).nextOffset).toBe(1)
   // The link's facts (T6): what hello said, the acked seq, the token's use.
@@ -358,7 +361,9 @@ describe('the match store contract', () => {
         webhookSecrets: [],
         createdAt: at(),
       })
-      await contract(createPostgresMatchStore(tx), key.key.id)
+      // This run's own deployment (T21c): the rollback hides this suite's
+      // writes from its neighbours, and the stamp hides theirs from it.
+      await contract(createPostgresMatchStore(tx, { deployment: database.namespace }), key.key.id)
     })
   })
 })

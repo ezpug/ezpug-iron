@@ -1,5 +1,5 @@
 import { ApiError } from '../../errors'
-import type { MatchRules, WebhookEnvelope } from '../../index'
+import type { MatchEndedReason, MatchRules, WebhookEnvelope } from '../../index'
 import { deepEqual } from './recording'
 import type { ConformanceContext, ConformanceFlow } from './types'
 
@@ -85,6 +85,22 @@ async function refusal(ctx: ConformanceContext, what: string, call: Promise<unkn
   }
   ctx.require(what, false, 'the call was answered instead of refused')
   throw new Error('unreachable')
+}
+
+/**
+ * A match that reached a terminal state where a flow wanted it running, said
+ * with the *reason* and not only the state (PRD-02 T21c). The state alone
+ * ("the match failed before it was ready") names the symptom and leaves the
+ * cause in a row an `afterAll` is about to sweep; `endedReason` is the field
+ * the contract already carries for exactly this, so a red run in someone
+ * else's CI is readable from its log alone.
+ */
+function terminal(match: { state: string; endedReason: MatchEndedReason | null }): string {
+  const reason = match.endedReason
+  if (reason === null) return `${match.state} (no endedReason given)`
+  return reason.detail === undefined
+    ? `${match.state}: ${reason.kind}`
+    : `${match.state}: ${reason.kind} — ${reason.detail}`
 }
 
 /**
@@ -195,7 +211,7 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       const ready = await ctx.waitFor('the server’s connect facts', async () => {
         const match = await ctx.raw.matches.get({ params })
         if (match.state === 'failed' || match.state === 'cancelled')
-          throw new Error(`the match ${match.state} before it was ready`)
+          throw new Error(`the match ended before it was ready — ${terminal(match)}`)
         return match.connect === null ? null : match
       })
       ctx.check('a ready server has a provider badge', ready.provider !== null)
@@ -214,7 +230,7 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       const live = await ctx.waitFor('the match to go live', async () => {
         const match = await ctx.raw.matches.get({ params })
         if (match.state === 'failed' || match.state === 'cancelled')
-          throw new Error(`the match ${match.state} before it went live`)
+          throw new Error(`the match ended before it went live — ${terminal(match)}`)
         return match.state === 'live' ? match : null
       })
       ctx.check('liveAt is set once it is live', live.liveAt !== null)
@@ -417,7 +433,7 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       await ctx.waitFor('the match to go live', async () => {
         const match = await ctx.raw.matches.get({ params })
         if (match.state === 'failed' || match.state === 'cancelled')
-          throw new Error(`the match ${match.state} before it went live`)
+          throw new Error(`the match ended before it went live — ${terminal(match)}`)
         return match.state === 'live' ? match : null
       })
 
@@ -734,7 +750,7 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       const live = await ctx.waitFor('the match to go live', async () => {
         const match = await ctx.raw.matches.get({ params })
         if (match.state === 'failed' || match.state === 'cancelled')
-          throw new Error(`the match ${match.state} before it went live`)
+          throw new Error(`the match ended before it went live — ${terminal(match)}`)
         return match.state === 'live' ? match : null
       })
 

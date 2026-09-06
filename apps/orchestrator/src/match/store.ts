@@ -37,6 +37,12 @@ import type { RconAuditEntry } from '../db/schema/servers'
 
 export interface MatchRow {
   id: string
+  /**
+   * **Which deployment is running it** (T21c) — stamped by the store, never
+   * by a caller, which is why {@link MatchInsert} leaves it out. A boot
+   * re-arms and re-walks only its own; see `src/deployment.ts`.
+   */
+  deployment: string
   keyId: string
   clientMatchId: string
   state: MatchState
@@ -62,10 +68,23 @@ export interface MatchRow {
   updatedAt: Date
 }
 
+/**
+ * A match as a caller writes it: everything but the deployment, which is the
+ * store's to stamp (T21c).
+ */
+export type MatchInsert = Omit<MatchRow, 'deployment'>
+
 export type MatchPatch = Partial<
   Omit<
     MatchRow,
-    'id' | 'keyId' | 'clientMatchId' | 'requestJson' | 'requestHash' | 'createdAt' | 'seq'
+    | 'id'
+    | 'deployment'
+    | 'keyId'
+    | 'clientMatchId'
+    | 'requestJson'
+    | 'requestHash'
+    | 'createdAt'
+    | 'seq'
   >
 >
 
@@ -121,6 +140,13 @@ export interface CommandRow {
 
 export interface ServerRow {
   id: string
+  /**
+   * **Which deployment opened the row** (T21c) — stamped by the store, never
+   * by a caller, which is why {@link ServerInsert} leaves it out. The reaper
+   * and the fleet's "what is running" read only their own; see
+   * `db/schema/servers.ts`.
+   */
+  deployment: string
   provider: string
   serverId: string | null
   nodeId: string | null
@@ -152,7 +178,13 @@ export interface ServerRow {
   expiresAt: Date
 }
 
-export type ServerPatch = Partial<Omit<ServerRow, 'id' | 'keyId' | 'allocatedAt'>>
+/**
+ * A row as a caller writes it: everything but the deployment, which is the
+ * store's to stamp (T21c).
+ */
+export type ServerInsert = Omit<ServerRow, 'deployment'>
+
+export type ServerPatch = Partial<Omit<ServerRow, 'id' | 'keyId' | 'allocatedAt' | 'deployment'>>
 
 /** How many RCON lines a ledger row keeps. A shift's worth; the oldest fall off. */
 export const RCON_AUDIT_KEEP = 200
@@ -260,8 +292,16 @@ export interface Page<T> {
 }
 
 export interface MatchStore {
+  /**
+   * **Whose rows these are** (T21c): the deployment this store stamps on
+   * every match and every ledger row, and the only one its open listings
+   * answer with. A caller that keeps a row in memory beside the store's copy
+   * reads it from here rather than inventing one.
+   */
+  readonly deployment: string
+
   // --- matches --------------------------------------------------------------
-  insertMatch: (row: MatchRow) => Promise<void>
+  insertMatch: (row: MatchInsert) => Promise<void>
   findMatch: (id: string) => Promise<MatchRow | undefined>
   findMatchByClientId: (keyId: string, clientMatchId: string) => Promise<MatchRow | undefined>
   /** The key's matches, newest first, filtered, paged by offset. */
@@ -272,7 +312,12 @@ export interface MatchStore {
     limit: number,
   ) => Promise<Page<MatchRow>>
   updateMatch: (id: string, patch: MatchPatch) => Promise<void>
-  /** Every non-terminal match — the recovery sweep's and the fan-out's read. */
+  /**
+   * Every non-terminal match **of this deployment** — the boot's resume and
+   * the budget's open count. Another deployment's open matches are not this
+   * process's to re-arm: it would put a second machine on one row and walk a
+   * second server for a match that already has one (T21c).
+   */
   listOpenMatches: (keyId?: string) => Promise<MatchRow[]>
 
   // --- the durable log --------------------------------------------------------
@@ -298,7 +343,11 @@ export interface MatchStore {
   // --- deliveries ---------------------------------------------------------------
   insertDelivery: (row: DeliveryRow) => Promise<void>
   findDelivery: (deliveryId: string) => Promise<DeliveryRow | undefined>
-  /** Pending rows due at or before `now`, oldest `(match, seq)` first, at most `limit`. */
+  /**
+   * Pending rows due at or before `now`, oldest `(match, seq)` first, at most
+   * `limit` — **of this deployment's matches only** (T21c): two workers on one
+   * queue POST the same envelope twice and race each other's row updates.
+   */
   listDueDeliveries: (now: Date, limit: number) => Promise<DeliveryRow[]>
   updateDelivery: (deliveryId: string, patch: DeliveryPatch) => Promise<void>
   listDeliveries: (matchId: string) => Promise<DeliveryRow[]>
@@ -314,12 +363,18 @@ export interface MatchStore {
   ) => Promise<void>
 
   // --- the ledger ---------------------------------------------------------------
-  insertServer: (row: ServerRow) => Promise<void>
+  insertServer: (row: ServerInsert) => Promise<void>
   findServer: (id: string) => Promise<ServerRow | undefined>
   /** By the provider's own handle; the newest row when a handle was reused. */
   findServerByHandle: (provider: string, serverId: string) => Promise<ServerRow | undefined>
   updateServer: (id: string, patch: ServerPatch) => Promise<void>
-  /** Rows not yet released, newest first; optionally one provider's. */
+  /**
+   * Rows **this deployment** has not yet released, newest first; optionally
+   * one provider's. Another deployment's open rows are not this process's to
+   * see here — its providers will never list those servers, so the reaper
+   * would call every one of them lost (T21c). `listLedger` is the unscoped
+   * read, for the history a human asks for.
+   */
   listOpenServers: (provider?: string) => Promise<ServerRow[]>
   /** Every row, newest first, filtered, paged by offset. */
   listLedger: (filter: LedgerFilter, offset: number, limit: number) => Promise<Page<ServerRow>>

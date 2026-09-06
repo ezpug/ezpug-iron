@@ -10,7 +10,7 @@ import { createKeys } from '../keys/service'
 import { createMemoryLog } from '../log'
 import { requestHash } from '../match/machine'
 import { createMemoryMatchStore } from '../match/memory-store'
-import type { MatchRow, MatchStore } from '../match/store'
+import type { MatchInsert, MatchStore } from '../match/store'
 import { createStreamHub, type StreamHub } from './hub'
 import { attachStreamUpgrade, attachUpgradeRouter } from './upgrade'
 
@@ -34,7 +34,7 @@ const request = matchRequestSchema.parse({
   ttlMinutes: 60,
 })
 
-function matchRow(id: string, keyId: string): MatchRow {
+function matchRow(id: string, keyId: string): MatchInsert {
   return {
     id,
     keyId,

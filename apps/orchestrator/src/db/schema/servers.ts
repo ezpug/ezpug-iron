@@ -8,6 +8,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { DEFAULT_DEPLOYMENT } from '../../deployment'
 import { createdAt, timestamptz, uuidPk } from '../columns'
 import { apiKeys } from './api-keys'
 import type { FleetServerAddress, ServerTv, ServerVersions } from './types'
@@ -35,6 +36,18 @@ export const servers = pgTable(
   'servers',
   {
     id: uuidPk(),
+    /**
+     * **Which deployment opened this row** (T21c). Provider truth is
+     * per-deployment — the Dathost `user_data` tag says which clones are
+     * ours, a sim's servers live in one process, a node dials one
+     * orchestrator — so a row another deployment wrote is one this process
+     * cannot judge: its providers will never list that server, and the
+     * reaper calling it lost would end somebody else's live match. Defaults
+     * to {@link DEFAULT_DEPLOYMENT}, so a single deployment never thinks
+     * about it and every pre-existing row belongs to the one that wrote it.
+     * `src/deployment.ts` is the whole rule.
+     */
+    deployment: text().notNull().default(DEFAULT_DEPLOYMENT),
     /** The provider id (`sim`, `dathost`, `nodes`). */
     provider: text().notNull(),
     /** The provider's handle for the server; null while `allocated` and not yet delivered. */
@@ -83,6 +96,8 @@ export const servers = pgTable(
   table => [
     // Open rows, the fleet's one question.
     index('servers_open_idx').on(table.provider, table.releasedAt),
+    // "What *this deployment* is running" — the reaper's and the fleet's read (T21c).
+    index('servers_deployment_open_idx').on(table.deployment, table.releasedAt),
     index('servers_match_idx').on(table.matchId),
     index('servers_key_allocated_idx').on(table.keyId, table.allocatedAt),
   ],

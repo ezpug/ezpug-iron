@@ -6,6 +6,18 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.4.1 — 2026-09-06
+
+Fixtures only: a conformance flow that finds its match already over says **why**. Serves
+PRD-02 T21c, where `happy-bo1` failed a whole `pnpm verify` on `the match failed before it
+was ready` and the reason lived only in a row `afterAll` was about to sweep.
+
+- The three flows that wait for a match to become ready or to go live now print the
+  `endedReason` beside the state — `failed: provider_error — server lost before going
+  live: sim no longer lists server sim-1` instead of `failed`. No schema, route, event or
+  recorded fixture changed; a red run in somebody else's CI is now readable from its log
+  alone.
+
 ## 0.4.0 — 2026-09-06
 
 Additive: the demo pipe says what landed and what did not. Serves PRD-02 T21 (the core
