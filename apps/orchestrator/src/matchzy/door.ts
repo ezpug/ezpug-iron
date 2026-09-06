@@ -5,6 +5,7 @@ import type { Log } from '../log'
 import type { MatchStore } from '../match/store'
 import { matchzySerial } from '../match-config/matchzy'
 import { hashToken, looksLikeToken } from '../tokens'
+import { nullTrace, type Trace } from '../trace'
 import {
   initialMatchZyState,
   type MatchZyState,
@@ -41,6 +42,8 @@ export interface MatchZyDoorOptions {
   matches: ServerEventSink
   log: Log
   translate?: TranslateOptions
+  /** The dev recorder (T13): the raw payload and what it became. */
+  trace?: Trace
 }
 
 export interface MatchZyDoorRequest {
@@ -63,6 +66,7 @@ export interface MatchZyDoor {
 
 export function createMatchZyDoor(options: MatchZyDoorOptions): MatchZyDoor {
   const { store, matches, log } = options
+  const trace = options.trace ?? nullTrace
   const states = new Map<string, MatchZyState>()
 
   const refuse = (status: number, error: string): MatchZyDoorAnswer => ({
@@ -111,6 +115,15 @@ export function createMatchZyDoor(options: MatchZyDoorOptions): MatchZyDoor {
         },
       )
       states.set(row.id, result.state)
+      if (trace.on)
+        trace.write('matchzy', {
+          matchId: row.id,
+          payload,
+          name: result.name,
+          events: result.events,
+          ...(result.dropped !== undefined && { dropped: result.dropped }),
+          ...(result.note !== undefined && { note: result.note }),
+        })
       if (result.note) log.warn(`matchzy ${result.name} for ${row.id}: ${result.note}`)
       if (result.dropped) {
         log.info(`matchzy ${result.name} for ${row.id} dropped: ${result.dropped}`)

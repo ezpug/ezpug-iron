@@ -1,0 +1,238 @@
+{
+  "schema": "MatchZyExchange",
+  "events": [
+    {
+      "name": "series_start",
+      "payload": {
+        "team1": {
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "id": "",
+          "name": "EZPug B"
+        },
+        "num_maps": 1,
+        "matchid": 1083740696,
+        "event": "series_start"
+      }
+    },
+    {
+      "name": "going_live",
+      "payload": {
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "going_live"
+      }
+    },
+    {
+      "name": "round_end",
+      "payload": {
+        "reason": 9,
+        "winner": {
+          "side": "2",
+          "team": "team2"
+        },
+        "team1": {
+          "series_score": 0,
+          "score": 0,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "series_score": 0,
+          "score": 1,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug B"
+        },
+        "round_time": 0,
+        "round_number": 1,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_end"
+      }
+    },
+    {
+      "name": "round_end",
+      "payload": {
+        "reason": 1,
+        "winner": {
+          "side": "2",
+          "team": "team2"
+        },
+        "team1": {
+          "series_score": 0,
+          "score": 0,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "series_score": 0,
+          "score": 1,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug B"
+        },
+        "round_time": 0,
+        "round_number": 1,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_end"
+      }
+    },
+    {
+      "name": "round_end",
+      "payload": {
+        "reason": 8,
+        "winner": {
+          "side": "3",
+          "team": "team2"
+        },
+        "team1": {
+          "series_score": 0,
+          "score": 1,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "series_score": 0,
+          "score": 1,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug B"
+        },
+        "round_time": 0,
+        "round_number": 2,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_end"
+      }
+    },
+    {
+      "name": "round_end",
+      "payload": {
+        "reason": 7,
+        "winner": {
+          "side": "3",
+          "team": "team2"
+        },
+        "team1": {
+          "series_score": 0,
+          "score": 1,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "series_score": 0,
+          "score": 2,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug B"
+        },
+        "round_time": 0,
+        "round_number": 3,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_end"
+      }
+    },
+    {
+      "name": "round_end",
+      "payload": {
+        "reason": 8,
+        "winner": {
+          "side": "3",
+          "team": "team2"
+        },
+        "team1": {
+          "series_score": 0,
+          "score": 1,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "series_score": 0,
+          "score": 3,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug B"
+        },
+        "round_time": 0,
+        "round_number": 4,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_end"
+      }
+    },
+    {
+      "name": "map_result",
+      "payload": {
+        "winner": {
+          "side": "2",
+          "team": "team2"
+        },
+        "team1": {
+          "series_score": 0,
+          "score": 1,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "series_score": 1,
+          "score": 3,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug B"
+        },
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "map_result"
+      }
+    },
+    {
+      "name": "series_end",
+      "payload": {
+        "time_until_restore": 10,
+        "winner": {
+          "side": "2",
+          "team": "team2"
+        },
+        "team1_series_score": 0,
+        "team2_series_score": 1,
+        "matchid": 1083740696,
+        "event": "series_end"
+      }
+    }
+  ]
+}

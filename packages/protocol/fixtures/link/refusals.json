@@ -119,7 +119,7 @@
           "cvars": {
             "matchzy_kick_when_no_match_loaded": "false",
             "matchzy_demo_recording_enabled": "true",
-            "matchzy_enable_tech_pause": "true",
+            "matchzy_enable_tech_pause": "1",
             "matchzy_stop_command_available": "true",
             "matchzy_reset_cvars_on_series_end": "true"
           },
@@ -146,7 +146,7 @@
           "mp_maxrounds": "2",
           "matchzy_kick_when_no_match_loaded": "false",
           "matchzy_demo_recording_enabled": "true",
-          "matchzy_enable_tech_pause": "true",
+          "matchzy_enable_tech_pause": "1",
           "matchzy_stop_command_available": "true",
           "matchzy_reset_cvars_on_series_end": "true",
           "mp_overtime_enable": "0",
@@ -188,7 +188,7 @@
             "mp_maxrounds": "2",
             "matchzy_kick_when_no_match_loaded": "false",
             "matchzy_demo_recording_enabled": "true",
-            "matchzy_enable_tech_pause": "true",
+            "matchzy_enable_tech_pause": "1",
             "matchzy_stop_command_available": "true",
             "matchzy_reset_cvars_on_series_end": "true",
             "mp_overtime_enable": "0",

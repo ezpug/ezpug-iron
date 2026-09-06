@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { FAKE_CONFORMANCE_SECRET, FAKE_SECRET_PREFIXES } from '../fake'
 import { createFakeConformanceTarget } from '../fake/conformance'
+import { streamFrameSchema } from '../stream/frames'
+import { webhookEnvelopeSchema } from '../webhooks/envelope'
 import {
   formatConformanceReport,
   MATCH_API_CONFORMANCE_FLOWS,
@@ -61,10 +63,11 @@ describe('the recorded fixtures', () => {
     })
   }
 
-  it('has one file per flow and no orphans', () => {
+  it('has one file per flow, plus the real recordings, and no orphans', () => {
     const files = readdirSync(RECORDED_DIR)
       .filter(name => name.endsWith('.json'))
       .map(name => name.replace(/\.json$/, ''))
+      .filter(name => !name.startsWith('real-'))
       .sort()
     expect(files).toEqual([...MATCH_API_CONFORMANCE_FLOWS.map(flow => flow.id)].sort())
   })
@@ -78,4 +81,63 @@ describe('the recorded fixtures', () => {
       }
     }
   })
+})
+
+/**
+ * **The real recordings** (PRD-02 T13). `real-*.json` is not a golden: it is
+ * what one match on real hardware said over the published surface — the calls
+ * a client made, the envelopes the events route replayed, the webhook
+ * deliveries with their verification, the stream frames. It is written by
+ * `scripts/iron-match.mjs --write-fixtures` and never regenerated from code,
+ * which is exactly what makes it worth having: **every payload in it must
+ * still parse**, and the day one stops, the vocabulary moved under a server
+ * that already shipped.
+ */
+describe('the real recordings', () => {
+  const files = readdirSync(RECORDED_DIR)
+    .filter(name => name.startsWith('real-') && name.endsWith('.json'))
+    .sort()
+
+  it('exists — one match has been played and written down', () => {
+    expect(files.length, 'no real-*.json: run `pnpm iron:match --write-fixtures`').toBeGreaterThan(
+      0,
+    )
+  })
+
+  for (const file of files) {
+    it(`${file} still parses, whole`, () => {
+      const text = readFileSync(`${RECORDED_DIR}${file}`, 'utf8')
+      const recording = JSON.parse(text) as {
+        envelopes: { seq: number }[]
+        deliveries: { seq: number; type: string; signature: string }[]
+        frames: unknown[]
+      }
+      expect(recording.envelopes.length).toBeGreaterThan(0)
+      const seqs = new Set<number>()
+      for (const envelope of recording.envelopes) {
+        webhookEnvelopeSchema.parse(envelope)
+        seqs.add(envelope.seq)
+      }
+      for (const delivery of recording.deliveries) {
+        // Every delivery that arrived was signed by the orchestrator and
+        // verified by the published verifier before it was written down, and
+        // the events route replayed the same fact under the same `seq`.
+        expect(delivery.signature, `${file} seq ${delivery.seq}`).toBe('verified')
+        expect(seqs, `${file}: seq ${delivery.seq} was delivered but never replayed`).toContain(
+          delivery.seq,
+        )
+      }
+      for (const frame of recording.frames) streamFrameSchema.parse(frame)
+      // Ephemeral by decision 6: never stored, so never in a file either.
+      expect(text, `${file} names a position_tick`).not.toContain('position_tick')
+      expect(stringifyRecording(JSON.parse(text))).toBe(text)
+    })
+
+    it(`${file} carries no secret`, () => {
+      const text = readFileSync(`${RECORDED_DIR}${file}`, 'utf8')
+      for (const prefix of ['ezik_', 'ezis_', 'ezin_', 'ezie_', 'ezip_'])
+        expect(text, `${file} carries a ${prefix} token`).not.toContain(prefix)
+      expect(text, `${file} carries a presigned signature`).not.toContain('X-Amz-Signature')
+    })
+  }
 })

@@ -1,35 +1,44 @@
 {
-  "source": "schema",
+  "source": "derived",
+  "from": "07-round-end-clinch.json",
   "note": "A winner side that is neither a side nor a team number cannot become a round_end; the vocabulary insists on one.",
+  "state": {
+    "scores": {
+      "1": {
+        "team1": 1,
+        "team2": 1
+      }
+    }
+  },
   "payload": {
-    "event": "round_end",
-    "matchid": 1083740696,
-    "map_number": 0,
-    "round_number": 5,
-    "round_time": 0,
-    "reason": 9,
+    "reason": 8,
     "winner": {
       "side": "spec",
       "team": "team1"
     },
     "team1": {
+      "series_score": 0,
+      "score": 1,
+      "score_ct": 0,
+      "score_t": 0,
+      "players": [],
       "id": "",
-      "name": "Team tk",
+      "name": "EZPug A"
+    },
+    "team2": {
       "series_score": 0,
       "score": 3,
       "score_ct": 0,
       "score_t": 0,
-      "players": []
-    },
-    "team2": {
+      "players": [],
       "id": "",
-      "name": "Team maex",
-      "series_score": 0,
-      "score": 2,
-      "score_ct": 0,
-      "score_t": 0,
-      "players": []
-    }
+      "name": "EZPug B"
+    },
+    "round_time": 0,
+    "round_number": 4,
+    "map_number": 0,
+    "matchid": 1083740696,
+    "event": "round_end"
   },
   "expect": {
     "dropped": "winner.side \"spec\" is neither a side nor a team number"

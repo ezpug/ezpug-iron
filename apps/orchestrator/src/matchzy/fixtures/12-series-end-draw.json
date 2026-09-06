@@ -1,16 +1,25 @@
 {
-  "source": "schema",
-  "note": "Sent two seconds after map_result. A 0–0 series is a draw; \"none\" is not a team.",
+  "source": "derived",
+  "from": "09-series-end-won.json",
+  "note": "A 0–0 series is a draw; \"none\" is not a team.",
+  "state": {
+    "scores": {
+      "1": {
+        "team1": 2,
+        "team2": 2
+      }
+    }
+  },
   "payload": {
-    "event": "series_end",
-    "matchid": 1083740696,
     "time_until_restore": 10,
     "winner": {
       "side": "2",
       "team": "none"
     },
     "team1_series_score": 0,
-    "team2_series_score": 0
+    "team2_series_score": 0,
+    "matchid": 1083740696,
+    "event": "series_end"
   },
   "expect": {
     "events": [

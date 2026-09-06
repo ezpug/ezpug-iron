@@ -1,18 +1,19 @@
 {
-  "source": "schema",
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
   "note": "MatchZy fires it at the end of matchzy_loadmatch; server_ready and going_live bracket it in the vocabulary.",
   "payload": {
-    "event": "series_start",
-    "matchid": 1083740696,
-    "num_maps": 1,
     "team1": {
       "id": "",
-      "name": "Team tk"
+      "name": "EZPug A"
     },
     "team2": {
       "id": "",
-      "name": "Team maex"
-    }
+      "name": "EZPug B"
+    },
+    "num_maps": 1,
+    "matchid": 1083740696,
+    "event": "series_start"
   },
   "expect": {
     "dropped": "not a fact of ours"

@@ -1,0 +1,18 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy/DemoManagement.cs",
+  "note": "The core plugin owns the upload (decision 10, T21); MatchZy’s own upload URL is never set, so it never sends this.",
+  "state": {
+    "scores": {}
+  },
+  "payload": {
+    "event": "demo_upload_ended",
+    "matchid": 1083740696,
+    "map_number": 0,
+    "filename": "1083740696_map_0_de_dust2.dem",
+    "success": false
+  },
+  "expect": {
+    "dropped": "not a fact of ours"
+  }
+}

@@ -159,9 +159,33 @@ is:
   nobody rostered, when the engine flagged the swap), and every round backup MatchZy writes
   as a `backup` frame plus `backup_written`, the token scrubbed out of it first.
 
-Everything the plugin does here is on the SDK harness (`plugins/EZPug.Core.Tests`); the
-translation's fixtures are schema-sourced until T13 records a real MatchZy and replaces
-them.
+Everything the plugin does here is on the SDK harness (`plugins/EZPug.Core.Tests`), and the
+translation's fixtures are no longer guesses: `scripts/iron-match.mjs` played a `pug` with
+bots on the dev node and the payloads a real MatchZy 0.8.15 sent are kept whole in
+`packages/protocol/fixtures/recorded/real-pug-matchzy.json`; the door's fixtures are those
+bytes, the cases they cannot produce edited from them, and the three events our flow never
+produces read off MatchZy's own source. `apps/orchestrator/src/matchzy/fixtures.test.ts`
+holds each file to saying which it is.
+
+**One rule the recording added:** a `round_end` whose score has not moved since the last one
+is a repeat and is dropped. MatchZy sent round 1 twice, a second apart, with two different
+`reason` codes; a durable log that holds round 1 twice is one a client cannot count with.
+
+### Writing a cvar a console will accept
+
+Two things a real CS2 server taught this repo (PRD-02 T13), both of which look like nothing
+until a whole match's events go missing:
+
+- **`//` starts a comment in the engine's console**, even mid-line. A value containing one —
+  a URL, above all — has to be quoted, or the line is cut short: `matchzy_remote_log_url
+  http://host/path` reaches the plugin as the single argument `http`. The core plugin quotes
+  every console value it writes (`CounterStrikeWorld.SetCvar`, `MatchZyRemoteLog`).
+- **A manifest's boolean has to be spelled the way its cvar's owner parses it.** MatchZy
+  declares `matchzy_enable_tech_pause` as a `FakeConVar<bool>`, and the *engine* parses that
+  one: `true` is refused (`String 'true' can't be converted to Boolean`) and `1` is not. Its
+  other switches are `[ConsoleCommand]` handlers that use `bool.TryParse`, where `true` and
+  `false` are right and `1` is silently a no-op. There is no rule to infer — read the
+  vendor's declaration, then check the server's console output on the first boot.
 
 ## What the tier allows
 

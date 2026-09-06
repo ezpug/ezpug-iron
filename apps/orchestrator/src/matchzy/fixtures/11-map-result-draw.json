@@ -1,32 +1,41 @@
 {
-  "source": "schema",
-  "note": "A 2–2 map: MatchZy names team2 the winner of a tie (t1score > t2score is false); the scores say a draw.",
+  "source": "derived",
+  "from": "08-map-result-won.json",
+  "note": "A 2–2 map: MatchZy names team2 the winner of a tie (t1score > t2score is false); the scores say a draw. MatchZy itself then replays the map rather than ending the series — see docs/operations.md.",
+  "state": {
+    "scores": {
+      "1": {
+        "team1": 2,
+        "team2": 2
+      }
+    }
+  },
   "payload": {
-    "event": "map_result",
-    "matchid": 1083740696,
-    "map_number": 0,
     "winner": {
       "side": "2",
       "team": "team2"
     },
     "team1": {
-      "id": "",
-      "name": "Team tk",
       "series_score": 0,
       "score": 2,
       "score_ct": 0,
       "score_t": 0,
-      "players": []
+      "players": [],
+      "id": "",
+      "name": "EZPug A"
     },
     "team2": {
-      "id": "",
-      "name": "Team maex",
       "series_score": 0,
       "score": 2,
       "score_ct": 0,
       "score_t": 0,
-      "players": []
-    }
+      "players": [],
+      "id": "",
+      "name": "EZPug B"
+    },
+    "map_number": 0,
+    "matchid": 1083740696,
+    "event": "map_result"
   },
   "expect": {
     "events": [
@@ -38,7 +47,7 @@
           "serverId": "devbox-1"
         },
         "mapNumber": 1,
-        "map": "de_mirage",
+        "map": "de_dust2",
         "score": {
           "teamA": 2,
           "teamB": 2

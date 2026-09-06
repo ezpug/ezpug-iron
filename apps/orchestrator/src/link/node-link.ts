@@ -14,6 +14,7 @@ import type { MatchStore, NodeRow } from '../match/store'
 import type { ConnectedNode, NodeRegistry } from '../nodes/registry'
 import type { UpgradeRouter } from '../stream/upgrade'
 import { hashToken, looksLikeToken, mintToken, type RandomBytes } from '../tokens'
+import { nullTrace, type Trace } from '../trace'
 
 /**
  * **`/node` — the socket every `ezpug-node` dials** (decision 23, PRD-02
@@ -57,6 +58,8 @@ export interface NodeLinkOptions {
   random?: RandomBytes
   /** Once true, new sockets are refused with a 503 before the upgrade. */
   isDraining?: () => boolean
+  /** The dev recorder (T13). Off by default; every frame both ways when on. */
+  trace?: Trace
 }
 
 /** One connected node, as a test and the fleet route see it. Never a token. */
@@ -88,6 +91,10 @@ interface Refusal {
 }
 
 export function attachNodeLink(options: NodeLinkOptions): NodeLink {
+  const trace = options.trace ?? nullTrace
+  /** One label per socket — the server link's rule, for the same reason. */
+  const traceIds = new WeakMap<WebSocket, string>()
+  let traced = 0
   const { router, clock, log, store, registry } = options
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS_DEFAULT
   const helloTimeoutMs = options.helloTimeoutMs ?? HELLO_TIMEOUT_MS
@@ -180,6 +187,7 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
       send: frame => {
         if (ws.readyState !== ws.OPEN) return false
         ws.send(JSON.stringify(frame satisfies OrchestratorNodeFrame))
+        if (trace.on) trace.write('node', { socket: traceIds.get(ws), from: 'orchestrator', frame })
         return true
       },
       disconnect: (code, reason) => ws.close(code, reason),
@@ -206,6 +214,9 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
   }
 
   const open = (ws: WebSocket, peer: string | undefined): void => {
+    traced += 1
+    const traceId = `node-${traced}`
+    traceIds.set(ws, traceId)
     let node: ConnectedNode | undefined
     let chain: Promise<void> = Promise.resolve()
     let silence: Timer | undefined
@@ -285,6 +296,7 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
         return
       }
       const frame = parsed.data
+      if (trace.on) trace.write('node', { socket: traceId, from: 'node', frame })
       if (node) {
         seen()
         step(() => handle(frame))
@@ -307,7 +319,13 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
         }
       })
     })
-    ws.on('close', () => {
+    ws.on('close', (code: number, reason: Buffer) => {
+      if (trace.on)
+        trace.write('node', {
+          socket: traceId,
+          from: 'orchestrator',
+          close: { code, reason: reason.toString() },
+        })
       helloTimer.cancel()
       silence?.cancel()
       if (!node) return

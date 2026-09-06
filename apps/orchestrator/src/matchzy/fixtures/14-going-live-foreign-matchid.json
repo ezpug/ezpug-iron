@@ -1,10 +1,14 @@
 {
-  "source": "schema",
+  "source": "derived",
+  "from": "02-going-live.json",
   "note": "A MatchZy still talking about an earlier match on the same server.",
+  "state": {
+    "scores": {}
+  },
   "payload": {
-    "event": "going_live",
+    "map_number": 0,
     "matchid": 4711,
-    "map_number": 0
+    "event": "going_live"
   },
   "expect": {
     "dropped": "names matchid 4711, this server holds 1083740696"

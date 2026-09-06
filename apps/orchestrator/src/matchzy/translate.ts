@@ -40,6 +40,11 @@ import { z } from 'zod'
  *   the round, which is already 1-based for the round that just ended. The
  *   sum of the two scores in the payload is the same number either way, and
  *   is what the vocabulary's 1-based `roundNumber` wants.
+ * - **A `round_end` whose score did not move is a repeat.** MatchZy sends
+ *   two payloads for one round often enough that the recorded match caught
+ *   it (round 1, a second apart, two different `reason`s); the second is
+ *   dropped, because a durable log that holds round 1 twice is a log a
+ *   client cannot count with.
  * - **A drawn map is `winner: null`**, whatever MatchZy says: `map_result`
  *   and `series_end` name team2 the winner of a tie (`t1score > t2score`).
  *   The scores decide, and a tie is a tie.
@@ -369,6 +374,16 @@ export function translateMatchZyEvent(
         team1: score.teamA - previous.team1,
         team2: score.teamB - previous.team2,
       }
+      // **The same round, twice.** MatchZy sent two `round_end` payloads for
+      // round 1 of the recorded match, a second apart, with the same score
+      // and different `reason`s (T13's recording, `real-pug-matchzy.json`).
+      // A round nobody won cannot have happened: with a score identical to
+      // the last one seen for this map, this is a repeat of a round already
+      // in the durable log, and the log must not hold round 1 twice.
+      // (A first sighting can never land here — `roundNumber` is the score's
+      // sum and a 0–0 payload was dropped above.)
+      if (rose.team1 === 0 && rose.team2 === 0)
+        return drop(`round ${roundNumber} was already reported at ${score.teamA}–${score.teamB}`)
       let team: MatchTeam | null = null
       let note: string | undefined
       if (rose.team1 === 1 && rose.team2 === 0) team = 'team_a'

@@ -98,14 +98,17 @@ public class GamemodeLoaderTests
                 "exec ezpug/pug.cfg",
                 "cvar matchzy_kick_when_no_match_loaded false",
                 "cvar matchzy_demo_recording_enabled true",
-                "cvar matchzy_enable_tech_pause true",
+                // `1`, not `true`: MatchZy declares this one as a FakeConVar<bool> and the
+                // engine's own parser refuses "true" (T13, seen on a real server).
+                "cvar matchzy_enable_tech_pause 1",
                 "cvar matchzy_stop_command_available true",
                 "cvar matchzy_reset_cvars_on_series_end true",
                 "command matchzy_loadmatch cfg/ezpug/match.json",
                 // The remote log after loadmatch (loading replaces MatchZy's config object), the token last.
-                "command matchzy_remote_log_url http://127.0.0.1:3430/matchzy/log",
-                "command matchzy_remote_log_header_key x-ezpug-server-token",
-                "command matchzy_remote_log_header_value ezs_not-a-secret_0000000000000000000",
+                // Quoted, because `//` is a console comment (MatchZyRemoteLog).
+                "command matchzy_remote_log_url \"http://127.0.0.1:3430/matchzy/log\"",
+                "command matchzy_remote_log_header_key \"x-ezpug-server-token\"",
+                "command matchzy_remote_log_header_value \"ezs_not-a-secret_0000000000000000000\"",
             ],
             rig.Actions.Skip(3));
         Assert.Equal("events=0", seenAtMapLoaded[0]);

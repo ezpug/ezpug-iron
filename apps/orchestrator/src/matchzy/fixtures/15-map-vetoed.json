@@ -1,0 +1,17 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy/MapVeto.cs",
+  "note": "The veto is the platform’s; the three veto events are dropped. Never seen on our wire — skip_veto is always true.",
+  "state": {
+    "scores": {}
+  },
+  "payload": {
+    "event": "map_vetoed",
+    "matchid": 1083740696,
+    "team": "team1",
+    "map_name": "de_nuke"
+  },
+  "expect": {
+    "dropped": "not a fact of ours"
+  }
+}

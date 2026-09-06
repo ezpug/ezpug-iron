@@ -4,6 +4,7 @@ import { stringifyRecording } from '@ezpug/match-api/fixtures'
 import { describe, expect, it } from 'vitest'
 import type { LinkExchangeFixture } from './fake-server'
 import { FIXTURE_TOKEN_MARK, protocolFixtureFiles, stringifyProtocolFixture } from './fixtures'
+import { nodeFrameSchema, orchestratorNodeFrameSchema } from './node-link'
 import { orchestratorFrameSchema, serverFrameSchema } from './server-link'
 
 /**
@@ -17,6 +18,7 @@ import { orchestratorFrameSchema, serverFrameSchema } from './server-link'
 
 const FRAMES_DIR = fileURLToPath(new URL('../fixtures/frames/', import.meta.url))
 const LINK_DIR = fileURLToPath(new URL('../fixtures/link/', import.meta.url))
+const RECORDED_DIR = fileURLToPath(new URL('../fixtures/recorded/', import.meta.url))
 const RECORDING = process.env.EZPUG_IRON_RECORD === '1'
 
 describe('the frame fixtures', () => {
@@ -84,6 +86,78 @@ describe('the recorded link exchanges', () => {
           : { from: entry.from, frame: orchestratorFrameSchema.parse(entry.frame) }
       })
       expect(stringifyRecording({ schema: 'LinkExchange', exchange: reparsed })).toBe(text)
+      for (const match of text.matchAll(/"(?:token|serverToken|nodeToken)": "([^"]*)"/g))
+        expect(match[1], `${file}: ${match[0]}`).toContain(FIXTURE_TOKEN_MARK)
+    })
+  }
+})
+
+/**
+ * **What a real server actually said** (PRD-02 T13). `scripts/iron-match.mjs`
+ * plays one match on the dev node — a `pug`, bots, MatchZy — and writes what
+ * crossed `/link` and `/node` and what MatchZy POSTed to its door into
+ * `fixtures/recorded/`, scrubbed of every secret, every address and every wall
+ * clock. These are not goldens a generator reproduces: they are evidence, and
+ * the only thing asserted about them is that the schemas in this package still
+ * read them. The day a frame here stops parsing, the protocol moved under a
+ * server that already shipped.
+ *
+ * **No `position_tick` is in here, by construction.** Decision 6 makes it
+ * stream-only — never stored, never replayed — so a file in the tree holding
+ * one would be storing it; the recorder drops the ticks and the acks they
+ * earned, and this test holds that rule.
+ */
+describe('the recorded real match', () => {
+  const files = readdirSync(RECORDED_DIR)
+    .filter(name => name.endsWith('.json'))
+    .sort()
+
+  it('exists — a real server has been recorded', () => {
+    expect(files).toContain('real-pug-link.json')
+    expect(files).toContain('real-pug-node.json')
+    expect(files).toContain('real-pug-matchzy.json')
+  })
+
+  for (const file of files) {
+    it(`${file} parses, is canonical, and holds no secret`, () => {
+      const text = readFileSync(`${RECORDED_DIR}${file}`, 'utf8')
+      const fixture = JSON.parse(text) as { schema: string }
+      if (fixture.schema === 'LinkExchange' || fixture.schema === 'NodeExchange') {
+        const [up, down] =
+          fixture.schema === 'LinkExchange'
+            ? [serverFrameSchema, orchestratorFrameSchema]
+            : [nodeFrameSchema, orchestratorNodeFrameSchema]
+        const exchange = (fixture as unknown as LinkExchangeFixture).exchange
+        expect(exchange.length).toBeGreaterThan(0)
+        for (const entry of exchange) {
+          if (!('frame' in entry)) continue
+          ;(entry.from === 'orchestrator' ? down : up).parse(entry.frame)
+        }
+      } else if (fixture.schema === 'MatchZyExchange') {
+        // MatchZy's own wire, verbatim: every payload names its event and the
+        // `matchid` the config gave the match. What it *means* is the
+        // orchestrator's (`matchzy/fixtures/`), which is why nothing here
+        // asserts a translation.
+        const events = (
+          fixture as unknown as {
+            events: { name: string; payload: { event?: string; matchid?: number } }[]
+          }
+        ).events
+        expect(events.length).toBeGreaterThan(0)
+        for (const entry of events) {
+          expect(entry.payload.event, entry.name).toBe(entry.name)
+          expect(typeof entry.payload.matchid, entry.name).toBe('number')
+        }
+      } else {
+        throw new Error(`${file}: unknown schema ${fixture.schema}`)
+      }
+      // The file's *formatting* is canonical; its field order is the wire's,
+      // not a schema's — a recording is evidence and is never regenerated, so
+      // reordering it through Zod would only hide what actually crossed.
+      expect(stringifyRecording(JSON.parse(text))).toBe(text)
+      expect(text, `${file} names a position_tick`).not.toContain('position_tick')
+      for (const prefix of ['ezik_', 'ezis_', 'ezin_', 'ezie_', 'ezip_'])
+        expect(text, `${file} carries a ${prefix} token`).not.toContain(prefix)
       for (const match of text.matchAll(/"(?:token|serverToken|nodeToken)": "([^"]*)"/g))
         expect(match[1], `${file}: ${match[0]}`).toContain(FIXTURE_TOKEN_MARK)
     })

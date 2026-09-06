@@ -517,6 +517,76 @@ Match API uses, keyed by the token's hash. The last score seen per match (how th
 winner is found: MatchZy's `winner.team` names the map leader) lives in the process; a
 restart between rounds falls back to the map plan's side schedule and logs it.
 
+## One real match, recorded (`pnpm iron:match`)
+
+`scripts/iron-match.mjs` plays a whole match on real hardware through nothing but the
+Match API, and writes down everything it said. It is how the fixtures under
+`packages/protocol/fixtures/recorded/`, `packages/match-api/fixtures/recorded/real-*.json`
+and `apps/orchestrator/src/matchzy/fixtures/` came to hold what a real MatchZy sends
+rather than what its schema documentation claims (PRD-02 T13), and it is the client the
+`EZPUG_CS2_TESTS` lane runs.
+
+```
+pnpm dev:up                                     # Postgres, Redis, migrations
+# .env: EZPUG_IRON_PROVIDERS=sim,nodes
+EZPUG_IRON_TRACE_FILE=.cache/trace/dev.ndjson pnpm dev
+pnpm dev:node up                                # this box becomes a node
+pnpm iron:match --write-fixtures                # ~10 minutes, one CS2 container
+```
+
+What it does, in order: mints an admin key from the box (`keys:mint`), mints the run's own
+key with a webhook secret nobody else holds, opens a webhook endpoint on loopback that
+**verifies every delivery with the published verifier** before writing it down, mints a
+presigned PUT into the platform's dev MinIO for `callbacks.demoUploadUrl`, `POST`s a `pug`
+with `requirements.lan`, subscribes to the match's stream, fills the server with bots,
+forces the start, waits for a terminal state, replays the events route page by page, reads
+the ledger, and writes the run to `.cache/iron-match/<run>/`. Its key is revoked and its
+server released in a `finally` **and on a signal** — a Ctrl-C does not leave a container
+running.
+
+Three things it learned on this box that are not in anybody's documentation, and that the
+script and the plugin now encode:
+
+- **`//` is a console comment.** `matchzy_remote_log_url http://host/path` reaches MatchZy
+  as the single argument `http`; it answers "Invalid URL: http", the door is never wired,
+  and every MatchZy event of that match is lost silently. `MatchZyRemoteLog` quotes all
+  three values.
+- **The bots have to be standing before the match starts.** MatchZy's `warmup.cfg` runs
+  `bot_kick; bot_quota 0` and its `live.cfg` ends with `mp_warmup_end`; on an empty server
+  that ends nothing, so the engine stays in warmup and the match never plays a round. The
+  script fills during warmup, waits, and only then sends `css_start` — a dwell and not a
+  barrier, because a bot emits no `player_connected` (the vocabulary's players are people).
+- **A drawn map in a Bo1 does not end the series.** With an even `mp_maxrounds` and no
+  overtime a map can finish 2–2; MatchZy's `HandleMatchEnd` then reports `remainingMaps: 1`
+  and replays the same map instead of sending `series_end`. The script asks for overtime by
+  default; `--no-overtime` is there for whoever wants to watch that happen.
+
+**The trace** (`EZPUG_IRON_TRACE_FILE`) is the only part of this the orchestrator itself
+does: with the variable set it appends one scrubbed NDJSON line per `/link` frame, per
+`/node` frame and per MatchZy payload, so the script can record the two conversations no
+client can see. It is off unless the variable names a file and is **refused outright under
+`NODE_ENV=production`** — a production orchestrator does not write the servers'
+conversations to disk. Tokens, passwords and presigned queries are replaced as the line is
+written, not when it is read.
+
+**No `position_tick` reaches a file.** Decision 6 makes ticks stream-only — never stored,
+never replayed — so the recorder drops them and the `ack` frames they earned before
+anything is written; a five-minute match's ticks are nine tenths of the bytes and none of
+the meaning. Both fixture tests assert no file names one.
+
+A recording costs ten minutes of real hardware, so changing how a fixture is *shaped* must
+not cost another match: every run writes `raw.json` beside its output, and
+`pnpm iron:match --rebuild .cache/iron-match/<run>` writes every file again from it.
+
+### The `EZPUG_CS2_TESTS` lane
+
+`apps/orchestrator/src/cs2.extended.test.ts` runs that script and asserts the summary:
+the match reached `ended`, MatchZy went live, rounds were played, `series_end` and
+`match.ended` reached the client, the link and the door both carried the match, **and the
+ledger row is closed with no server left running**. It is opt-in twice over — nothing
+happens unless `EZPUG_CS2_TESTS` is set, and `EZPUG_CS2_TESTS=required` turns "there is no
+dev node" from a printed skip into a failure. It is never part of `pnpm verify`.
+
 ## Keys, scopes, rate limits, logs
 
 An **API key** is `ezik_` and 43 characters, shown once at mint; only its SHA-256 is
@@ -702,3 +772,8 @@ match in it when a loaded box makes a client's own round trips slow. Both rules 
 for in red suites — a `settle()` that hoped returned while the last envelopes were queued,
 and a story that outran its client saw a `pause` refused `invalid_state` on a match that had
 already ended.
+
+The **`EZPUG_CS2_TESTS` lane** is the third tier and is nobody's default: ten minutes, a
+CS2 container and a node on this box (see "One real match, recorded"). `pnpm verify` never
+runs it, `pnpm verify:extended` runs it only when the variable is set, and
+`EZPUG_CS2_TESTS=required` makes a missing dev node red instead of a printed skip.

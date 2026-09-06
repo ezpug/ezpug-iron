@@ -18,6 +18,14 @@ namespace EZPug.Core;
 /// serialised into every round backup MatchZy writes (<c>GetMatchConfig()</c>) — the
 /// remote-log <i>header value</i> still lands there, which is why
 /// <see cref="MatchZyBackups.Scrub"/> exists. <see cref="ToString"/> redacts.
+///
+/// <b>Every value is quoted, and the URL is why</b> (PRD-02 T13, found on a real
+/// server): the engine strips <c>//</c> to end of line as a comment before it tokenises
+/// a console line, so <c>matchzy_remote_log_url http://host/path</c> reaches MatchZy as
+/// the single argument <c>http</c> and it answers "Invalid URL: http" — the door is
+/// simply never wired and every MatchZy event is lost, silently, for the whole match.
+/// Inside quotes the comment rule does not apply, and CounterStrikeSharp's
+/// <c>ArgByIndex</c> hands the plugin the unquoted value.
 /// </summary>
 public sealed record MatchZyRemoteLog(Uri Url, string HeaderKey, string HeaderValue)
 {
@@ -27,9 +35,9 @@ public sealed record MatchZyRemoteLog(Uri Url, string HeaderKey, string HeaderVa
     /// <summary>The console lines that point MatchZy here, in order. The last one carries the token.</summary>
     public IReadOnlyList<string> Commands() =>
     [
-        $"matchzy_remote_log_url {Url}",
-        $"matchzy_remote_log_header_key {HeaderKey}",
-        $"matchzy_remote_log_header_value {HeaderValue}",
+        $"matchzy_remote_log_url \"{Url}\"",
+        $"matchzy_remote_log_header_key \"{HeaderKey}\"",
+        $"matchzy_remote_log_header_value \"{HeaderValue}\"",
     ];
 
     public override string ToString() => $"MatchZyRemoteLog {{ Url = {Url}, Header = {HeaderKey}: [redacted] }}";

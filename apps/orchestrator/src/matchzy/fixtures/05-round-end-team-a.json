@@ -1,10 +1,11 @@
 {
   "source": "recorded",
   "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
-  "note": "winner.side \"2\" and winner.team \"team2\"; the scores are what decides.",
+  "note": "winner.side \"3\" is CT; the delta 1-0 says team A took it, though MatchZy still names the leader.",
   "payload": {
+    "reason": 8,
     "winner": {
-      "side": "2",
+      "side": "3",
       "team": "team2"
     },
     "team1": {
@@ -17,34 +18,40 @@
       "name": "EZPug A"
     },
     "team2": {
-      "series_score": 1,
-      "score": 3,
+      "series_score": 0,
+      "score": 1,
       "score_ct": 0,
       "score_t": 0,
       "players": [],
       "id": "",
       "name": "EZPug B"
     },
+    "round_time": 0,
+    "round_number": 2,
     "map_number": 0,
     "matchid": 1083740696,
-    "event": "map_result"
+    "event": "round_end"
   },
   "expect": {
     "events": [
       {
-        "type": "map_end",
+        "type": "round_end",
         "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
         "source": {
           "provider": "nodes",
           "serverId": "devbox-1"
         },
         "mapNumber": 1,
-        "map": "de_dust2",
+        "roundNumber": 2,
+        "winner": {
+          "team": "team_a",
+          "side": "ct"
+        },
+        "winCondition": "elimination",
         "score": {
           "teamA": 1,
-          "teamB": 3
-        },
-        "winner": "team_b"
+          "teamB": 1
+        }
       }
     ]
   }

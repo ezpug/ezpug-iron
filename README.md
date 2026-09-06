@@ -114,6 +114,19 @@ otherwise. Adding `nodes` is opt-in because registering a *real* provider takes 
 simulator out of selection for every request that did not ask for it — right at a venue,
 wrong on an offline afternoon.
 
+With a node up, one command plays a whole match on it and writes down everything it said:
+
+```sh
+pnpm iron:match                  # a pug with bots, four rounds, through the Match API
+pnpm iron:match --write-fixtures # …and update the recorded fixtures from this run
+```
+
+It is a client and nothing more — it holds an API key, POSTs a match, listens on a webhook
+endpoint of its own and on the match's stream, forces the start (a bot never types
+`.ready`), and releases its server in a `finally` and on a Ctrl-C. Roughly ten minutes and
+one CS2 container; `docs/operations.md`, "One real match, recorded", is the long version,
+and `EZPUG_CS2_TESTS=required` turns it into a test.
+
 ## Releasing `@ezpug/match-api`
 
 The package is the contract, so a schema change is a release with a changelog line, never

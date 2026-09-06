@@ -1,0 +1,67 @@
+{
+  "source": "derived",
+  "from": "07-round-end-clinch.json",
+  "note": "Round 3 never arrived (MatchZy does not retry). Round 4 shows both scores up by one: the side that won and the map plan’s schedule (team A started CT, round 4 is first half) decide, with a log line.",
+  "state": {
+    "scores": {
+      "1": {
+        "team1": 1,
+        "team2": 1
+      }
+    }
+  },
+  "payload": {
+    "reason": 8,
+    "winner": {
+      "side": "ct",
+      "team": "team1"
+    },
+    "team1": {
+      "series_score": 0,
+      "score": 2,
+      "score_ct": 0,
+      "score_t": 0,
+      "players": [],
+      "id": "",
+      "name": "EZPug A"
+    },
+    "team2": {
+      "series_score": 0,
+      "score": 2,
+      "score_ct": 0,
+      "score_t": 0,
+      "players": [],
+      "id": "",
+      "name": "EZPug B"
+    },
+    "round_time": 0,
+    "round_number": 4,
+    "map_number": 0,
+    "matchid": 1083740696,
+    "event": "round_end"
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "round_end",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "mapNumber": 1,
+        "roundNumber": 4,
+        "winner": {
+          "team": "team_a",
+          "side": "ct"
+        },
+        "winCondition": "elimination",
+        "score": {
+          "teamA": 2,
+          "teamB": 2
+        }
+      }
+    ],
+    "note": true
+  }
+}

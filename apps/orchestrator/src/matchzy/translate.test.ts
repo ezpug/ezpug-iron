@@ -26,8 +26,19 @@ const FIXTURES = fileURLToPath(new URL('./fixtures/', import.meta.url))
 
 interface Fixture {
   name: string
-  source: 'schema' | 'recorded'
+  /** Where the payload came from — `fixtures.test.ts` holds the rule. */
+  source: 'recorded' | 'derived' | 'upstream'
+  /** The run, the recorded sibling, or the MatchZy file the shape was read off. */
+  from: string
   note?: string
+  /**
+   * The score the translator starts this fixture from. The `recorded` files
+   * omit it and carry state from one to the next — they are one real match in
+   * order, and the round winner is a delta. A `derived` or `upstream` file
+   * declares its own, because it is a case of its own and must not depend on
+   * where the story happened to be.
+   */
+  state?: MatchZyState
   payload: unknown
   expect: { events?: GameserverEvent[]; dropped?: string; note?: boolean }
 }
@@ -46,7 +57,8 @@ const context: MatchZyContext = {
   matchId: FIXTURE_MATCH_ID,
   source: { provider: 'nodes', serverId: 'devbox-1' },
   serial: matchzySerial(FIXTURE_MATCH_ID),
-  maps: [{ map: 'de_mirage', sides: 'ct' }],
+  // The map the recorded match was played on (T13).
+  maps: [{ map: 'de_dust2', sides: 'ct' }],
 }
 
 describe('the fixtures, in order', () => {
@@ -54,13 +66,14 @@ describe('the fixtures, in order', () => {
 
   it('exist, one per MatchZy event worth pinning', () => {
     expect(fixtures.length).toBeGreaterThanOrEqual(10)
-    for (const fixture of fixtures) expect(['schema', 'recorded']).toContain(fixture.source)
+    for (const fixture of fixtures)
+      expect(['recorded', 'derived', 'upstream']).toContain(fixture.source)
   })
 
   it('translate exactly as written, state carried from one to the next', () => {
     let state: MatchZyState = initialMatchZyState()
     for (const fixture of fixtures) {
-      const result = translateMatchZyEvent(fixture.payload, context, state)
+      const result = translateMatchZyEvent(fixture.payload, context, fixture.state ?? state)
       state = result.state
       if (fixture.expect.dropped !== undefined) {
         expect(result.dropped, fixture.name).toBe(fixture.expect.dropped)

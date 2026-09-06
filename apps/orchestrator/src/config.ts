@@ -28,6 +28,15 @@ export const REDIS_URL_VAR = 'EZPUG_IRON_REDIS_URL'
 export const BOOTSTRAP_API_KEY_VAR = 'EZPUG_IRON_BOOTSTRAP_API_KEY'
 
 /**
+ * The dev-only trace file (PRD-02 T13): when set, every `/link` and `/node`
+ * frame and every MatchZy payload is appended to it as scrubbed NDJSON, for
+ * `scripts/iron-match.mjs` to turn into fixtures. **Refused under
+ * `NODE_ENV=production`** — a production orchestrator does not write the
+ * servers' conversations to disk.
+ */
+export const TRACE_FILE_VAR = 'EZPUG_IRON_TRACE_FILE'
+
+/**
  * What a node runs when nothing says otherwise: the local dev build
  * `pnpm cs2:build` writes. A deployment sets
  * `EZPUG_IRON_NODE_SERVER_IMAGE` to a published, digest-pinned tag.
@@ -90,6 +99,11 @@ export interface OrchestratorConfig {
    * answer: `main.ts` hands it to `ensureBootstrapKey` and forgets it.
    */
   readonly bootstrapApiKey: string | null
+  /**
+   * Where the dev trace is written, or null ({@link TRACE_FILE_VAR}). Only
+   * `scripts/iron-match.mjs` sets it.
+   */
+  readonly traceFile: string | null
   /** Apply pending migrations before the port opens — what the image does. */
   readonly migrateOnBoot: boolean
   /** Where the migration SQL lives, when it is not beside the code (the image). */
@@ -197,6 +211,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
           value => value === null || looksLikeToken('apiKey', value),
           'must be an API key of this service’s own grammar (`ezik_` and 43 base64url characters)',
         ),
+      traceFile: z.string().min(1).nullable(),
       migrateOnBoot: booleanFromEnv(false),
       migrationsDir: z.string().min(1).nullable(),
       nodeServerImage: z.string().min(1).max(512),
@@ -215,6 +230,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       rateLimitBurst: env.EZPUG_IRON_RATE_LIMIT_BURST,
       rateLimitPerSecond: env.EZPUG_IRON_RATE_LIMIT_PER_SECOND,
       bootstrapApiKey: env[BOOTSTRAP_API_KEY_VAR] || null,
+      traceFile: env[TRACE_FILE_VAR] || null,
       migrateOnBoot: env.EZPUG_IRON_MIGRATE_ON_BOOT,
       migrationsDir: env.EZPUG_IRON_MIGRATIONS_DIR || null,
       nodeServerImage: env.EZPUG_IRON_NODE_SERVER_IMAGE || DEFAULT_NODE_SERVER_IMAGE,
@@ -228,6 +244,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       rateLimitBurst: 'EZPUG_IRON_RATE_LIMIT_BURST',
       rateLimitPerSecond: 'EZPUG_IRON_RATE_LIMIT_PER_SECOND',
       bootstrapApiKey: BOOTSTRAP_API_KEY_VAR,
+      traceFile: TRACE_FILE_VAR,
       migrateOnBoot: 'EZPUG_IRON_MIGRATE_ON_BOOT',
       migrationsDir: 'EZPUG_IRON_MIGRATIONS_DIR',
       nodeServerImage: 'EZPUG_IRON_NODE_SERVER_IMAGE',
@@ -240,6 +257,11 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
     throw new Error(
       `invalid orchestrator configuration (${BOOTSTRAP_API_KEY_VAR}: refused under NODE_ENV=production — ` +
         'mint a key instead, or set NODE_ENV=development if this is a dev world; the image defaults to production)',
+    )
+  if (production && rest.traceFile !== null)
+    throw new Error(
+      `invalid orchestrator configuration (${TRACE_FILE_VAR}: refused under NODE_ENV=production — ` +
+        'the trace is a recording of every link frame and belongs on a developer’s box only)',
     )
   return {
     ...rest,

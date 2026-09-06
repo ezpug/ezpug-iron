@@ -20,6 +20,7 @@ import type { Log } from '../log'
 import type { MatchStore, ServerRow, ServerTokenRow } from '../match/store'
 import type { UpgradeRouter } from '../stream/upgrade'
 import { hashToken, looksLikeToken } from '../tokens'
+import { nullTrace, type Trace } from '../trace'
 import type {
   ChannelCommandResult,
   ConsoleTail,
@@ -106,6 +107,8 @@ export interface ServerLinkOptions {
   commandTimeoutMs?: number
   /** Once true, new sockets are refused with a 503 before the upgrade. */
   isDraining?: () => boolean
+  /** The dev recorder (T13). Off by default; every frame both ways when on. */
+  trace?: Trace
 }
 
 /** One connected server, as the fleet and a test see it. Never the token. */
@@ -177,6 +180,15 @@ function isAnswer(frame: ServerFrame): frame is Answer {
 
 export function attachServerLink(options: ServerLinkOptions): ServerLink {
   const { router, clock, log, store, matches, links } = options
+  const trace = options.trace ?? nullTrace
+  /**
+   * One label per socket, for the trace: a `hello` is a frame like any other
+   * and arrives before there is a server to name it by, so the recording is
+   * keyed by the socket and the fixture writer reads the identity out of the
+   * exchange itself.
+   */
+  const traceIds = new WeakMap<WebSocket, string>()
+  let traced = 0
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS_DEFAULT
   const helloTimeoutMs = options.helloTimeoutMs ?? HELLO_TIMEOUT_MS
   const commandTimeoutMs = options.commandTimeoutMs ?? COMMAND_TIMEOUT_MS_DEFAULT
@@ -217,6 +229,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
     const write = (frame: OrchestratorFrame): void => {
       if (ws.readyState !== ws.OPEN) return
       ws.send(JSON.stringify(frame))
+      if (trace.on) trace.write('link', { socket: traceIds.get(ws), from: 'orchestrator', frame })
     }
 
     const onSilent = (): void => {
@@ -566,6 +579,9 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
   }
 
   const open = (ws: WebSocket): void => {
+    traced += 1
+    const traceId = `link-${traced}`
+    traceIds.set(ws, traceId)
     let session: Session | undefined
     let chain: Promise<void> = Promise.resolve()
     const helloTimer = clock.after(helloTimeoutMs, () => {
@@ -604,6 +620,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
         return
       }
       const frame = parsed.data
+      if (trace.on) trace.write('link', { socket: traceId, from: 'server', frame })
       if (session) {
         session.seen()
         if (session.answer(frame)) return
@@ -624,7 +641,13 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
         if (session) helloTimer.cancel()
       })
     })
-    ws.on('close', () => {
+    ws.on('close', (code: number, reason: Buffer) => {
+      if (trace.on)
+        trace.write('link', {
+          socket: traceId,
+          from: 'orchestrator',
+          close: { code, reason: reason.toString() },
+        })
       helloTimer.cancel()
       session?.closed()
     })

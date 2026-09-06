@@ -33,6 +33,7 @@ import { shutdownSteps } from './shutdown-steps'
 import { createRedisFanout } from './stream/fanout'
 import { createStreamHub, type StreamHub } from './stream/hub'
 import { attachStreamUpgrade, attachUpgradeRouter, type UpgradeRouter } from './stream/upgrade'
+import { createFileTrace, nullTrace, type Trace } from './trace'
 import { createWebhookWorker, type WebhookWorker } from './webhooks/worker'
 
 /**
@@ -99,6 +100,16 @@ export interface CreateOrchestratorOptions {
 
 export function createOrchestrator(options: CreateOrchestratorOptions): Orchestrator {
   const { config, clock, log } = options
+
+  // The dev recorder (T13): off unless `EZPUG_IRON_TRACE_FILE` names a file,
+  // and refused outright in production (`config.ts`).
+  const trace: Trace = config.traceFile
+    ? createFileTrace({
+        path: config.traceFile,
+        clock,
+        onOpen: path => log.info(`tracing every link frame and MatchZy payload to ${path}`),
+      })
+    : nullTrace
 
   // One pool per process, created at startup and passed down.
   const database = createDatabase(config.database, { applicationName: 'orchestrator' })
@@ -228,7 +239,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     rateLimiter: createRateLimiter({ clock, ...config.rateLimit }),
     health,
     isDraining: () => shutdown?.draining === true,
-    matchzy: createMatchZyDoor({ store, matches, log }),
+    matchzy: createMatchZyDoor({ store, matches, log, trace }),
   })
 
   const server = createAdaptorServer({ fetch: app.fetch }) as HttpServer
@@ -250,6 +261,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     store,
     matches,
     links,
+    trace,
     isDraining: () => shutdown?.draining === true,
   })
   link = serverLink
@@ -259,6 +271,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     log,
     store,
     registry: nodeRegistry,
+    trace,
     isDraining: () => shutdown?.draining === true,
   })
   const httpDrain = createHttpDrain(server, clock)

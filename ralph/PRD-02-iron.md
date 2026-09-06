@@ -356,7 +356,7 @@ every offline proof here.
   `ezpug-node` on this box (host network, the dev image) enrolled against the dev
   orchestrator, so **the dev CS2 server is a real node in a real pool**.
 
-- [ ] **T13: Bots play a real match — the recorded fixtures.** `scripts/iron-match.mjs`
+- [x] **T13: Bots play a real match — the recorded fixtures.** `scripts/iron-match.mjs`
   (through the Match API with the dev key): a `pug` request with `requirements.lan`,
   `mp_maxrounds 4`, no overtime, `bot_quota 10`, MatchZy in unrostered mode
   (`matchzy_minimum_ready_required 0`), `.start` by command — and **record everything**:
@@ -369,6 +369,12 @@ every offline proof here.
   MinIO via a presigned PUT the script mints), assert the ledger row closed — the round's
   offline proof that plugin, MatchZy, orchestrator and contract agree. References:
   `references/MatchZy/documentation/docs/match_setup.md`, `commands.md`.
+  > left to T21: `demo.uploaded`. Nothing uploads a demo yet — the core plugin owning the
+  > upload and the orchestrator relaying `demo_available` → `demo.uploaded` **is** T21, and
+  > building half of it here would have been bundling. The script already mints the
+  > presigned PUT and passes it as `callbacks.demoUploadUrl`, so T21 is a plugin and a
+  > relay and nothing else; it also owns adding the `demo.uploaded` assertion to the
+  > `EZPUG_CS2_TESTS` lane (`apps/orchestrator/src/cs2.extended.test.ts`).
 
 - [ ] **T14 (fable): A server that dies comes back.** `backup` frames persisted per round;
   on `recovering` the walk resumes from the next candidate with `assign.restore` (the
@@ -443,7 +449,8 @@ every offline proof here.
   `fleet` scope, every line and its output in the ledger's audit column. Never a password
   in a response.
 
-- [ ] **T21: Demos over the link's shoulder.** For `records: demo` the core plugin owns
+- [ ] **T21: Demos over the link's shoulder** (and the half of T13's lane that waited on
+  it: `demo.uploaded` in `cs2.extended.test.ts`). For `records: demo` the core plugin owns
   recording where MatchZy does not (`tv_record` on `going_live`/`OnStart`, `tv_stoprecord`
   on end) and **always owns the upload**: PUT the file to the request's `demoUploadUrl`
   (streamed, retried, checksummed), emit `demo_available {size, sha256}` → the orchestrator

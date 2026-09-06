@@ -1,0 +1,16 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy/Events.cs",
+  "note": "The core plugin emits player_disconnected from the engine; nobody double-speaks. Bots never reach it either.",
+  "state": {
+    "scores": {}
+  },
+  "payload": {
+    "event": "player_disconnect",
+    "matchid": 1083740696,
+    "player": 3
+  },
+  "expect": {
+    "dropped": "not a fact of ours"
+  }
+}

@@ -1,15 +1,17 @@
 {
-  "source": "schema",
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "Sent moments after map_result, with time_until_restore.",
   "payload": {
-    "event": "series_end",
-    "matchid": 1083740696,
     "time_until_restore": 10,
     "winner": {
-      "side": "3",
-      "team": "team1"
+      "side": "2",
+      "team": "team2"
     },
-    "team1_series_score": 1,
-    "team2_series_score": 0
+    "team1_series_score": 0,
+    "team2_series_score": 1,
+    "matchid": 1083740696,
+    "event": "series_end"
   },
   "expect": {
     "events": [
@@ -21,10 +23,10 @@
           "serverId": "devbox-1"
         },
         "seriesScore": {
-          "teamA": 1,
-          "teamB": 0
+          "teamA": 0,
+          "teamB": 1
         },
-        "winner": "team_a"
+        "winner": "team_b"
       }
     ]
   }

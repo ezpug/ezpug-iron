@@ -30,7 +30,12 @@ get_env() {
 }
 
 BASE_URL="$(get_env EZPUG_IRON_BASE_URL "$(get_env EZPUG_IRON_PUBLIC_URL http://127.0.0.1:3430)")"
-STATE_DIR="$(get_env EZPUG_NODE_STATE_DIR .ezpug-node)"
+# Absolute, always: the agent runs with its own package as the working
+# directory, so a relative state dir would put the identity under `apps/node/`
+# while this script looked for it at the root — and a second `up` would try to
+# enrol a host that is already enrolled (found in T13).
+STATE_DIR="$(get_env EZPUG_NODE_STATE_DIR "$ROOT/.ezpug-node")"
+[[ "$STATE_DIR" = /* ]] || STATE_DIR="$ROOT/$STATE_DIR"
 PROVIDERS="$(get_env EZPUG_IRON_PROVIDERS sim)"
 NODE_ID="$(get_env EZPUG_IRON_DEV_NODE_ID devbox)"
 REGION="$(get_env EZPUG_NODE_REGION saarland)"
@@ -57,13 +62,19 @@ running() { [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; }
 # One key for the dev node, minted once and kept 0600 beside the identity. It
 # is a dev convenience and lives where the node token already lives; nothing
 # here ever prints it.
+#
+# The name carries the moment it was minted because a key's name is unique
+# **while it lives** and this script holds no `admin` scope, so it cannot
+# revoke one: `forget` deletes the secret here and the key at the orchestrator
+# outlives it, unusable. Minting under a fresh name is what lets a second
+# `up` work at all (found on this box in T13, where the first one did not).
 dev_key() {
   if [[ -s "$KEY_FILE" ]]; then cat "$KEY_FILE"; return; fi
   mkdir -p "$STATE_DIR"
   chmod 700 "$STATE_DIR"
   local secret
   secret="$(pnpm --silent --filter @ezpug/orchestrator keys:mint -- \
-    --name "dev-node-$NODE_ID" --scopes fleet,matches 2>/dev/null | tail -n 1)"
+    --name "dev-node-$NODE_ID-$(date +%s)" --scopes fleet,matches 2>/dev/null | tail -n 1)"
   [[ "$secret" == ezik_* ]] || die 'could not mint a dev key (is the dev database up? `pnpm dev:up`)'
   printf '%s' "$secret" > "$KEY_FILE"
   chmod 600 "$KEY_FILE"
