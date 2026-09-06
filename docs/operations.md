@@ -562,6 +562,70 @@ so the reaper takes it within a grace window instead of billing quietly for it.
 `providers/dathost/provider.test.ts` proves each of those against the fake Dathost (T15);
 the one live lane is T19's smoke behind `EZPUG_DATHOST_TESTS=required`.
 
+### The template server (`pnpm dathost:image`)
+
+Dathost has no image registry. A server there is a box with files on it, and the only way
+to get a second one carrying our plugins is `duplicate`, which copies the source's files
+along with its settings. So the "image" for the rented half of the fleet is **one server
+that never runs a match** — Metamod, CounterStrikeSharp, MatchZy, `EZPug.Core`, the SDK and
+the cfg set on disk, `deletion_protection` on — and `EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID`
+names it. `scripts/dathost-image.mjs` (PRD-02 T18) is what builds and refreshes it.
+
+```bash
+pnpm cs2:build                  # the artifacts, once — this script never downloads a plugin
+pnpm dathost:image --dry-run    # what would change
+pnpm dathost:image              # create or refresh; prints the id to paste into .env
+pnpm dathost:image --check      # is the template what this checkout says it is?
+```
+
+**One build, two destinations.** The files it uploads are read out of
+`ghcr.io/ezpug/ezpug-iron/cs2` — the same image `pnpm cs2:up` runs here and a node runs at
+a venue — from `/opt/ezpug`, the directory the image's entrypoint overlays onto
+`game/csgo`. `docker create` + `docker cp`, so nothing boots; the extraction is cached
+per image id under `.cache/`. The mapping is the entrypoint's: `addons/**` and `cfg/**`
+land where they are, `gamemodes/<id>/cfg/**` lands in `cfg/`, and the gamemode *manifests*
+are not uploaded at all — they travel over the link inside the assignment. Roughly 510
+files and 165 MB on a first build; every version comes from `docker/cs2/Dockerfile`, whose
+numbers `docs/pins.md` copies and `pnpm lint` keeps honest. If the image is older than a
+pin bump, the plugins' own `build.json` says so and the script stops before touching the
+account.
+
+**A second run is nearly free.** The last file written is `ezpug-image.json` at the game
+root: the pins, the git revision the plugins were built from, and a sha-256 per file. A
+refresh uploads only what the hash (or the file listing, for something edited in the
+control panel) says has moved, then `sync-files` — **always last**, because `duplicate`
+copies the API's *cache*, and an upload without a sync is a template that clones
+yesterday's plugin, which looks exactly like a plugin bug. The one edit neither a hash
+nor a listing can see is one that kept the byte count exactly; `--force` re-uploads
+everything and is the answer to "I do not trust what is on it".
+
+**What it enforces on the template**, each with a consequence: `deletion_protection` on
+(it is the image, and it is also what stands between a misconfigured deployment's reaper
+and a rebuild from scratch); `autostop` and `reboot_on_crash` off (the reaper is ours, a
+crash is a `server_lost` we want to see); Dathost's *managed* Metamod off (ours is in the
+image, pinned and checksummed — two loaders are one too many); GOTV on (the provider reads
+the relay off a clone and never turns one on); and **no GSLT**, ever, because a token is
+one per running server and every clone would inherit the template's. `cs2_settings.slots`
+is set on create (`--slots`, default 12) and left alone afterwards: on a pay-as-you-go
+account the slot count is part of `cost_per_hour`, and the ledger snapshots that at
+allocate.
+
+**It refuses what is not the template.** Every write is preceded by a `GET` and a check of
+the `user_data` marker — a server carrying a match's tag, a clone of the template, or
+anything unmarked is refused by name (`--adopt` claims one deliberately), and a template
+that is currently *on* is refused unless `--force`. The account's password is read from
+the environment only, never from a flag.
+
+**`gameinfo.gi`.** Metamod loads because that file says so, and a game update rewrites it.
+In the container the entrypoint re-checks it every boot; on Dathost nothing does, so the
+script adds the loader line when it is missing and `--check` goes red when it has gone —
+if a whole fleet suddenly boots with no plugins, that is the first thing to look at.
+
+**The tests.** `providers/dathost/image-script.test.ts` runs the script against the fake
+Dathost (T15) with a hand-written artifact tree: the dry run, the create, idempotence, the
+refusals, `--check` red on a drifted file, pin, setting or `gameinfo.gi`, and — the one
+that matters — a `duplicate` after the build whose clone carries the plugin.
+
 ## The GSLT pool
 
 A CS2 server started without a **Steam Game Server Login Token** logs in anonymously and

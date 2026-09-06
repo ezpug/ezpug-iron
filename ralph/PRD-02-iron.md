@@ -423,7 +423,7 @@ every offline proof here.
   in `cs2_settings.steam_game_server_login_token`. Nodes need none. Tokens never leave the
   process except into the provider call. References: `references/dathost/pages/api-added-cs2-game-server-login-tokens.md`.
 
-- [ ] **T18: The template image script.** `scripts/dathost-image.mjs`: idempotently builds
+- [x] **T18: The template image script.** `scripts/dathost-image.mjs`: idempotently builds
   or refreshes the template server — create `cs2` in `dusseldorf` with `deletion_protection`,
   `autostop` off, `enable_metamod` off, GOTV on; upload Metamod, CounterStrikeSharp,
   MatchZy, retakes + allocator, the WeaponPaints fork and our plugins **from the same
