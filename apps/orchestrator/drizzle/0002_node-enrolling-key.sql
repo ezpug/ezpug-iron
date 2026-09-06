@@ -1,0 +1,2 @@
+ALTER TABLE "nodes" ADD COLUMN "enrolled_by_key_id" uuid;--> statement-breakpoint
+ALTER TABLE "nodes" ADD CONSTRAINT "nodes_enrolled_by_key_id_api_keys_id_fk" FOREIGN KEY ("enrolled_by_key_id") REFERENCES "public"."api_keys"("id") ON DELETE no action ON UPDATE no action;

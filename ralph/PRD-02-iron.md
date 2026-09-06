@@ -346,7 +346,7 @@ every offline proof here.
   tests. A node that dies mid-match is a server that dies mid-match (T14). `docs/nodes.md`:
   install on a venue box in five commands. References: decision 23, T1's node link.
 
-- [ ] **T12: The node provider and enrolment.** In the orchestrator: `nodes` as a provider
+- [x] **T12: The node provider and enrolment.** In the orchestrator: `nodes` as a provider
   (`offerings()` = one offering per connected, undrained node with free capacity, cost 0,
   `lan: true`, region from labels; a disconnected node advertises 0 and never disappears),
   `allocate` = pick a warm instance or `start` one, `deallocate` = `stop`, the enrolment

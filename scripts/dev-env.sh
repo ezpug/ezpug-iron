@@ -3,7 +3,8 @@
 # compose.yaml, migrated, ready for `pnpm dev`. One command boots everything a
 # fresh clone needs — no external service is involved, ever.
 #
-#   ./scripts/dev-env.sh up      boot (creates .env if missing), wait healthy, migrate
+#   ./scripts/dev-env.sh up      boot (creates .env if missing), wait healthy, migrate,
+#                                and run this box as a node when it is configured as one
 #   ./scripts/dev-env.sh down    stop, keep the data
 #   ./scripts/dev-env.sh reset   drop the volumes and boot a clean world (asks first)
 #   ./scripts/dev-env.sh status  health + a real query against every service
@@ -91,10 +92,14 @@ cmd_up() {
   migrate
   log 'dev world ready:'
   summary
+  # This box as a node (T12), when the orchestrator is up and
+  # `EZPUG_IRON_PROVIDERS` names `nodes`; a printed reason otherwise.
+  ./scripts/dev-node.sh auto || true
 }
 
 cmd_down() {
   require_docker
+  ./scripts/dev-node.sh down >/dev/null 2>&1 || true
   docker compose down
   log 'stopped (data volumes kept — use `reset` to wipe them)'
 }

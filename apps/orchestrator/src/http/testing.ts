@@ -12,6 +12,8 @@ import { createMemoryLog } from '../log'
 import { createMatches, type MatchDeadlines, type Matches } from '../match/machine'
 import { createMemoryMatchStore } from '../match/memory-store'
 import { createMatchZyDoor } from '../matchzy/door'
+import { createNodeRegistry, type NodeRegistry } from '../nodes/registry'
+import { createNodes, type Nodes } from '../nodes/service'
 import type { GameServerProvider } from '../providers/provider'
 import { createReaper, type Reaper } from '../providers/reaper'
 import { createProviderRegistry, type ProviderRegistry } from '../providers/registry'
@@ -45,6 +47,8 @@ export interface TestApp {
   providers: ProviderRegistry
   sim: SimProvider
   links: LinkRegistry
+  nodeRegistry: NodeRegistry
+  nodes: Nodes
   matches: Matches
   fleet: Fleet
   hub: StreamHub
@@ -99,6 +103,8 @@ export interface TestAppOptions {
   random?: RandomBytes
   webhookPollIntervalMs?: number
   budgetSweepIntervalMs?: number
+  /** What a revoke hangs up with, when a test has a node link attached (T12). */
+  disconnectNode?: (nodeId: string, code: number, reason: string) => boolean
 }
 
 export function createTestApp(options: TestAppOptions = {}): TestApp {
@@ -109,6 +115,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const store = createMemoryMatchStore()
   const providers = createProviderRegistry()
   const links = createLinkRegistry()
+  const nodeRegistry = createNodeRegistry()
   const hub = createStreamHub({ clock, log })
   const posted: TestApp['posted'] = []
   const attempts: WebhookAttemptReport[] = []
@@ -174,6 +181,13 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   else if (!options.noProviders) providers.register(sim)
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
   const fleet = createFleet({ clock, store, registry: providers, matches })
+  const nodes = createNodes({
+    clock,
+    log,
+    store,
+    registry: nodeRegistry,
+    disconnect: (nodeId, code, reason) => options.disconnectNode?.(nodeId, code, reason) ?? false,
+  })
 
   const rails = { database: true, redis: true }
   const draining = { value: false }
@@ -185,7 +199,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet }),
+      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet, nodes }),
     ),
     rateLimiter: createRateLimiter({
       clock,
@@ -234,6 +248,8 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     providers,
     sim,
     links,
+    nodeRegistry,
+    nodes,
     matches,
     fleet,
     hub,

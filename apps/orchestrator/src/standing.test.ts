@@ -133,6 +133,7 @@ describe('the orchestrator over a real socket', () => {
       'health',
       'listener',
       'links',
+      'node-links',
       'streams',
       'requests',
       'reaper',

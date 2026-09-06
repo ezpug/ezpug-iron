@@ -36,6 +36,8 @@ export interface ShutdownStepsOptions {
   database: Closable
   /** The server links (T6): every session told `shuttingDown`, so the plugins reconnect with backoff. */
   links?: Closable
+  /** The node links (T12): the agents are told to go after their servers were, and reconnect with backoff. */
+  nodeLinks?: Closable
   /** The stream sockets (T3). Absent in a composition without a listener. */
   streams?: Closable
   reaper?: { stop: () => Promise<void> }
@@ -53,6 +55,7 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     redis,
     database,
     links,
+    nodeLinks,
     streams,
     reaper,
     budgets,
@@ -70,6 +73,9 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     //    backoff — told to go while the machines below are still open, so a
     //    last `state` frame still lands.
     ...(links ? [{ name: 'links', run: () => links.close() }] : []),
+    //    The node agents go after the servers they run, so a container's last
+    //    `state` frame is still on a link the orchestrator is listening to.
+    ...(nodeLinks ? [{ name: 'node-links', run: () => nodeLinks.close() }] : []),
     // 4. The stream's subscribers: told to go (1001) and to replay from the
     //    events route when they come back, before the hub they hang off.
     ...(streams ? [{ name: 'streams', run: () => streams.close() }] : []),

@@ -32,6 +32,7 @@
     "dev:reset": "./scripts/dev-env.sh reset",
     "dev:status": "./scripts/dev-env.sh status",
     "dev:logs": "./scripts/dev-env.sh logs",
+    "dev:node": "./scripts/dev-node.sh",
     "db:generate": "pnpm --filter @ezpug/orchestrator db:generate",
     "db:migrate": "pnpm --filter @ezpug/orchestrator db:migrate"
   },

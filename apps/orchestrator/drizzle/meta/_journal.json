@@ -15,6 +15,13 @@
       "when": 1788633179933,
       "tag": "0001_budget-notices",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788661680463,
+      "tag": "0002_node-enrolling-key",
+      "breakpoints": true
     }
   ]
 }

@@ -14,12 +14,16 @@ import { createRateLimiter } from './http/rate-limit'
 import { createPostgresKeyStore } from './keys/postgres-store'
 import { createKeys, type Keys } from './keys/service'
 import { createLinkRegistry, type LinkRegistry } from './link/channels'
+import { attachNodeLink, type NodeLink } from './link/node-link'
 import { attachServerLink, type ServerLink } from './link/server-link'
 import type { Log } from './log'
 import { createMatches, type Matches } from './match/machine'
 import { createPostgresMatchStore } from './match/postgres-store'
 import type { MatchStore } from './match/store'
 import { createMatchZyDoor } from './matchzy/door'
+import { createNodeRegistry, type NodeRegistry } from './nodes/registry'
+import { createNodes, type Nodes } from './nodes/service'
+import { createNodesProvider, type NodesProvider } from './providers/nodes/provider'
 import { createReaper, type Reaper } from './providers/reaper'
 import { createProviderRegistry, type ProviderRegistry } from './providers/registry'
 import { createSimProvider } from './providers/sim/provider'
@@ -62,6 +66,10 @@ export interface Orchestrator {
   readonly links: LinkRegistry
   /** The `/link` sessions (T6). */
   readonly link: ServerLink
+  /** The `/node` sessions (T12). */
+  readonly nodeLink: NodeLink
+  readonly nodeRegistry: NodeRegistry
+  readonly nodes: Nodes
   readonly matches: Matches
   readonly fleet: Fleet
   readonly hub: StreamHub
@@ -105,6 +113,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
   const store = createPostgresMatchStore(database.db)
   const providers = createProviderRegistry()
   const links = createLinkRegistry()
+  const nodeRegistry = createNodeRegistry()
   const hub = createStreamHub({
     clock,
     log,
@@ -144,6 +153,11 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
   const fleet = createFleet({ clock, store, registry: providers, matches })
 
+  // The node provider needs the server link (a claimed warm instance is
+  // assigned down the socket it already holds) and the link needs the app's
+  // server, which does not exist yet — the same lazy knot the drain uses.
+  let link: ServerLink | undefined
+  let nodesProvider: NodesProvider | undefined
   for (const id of config.providers) {
     if (id === 'sim') {
       providers.register(
@@ -155,8 +169,22 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
           onError: (error, context) => log.error(`sim ${JSON.stringify(context)}`, error),
         }),
       )
+    } else if (id === 'nodes') {
+      nodesProvider = createNodesProvider({
+        clock,
+        log,
+        store,
+        registry: nodeRegistry,
+        image: config.nodeServerImage,
+        baseUrl: config.baseUrl,
+        link: () => link,
+        facts: {
+          emit: (matchId, fact) => matches.emit(matchId, fact),
+        },
+      })
+      providers.register(nodesProvider)
     } else {
-      // `dathost` (T16) and `nodes` (T12) register here when they exist.
+      // `dathost` (T16) registers here when it exists.
       throw new Error(`EZPUG_IRON_PROVIDERS names "${id}", which this build does not provide`)
     }
   }
@@ -175,6 +203,14 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     ),
   })
 
+  const nodes = createNodes({
+    clock,
+    log,
+    store,
+    registry: nodeRegistry,
+    disconnect: (nodeId, code, reason) => nodeLink.disconnect(nodeId, code, reason),
+  })
+
   /**
    * Assigned below, read from the app's `isDraining`: the health route has
    * to exist before the drain does (the drain closes the server the route is
@@ -187,7 +223,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet }),
+      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet, nodes }),
     ),
     rateLimiter: createRateLimiter({ clock, ...config.rateLimit }),
     health,
@@ -207,13 +243,22 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     hub,
     isDraining: () => shutdown?.draining === true,
   })
-  const link = attachServerLink({
+  const serverLink = attachServerLink({
     router: upgrades,
     clock,
     log,
     store,
     matches,
     links,
+    isDraining: () => shutdown?.draining === true,
+  })
+  link = serverLink
+  const nodeLink = attachNodeLink({
+    router: upgrades,
+    clock,
+    log,
+    store,
+    registry: nodeRegistry,
     isDraining: () => shutdown?.draining === true,
   })
   const httpDrain = createHttpDrain(server, clock)
@@ -226,7 +271,8 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       httpDrain,
       redis,
       database,
-      links: link,
+      links: serverLink,
+      nodeLinks: nodeLink,
       streams: {
         close: () => {
           for (const client of wss.clients) client.close(1001, 'draining')
@@ -250,7 +296,10 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     store,
     providers,
     links,
-    link,
+    link: serverLink,
+    nodeLink,
+    nodeRegistry,
+    nodes,
     matches,
     fleet,
     hub,
@@ -263,6 +312,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     async start() {
       await hub.start()
       await matches.resume()
+      await nodesProvider?.topUp()
       webhooks.start()
       reaper.start()
       budgets.start()

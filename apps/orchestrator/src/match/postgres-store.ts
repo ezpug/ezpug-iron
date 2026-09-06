@@ -7,6 +7,8 @@ import {
   matchCommands,
   matchEvents,
   matches,
+  nodeEnrolments,
+  nodes,
   playerTokens,
   servers,
   serverTokens,
@@ -18,6 +20,7 @@ import type {
   MatchEventRow,
   MatchRow,
   MatchStore,
+  NodeRow,
   Page,
   ServerRow,
 } from './store'
@@ -289,6 +292,16 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
       await executor.update(serverTokens).set({ lastUsedAt: at }).where(eq(serverTokens.id, id))
     },
 
+    findLiveServerToken: fleetServerId =>
+      one(
+        executor
+          .select()
+          .from(serverTokens)
+          .where(and(eq(serverTokens.fleetServerId, fleetServerId), isNull(serverTokens.revokedAt)))
+          .orderBy(desc(serverTokens.createdAt))
+          .limit(1),
+      ),
+
     upsertBackup: async (row, keep) => {
       await executor
         .insert(backups)
@@ -329,5 +342,28 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
       ),
     findPlayerTokenByHash: tokenHash =>
       one(executor.select().from(playerTokens).where(eq(playerTokens.tokenHash, tokenHash))),
+    reassignServerToken: async (id, fleetServerId) => {
+      await executor.update(serverTokens).set({ fleetServerId }).where(eq(serverTokens.id, id))
+    },
+
+    insertNode: async row => {
+      await executor.insert(nodes).values(row)
+    },
+    findNode: id => one<NodeRow>(executor.select().from(nodes).where(eq(nodes.id, id))),
+    findNodeByTokenHash: tokenHash =>
+      one<NodeRow>(executor.select().from(nodes).where(eq(nodes.tokenHash, tokenHash))),
+    listNodes: async () =>
+      executor.select().from(nodes).where(isNull(nodes.revokedAt)).orderBy(asc(nodes.enrolledAt)),
+    updateNode: async (id, patch) => {
+      await executor.update(nodes).set(patch).where(eq(nodes.id, id))
+    },
+    insertNodeEnrolment: async row => {
+      await executor.insert(nodeEnrolments).values(row)
+    },
+    findNodeEnrolmentByHash: tokenHash =>
+      one(executor.select().from(nodeEnrolments).where(eq(nodeEnrolments.tokenHash, tokenHash))),
+    useNodeEnrolment: async (id, at) => {
+      await executor.update(nodeEnrolments).set({ usedAt: at }).where(eq(nodeEnrolments.id, id))
+    },
   }
 }

@@ -5,6 +5,8 @@ import type {
   MatchEventRow,
   MatchRow,
   MatchStore,
+  NodeEnrolmentRow,
+  NodeRow,
   Page,
   PlayerTokenRow,
   ServerRow,
@@ -29,6 +31,8 @@ export function createMemoryMatchStore(): MatchStore & {
     serverTokens: ServerTokenRow[]
     backups: BackupRow[]
     playerTokens: PlayerTokenRow[]
+    nodes: NodeRow[]
+    nodeEnrolments: NodeEnrolmentRow[]
   }
 } {
   const matches: MatchRow[] = []
@@ -39,6 +43,8 @@ export function createMemoryMatchStore(): MatchStore & {
   const serverTokens: ServerTokenRow[] = []
   const backups: BackupRow[] = []
   const playerTokens: PlayerTokenRow[] = []
+  const nodes: NodeRow[] = []
+  const nodeEnrolments: NodeEnrolmentRow[] = []
 
   const copy = <T>(value: T): T => structuredClone(value)
   const byId = (id: string): MatchRow | undefined => matches.find(row => row.id === id)
@@ -56,7 +62,18 @@ export function createMemoryMatchStore(): MatchStore & {
     )
 
   return {
-    rows: { matches, events, deliveries, commands, servers, serverTokens, backups, playerTokens },
+    rows: {
+      matches,
+      events,
+      deliveries,
+      commands,
+      servers,
+      serverTokens,
+      backups,
+      playerTokens,
+      nodes,
+      nodeEnrolments,
+    },
 
     insertMatch: row => {
       if (byId(row.id)) throw new Error(`match ${row.id} exists`)
@@ -218,6 +235,15 @@ export function createMemoryMatchStore(): MatchStore & {
       return Promise.resolve()
     },
 
+    findLiveServerToken: fleetServerId =>
+      Promise.resolve(
+        copy(
+          [...serverTokens]
+            .filter(row => row.fleetServerId === fleetServerId && row.revokedAt === null)
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0],
+        ),
+      ),
+
     upsertBackup: (row, keep) => {
       const existing = backups.findIndex(
         b =>
@@ -258,5 +284,46 @@ export function createMemoryMatchStore(): MatchStore & {
       ),
     findPlayerTokenByHash: tokenHash =>
       Promise.resolve(copy(playerTokens.find(row => row.tokenHash === tokenHash))),
+    reassignServerToken: (id, fleetServerId) => {
+      const row = serverTokens.find(candidate => candidate.id === id)
+      if (!row) throw new Error(`no server token ${id}`)
+      row.fleetServerId = fleetServerId
+      return Promise.resolve()
+    },
+
+    insertNode: row => {
+      nodes.push(copy(row))
+      return Promise.resolve()
+    },
+    findNode: id => Promise.resolve(copy(nodes.find(row => row.id === id))),
+    findNodeByTokenHash: tokenHash =>
+      Promise.resolve(
+        copy(nodes.find(row => row.tokenHash !== null && row.tokenHash === tokenHash)),
+      ),
+    listNodes: () =>
+      Promise.resolve(
+        nodes
+          .filter(row => row.revokedAt === null)
+          .sort((a, b) => a.enrolledAt.getTime() - b.enrolledAt.getTime())
+          .map(copy),
+      ),
+    updateNode: (id, patch) => {
+      const row = nodes.find(candidate => candidate.id === id)
+      if (!row) throw new Error(`no node ${id}`)
+      Object.assign(row, copy(patch))
+      return Promise.resolve()
+    },
+    insertNodeEnrolment: row => {
+      nodeEnrolments.push(copy(row))
+      return Promise.resolve()
+    },
+    findNodeEnrolmentByHash: tokenHash =>
+      Promise.resolve(copy(nodeEnrolments.find(row => row.tokenHash === tokenHash))),
+    useNodeEnrolment: (id, at) => {
+      const row = nodeEnrolments.find(candidate => candidate.id === id)
+      if (!row) throw new Error(`no node enrolment ${id}`)
+      row.usedAt = at
+      return Promise.resolve()
+    },
   }
 }

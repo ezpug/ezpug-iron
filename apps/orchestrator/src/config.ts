@@ -27,6 +27,13 @@ export const REDIS_URL_VAR = 'EZPUG_IRON_REDIS_URL'
  */
 export const BOOTSTRAP_API_KEY_VAR = 'EZPUG_IRON_BOOTSTRAP_API_KEY'
 
+/**
+ * What a node runs when nothing says otherwise: the local dev build
+ * `pnpm cs2:build` writes. A deployment sets
+ * `EZPUG_IRON_NODE_SERVER_IMAGE` to a published, digest-pinned tag.
+ */
+export const DEFAULT_NODE_SERVER_IMAGE = 'ghcr.io/ezpug/ezpug-iron/cs2:dev'
+
 /** The dev port, decided in `.env.example` against `ss -tlnp` on this box. */
 export const DEFAULT_PORT = 3430
 
@@ -70,8 +77,14 @@ export interface OrchestratorConfig {
   readonly port: number
   /** `NODE_ENV === 'production'`: refuses dev-only doors. */
   readonly production: boolean
-  /** The providers to register, in `EZPUG_IRON_PROVIDERS` order (T3/T4 register them). */
+  /** The providers to register, in `EZPUG_IRON_PROVIDERS` order (T3/T4/T12 register them). */
   readonly providers: readonly string[]
+  /**
+   * The CS2 server image a node runs (T12). Pin it by digest in production:
+   * this is the one string that decides which build a venue's hardware
+   * plays on, and `docs/pins.md` is where the tag lives.
+   */
+  readonly nodeServerImage: string
   /**
    * The secret of the dev bootstrap key, or null. Never logged, never in an
    * answer: `main.ts` hands it to `ensureBootstrapKey` and forgets it.
@@ -186,6 +199,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
         ),
       migrateOnBoot: booleanFromEnv(false),
       migrationsDir: z.string().min(1).nullable(),
+      nodeServerImage: z.string().min(1).max(512),
     })
     .safeParse({
       // `EZPUG_IRON_PUBLIC_URL` is the name the dev contract other projects'
@@ -203,6 +217,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       bootstrapApiKey: env[BOOTSTRAP_API_KEY_VAR] || null,
       migrateOnBoot: env.EZPUG_IRON_MIGRATE_ON_BOOT,
       migrationsDir: env.EZPUG_IRON_MIGRATIONS_DIR || null,
+      nodeServerImage: env.EZPUG_IRON_NODE_SERVER_IMAGE || DEFAULT_NODE_SERVER_IMAGE,
     })
   if (!parsed.success)
     fail(parsed.error.issues, {
@@ -215,6 +230,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       bootstrapApiKey: BOOTSTRAP_API_KEY_VAR,
       migrateOnBoot: 'EZPUG_IRON_MIGRATE_ON_BOOT',
       migrationsDir: 'EZPUG_IRON_MIGRATIONS_DIR',
+      nodeServerImage: 'EZPUG_IRON_NODE_SERVER_IMAGE',
     })
   const { rateLimitBurst, rateLimitPerSecond, ...rest } = parsed.data
   const production = env.NODE_ENV === 'production'

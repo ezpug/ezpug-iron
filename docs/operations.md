@@ -205,7 +205,7 @@ deploy smoke and `pnpm dev:status` all read this one route.
 Boot: read the environment → open the pool and the Redis client → register the providers
 `EZPUG_IRON_PROVIDERS` names → build the machine, the hub, the worker and the reaper over
 them → build the app over the route table → create the server and attach the upgrade
-router (the stream, the server link; the node link joins in T12) → arm the drain → ping both rails → **start**
+router (the stream, the server link, the node link) → arm the drain → ping both rails → **start**
 (the hub joins the Redis fan-out, every open match re-arms its deadlines from its row, the
 worker and the reaper arm their sweeps) → listen. The port opens **last**, so a probe
 during a slow boot gets a refused connection (a starting process) and never a
@@ -215,13 +215,16 @@ Shutdown is an **order**, not a set of `close()` calls (`apps/orchestrator/src/s
 
 1. `health` — `/healthz` turns 503, so whatever is in front stops sending work here.
 2. `listener` — the port closes; idle keep-alive sockets are hung up; in-flight requests keep running.
-3. `links` — every server link is closed `4012`; the plugins reconnect by themselves with backoff (the node links join here in T12).
-4. `streams` — every stream socket is closed `1001`; a subscriber replays from the events route when it returns.
-5. `requests` — in-flight requests get five seconds to answer, then every socket is destroyed.
-6. `reaper`, `webhooks`, `matches`, `hub` — the sweeps disarm, attempts in flight finish, every
+3. `links` — every server link is closed `4012`; the plugins reconnect by themselves with backoff.
+4. `node-links` — then every node link, so a container's last `state` frame still lands on a
+   link this process is listening to. The agents reconnect with backoff too, and the
+   containers they run never stop.
+5. `streams` — every stream socket is closed `1001`; a subscriber replays from the events route when it returns.
+6. `requests` — in-flight requests get five seconds to answer, then every socket is destroyed.
+7. `reaper`, `webhooks`, `matches`, `hub` — the sweeps disarm, attempts in flight finish, every
    match's deadlines disarm and its chain drains, then the hub leaves the fan-out. A match
    mid-flight is *not* ended: its row says where it was, and the next boot re-arms it.
-7. `redis`, then 8. `database` — last, because everything above may still have been writing.
+8. `redis`, then 9. `database` — last, because everything above may still have been writing.
 
 The whole drain is bounded to eight seconds on the clock (compose waits ten and then
 SIGKILLs). A step that throws is logged and the drain continues; a second SIGTERM exits at
@@ -417,6 +420,75 @@ the real `/link` are recorded under `packages/protocol/fixtures/link/` — the f
 side round-trips. `link/server-link.test.ts` runs the whole thing over a real socket on a
 fake clock; `EZPUG_IRON_RECORD=1` rewrites the goldens.
 
+## Nodes
+
+A **node** is a docker host running the `ezpug-node` agent (decision 23; `docs/nodes.md`
+is the venue runbook and covers the operator's side of everything below). To the
+orchestrator every enrolled node together is one provider, `nodes`, whose servers cost
+nothing and are `lan: true` — which is why a `requirements.lan` request lands on venue
+hardware first (`providers/selection.ts`, `lanFirst`).
+
+**`/node`** (`link/node-link.ts`) is the server link's smaller twin: the same raw `ws`
+upgrade on the router in front of Hono, the same "every listener before anything is
+awaited" rule, the same `hello`-first handshake and the same `LINK_CLOSE_CODES`. What
+travels is different — this link carries *containers*, never a match. Nothing is acked:
+an `instances` frame is a whole snapshot, so a lost one is superseded by the next and a
+reconnecting node resends its state in `hello`.
+
+**Enrolment is two steps, and only the second one produces a lasting secret.**
+`POST /v1/fleet/nodes` writes the `nodes` row and mints a one-time **enrolment** token
+(`ezie_`, 24 hours, hashed into `node_enrolments`), shown once in the response. The node
+presents it in its first `hello`; the link spends the enrolment, mints the **node** token
+(`ezin_`, hashed onto the row) and hands it over in the `welcome` — the only time it is
+ever readable. `DELETE` revokes the token and closes the socket `4009`. Re-`POST`ing an id
+that already exists is a rebuild: a fresh one-time token *and* the node token in force
+revoked, because two agents answering for one node would have the pool counting its
+capacity twice. What the `hello` says (region, labels, capacity, version, image digest)
+lands on the row, so a node that re-labels itself needs no re-enrolment.
+
+**Capacity.** One offering per enrolled node. Connected and undrained: what it can still
+run, `hourlyCents: 0`, `lan` and `region` as the node reports them, `tickrate` from its
+`tickrate` label. Every other node: `available: 0`, and it stays in the list — "the venue
+exists and is not answering" is a different fact from "there is no venue". Instances take
+the lowest free game/GOTV port pair from `27415` up, per node, avoiding whatever the node
+already reports. The address players are told is the node's `address` label, else the peer
+address its own socket came from.
+
+**The warm pool is the orchestrator's to fill.** `EZPUG_NODE_WARM` is what the node
+*advertises*; a warm instance is a server with a server token, and only this process mints
+those. So each warm container gets a ledger row of its own — provider `nodes`, no match,
+cost 0, charged to the key that enrolled the node (`nodes.enrolled_by_key_id`) — and a
+server token minted against it, and it dials `/link` and sits `idle`. A node with no
+enrolling key warms nothing and says so once.
+
+**A claim is the one place two rows meet.** `allocate` prefers a free warm instance;
+`configure` then moves the container from its warm row to the walk's row — the token is
+**re-pointed** (`reassignServerToken`) rather than replaced, because there is no way to
+hand a running CS2 server a new credential, and the warm row is closed `released`,
+"claimed by match …". The walk's own freshly minted token stays on the row unused and dies
+with it. `start` rebinds the live link session to the new row and match and sends the
+assignment down the socket the container is already holding — **after** returning, because
+composing an assignment runs on the match's chain and the walk that called `start` is
+still holding it. Cold instances are the ordinary path: `start` sends the node a container
+spec carrying the walk's token, and the boot deadline covers the CS2 boot.
+
+The upshot in the ledger is one open row per container, always, charged to the key that is
+using it: a warm row from the moment the container booted to the moment a match claimed
+it, then the match's row — which is what makes a node match count against that key's
+concurrency ceiling even though it costs nothing.
+
+**A node that drops off the wire does not end its matches.** Its containers keep running
+and the agent adopts them from their labels when it dials back (`apps/node`); the provider
+keeps listing them, so the reaper does not call a live match lost, and says
+`fleet.node_disconnected` into every match the node was holding. Only after
+`NODE_LOST_MS` (a minute) does `status` report those servers `gone` — from there the
+machine's recovery window takes over (T14). After a restart of *this* process the provider
+rebuilds its instance map from the open ledger rows on the node's first `hello`, for the
+same reason.
+
+`nodes/nodes.test.ts` runs all of it over real sockets on a fake clock: the fake node from
+`@ezpug/protocol/fake-node` as the agent, the fake server as the containers it starts.
+
 ## The MatchZy door
 
 The one HTTP path a server speaks to besides its link: `POST /matchzy/log`
@@ -545,7 +617,7 @@ from the injected clock.
 | `match_commands` | commands by `correlationId`, with their result — a retry answers the first result across a restart | commands (T3) |
 | `servers` | **the ledger**: one row per server ever asked for — provider, handle, node, match, key, state, address (never a password), hourly cost, the GSLT lease, the link's facts (`last_seen_at`, versions, acked seq), the RCON audit (T20), allocated / released / expires | the provisioning walk and the reaper (T3), the link (T6) |
 | `server_tokens` | the per-server link credential, hashed; one live token per row | providers (T3, T12, T16) |
-| `nodes` | every `ezpug-node` enrolled: region, labels, capacity, connection facts, the node token's hash | the node link (T11, T12) |
+| `nodes` | every `ezpug-node` enrolled: region, labels, capacity, connection facts, the node token's hash, and the key that enrolled it (whose warm containers are charged to it) | enrolment and the node link (T12) |
 | `node_enrolments` | the one-time enrolment tokens, hashed, spent on first hello | enrolment (T12) |
 | `gslt_tokens` | the Steam game server accounts this deployment minted, the login token **in clear**, the lease | the GSLT pool (T17) |
 | `backups` | round backups, small text, the latest few per match | the link (T6), recovery (T14) |

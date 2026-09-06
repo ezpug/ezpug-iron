@@ -120,6 +120,14 @@ export interface LinkSessionView {
 export interface ServerLink {
   sessions: () => LinkSessionView[]
   get: (server: ServerRef) => LinkSessionView | undefined
+  /**
+   * Point a live session at another ledger row and match. The one caller is
+   * the node provider's warm claim (T12): the container was welcomed under
+   * the warm row it booted with, and a match has just taken it over — its
+   * events name the new match from here on, and {@link ServerLink.assign}
+   * reads the new row. True when there was a session to move.
+   */
+  rebind: (server: ServerRef, fleetServerId: string, matchId: string | null) => boolean
   /** Compose and send the assignment for a connected server's row (a warm instance that just got a match, T12). */
   assign: (server: ServerRef) => Promise<boolean>
   /** Wait for every tracked write (a throttled `last_seen_at`) to land — a test's door. */
@@ -148,6 +156,8 @@ interface Session {
   answer: (frame: ServerFrame) => boolean
   /** Everything else, on the session's inbound chain, in order. */
   handle: (frame: ServerFrame) => Promise<void>
+  /** The warm claim (T12): this socket now belongs to another row and match. */
+  rebind: (fleetServerId: string, matchId: string | null) => void
   write: (frame: OrchestratorFrame) => void
   replace: () => void
   closed: () => void
@@ -190,7 +200,8 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
     installed: readonly string[],
   ): Session => {
     const key = serverKey(ref)
-    const matchId = row.matchId
+    let fleetServerId = row.id
+    let matchId = row.matchId
     let ackedSeq = ackedAtHello
     /** Seqs above `ackedSeq` already taken — the gap a reordered batch leaves. */
     const window = new Set<number>()
@@ -224,7 +235,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
       armSilence()
       if (clock.now() - lastSeenWrittenAt < LAST_SEEN_WRITE_INTERVAL_MS) return
       lastSeenWrittenAt = clock.now()
-      track(store.updateServer(row.id, { lastSeenAt: clock.date() }), `${key} last_seen_at`)
+      track(store.updateServer(fleetServerId, { lastSeenAt: clock.date() }), `${key} last_seen_at`)
     }
 
     const request = <T extends Answer['type']>(
@@ -359,7 +370,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
         currentMap = map
         patch.currentMap = map
       }
-      if (Object.keys(patch).length > 0) await store.updateServer(row.id, patch)
+      if (Object.keys(patch).length > 0) await store.updateServer(fleetServerId, patch)
     }
 
     const ingestBatch = async (frame: Extract<ServerFrame, { type: 'events' }>) => {
@@ -383,7 +394,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
         }
         results.push({ seq, status, ...(message !== undefined && { message }) })
       }
-      await store.updateServer(row.id, { linkAckedSeq: ackedSeq, lastSeenAt: clock.date() })
+      await store.updateServer(fleetServerId, { linkAckedSeq: ackedSeq, lastSeenAt: clock.date() })
       lastSeenWrittenAt = clock.now()
       write({ type: 'ack', results })
     }
@@ -414,7 +425,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
             {
               id: randomUUID(),
               matchId: frame.matchId,
-              fleetServerId: row.id,
+              fleetServerId,
               mapNumber: frame.backup.mapNumber,
               roundNumber: frame.backup.roundNumber,
               filename: frame.backup.filename,
@@ -460,13 +471,17 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
       seen,
       answer,
       handle,
+      rebind: (nextRow, nextMatch) => {
+        fleetServerId = nextRow
+        matchId = nextMatch
+      },
       write,
       replace: () => {
         log.info(`link ${key}: replaced by a newer socket`)
         ws.close(LINK_CLOSE_CODES.replaced, 'replaced by a newer socket')
       },
       closed,
-      view: () => ({ server: ref, fleetServerId: row.id, matchId, ackedSeq, consoleTail }),
+      view: () => ({ server: ref, fleetServerId, matchId, ackedSeq, consoleTail }),
     }
     armSilence()
     return session
@@ -628,6 +643,15 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
   return {
     sessions: () => [...sessions.values()].map(session => session.view()),
     get: server => sessions.get(serverKey(server))?.view(),
+    rebind: (server, fleetServerId, matchId) => {
+      const session = sessions.get(serverKey(server))
+      if (!session) return false
+      session.rebind(fleetServerId, matchId)
+      log.info(
+        `link ${serverKey(server)}: rebound to ${fleetServerId}${matchId ? ` for ${matchId}` : ''}`,
+      )
+      return true
+    },
     assign: async server => {
       const session = sessions.get(serverKey(server))
       if (!session) return false

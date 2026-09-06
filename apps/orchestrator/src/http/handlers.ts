@@ -10,6 +10,7 @@ import type { Budgets } from '../budget/service'
 import type { Fleet } from '../fleet/service'
 import type { AuthenticatedKey, Keys } from '../keys/service'
 import type { Matches } from '../match/machine'
+import type { Nodes } from '../nodes/service'
 
 /**
  * **One handler per route, the shape of the table itself, typed by it**: a
@@ -19,9 +20,9 @@ import type { Matches } from '../match/machine'
  *
  * Served: the catalog and the keys (T2), matches, capacity, the fleet's
  * servers, providers and ledger (T3), the budget and the keys' rotation and
- * ceilings (T5). Everything else answers {@link notServedYet} until the task
- * that builds it replaces the entry: T12 (nodes), T17 (gslt), T20 (console,
- * rcon), T24 (player tokens). A route that is not yet served still exists: it authenticates,
+ * ceilings (T5), the nodes (T12). Everything else answers {@link notServedYet} until the task
+ * that builds it replaces the entry: T17 (gslt), T20 (console, rcon), T24
+ * (player tokens). A route that is not yet served still exists: it authenticates,
  * gates its scope and validates its input like every other, and then says
  * so with `internal` — never a `404` that would lie about the contract.
  */
@@ -49,6 +50,7 @@ export interface HandlerDependencies {
   gamemodes: readonly GamemodeManifest[]
   matches: Matches
   fleet: Fleet
+  nodes: Nodes
 }
 
 /** A handler for a route a later task serves; names the task so the answer is honest. */
@@ -76,7 +78,7 @@ function upgradeRequired(): ApiError {
 }
 
 export function createHandlers(deps: HandlerDependencies): RouteHandlers {
-  const { keys, budgets, gamemodes, matches, fleet } = deps
+  const { keys, budgets, gamemodes, matches, fleet, nodes } = deps
   return {
     gamemodes: {
       list: () => ({ gamemodes: [...gamemodes] }),
@@ -124,11 +126,11 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
         undrain: ({ params }) => fleet.setDrained(params.providerId, false),
       },
       nodes: {
-        list: notServedYet('T12'),
-        enrol: notServedYet('T12'),
-        revoke: notServedYet('T12'),
-        drain: notServedYet('T12'),
-        undrain: notServedYet('T12'),
+        list: async () => ({ nodes: await nodes.list() }),
+        enrol: ({ body }, ctx) => nodes.enrol(body, ctx.key.key.id),
+        revoke: ({ params }) => nodes.revoke(params.nodeId),
+        drain: ({ params }) => nodes.setDrained(params.nodeId, true),
+        undrain: ({ params }) => nodes.setDrained(params.nodeId, false),
       },
       ledger: ({ query }) => {
         const { cursor, limit, ...filter } = query

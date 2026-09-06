@@ -63,9 +63,55 @@ orchestrator is `127.0.0.1:3430`. `--group-add` because the docker socket is own
 host's `docker` group and the agent runs as uid 1000, not root — one file descriptor is
 not a reason to run a daemon as root.
 
-On this box, from the checkout, the same thing without the image is `pnpm node enrol
-<token>` and `pnpm node run` with `.env` carrying the `EZPUG_NODE_*` lines from
-`.env.example` (from T12, `pnpm dev:up` starts it beside the orchestrator).
+On this box, from the checkout, `pnpm dev:node up` does the whole dance in one command —
+mint a fleet key, `POST /v1/fleet/nodes`, enrol with the one-time token it hands back, run
+the agent in the background — and `pnpm dev:up` calls it for you when the orchestrator is
+already running and `EZPUG_IRON_PROVIDERS` names `nodes`. It is opt-in on purpose:
+registering a real provider takes the simulator out of selection for every request that did
+not ask for it (`providers/selection.ts`), which is right at a venue and wrong on an
+offline afternoon. `pnpm dev:node down|status|logs|forget` are the rest of it; by hand it is
+still `pnpm node enrol <token>` and `pnpm node run` with the `EZPUG_NODE_*` lines from
+`.env.example`.
+
+## What the orchestrator does with it
+
+The other half of the story lives in the orchestrator (`docs/operations.md`, "Nodes"), and
+these are the parts a venue operator can see:
+
+- **`POST /v1/fleet/nodes`** writes the row and mints the **one-time** enrolment token,
+  shown once. The node spends it on its first `hello` and is handed its long-lived node
+  token in the `welcome`. So the secret that travels to the venue is worth nothing after
+  the box has used it, and losing it costs one `POST`.
+- **Re-enrolling an existing id** (the box is being rebuilt) mints a fresh one-time token
+  *and* revokes the node token in force, hanging up on whatever is connected — two agents
+  answering for one node would have the pool counting its capacity twice.
+- **`DELETE /v1/fleet/nodes/:id`** revokes the token and closes the socket (`4009`); the
+  agent stops dialling and says to run `forget`. The containers it was running keep
+  running: they belong to the orchestrator's ledger, not to the agent.
+- **`POST …/drain`** stops new work landing here and tells the agent so; live matches
+  finish. `…/undrain` takes it back.
+- **Capacity.** A connected, undrained node offers what it can still run. One that is not
+  answering offers **zero and stays in the list** — "the venue exists and is not answering"
+  is a different fact from "there is no venue", and only the first one is actionable.
+- **The warm pool.** `EZPUG_NODE_WARM` is what the node *advertises*; the orchestrator is
+  what fills it, because a warm instance is a server with a server token and only the
+  orchestrator mints those. Each warm container gets a ledger row of its own, charged to
+  the key that enrolled the node at a price of zero, and dials `/link` and sits idle. When
+  a match claims it, that row closes ("claimed by match …"), the match's own row takes over
+  — charged to the match's key, which is what makes the concurrency ceiling count a node
+  match — and the container keeps the credential it booted with. Nothing restarts, which is
+  the entire point: a `lan` request is ready in seconds instead of a CS2 boot.
+- **Ports.** The orchestrator assigns each instance the lowest free game/GOTV pair from
+  `27415` up, per node, avoiding whatever the node already reports running.
+- **The address players are told** is the `address` label when the node carries one
+  (`EZPUG_NODE_LABELS=address=saarlan-1.example.com`), else the peer address the node's own
+  socket came from. Set the label whenever the box is behind NAT from the orchestrator's
+  point of view.
+- **A node that drops off the wire** does not end its matches. Its containers keep running
+  and the agent adopts them when it dials back; the orchestrator says
+  `fleet.node_disconnected` into every match the node was holding and keeps listing those
+  servers, so the reaper does not call a live match lost. Only after a minute away are its
+  servers reported gone — and then the recovery window is T14's business.
 
 ## What the agent does
 

@@ -142,6 +142,13 @@ export const nodes = pgTable('nodes', {
   capacityWarm: integer('capacity_warm').notNull().default(0),
   /** SHA-256 of the node token; null until the enrolment hello. */
   tokenHash: text('token_hash'),
+  /**
+   * The key that enrolled it (T12). A warm instance is a container the node
+   * runs before any match asked for it — free, but still a ledger row, and a
+   * ledger row is always somebody's. It is this key's until a match claims
+   * the container and opens its own row.
+   */
+  enrolledByKeyId: uuid('enrolled_by_key_id').references(() => apiKeys.id),
   lastSeenAt: timestamptz('last_seen_at'),
   enrolledAt: createdAt('enrolled_at'),
   revokedAt: timestamptz('revoked_at'),

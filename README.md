@@ -96,10 +96,23 @@ pnpm cs2:up        # a dedicated server on 27415 (GOTV 27420), dialling the orch
 pnpm cs2:console   # attach to its console (detach: Ctrl-P Ctrl-Q)
 ```
 
-That server is started by hand today; a venue box runs the same image under **`ezpug-node`**
-(`apps/node`), the agent that enrols against an orchestrator and starts server containers
-when it is told to. `docs/nodes.md` installs one in five commands; on this box it is
-`pnpm node enrol <token>` and `pnpm node run`.
+A venue box runs that same image under **`ezpug-node`** (`apps/node`), the agent that
+enrols against an orchestrator and starts server containers when it is told to; the
+orchestrator sees every enrolled node as one free, LAN-capable provider, so a match asking
+for `requirements.lan` lands there first. `docs/nodes.md` installs one in five commands.
+This box can be one too:
+
+```sh
+# with `EZPUG_IRON_PROVIDERS=sim,nodes` in .env and `pnpm dev` running
+pnpm dev:node up      # mint a key, enrol, run the agent in the background
+pnpm dev:node status  # what it is, what docker says, when it last dialled
+pnpm dev:node down    # stop the agent — its containers keep running
+```
+
+`pnpm dev:up` does that for you when both conditions hold, and prints why it did not
+otherwise. Adding `nodes` is opt-in because registering a *real* provider takes the
+simulator out of selection for every request that did not ask for it — right at a venue,
+wrong on an offline afternoon.
 
 ## Releasing `@ezpug/match-api`
 

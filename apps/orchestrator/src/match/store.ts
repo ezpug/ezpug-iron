@@ -151,6 +151,48 @@ export interface ServerRow {
 
 export type ServerPatch = Partial<Omit<ServerRow, 'id' | 'keyId' | 'allocatedAt'>>
 
+/**
+ * **A node** (decision 23): every `ezpug-node` ever enrolled, by the kebab
+ * id the operator chose. The link (T12) writes the connection facts; the
+ * row outlives every disconnect, because a node that is not answering is a
+ * node with no capacity, never a node that stopped existing.
+ */
+export interface NodeRow {
+  id: string
+  region: string
+  labels: Record<string, string>
+  version: string | null
+  imageDigest: string | null
+  connected: boolean
+  drained: boolean
+  capacityTotal: number
+  capacityInUse: number
+  capacityWarm: number
+  /** SHA-256 of the node token; null until the enrolment `hello` claims one. */
+  tokenHash: string | null
+  /**
+   * The key that enrolled it. It is who a warm instance's ledger row is
+   * charged to — a container the node runs before any match asked for it
+   * still costs nothing but is still a row (T12).
+   */
+  enrolledByKeyId: string | null
+  lastSeenAt: Date | null
+  enrolledAt: Date
+  revokedAt: Date | null
+}
+
+export type NodePatch = Partial<Omit<NodeRow, 'id' | 'enrolledAt'>>
+
+/** The one-time token `POST /v1/fleet/nodes` shows once, spent by the first `hello`. */
+export interface NodeEnrolmentRow {
+  id: string
+  nodeId: string
+  tokenHash: string
+  createdAt: Date
+  expiresAt: Date
+  usedAt: Date | null
+}
+
 export interface BackupRow {
   id: string
   matchId: string
@@ -265,6 +307,8 @@ export interface MatchStore {
   findServerTokenByHash: (tokenHash: string) => Promise<ServerTokenRow | undefined>
   /** `last_used_at`, written once per `hello`. */
   touchServerToken: (id: string, at: Date) => Promise<void>
+  /** The newest live token of a row — how the node provider finds again what it minted before a restart (T12). */
+  findLiveServerToken: (fleetServerId: string) => Promise<ServerTokenRow | undefined>
 
   // --- backups and player tokens (written by T6/T14 and T24; read here) ----------
   /**
@@ -277,4 +321,25 @@ export interface MatchStore {
   listBackups: (matchId: string) => Promise<BackupRow[]>
   latestBackup: (matchId: string) => Promise<BackupRow | undefined>
   findPlayerTokenByHash: (tokenHash: string) => Promise<PlayerTokenRow | undefined>
+  /**
+   * Point a live server token at another ledger row. The one caller is the
+   * node provider's warm claim (T12): the container keeps the credential it
+   * booted with, and that credential now opens the match's row instead of
+   * the warm one it was minted for.
+   */
+  reassignServerToken: (id: string, fleetServerId: string) => Promise<void>
+
+  // --- nodes (T12) ----------------------------------------------------------------
+  insertNode: (row: NodeRow) => Promise<void>
+  findNode: (id: string) => Promise<NodeRow | undefined>
+  /** The node link's one lookup on a `node` `hello`. */
+  findNodeByTokenHash: (tokenHash: string) => Promise<NodeRow | undefined>
+  /** Every node ever enrolled and not revoked, oldest first. */
+  listNodes: () => Promise<NodeRow[]>
+  updateNode: (id: string, patch: NodePatch) => Promise<void>
+  insertNodeEnrolment: (row: NodeEnrolmentRow) => Promise<void>
+  /** The node link's lookup on an `enrolment` `hello`; spent and expired rows come back too, and are refused by the caller. */
+  findNodeEnrolmentByHash: (tokenHash: string) => Promise<NodeEnrolmentRow | undefined>
+  /** Spend an enrolment: a second `hello` with the same one-time token is refused. */
+  useNodeEnrolment: (id: string, at: Date) => Promise<void>
 }
