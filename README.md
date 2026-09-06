@@ -86,6 +86,16 @@ The first API key comes from the box: `pnpm --filter @ezpug/orchestrator keys:mi
 --name root --scopes admin` prints it once. `docs/operations.md` is the operator's
 reference — the environment, the schema, migrations, keys, what is and is not stored.
 
+A real CS2 server on this box is one lane further, and opt-in because the game is tens of
+gigabytes:
+
+```sh
+pnpm cs2:build     # the server image: Metamod, CounterStrikeSharp, MatchZy, EZPug.Core, the cfg set
+pnpm cs2:install   # the game itself, once, into a docker volume — never into the checkout
+pnpm cs2:up        # a dedicated server on 27415 (GOTV 27420), dialling the orchestrator
+pnpm cs2:console   # attach to its console (detach: Ctrl-P Ctrl-Q)
+```
+
 ## Releasing `@ezpug/match-api`
 
 The package is the contract, so a schema change is a release with a changelog line, never

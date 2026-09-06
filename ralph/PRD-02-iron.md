@@ -295,7 +295,7 @@ every offline proof here.
 
 **The dev iron: image, node, real matches**
 
-- [ ] **T10: The server image.** `docker/cs2/Dockerfile` from the legacy image: steamrt
+- [x] **T10: The server image.** `docker/cs2/Dockerfile` from the legacy image: steamrt
   `sniper` runtime, steamcmd installs app 730 into the named volume `cs2-data` (one time,
   ~35 GB, gitignored, with a progress line and an honest size warning), Metamod +
   CounterStrikeSharp + MatchZy + retakes + the allocator + the WeaponPaints fork (T28
@@ -307,6 +307,33 @@ every offline proof here.
   `.env.example`), `pnpm cs2:install|build|up|down|logs|console`. The image is also what
   ghcr publishes for nodes (T34) and what T18 uploads the plugin set from. References:
   legacy `Dockerfile`, `scripts/server.sh`, `scripts/setup.sh`.
+
+- [ ] **T10a (P1, fable): the conformance suite races the sim's story under load.**
+  Found in T10, pre-existing, not caused by it: on a loaded box `conformance.test.ts`'s
+  `happy-bo1` fails `a pause is accepted — invalid_state` (sometimes the `announce` before
+  it, sometimes `every durable envelope was delivered by webhook`), and `config-only` /
+  `open-join` / `webhook-replay` fail the same delivery check. Reproduced **2 of 3** and
+  **2 of 4** full-suite runs with six busy CPU loops beside them
+  (`cd apps/orchestrator && pnpm vitest run` with the box loaded); **0 of 10** for
+  `conformance.test.ts` alone under the same load, and green on an idle box — which is why
+  it has been passing. Mechanism, as far as T10 traced it: the runner polls with
+  `CONFORMANCE_POLL_INTERVAL_MS` = 10 s of *fake* time
+  (`packages/match-api/src/fixtures/conformance/runner.ts:29`), one `advance` deals many of
+  the sim's beats (`packages/sim/src/server.ts:364-374`, `scheduleNext` → `void
+  emitted.done`), and those ingests are deliberately **not awaited** (the sim channel's
+  `say`, `providers/sim/channel.ts:51`, because the command that caused the event holds the
+  match's chain — T3's note). `createTestApp`'s `settle()`
+  (`apps/orchestrator/src/http/testing.ts:200-209`) therefore returns while a story is
+  still draining, the flow observes `live`, and the rest of the match lands before its
+  `pause` does — `machine.ts:1040` refuses `pause only while live`. Tracking the ingest
+  promise in the machine's existing `inflight`/`track` set was tried in T10 and **did not
+  fix it** (2 of 4 after, indistinguishable from 2 of 3 before) — it made the drain more
+  complete and moved the failure earlier onto the `announce`, so a second real-time source
+  is still escaping the barrier; that change was reverted rather than shipped inside T10.
+  Fix the barrier so a fake-clock match cannot advance between a client's calls, keep
+  `settle()`'s promise ("every chain and in-flight step has settled", `machine.ts:180`)
+  true, and prove it by the loaded reproduction above run ten times green. Never retried
+  into green (working rules).
 
 - [ ] **T11 (fable): `ezpug-node`.** `apps/node`: one process (and a container image) on
   any docker host — enrol once with a one-time token (`ezpug-node enrol <token>`), then

@@ -59,8 +59,9 @@ On a CS2 dedicated server with Metamod and CounterStrikeSharp at the pinned vers
    `plugins/EZPug.Core`).
 2. Put the vendored plugins under `plugins/disabled/<Name>/` — the folder name is what a
    manifest's `plugins` lists (`MatchZy`, `RetakesPlugin`, `WeaponPaints`).
-3. Copy `gamemodes/*/cfg/*.cfg` to `game/csgo/cfg/ezpug/` (the manifests name them as
-   `ezpug/<id>.cfg`).
+3. Copy each `gamemodes/<id>/cfg/` tree into `game/csgo/cfg/` (the manifests name their
+   files as `ezpug/<id>.cfg`, so `gamemodes/pug/cfg/ezpug/pug.cfg` lands at
+   `game/csgo/cfg/ezpug/pug.cfg`). The image's entrypoint does exactly this at every boot.
 4. Tell the plugin where home is — **either** in the environment of the server process:
 
    ```
@@ -182,8 +183,16 @@ host resolves from `shared/`. Name the folder what the manifest's `plugins` says
 
 ## What is not here yet
 
-No dev CS2 container exists before PRD-02 T10, so `CounterStrikeWorld` and `CorePlugin`
-(the two files that call CounterStrikeSharp) are checked by compiling against the pinned
-API and by the harness tests of everything behind them; the first real-server run is
-T13's. `backup` frames (T9/T14), the demo upload (T21), the scoreboard rating (T27), the
+The server image (PRD-02 T10, `docker/cs2/Dockerfile`) is what installs all of the above
+without a human: `pnpm cs2:build && pnpm cs2:install && pnpm cs2:up` gives a CS2 server on
+this box with Metamod, CounterStrikeSharp, MatchZy and this tree already in place
+(`docs/operations.md`, "The CS2 server image"). T10 **loaded this tree on a real CS2 server
+for the first time**: Metamod takes `libserver.so`, CounterStrikeSharp starts its .NET
+runtime and logs `Loading plugin EZPug.Core`, and the plugin answers with its own line —
+`EZPug.Core 0.1.0 on EZPug.Sdk 0.1.0; … installed plugins: EZPug.Core, MatchZy; unlinked` —
+then the map loads and the server stays up. What is still unproven on real hardware is
+everything that needs a *link*: no server token exists until a provider allocates one
+(T12's node), so `hello`, `assign`, the gamemode loader and the console commands have only
+ever run on the SDK harness. The first linked run, and the first match, are T13's.
+`backup` frames (T9/T14), the demo upload (T21), the scoreboard rating (T27), the
 skins hand-off (T28) and branding beyond the hostname (T29) are the tasks that name them.

@@ -1,0 +1,55 @@
+# The dev CS2 server (CLAUDE.md "Offline-first", PRD-02 T10).
+#
+#   pnpm cs2:build      build the image from docker/cs2/Dockerfile
+#   pnpm cs2:install    the game itself, once, into the cs2-data volume (~67 GB)
+#   pnpm cs2:up         run it
+#   pnpm cs2:console    attach to the server console (detach: Ctrl-P Ctrl-Q)
+#
+# Deliberately its own file and its own compose project: `compose.yaml` is the
+# stack every clone needs and this is the opt-in lane behind `EZPUG_CS2_TESTS`.
+# The container talks to the orchestrator on this box and to nothing else; from
+# T12 it is started by `ezpug-node` instead, with the same image and the same
+# environment, so what runs here is what a venue runs.
+name: ezpug-iron-cs2
+
+services:
+  cs2:
+    build:
+      context: .
+      dockerfile: docker/cs2/Dockerfile
+      args:
+        EZPUG_GIT_SHA: ${EZPUG_GIT_SHA:-unknown}
+    image: ${EZPUG_IRON_CS2_IMAGE:-ghcr.io/ezpug/ezpug-iron/cs2:dev}
+    container_name: ezpug-iron-cs2
+    restart: unless-stopped
+    # Host networking: a game server's traffic is UDP and its clients read the
+    # address out of the packets, so a NAT hop between the two is an evening of
+    # "it connects from this machine but not that one". It also puts the
+    # orchestrator on 127.0.0.1:3430 for the link, which is what this box is.
+    network_mode: host
+    # The console is the operator's only in-container tool (`pnpm cs2:console`),
+    # and it needs a tty to attach to.
+    stdin_open: true
+    tty: true
+    environment:
+      EZPUG_IRON_CS2_GAME_PORT: ${EZPUG_IRON_CS2_GAME_PORT:-27415}
+      EZPUG_IRON_CS2_GOTV_PORT: ${EZPUG_IRON_CS2_GOTV_PORT:-27420}
+      EZPUG_IRON_CS2_START_MAP: ${EZPUG_IRON_CS2_START_MAP:-de_dust2}
+      EZPUG_IRON_CS2_RCON_PASSWORD: ${EZPUG_IRON_CS2_RCON_PASSWORD:-}
+      EZPUG_IRON_CS2_EXTRA_ARGS: ${EZPUG_IRON_CS2_EXTRA_ARGS:-}
+      # The sidecar (plugins/README.md). Empty means the plugin loads unlinked
+      # and says so; T12 hands both to the container from the node instead.
+      EZPUG_IRON_URL: ${EZPUG_IRON_CS2_LINK_URL:-}
+      EZPUG_SERVER_TOKEN: ${EZPUG_IRON_CS2_SERVER_TOKEN:-}
+      EZPUG_LOBBY_MAP: ${EZPUG_IRON_CS2_START_MAP:-de_dust2}
+    volumes:
+      # The game: ~67 GB installed once by `pnpm cs2:install`, never rebuilt,
+      # never in the repository.
+      - cs2-data:/serverdata/serverfiles
+      # The gamemodes' cfg set, live from the checkout: editing a cfg is a
+      # restart, not a rebuild. The image carries the same files for the boxes
+      # that have no checkout (a node, the Dathost template).
+      - ./gamemodes:/opt/ezpug/gamemodes:ro
+
+volumes:
+  cs2-data:

@@ -3,9 +3,10 @@
 // reads. This refuses a disagreement between the two, so a bump that edits one
 // and forgets the other goes red in `pnpm lint` (PRD-01 T10).
 //
-// Only the pins with a machine-readable home are checked. Metamod and the
-// vendored plugins live in files PRD-02 writes; their rows are prose until
-// then, and this script grows a case per home as one appears.
+// Only the pins with a machine-readable home are checked. This script grows a
+// case per home as one appears; the vendored plugins that are still source
+// nobody has taken yet (cs2-retakes, the WeaponPaints fork) are prose until
+// PRD-02 T23 and T28 give them one.
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,6 +20,11 @@ const buildProps = read('plugins/Directory.Build.props')
 const globalJson = JSON.parse(read('plugins/global.json'))
 const workspace = read('pnpm-workspace.yaml')
 const orchestratorImage = read('docker/orchestrator/Dockerfile')
+const cs2Image = read('docker/cs2/Dockerfile')
+
+/** The value of an `ARG NAME=value` line in a Dockerfile, or undefined. */
+const dockerArg = (dockerfile, name) =>
+  dockerfile.match(new RegExp(`^ARG ${name}=(\\S+)$`, 'm'))?.[1]
 
 /** The one line of a `catalog:` entry, or undefined. */
 const catalogVersion = name => workspace.match(new RegExp(`^\\s+"?${name}"?:\\s*(\\S+)$`, 'm'))?.[1]
@@ -42,6 +48,26 @@ const expected = [
     orchestratorImage.match(/^FROM node:(\S+) AS base$/m)?.[1],
     'docker/orchestrator/Dockerfile',
   ],
+  // The server image: everything it downloads is a version *and* a checksum,
+  // so a row here is two numbers and both have to be in the table.
+  ['Metamod:Source', dockerArg(cs2Image, 'METAMOD_VERSION'), 'docker/cs2/Dockerfile'],
+  [
+    'CounterStrikeSharp (the release)',
+    dockerArg(cs2Image, 'COUNTER_STRIKE_SHARP_VERSION'),
+    'docker/cs2/Dockerfile',
+  ],
+  ['MatchZy', dockerArg(cs2Image, 'MATCHZY_VERSION'), 'docker/cs2/Dockerfile'],
+  [
+    'steamrt sniper (the base image)',
+    // Tag plus the first eight of the digest, which is how the table writes
+    // it — a full sha256 in a prose table is unreadable and nobody would ever
+    // check it by eye. The Dockerfile carries the whole thing.
+    cs2Image
+      .match(/^FROM registry\.gitlab\.steamos\.cloud\/\S+:(\S+)@sha256:(\w{8})/m)
+      ?.slice(1, 3)
+      .join('@sha256:'),
+    'docker/cs2/Dockerfile',
+  ],
   ...['typescript', 'vitest', 'zod', 'tsdown', 'hono', 'drizzle-orm', 'postgres', 'ioredis'].map(
     name => [name, catalogVersion(name), 'pnpm-workspace.yaml catalog'],
   ),
@@ -53,6 +79,19 @@ for (const [what, version, home] of expected) {
   else if (!pins.includes(`\`${version}\``))
     problems.push(`docs/pins.md does not carry ${what} \`${version}\` (${home})`)
 }
+
+// The one pin that lives in two homes and *must* agree with itself: the API a
+// plugin is compiled against and the CounterStrikeSharp release that loads it.
+// A mismatch here is the failure this whole table exists to prevent, and it is
+// invisible until a server boots with half its plugins missing.
+const compiledAgainst = buildProps.match(/<CounterStrikeSharpApiVersion>([^<]+)</)?.[1]
+const shippedInTheImage = dockerArg(cs2Image, 'COUNTER_STRIKE_SHARP_VERSION')
+if (compiledAgainst !== shippedInTheImage)
+  problems.push(
+    `the plugins compile against CounterStrikeSharp.API ${compiledAgainst} ` +
+      `(plugins/Directory.Build.props) but the server image ships ${shippedInTheImage} ` +
+      '(docker/cs2/Dockerfile COUNTER_STRIKE_SHARP_VERSION)',
+  )
 
 if (problems.length > 0) {
   console.error('check-pins: docs/pins.md disagrees with the files a build reads')

@@ -28,11 +28,13 @@ cp "$bin/EZPug.Core.dll" "$bin/EZPug.Core.deps.json" "$bin/EZPug.Core.pdb" "$css
 cp "$bin/EZPug.Sdk.dll" "$bin/EZPug.Sdk.pdb" "$css/shared/EZPug.Sdk/"
 
 # A marker so an operator (and T18's --check) can read what was built without a dll.
+# EZPUG_GIT_SHA wins over `git`, because inside the CS2 image's build there is no
+# checkout to ask (`.git` is not in the build context).
 sdk_version=$(grep -o '<Version>[^<]*' EZPug.Sdk/EZPug.Sdk.csproj | sed 's/<Version>//')
 core_version=$(grep -o '<Version>[^<]*' EZPug.Core/EZPug.Core.csproj | sed 's/<Version>//')
 css_version=$(grep -o '<CounterStrikeSharpApiVersion>[^<]*' Directory.Build.props | sed 's/<CounterStrikeSharpApiVersion>//')
 printf '{"sdk":"%s","core":"%s","counterStrikeSharp":"%s","commit":"%s"}\n' \
-  "$sdk_version" "$core_version" "$css_version" "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)" \
+  "$sdk_version" "$core_version" "$css_version" "${EZPUG_GIT_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}" \
   > "$css/plugins/EZPug.Core/build.json"
 
 echo "published to $out:"

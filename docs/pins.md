@@ -39,11 +39,19 @@ orchestrator's rails (Drizzle, postgres.js, ioredis) are the versions the platfo
 | ---- | --- | ---- | ------------ |
 | CounterStrikeSharp.API | `1.0.373` | `plugins/Directory.Build.props`, `<CounterStrikeSharpApiVersion>` | the runtime `EZPug.Sdk` and the core plugin load into. `EZPug.Sdk.Tests` asserts the restored assembly carries this number, so a silent NuGet drift fails `pnpm verify` |
 | Target framework | `net10.0` | `plugins/Directory.Build.props` | CounterStrikeSharp moved to .NET 10 (LTS) on 2026-05-30; every API package from **1.0.369** on targets `net10.0` only (1.0.368 is the last `net8.0`). Decided in PRD-01 T1 |
-| Metamod:Source | `2.0`, build `git1411` | not vendored yet — PRD-02's image script | the loader CounterStrikeSharp itself needs. The image pins the exact build so a rebuild is reproducible |
+| Metamod:Source | `2.0.0-git1411` | `docker/cs2/Dockerfile`, `METAMOD_VERSION` (+ `METAMOD_SHA256`) | the loader CounterStrikeSharp itself needs. The image pins the exact build *and* its checksum, so a rebuild is the same rebuild and a changed artifact is a red build |
+| CounterStrikeSharp (the release) | `1.0.373`, `counterstrikesharp-with-runtime-linux` | `docker/cs2/Dockerfile`, `COUNTER_STRIKE_SHARP_VERSION` (+ `COUNTER_STRIKE_SHARP_SHA256`) | the same number as the NuGet row above — `check-pins` holds the two against each other, because a plugin compiled against one API and loaded by another is the failure mode this table exists to prevent. "with runtime" because the steamrt base ships no .NET |
+| steamrt sniper (the base image) | `latest-container-runtime-depot@sha256:8cd1bdfc` (truncated; the Dockerfile carries the whole digest) | `docker/cs2/Dockerfile` (`FROM registry.gitlab.steamos.cloud/…`) | the runtime Valve builds the CS2 dedicated server against. Pinned **by digest**: the tag moves, and a server that ran yesterday has to run today |
+| steamcmd | unversioned | `docker/cs2/Dockerfile` (the one Valve URL) | it updates itself on every run; there is no version to pin and pretending otherwise would be a lie in this table |
 
 Everything above ships **in the image** (decision 16): one image with every plugin baked
 in, the core plugin enabling exactly what a gamemode manifest names. Nothing is downloaded
-at boot.
+at boot — the one exception is the game itself, app 730, which is ~67 GB and is installed
+once into the `cs2-data` volume by `pnpm cs2:install` (`docker/cs2/install-game.sh`).
+
+The three downloaded artifacts carry a SHA-256 beside their version in the Dockerfile.
+Refreshing one after a bump is `curl -fsSL <url> | sha256sum`; a mismatch fails the build
+rather than shipping something nobody looked at.
 
 ## The vendored community plugins
 
@@ -52,7 +60,7 @@ them under `plugins/vendor/` and updates the "Vendored at" column with the commi
 
 | Plugin | Pin | Builds against | Vendored at |
 | ------ | --- | -------------- | ----------- |
-| [MatchZy](https://github.com/shobhit-pathak/MatchZy) | `0.8.15` | CounterStrikeSharp.API 1.0.342, `net8.0` | not yet — the platform's read-only reference checkout is at `ef289d51` ("0.8.15: noclip command fix") |
+| [MatchZy](https://github.com/shobhit-pathak/MatchZy) | `0.8.15` | CounterStrikeSharp.API 1.0.342, `net8.0` | the release binary, not source: `docker/cs2/Dockerfile`, `MATCHZY_VERSION` (+ `MATCHZY_SHA256`), unzipped into `plugins/disabled/MatchZy/` with its `cfg/MatchZy/` set. The platform's read-only reference checkout is at `ef289d51` ("0.8.15: noclip command fix") |
 | [cs2-retakes](https://github.com/B3none/cs2-retakes) | `3.1.0` | `net8.0` | not yet |
 | [cs2-WeaponPaints](https://github.com/Nereziel/cs2-WeaponPaints) | commit `fa8936f3` | CounterStrikeSharp.API 1.0.367, Dapper 2.1.72, MySqlConnector 2.5.0, `net8.0` | not yet — the commit is the platform's recorded one, whose `CREATE TABLE`s the `Loadout` schema mirrors field for field |
 

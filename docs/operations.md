@@ -57,7 +57,10 @@ reads. The compose project is `ezpug-iron-dev`, its containers `ezpug-iron-postg
 `ezpug-iron-redis`, published on loopback only, on the ports `.env.example` decides (5443,
 6383 — the platform's world holds 5442 and 6382 on the same box).
 
-Running the orchestrator *inside* another project's dev world is the next section.
+Running the orchestrator *inside* another project's dev world is the next section; the
+dev CS2 server is its own opt-in lane (`pnpm cs2:*`, "The CS2 server image" below) and
+not part of `dev:up` — every clone needs Postgres and Redis, only the boxes that run
+matches need 67 GB of game.
 
 ## The image, and running it inside another project's dev world
 
@@ -116,6 +119,74 @@ ezpug-iron:
 ```
 
 A key of the right shape is one line: `printf 'ezik_%s\n' "$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')"`.
+
+## The CS2 server image
+
+The other image this repo builds (`ghcr.io/ezpug/ezpug-iron/cs2`,
+`docker/cs2/Dockerfile`): one Counter-Strike 2 dedicated server with everything EZPug needs
+baked in. It is what `pnpm cs2:up` runs on this box, what `ezpug-node` starts on a venue
+box (T11/T12), and where the Dathost template script takes its plugin set from (T18) — one
+build, three destinations, because a server that runs a different plugin set than the one
+that was tested is not a tested server.
+
+```sh
+pnpm cs2:build     # build it (the plugins are compiled inside the build)
+pnpm cs2:install   # install/update app 730 into the cs2-data volume — ~67 GB, once
+pnpm cs2:up        # run it on this box, host network, ports 27415 + 27420
+pnpm cs2:status    # image built? game installed? container running, and what it said
+pnpm cs2:logs      # follow it
+pnpm cs2:console   # attach to the server console — detach with Ctrl-P Ctrl-Q
+pnpm cs2:down      # stop it; the game install stays in the volume
+```
+
+**What is in the image, and what is not.** In: Metamod, CounterStrikeSharp (the release
+that ships its own .NET runtime — the steamrt base has none), MatchZy, `EZPug.Sdk` and
+`EZPug.Core`, and the `gamemodes/*/cfg` set. Every one of them is a pinned version with a
+SHA-256 beside it in the Dockerfile and a row in `docs/pins.md`, and `pnpm lint` refuses a
+disagreement between the two — including the one pin that lives twice, the
+CounterStrikeSharp version the plugins compile against and the release that loads them.
+cs2-retakes with its allocator (T23) and the WeaponPaints fork (T28) are the two slots
+still empty; the core plugin's loader warns and skips a plugin that is not there, and the
+orchestrator refuses an assignment naming one before it is ever sent.
+
+Not in: **the game**. App 730 is ~67 GB installed from a ~71 GB download — measured on this
+box in T10, not a guess — so it lives in the `cs2-data` docker volume and is installed once
+by `docker/cs2/install-game.sh`, which is a separate entrypoint on purpose: a server that
+installs its own game at boot is a server that downloads 67 GB on a Saturday because a
+volume was pruned. The entrypoint refuses to start and names the command instead. Nothing
+else in this repo downloads anything at runtime (decision 16).
+
+Two things the first real boot taught, both now handled by the image and worth knowing
+when one of them resurfaces:
+
+- **`steamclient.so`.** A dedicated server dlopens it from `~/.steam/sdk64` and, without
+  it, exits **0** moments after its plugins load — a clean shutdown to every eye, and a
+  silent boot loop under a restart policy. steamcmd only writes it on its first run, so
+  the image does that run at build time (as the `steam` user; as root steamcmd dies with
+  "Failed to load steamconsole.so").
+- **The RCON password is never on the command line.** The engine strips `+rcon_password`
+  from the line it prints, but CounterStrikeSharp echoes the raw command line at boot, so
+  it would land in `docker logs` in clear. It is written to a `0600 cfg/ezpug/rcon.cfg`
+  and `+exec`'d instead, which also keeps it out of `/proc/*/cmdline`.
+
+**Every boot** (`docker/cs2/entrypoint.sh`): the image's `addons/` is copied over the
+volume's, the Metamod line is put back into `gameinfo.gi` if a game update removed it, the
+cfg set is copied into `game/csgo/cfg/` (each gamemode's `cfg/` by name — a bind mount of
+the checkout's `gamemodes/` wins, so editing a cfg here is a restart and not a rebuild),
+Steam's client libraries are put where the server looks for them, and `cs2` is `exec`'d so
+it is PID 1: signals reach the game and `docker attach` is a real console.
+
+**Where home is.** The container passes `EZPUG_IRON_URL` and `EZPUG_SERVER_TOKEN` through
+to the plugin, which also accepts `game/csgo/ezpug.json` (what the Dathost provider uploads,
+T16). With neither, the plugin loads **unlinked**: it works, every event is dropped, and
+both the boot log and `ezpug_status` say so. The boot log names the orchestrator's host and
+never the token; `-usercon` gets a password that is minted per boot and not logged unless
+`EZPUG_IRON_CS2_RCON_PASSWORD` chose one.
+
+**No GSLT.** A Steam Game Server Login Token is leased per running server and the pool
+exists for Dathost (T17); without one CS2 accepts LAN connections, which is all this box and
+a venue node ever need. Bots are allowed — `bot_quota` is a cfg and a request's cvar, not an
+image decision.
 
 ## Health
 
