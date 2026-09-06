@@ -14,6 +14,7 @@ import type {
   WebhookPayload,
 } from '@ezpug/match-api'
 import type { LinkServerState, ServerVersions } from '@ezpug/protocol'
+import type { RconAuditEntry } from '../db/schema/servers'
 
 /**
  * **What the match machine needs from storage**, and nothing more (PRD-02
@@ -152,6 +153,9 @@ export interface ServerRow {
 }
 
 export type ServerPatch = Partial<Omit<ServerRow, 'id' | 'keyId' | 'allocatedAt'>>
+
+/** How many RCON lines a ledger row keeps. A shift's worth; the oldest fall off. */
+export const RCON_AUDIT_KEEP = 200
 
 /**
  * **A node** (decision 23): every `ezpug-node` ever enrolled, by the kebab
@@ -334,6 +338,16 @@ export interface MatchStore {
   touchServerToken: (id: string, at: Date) => Promise<void>
   /** The newest live token of a row — how the node provider finds again what it minted before a restart (T12). */
   findLiveServerToken: (fleetServerId: string) => Promise<ServerTokenRow | undefined>
+  /**
+   * One line an operator ran through `POST /v1/fleet/servers/:id/rcon` and
+   * what came back, appended to the row's audit column (T20). Atomic and
+   * bounded to {@link RCON_AUDIT_KEEP} entries — two operators typing at once
+   * both leave a trace, and a long night does not grow a row without limit.
+   * The line and its output are already redacted by the caller.
+   */
+  appendRconAudit: (fleetServerId: string, entry: RconAuditEntry) => Promise<void>
+  /** The audit as it stands, oldest first — the operator's own trail. */
+  rconAudit: (fleetServerId: string) => Promise<RconAuditEntry[]>
 
   // --- backups and player tokens (written by T6/T14 and T24; read here) ----------
   /**

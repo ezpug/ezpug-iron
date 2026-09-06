@@ -54,6 +54,32 @@ describe('the trace', () => {
     })
   })
 
+  it('replaces the RCON password a node’s container spec carries (T20)', () => {
+    expect(
+      scrubTrace({
+        frame: {
+          type: 'start',
+          instance: {
+            env: {
+              EZPUG_IRON_URL: 'http://localhost:3430',
+              EZPUG_IRON_CS2_RCON_PASSWORD: 'not-a-real-one',
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      frame: {
+        type: 'start',
+        instance: {
+          env: {
+            EZPUG_IRON_URL: 'http://localhost:3430',
+            EZPUG_IRON_CS2_RCON_PASSWORD: TRACE_REDACTED,
+          },
+        },
+      },
+    })
+  })
+
   it('keeps a presigned URL’s path and drops its signature', () => {
     expect(
       scrubTrace({ demoUploadUrl: 'http://127.0.0.1:9400/demos/a.dem?X-Amz-Signature=deadbeef' }),

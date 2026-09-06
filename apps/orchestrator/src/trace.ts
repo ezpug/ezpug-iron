@@ -51,6 +51,10 @@ const SECRET_KEYS = new Set([
   'secret',
   'loginToken',
   'steam_game_server_login_token',
+  // The RCON password the node provider puts in a container's environment
+  // (T20). It is an *env var name*, not a field name, which is exactly why it
+  // has to be listed: nothing about its shape says "secret".
+  'EZPUG_IRON_CS2_RCON_PASSWORD',
 ])
 
 /** Keys holding a presigned URL: the path is a fact, the query is the signature. */

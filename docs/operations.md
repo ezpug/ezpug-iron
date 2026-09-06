@@ -445,6 +445,46 @@ the real `/link` are recorded under `packages/protocol/fixtures/link/` — the f
 side round-trips. `link/server-link.test.ts` runs the whole thing over a real socket on a
 fake clock; `EZPUG_IRON_RECORD=1` rewrites the goldens.
 
+## The console and RCON
+
+Two operator doors, both behind the `fleet` scope, both on `GET`/`POST
+/v1/fleet/servers/:id/…`. `:id` is the ledger row's uuid **or** the provider's own handle.
+
+**`GET …/console`** answers the tail of what the server has been printing, oldest first,
+at most 500 lines. Where it comes from, in order:
+
+1. **The plugin's own tail**, relayed over the link and cached on the session (*The link*,
+   above). This is the good answer — it is the game's console whoever rents the box. A
+   server that has never sent one is asked for one now; the round trip is a single frame.
+2. **The provider's backlog**, for the minutes before the link is up: Dathost keeps a
+   console log and the provider reads it. A node keeps none (the container *is* the
+   server), and the sim has no console at all.
+3. **Nothing**, as `{"lines": []}` — an empty tail, not an error. A server that has said
+   nothing has said nothing.
+
+**`POST …/rcon`** runs one line and answers what the server printed. The order is not the
+obvious one, and the reason is worth knowing: the **provider's** RCON door goes first,
+because it is the only one that hands back *output*. Dathost reads its console around the
+command; a node opens a Source RCON socket on the game port (`apps/orchestrator/src/rcon/`
+— our own framing, ~150 lines, every deadline on the injected clock) with the password it
+put in the container's environment. Only when a provider has no door at all does the line
+go down the **link** instead: a plugin can run a command but cannot capture the engine's
+answer, so it applies the line and answers with nothing. A simulated server refuses with
+`command_unsupported`, which is what the route's contract promises. An unreachable door is
+`provider_unavailable`; a row the ledger has closed is `invalid_state`.
+
+The whole point of RCON here is that it is the *fallback* (decision 5). A server's real
+relationship with this process is its link; RCON is for a human and for the moment before
+the link is up.
+
+**Nothing from either route carries a credential.** Every line served and every line
+written to the audit passes through `rcon/redact.ts`, which masks the value after a
+password-ish cvar — `rcon_password`, `sv_password`, `sv_setsteamaccount`, MatchZy's
+remote-log header value, a presigned upload URL — and shortens any token of ours that
+somehow reached a line. What was run, by which key, and what came back is appended to the
+ledger row's `rcon_audit` column, atomically and bounded to the last 200 lines, so two
+operators typing at once both leave a trace.
+
 ## Nodes
 
 A **node** is a docker host running the `ezpug-node` agent (decision 23; `docs/nodes.md`
@@ -545,7 +585,7 @@ cfgs — and its id is the environment variable above. Then, per match:
 | `status` | one `GET` (the *list* does not refresh `booting`). Off means **stopped**, which during a live match is the loss the probe is looking for. |
 | `deallocate` | `stop` + `delete`, idempotent on a 404, and the GSLT lease goes back. |
 | `list` | every server on the account carrying our tag, **or** untagged and cloned from our template (the window between `duplicate` and the `PUT`). A server wearing another deployment's tag is never claimed — two orchestrators may share an account. |
-| `rcon` / `console` | the vendor's console endpoint — a log, not a request/response channel — for the moment before the link is up (T20 owns the route). |
+| `rcon` / `console` | the vendor's console endpoint — a log, not a request/response channel — for the moment before the link is up (the fleet console and RCON routes, above). |
 
 **What it deliberately does not touch.** `cs2_settings.slots` and GOTV are the template's:
 slots are part of a pay-as-you-go price and the ledger snapshots `cost_per_hour` at
@@ -952,8 +992,11 @@ no gap). Encrypting these two columns at rest with a key from the environment is
 possible hardening this round did not need.
 
 A join password is on the match (`matches.connect`) because the client is handed it by
-contract. An RCON password is *not* stored: the provider knows it (Dathost answers it,
-a node holds it) and the process asks at the moment it needs one (T20).
+contract. An RCON password is *not* stored: the provider knows it — Dathost answers it
+from the server's settings, and the `nodes` provider mints one per container, delivers it
+in the container's environment and keeps it in memory for the life of the process (T20).
+A restart therefore loses the password of every container it adopts, and RCON on such a
+server honestly says there is no door rather than guessing.
 
 ## Migrations
 

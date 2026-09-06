@@ -21,9 +21,10 @@ import type { Nodes } from '../nodes/service'
  *
  * Served: the catalog and the keys (T2), matches, capacity, the fleet's
  * servers, providers and ledger (T3), the budget and the keys' rotation and
- * ceilings (T5), the nodes (T12), the GSLT pool (T17). Everything else answers
- * {@link notServedYet} until the task that builds it replaces the entry:
- * T20 (console, rcon), T24 (player tokens). A route that is not yet served still exists: it authenticates,
+ * ceilings (T5), the nodes (T12), the GSLT pool (T17), the console and RCON
+ * (T20). Everything else answers {@link notServedYet} until the task that
+ * builds it replaces the entry: T24 (player tokens). A route that is not yet
+ * served still exists: it authenticates,
  * gates its scope and validates its input like every other, and then says
  * so with `internal` — never a `404` that would lie about the contract.
  */
@@ -120,8 +121,10 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
       servers: {
         list: async () => ({ servers: await fleet.servers() }),
         release: ({ params, body }) => fleet.release(params.serverId, body.reason),
-        console: notServedYet('T20'),
-        rcon: notServedYet('T20'),
+        console: async ({ params }) => ({ lines: await fleet.console(params.serverId) }),
+        rcon: async ({ params, body }, ctx) => ({
+          output: await fleet.rcon(ctx.key, params.serverId, body.command),
+        }),
       },
       providers: {
         list: async () => ({ providers: await fleet.providers() }),

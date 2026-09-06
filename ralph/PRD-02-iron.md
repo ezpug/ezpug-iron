@@ -441,13 +441,31 @@ every offline proof here.
 
 **Around the match**
 
-- [ ] **T20: RCON and the console.** A Source RCON client in `apps/orchestrator/src/rcon/`
+- [x] **T20: RCON and the console.** A Source RCON client in `apps/orchestrator/src/rcon/`
   (`rcon-client` or a hundred lines of our own — decide by reading it; timeouts on the
   clock) used only as the fallback behind the provider `rcon` verb when a server has an
   address and no link; `GET /v1/fleet/servers/:id/console` streams the plugin's relayed
   tail (and the Dathost console backlog before the link); `POST …/rcon` behind the
   `fleet` scope, every line and its output in the ledger's audit column. Never a password
   in a response.
+
+- [ ] **T20a (P1): the SDK's link-client tests wait on the wall clock, not the injected
+  one.** Found in T20's `pnpm verify:extended`, pre-existing, not caused by it:
+  `EZPug.Sdk.Tests.LinkClientTests.TheLoopReconnectsWithDoublingBackoffOnTheClockAndResetsItOnWelcome`
+  failed once, on a box that was also running turbo's TS suites in parallel *and* the
+  platform's own e2e round beside them; it then passed 3 of 3 alone and 4 of 4 as the whole
+  plugin suite once the box quietened, which is why it has been green. Mechanism: the test's
+  own timeline is the injected `IClock` (`rig.Clock.Advance`), but three of the harness's
+  waits are bounded by a **5 s wall clock** — `ScriptedLinkSocket.NextSentAsync`
+  (`plugins/EZPug.Sdk.Testing/ScriptedLinkSocket.cs:28`), `Rig.LoggedAsync`
+  (`plugins/EZPug.Sdk.Tests/LinkClientTests.cs:60`, whose own comment calls the bound "the
+  safety net, not the mechanism") and `Rig.WaitProcessedAsync` (`:116`). On a saturated box
+  the safety net becomes the mechanism and a slow scheduler reads as a broken backoff.
+  Make the harness's waits independent of wall-clock pressure (the same posture
+  `eventually()` has on the TS side: a generous budget that a loaded box cannot exhaust, or
+  a signal the rig already owns), leave the assertions exactly as they are, and prove it by
+  running the whole plugin suite ten times green with the box deliberately loaded. Never
+  retried into green (working rules).
 
 - [ ] **T21: Demos over the link's shoulder** (and the half of T13's lane that waited on
   it: `demo.uploaded` in `cs2.extended.test.ts`). For `records: demo` the core plugin owns

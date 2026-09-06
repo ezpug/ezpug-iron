@@ -8,6 +8,7 @@ import { requestHash } from './machine'
 import { createMemoryMatchStore } from './memory-store'
 import { createPostgresMatchStore } from './postgres-store'
 import type { MatchRow, MatchStore, ServerRow } from './store'
+import { RCON_AUDIT_KEEP } from './store'
 
 /**
  * **The store contract, run against both implementations** (PRD-02 T3):
@@ -258,6 +259,21 @@ async function contract(store: MatchStore, keyId: string): Promise<void> {
   expect((await store.listKeyLedgerSince(keyId, at(0))).map(s => s.id)).toEqual([s2.id, s1.id])
   expect((await store.listKeyLedgerSince(keyId, at(3_000))).map(s => s.id)).toEqual([s1.id])
   expect(await store.listKeyLedgerSince(randomUUID(), at(0))).toEqual([])
+
+  // The RCON audit (T20): appended in order, bounded, and its own per row.
+  expect(await store.rconAudit(s1.id)).toEqual([])
+  for (let line = 0; line < RCON_AUDIT_KEEP + 3; line += 1)
+    await store.appendRconAudit(s1.id, {
+      at: at(line).toISOString(),
+      keyId,
+      command: `status ${line}`,
+      output: 'ok',
+    })
+  const audit = await store.rconAudit(s1.id)
+  expect(audit).toHaveLength(RCON_AUDIT_KEEP)
+  expect(audit[0]?.command).toBe('status 3')
+  expect(audit.at(-1)?.command).toBe(`status ${RCON_AUDIT_KEEP + 2}`)
+  expect(await store.rconAudit(s2.id)).toEqual([])
 
   // backups (T6): the same round replaces, only the newest `keep` survive
   expect(await store.latestBackup(b.id)).toBeUndefined()

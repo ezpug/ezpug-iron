@@ -1,10 +1,21 @@
+import { randomUUID } from 'node:crypto'
 import type { Clock } from '@ezpug/core'
-import type { Capacity, FleetServer, LedgerFilter, ProviderHealth } from '@ezpug/match-api'
-import { ApiError, MATCH_API_ERROR_STATUS } from '@ezpug/match-api'
+import type {
+  Capacity,
+  ConsoleLine,
+  FleetServer,
+  LedgerFilter,
+  ProviderHealth,
+} from '@ezpug/match-api'
+import { ApiError, CONSOLE_LINES_MAX, MATCH_API_ERROR_STATUS } from '@ezpug/match-api'
+import type { AuthenticatedKey } from '../keys/service'
+import type { ConsoleTail, LinkRegistry, ServerChannel } from '../link/channels'
 import type { Matches } from '../match/machine'
 import type { MatchStore, ServerRow } from '../match/store'
 import { fleetServerView } from '../match/views'
 import type { ProviderRegistry } from '../providers/registry'
+import { RconError } from '../rcon/client'
+import { redactConsoleLine } from '../rcon/redact'
 
 /**
  * **The fleet, read and driven** (decisions 7, 12): the open rows, the
@@ -25,6 +36,10 @@ export interface Fleet {
   provider: (id: string) => Promise<ProviderHealth>
   setDrained: (id: string, drained: boolean) => Promise<ProviderHealth>
   capacity: () => Promise<Capacity>
+  /** The tail of a server's console: the plugin's, or the provider's backlog before the link is up (T20). */
+  console: (serverId: string) => Promise<ConsoleLine[]>
+  /** One RCON line and what came back, recorded in the row's audit column (T20). */
+  rcon: (key: AuthenticatedKey, serverId: string, command: string) => Promise<string>
 }
 
 export interface FleetOptions {
@@ -32,6 +47,8 @@ export interface FleetOptions {
   store: MatchStore
   registry: ProviderRegistry
   matches: Matches
+  /** The attached links, so the console route can read a plugin's own tail (T20). */
+  links: LinkRegistry
 }
 
 function offsetOf(cursor: string | undefined): number {
@@ -47,8 +64,19 @@ function offsetOf(cursor: string | undefined): number {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/**
+ * Why an RCON attempt did not produce output, in one phrase. Our own client
+ * answers with a word; anything else is whatever it threw, put through the
+ * same redaction as a console line — a provider's error message is not a
+ * place a credential is *supposed* to be, which is exactly why it is checked.
+ */
+function rconFailure(error: unknown): string {
+  if (error instanceof RconError) return error.failure
+  return redactConsoleLine(error instanceof Error ? error.message : String(error))
+}
+
 export function createFleet(options: FleetOptions): Fleet {
-  const { clock, store, registry, matches } = options
+  const { clock, store, registry, matches, links } = options
 
   const openCount = async (providerId: string): Promise<number> =>
     (await store.listOpenServers(providerId)).length
@@ -68,6 +96,24 @@ export function createFleet(options: FleetOptions): Fleet {
       throw new ApiError(MATCH_API_ERROR_STATUS.not_found, 'not_found', `no server ${serverId}`)
     return row
   }
+
+  /** The channel a row's server holds, if it dialled in and is still there. */
+  const channelOf = (row: ServerRow): ServerChannel | undefined =>
+    row.serverId === null
+      ? undefined
+      : links.get({ provider: row.provider, serverId: row.serverId })
+
+  /**
+   * A link tail stamps its lines with the *server's* uptime; the tail itself
+   * is stamped with ours when it arrived. One subtraction turns the pair into
+   * the wall-clock times the contract asks for, and a line older than the
+   * tail's own arrival is exactly that far in the past.
+   */
+  const linesOf = (tail: ConsoleTail): ConsoleLine[] =>
+    tail.lines.map(line => ({
+      at: new Date(tail.at.getTime() - (tail.uptimeMs - line.uptimeMs)).toISOString(),
+      line: redactConsoleLine(line.line),
+    }))
 
   return {
     servers: async () =>
@@ -96,6 +142,116 @@ export function createFleet(options: FleetOptions): Fleet {
     setDrained: (id, drained) => {
       registry.setDrained(id, drained)
       return health(id)
+    },
+
+    /**
+     * **What the server has been saying.** The plugin relays its own tail
+     * over the link (T6 caches the last one on the session), and that is the
+     * good answer: it is the game's console, whoever rents the box. Before
+     * the link is up there is only whatever the *control plane* kept — the
+     * Dathost console backlog — which is the moment this route exists for.
+     *
+     * A tail nobody has asked for yet is asked for now: the round trip is one
+     * frame, and an operator opening the console wants the console, not an
+     * empty page that fills in later. A server that does not answer inside
+     * the link's deadline falls through to the provider rather than failing;
+     * the whole route is a best effort by construction.
+     */
+    console: async serverId => {
+      const row = await findRow(serverId)
+      const channel = channelOf(row)
+      if (channel) {
+        let tail = channel.consoleTail?.()
+        if (!tail && channel.console) {
+          try {
+            tail = await channel.console(CONSOLE_LINES_MAX)
+          } catch {
+            tail = undefined
+          }
+        }
+        if (tail) return linesOf(tail).slice(-CONSOLE_LINES_MAX)
+      }
+      const provider = registry.get(row.provider)
+      if (!provider?.console || row.serverId === null) return []
+      const backlog = await provider.console(row.serverId)
+      return (backlog ?? [])
+        .slice(-CONSOLE_LINES_MAX)
+        .map(line => ({ at: line.at, line: redactConsoleLine(line.line) }))
+    },
+
+    /**
+     * **The operator's fallback** (decision 5). Order matters and is not the
+     * obvious one: the **provider's** `rcon` verb goes first, because it is
+     * the only door that hands back what the server *printed* — Dathost reads
+     * its console log around the command, a node opens a Source RCON socket
+     * on the game port (`../rcon/client.ts`). The link is the fallback behind
+     * it, not the other way round: a plugin can run a command but cannot
+     * capture the engine's answer, so it applies the line and says nothing.
+     * A provider with neither (the sim) is `command_unsupported`, which is
+     * what the route's contract promises.
+     *
+     * Whatever happens, the line and its answer land in the row's audit
+     * column — redacted, because a console prints passwords and this response
+     * may not.
+     */
+    rcon: async (key, serverId, command) => {
+      const row = await findRow(serverId)
+      if (row.releasedAt)
+        throw new ApiError(
+          MATCH_API_ERROR_STATUS.invalid_state,
+          'invalid_state',
+          `server ${serverId} is ${row.state}`,
+        )
+      if (row.serverId === null)
+        throw new ApiError(
+          MATCH_API_ERROR_STATUS.invalid_state,
+          'invalid_state',
+          `server ${serverId} has no handle yet; the provider has not answered`,
+        )
+      const line = redactConsoleLine(command)
+      const record = async (output: string): Promise<string> => {
+        await store.appendRconAudit(row.id, {
+          at: clock.date().toISOString(),
+          keyId: key.key.id,
+          command: line,
+          output,
+        })
+        return output
+      }
+
+      const provider = registry.get(row.provider)
+      if (provider?.rcon) {
+        let answered: string | null
+        try {
+          answered = await provider.rcon(row.serverId, command)
+        } catch (error) {
+          await record(`<failed: ${rconFailure(error)}>`)
+          throw new ApiError(
+            MATCH_API_ERROR_STATUS.provider_unavailable,
+            'provider_unavailable',
+            `rcon on ${serverId} failed: ${rconFailure(error)}`,
+          )
+        }
+        if (answered !== null) return await record(redactConsoleLine(answered))
+      }
+
+      const channel = channelOf(row)
+      if (!channel)
+        throw new ApiError(
+          MATCH_API_ERROR_STATUS.command_unsupported,
+          'command_unsupported',
+          `${row.provider} has no RCON for ${serverId}`,
+        )
+      const result = await channel.send({ type: 'rcon', correlationId: randomUUID(), command })
+      if (result.status === 'rejected')
+        throw new ApiError(
+          MATCH_API_ERROR_STATUS[result.code ?? 'command_unsupported'],
+          result.code ?? 'command_unsupported',
+          result.message ?? `${serverId} refused the command`,
+        )
+      // The plugin ran it; the engine's answer went to the server's own
+      // console, which is what the console route is for.
+      return await record(redactConsoleLine(result.output ?? ''))
     },
     capacity: async () => {
       const providers = await Promise.all(

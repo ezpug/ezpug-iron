@@ -25,6 +25,7 @@ import type {
   Page,
   ServerRow,
 } from './store'
+import { RCON_AUDIT_KEEP } from './store'
 
 /**
  * The Postgres {@link MatchStore}, over the T2 schema. Takes a
@@ -293,6 +294,38 @@ export function createPostgresMatchStore(executor: DatabaseExecutor): MatchStore
     touchServerToken: async (id, at) => {
       await executor.update(serverTokens).set({ lastUsedAt: at }).where(eq(serverTokens.id, id))
     },
+
+    /**
+     * Append and trim in one statement: `||` concatenates the new entry onto
+     * whatever the row holds, and the aggregate keeps the newest
+     * `RCON_AUDIT_KEEP` in their original order. Two operators typing at the
+     * same moment therefore both land — a read-modify-write here would drop
+     * one of them, which is the one thing an audit column may not do.
+     */
+    appendRconAudit: async (fleetServerId, entry) => {
+      const appended = sql`coalesce(${servers.rconAudit}, '[]'::jsonb) || ${JSON.stringify([entry])}::jsonb`
+      await executor
+        .update(servers)
+        .set({
+          rconAudit: sql`(
+            select coalesce(jsonb_agg(kept.value order by kept.ordinality), '[]'::jsonb)
+            from (
+              select value, ordinality
+              from jsonb_array_elements(${appended}) with ordinality
+              order by ordinality desc
+              limit ${RCON_AUDIT_KEEP}
+            ) as kept
+          )`,
+        })
+        .where(eq(servers.id, fleetServerId))
+    },
+    rconAudit: async fleetServerId =>
+      (
+        await executor
+          .select({ rconAudit: servers.rconAudit })
+          .from(servers)
+          .where(eq(servers.id, fleetServerId))
+      )[0]?.rconAudit ?? [],
 
     findLiveServerToken: fleetServerId =>
       one(

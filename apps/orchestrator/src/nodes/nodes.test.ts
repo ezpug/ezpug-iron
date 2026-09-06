@@ -11,7 +11,12 @@ import { createTestApp, type TestApp } from '../http/testing'
 import type { AuthenticatedKey } from '../keys/service'
 import { attachNodeLink, type NodeLink } from '../link/node-link'
 import { attachServerLink, type ServerLink } from '../link/server-link'
-import { createNodesProvider, type NodesProvider } from '../providers/nodes/provider'
+import {
+  CS2_RCON_PASSWORD_VAR,
+  createNodesProvider,
+  type NodesProvider,
+} from '../providers/nodes/provider'
+import { createFakeRcon } from '../rcon/fake-server'
 import { attachUpgradeRouter } from '../stream/upgrade'
 
 /**
@@ -75,7 +80,7 @@ interface NodeRig {
 const rigs: NodeRig[] = []
 const fakes: { close: () => unknown }[] = []
 
-async function createNodeRig(): Promise<NodeRig> {
+async function createNodeRig(options: { portBase?: number } = {}): Promise<NodeRig> {
   const holder: { link?: NodeLink } = {}
   const app = createTestApp({
     noProviders: true,
@@ -109,6 +114,7 @@ async function createNodeRig(): Promise<NodeRig> {
     baseUrl: 'http://localhost:3430',
     link: () => link,
     facts: { emit: (matchId, fact) => app.matches.emit(matchId, fact) },
+    ...(options.portBase !== undefined && { portBase: options.portBase }),
   })
   app.providers.register(provider)
   const port = await new Promise<number>(resolve =>
@@ -333,7 +339,11 @@ describe('a cold match', () => {
     expect(spec.purpose).toBe('match')
     expect(spec.image).toBe(IMAGE)
     expect(spec.matchId).toBe(match.id)
-    expect(spec.env).toEqual({ EZPUG_IRON_URL: 'http://localhost:3430' })
+    // The container is handed where to dial and the RCON password this
+    // process minted for it (T20) — and nothing else.
+    expect(Object.keys(spec.env).sort()).toEqual([CS2_RCON_PASSWORD_VAR, 'EZPUG_IRON_URL'])
+    expect(spec.env.EZPUG_IRON_URL).toBe('http://localhost:3430')
+    expect(spec.env[CS2_RCON_PASSWORD_VAR]).toMatch(/^[\w-]{16}$/)
     expect(spec.ports).toEqual({ game: 27_415, tv: 27_416 })
 
     // The row the walk opened points at the container, on the node, for free.
@@ -636,5 +646,74 @@ describe('a node that goes away', () => {
     expect(await rig.provider.list()).toEqual(before)
     // Adoption is not a second start.
     expect(node.starts().filter(start => start.purpose === 'match')).toHaveLength(1)
+  })
+})
+
+describe('rcon on a venue box', () => {
+  /**
+   * A node has no control plane to relay a command through: the container
+   * *is* the server. So `POST /v1/fleet/servers/:id/rcon` ends up on a real
+   * Source RCON socket (`../rcon/client.ts`) at the game port, with the
+   * password this process put in the container's environment — which is the
+   * one thing the ledger deliberately does not hold.
+   */
+  it('runs the line on the game port with the password it minted, and audits it', async () => {
+    const game = createFakeRcon({
+      password: 'set-once-the-container-exists',
+      commands: { status: 'hostname: EZPug LAN\nudp/ip: 127.0.0.1:27415' },
+    })
+    fakes.push({ close: () => void game.close() })
+    const port = await game.listen()
+
+    const rig = await createNodeRig({ portBase: port })
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    const spec = node.starts()[0]
+    if (!spec) throw new Error('the node was never told to start anything')
+    game.setPassword(spec.env[CS2_RCON_PASSWORD_VAR] as string)
+
+    const row = openRows(rig).find(candidate => candidate.serverId === spec.id)
+    if (!row) throw new Error('the walk opened no ledger row')
+    const answer = await rig.app.request(`/v1/fleet/servers/${row.id}/rcon`, {
+      method: 'POST',
+      key: rig.secret,
+      json: { command: 'status' },
+    })
+    expect(answer.status).toBe(200)
+    expect(answer.body.output).toBe('hostname: EZPug LAN\nudp/ip: 127.0.0.1:27415')
+    expect(game.seen).toEqual(['status'])
+
+    const audit = await rig.app.store.rconAudit(row.id)
+    expect(audit).toMatchObject([{ keyId: rig.key.key.id, command: 'status' }])
+    // The password lives in memory and in the container; not in the ledger.
+    expect(JSON.stringify(rig.app.store.rows.servers)).not.toContain(
+      spec.env[CS2_RCON_PASSWORD_VAR],
+    )
+    expect(rig.app.log.lines.join('\n')).not.toContain(spec.env[CS2_RCON_PASSWORD_VAR])
+  })
+
+  it('is an honest 503 with an audit line when the container is not listening', async () => {
+    // The provider dials 27415 on the node; nothing in this test is there.
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    const spec = node.starts()[0]
+    if (!spec) throw new Error('the node was never told to start anything')
+    const row = openRows(rig).find(candidate => candidate.serverId === spec.id)
+    if (!row) throw new Error('the walk opened no ledger row')
+
+    const answer = await rig.app.request(`/v1/fleet/servers/${row.id}/rcon`, {
+      method: 'POST',
+      key: rig.secret,
+      json: { command: 'status' },
+    })
+    expect(answer.status).toBe(503)
+    expect(answer.body.error.code).toBe('provider_unavailable')
+    // What was attempted is still on the record, with why it did not work.
+    expect(await rig.app.store.rconAudit(row.id)).toMatchObject([
+      { command: 'status', output: '<failed: unreachable>' },
+    ])
   })
 })

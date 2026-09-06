@@ -1,10 +1,11 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import type { Clock } from '@ezpug/core'
 import type { InstancePorts, InstanceSpec, NodeInstance } from '@ezpug/protocol'
 import type { ServerRef } from '../../link/channels'
 import type { Log } from '../../log'
 import type { MatchStore, NodeRow, ServerRow } from '../../match/store'
 import type { ConnectedNode, NodeRegistry } from '../../nodes/registry'
+import { createRconClient, type RconClient } from '../../rcon/client'
 import { hashToken, mintToken, type RandomBytes } from '../../tokens'
 import type {
   AllocatedServer,
@@ -46,10 +47,22 @@ import type {
  *
  * **What this provider never does** is talk to a game server. Events,
  * commands, the assignment and the release all travel on the server's own
- * link; a node only ever hears `start`, `stop`, `drain` and `undrain`.
+ * link; a node only ever hears `start`, `stop`, `drain` and `undrain`. The
+ * one exception is the `rcon` verb (T20), and it is the exception that proves
+ * the rule: it exists for the minutes *before* a container's plugin has
+ * dialled in, it goes to the game's own RCON port rather than through the
+ * node, and the fleet only reaches for it when there is no link to use.
  */
 
 export const NODES_PROVIDER_ID = 'nodes'
+
+/**
+ * The variable the server image reads its RCON password from
+ * (`docker/cs2/entrypoint.sh`, documented in `.env.example`). The node agent
+ * copies a spec's `env` into the container verbatim, so putting it here is
+ * the whole delivery.
+ */
+export const CS2_RCON_PASSWORD_VAR = 'EZPUG_IRON_CS2_RCON_PASSWORD'
 
 /** The GOTV delay a node's servers state, matching the image's `tv_delay`. */
 export const NODE_TV_DELAY_SECONDS = 90
@@ -102,6 +115,8 @@ export interface NodesProviderOptions {
   nodeLostMs?: number
   /** The bytes behind a minted server token; a test pins them. */
   random?: RandomBytes
+  /** The RCON door (T20); the default opens a real socket to the game port. */
+  rcon?: RconClient
 }
 
 /** A container this provider knows about, warm or claimed. */
@@ -126,6 +141,15 @@ interface Instance {
   bornWarm: boolean
   /** True once the node was told to run it. */
   started: boolean
+  /**
+   * The RCON password this process minted for the container and put in its
+   * environment. Memory only, never the ledger and never a log line — the
+   * schema's note on `servers` says why (CLAUDE.md, "secrets stay in the
+   * process"). Undefined for a container **adopted** after a restart: the
+   * password died with the process that minted it, and the honest answer to
+   * an RCON request on such a server is that there is no door, not a guess.
+   */
+  rconPassword?: string
 }
 
 export interface NodesProvider extends GameServerProvider {
@@ -148,6 +172,7 @@ const isFreeWarm = (instance: NodeInstance): boolean =>
 export function createNodesProvider(options: NodesProviderOptions): NodesProvider {
   const { clock, log, store, registry, image, baseUrl } = options
   const portBase = options.portBase ?? NODE_PORT_BASE
+  const rconClient = options.rcon ?? createRconClient({ clock })
   const warmTtlMs = options.warmTtlMs ?? WARM_TTL_MS
   const nodeLostMs = options.nodeLostMs ?? NODE_LOST_MS
   const instances = new Map<string, Instance>()
@@ -194,6 +219,10 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
     throw new Error(`nodes: no free port pair on ${node.id}`)
   }
 
+  /** A container's own RCON password, minted here and delivered in its environment. */
+  const mintRconPassword = (): string =>
+    (options.random ?? randomBytes)(12).toString('base64url').slice(0, 16)
+
   const mintInstanceId = (nodeId: string): string => {
     for (let attempt = 0; attempt < 64; attempt += 1) {
       const id = `${nodeId}-${randomUUID().replaceAll('-', '').slice(0, 6)}`
@@ -213,7 +242,12 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
     serverId: instance.id,
     serverToken,
     ports: instance.ports,
-    env: { EZPUG_IRON_URL: baseUrl },
+    env: {
+      EZPUG_IRON_URL: baseUrl,
+      ...(instance.rconPassword !== undefined && {
+        [CS2_RCON_PASSWORD_VAR]: instance.rconPassword,
+      }),
+    },
     ...(instance.matchId !== undefined && { matchId: instance.matchId }),
   })
 
@@ -282,6 +316,7 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
       claimed: false,
       bornWarm: true,
       started: false,
+      rconPassword: mintRconPassword(),
     }
     instance.fleetServerId = await openRow(node, nodeRow, instance, nodeRow.enrolledByKeyId)
     const serverToken = mintToken('server', options.random)
@@ -480,6 +515,7 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
         claimed: true,
         bornWarm: false,
         started: false,
+        rconPassword: mintRconPassword(),
       }
       instances.set(instance.id, instance)
       return Promise.resolve({
@@ -605,8 +641,27 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
       )
     },
 
-    // A node's servers speak on their own link; there is nothing to say here.
-    rcon: () => Promise.resolve(null),
+    /**
+     * **The operator's fallback on a venue box** (T20). A node has no control
+     * plane of its own to relay a command through — the container is the
+     * server — so this is Source RCON straight at the game port, with the
+     * password this process put in the container's environment. It answers
+     * `null` for an instance it does not hold or one whose node has gone
+     * away, which is the interface's "I have nothing to do that on".
+     */
+    async rcon(serverId: string, command: string): Promise<string | null> {
+      const instance = instances.get(serverId)
+      if (!instance?.rconPassword) return null
+      const node = registry.get(instance.nodeId)
+      if (!node) return null
+      return await rconClient.exec(
+        { host: node.address, port: instance.ports.game, password: instance.rconPassword },
+        command,
+      )
+    },
+
+    // A node keeps no console of its own: the container's tail arrives over
+    // the server's link, which is where the fleet route reads it.
     console: () => Promise.resolve(null),
 
     topUp,

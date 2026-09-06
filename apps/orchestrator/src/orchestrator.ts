@@ -214,7 +214,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     deployment: hostOf(config.baseUrl),
     ...(steam && { steam }),
   })
-  const fleet = createFleet({ clock, store, registry: providers, matches })
+  const fleet = createFleet({ clock, store, registry: providers, matches, links })
 
   // The node provider needs the server link (a claimed warm instance is
   // assigned down the socket it already holds) and the link needs the app's

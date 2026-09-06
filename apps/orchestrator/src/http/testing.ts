@@ -204,7 +204,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   if (options.providers) for (const provider of options.providers) providers.register(provider)
   else if (!options.noProviders) providers.register(sim)
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
-  const fleet = createFleet({ clock, store, registry: providers, matches })
+  const fleet = createFleet({ clock, store, registry: providers, matches, links })
   // Every test world has a working pool: the fake Steam is in process, so
   // `GET /v1/fleet/gslt` answers real numbers and a Dathost-shaped provider
   // in a test leases a real (fake) token rather than a `null` nobody notices.

@@ -1,3 +1,4 @@
+import type { RconAuditEntry } from '../db/schema/servers'
 import type {
   BackupRow,
   CommandRow,
@@ -13,6 +14,7 @@ import type {
   ServerRow,
   ServerTokenRow,
 } from './store'
+import { RCON_AUDIT_KEEP } from './store'
 
 /**
  * The in-memory {@link MatchStore}: the same contract as the Postgres one,
@@ -43,6 +45,8 @@ export function createMemoryMatchStore(): MatchStore & {
   const commands: CommandRow[] = []
   const servers: ServerRow[] = []
   const serverTokens: ServerTokenRow[] = []
+  /** The ledger's audit column, by row — off the row itself so a page read never carries it. */
+  const rconAudits = new Map<string, RconAuditEntry[]>()
   const backups: BackupRow[] = []
   const playerTokens: PlayerTokenRow[] = []
   const nodes: NodeRow[] = []
@@ -247,6 +251,13 @@ export function createMemoryMatchStore(): MatchStore & {
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0],
         ),
       ),
+
+    appendRconAudit: (fleetServerId, entry) => {
+      const trail = [...(rconAudits.get(fleetServerId) ?? []), entry]
+      rconAudits.set(fleetServerId, trail.slice(-RCON_AUDIT_KEEP))
+      return Promise.resolve()
+    },
+    rconAudit: fleetServerId => Promise.resolve(copy(rconAudits.get(fleetServerId) ?? [])),
 
     upsertBackup: (row, keep) => {
       const existing = backups.findIndex(
