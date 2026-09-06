@@ -37,6 +37,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/ws": "catalog:",
+    "ajv": "catalog:",
     "drizzle-kit": "catalog:",
     "tsdown": "catalog:",
     "tsx": "catalog:",

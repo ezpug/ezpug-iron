@@ -390,7 +390,7 @@ every offline proof here.
 
 **Dathost**
 
-- [ ] **T15: The fake Dathost.** `apps/orchestrator/src/providers/dathost/fake.ts` — an
+- [x] **T15: The fake Dathost.** `apps/orchestrator/src/providers/dathost/fake.ts` — an
   in-process HTTP server speaking the vendored subset of `references/dathost/openapi.merged.json`:
   `GET/POST /game-servers`, `GET/PUT/DELETE /game-servers/:id`, `duplicate` (the
   sync-files caveat modelled: a clone copies the *last synced* files), `sync-files`, `start`

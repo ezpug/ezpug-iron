@@ -43,3 +43,8 @@ catalog:
   # the agent only creates, starts, stops and lists containers.
   dockerode: ^4.0.12
   "@types/dockerode": ^4.0.1
+  # The fake Dathost's own proof (PRD-02 T15): every response it writes is
+  # validated against `references/dathost/openapi.merged.json` in a test, and a
+  # hand-rolled schema walker would be a second thing to trust. Test-only —
+  # nothing the orchestrator ships imports it.
+  ajv: ^8.17.1
