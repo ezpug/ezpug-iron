@@ -432,7 +432,7 @@ every offline proof here.
   `docs/pins.md`; `--dry-run` against T15 is the test; refuses to touch a server that is
   not the template. `docs/operations.md` documents it.
 
-- [ ] **T19: The Dathost live smoke.** Behind `EZPUG_DATHOST_TESTS=required` (skipped with
+- [x] **T19: The Dathost live smoke.** Behind `EZPUG_DATHOST_TESTS=required` (skipped with
   a printed reason otherwise): `GET /account`, T18 `--check`, allocate **one** server
   through the real provider, wait for the link's `hello`, `ezpug_status` through the link,
   read the connect facts and the GOTV relay, deallocate, assert the ledger row closed and

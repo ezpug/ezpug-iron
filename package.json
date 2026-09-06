@@ -35,6 +35,7 @@
     "dev:node": "./scripts/dev-node.sh",
     "iron:match": "node scripts/iron-match.mjs",
     "dathost:image": "node scripts/dathost-image.mjs",
+    "dathost:smoke": "node scripts/dathost-smoke.mjs",
     "db:generate": "pnpm --filter @ezpug/orchestrator db:generate",
     "db:migrate": "pnpm --filter @ezpug/orchestrator db:migrate"
   },

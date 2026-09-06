@@ -626,6 +626,62 @@ Dathost (T15) with a hand-written artifact tree: the dry run, the create, idempo
 refusals, `--check` red on a drifted file, pin, setting or `gameinfo.gi`, and — the one
 that matters — a `duplicate` after the build whose clone carries the plugin.
 
+### The live smoke (`pnpm dathost:smoke`)
+
+The one command in this repo that spends money. Everything else about Dathost — the
+provider's every verb, the template script, the fault suite — runs against the fake vendor
+(`providers/dathost/fake.ts`), which is a *reading* of the vendor's OpenAPI, and a reading
+can be wrong. This is what finds out:
+
+```bash
+pnpm dathost:smoke            # against $EZPUG_IRON_BASE_URL, with the account in .env
+pnpm dathost:smoke --json     # the summary and nothing else, for a script
+pnpm dathost:smoke --help
+```
+
+Nine steps, in this order, and the order is the point:
+
+1. `GET /account` — the credentials are the credentials.
+2. `dathost-image --check` — the template is what this tree builds (`--no-image-check`
+   skips it; it needs docker or a `--tree`).
+3. The orchestrator answers and its fleet lists a `dathost` provider that is not drained.
+4. The account is counted **before**, so a stray afterwards is attributable.
+5. One match is created with `requirements.provider: dathost` — not `lan`, not `simulated`,
+   this provider and no other, so a box that also has nodes cannot answer it.
+6. It reaches `ready`, which happens only when the clone booted, the plugin dialled the
+   link out of Düsseldorf and said `server_ready`. This is the step the round is aimed at.
+7. `ezpug_status` goes down that link as an `rcon` command and its answer comes back, so
+   the link is proven in both directions.
+8. The connect facts and the GOTV relay are read off the match.
+9. The server is released — and **then** the ledger row is checked closed and the account
+   is counted again.
+
+**The money.** Exactly one server is ever allocated; the release is a `finally`; the run is
+bounded by `--budget-minutes` (default 60, the PRD's one server-hour) and the run's own key
+by `--budget-cents` (default 500) and one concurrent server; the match carries
+`ttlMinutes: 60` so the reaper takes the box back even if this process is killed. If a
+clone is still on the account when the run ends, the script deletes it itself, says so, and
+exits non-zero — a live test that leaves a server running is a P1.
+
+Nothing it prints is a secret: the summary carries the connect host and port and
+`passwordSet: true`, never the password, never the API key, never the server token. The run
+mints its own key and revokes it as its last act.
+
+**The lane.** `apps/orchestrator/src/dathost.extended.test.ts` runs the script and asserts
+the summary; it is skipped with a printed reason unless `EZPUG_DATHOST_TESTS` is set, and
+`EZPUG_DATHOST_TESTS=required` turns a missing account or a missing orchestrator into a red
+run instead of a skip. It is never set by `pnpm verify:extended` by default — it costs real
+euros. **The plugin dials the orchestrator from a datacentre**, so the lane needs an
+orchestrator the internet can reach: `EZPUG_IRON_BASE_URL=https://gs.ezpug.com` after T35,
+or a tunnel to a dev one before it. Against a remote orchestrator, pass `--key` (or set
+`EZPUG_IRON_ADMIN_KEY`); on this box the script mints one from the database itself.
+
+**Rehearsed offline.** `providers/dathost/smoke-script.test.ts` runs all nine steps in
+`pnpm verify` against the fake vendor, a real provider, a real orchestrator, the real link
+on a real port and the fake server dialling in — including the release after a failure, the
+stray clone the provider could not delete, and a grep of the summary for every secret the
+run knows.
+
 ## The GSLT pool
 
 A CS2 server started without a **Steam Game Server Login Token** logs in anonymously and
