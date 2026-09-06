@@ -20,19 +20,31 @@ import {
  *   target: () => createFakeConformanceTarget(),
  * })
  * ```
+ *
+ * `timeoutMs` is for a target that plays in real time: a flow there is a
+ * whole match on real timers, not a fake clock's millisecond, and Vitest's
+ * default would call the wait a failure.
  */
-export function describeMatchApiConformance(name: string, options: ConformanceOptions): void {
+export function describeMatchApiConformance(
+  name: string,
+  options: ConformanceOptions,
+  suite: { timeoutMs?: number } = {},
+): void {
   const flows = options.flows
     ? MATCH_API_CONFORMANCE_FLOWS.filter(flow => options.flows?.includes(flow.id))
     : MATCH_API_CONFORMANCE_FLOWS
   describe(name, () => {
     for (const flow of flows) {
-      it(`${flow.id}: ${flow.title}`, async context => {
-        const report = await runMatchApiConformance({ ...options, flows: [flow.id] })
-        const result = report.results[0]
-        if (result?.status === 'skipped') context.skip(result.reason)
-        assertConformance(report)
-      })
+      it(
+        `${flow.id}: ${flow.title}`,
+        async context => {
+          const report = await runMatchApiConformance({ ...options, flows: [flow.id] })
+          const result = report.results[0]
+          if (result?.status === 'skipped') context.skip(result.reason)
+          assertConformance(report)
+        },
+        suite.timeoutMs,
+      )
     }
   })
 }

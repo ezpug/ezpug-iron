@@ -198,14 +198,26 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   })
   void hub.start()
 
+  /**
+   * **The barrier**: it may only return on a quiet world, because everything
+   * a test does after it — read the match, send a command, assert the log —
+   * reads a story it believes has stopped moving.
+   *
+   * Three things can still be moving when a round of draining ends, and all
+   * three are checked before it returns (T10a): a chain or a delivery the
+   * drain itself queued, a zero-delay timer it armed (a tick flush), and an
+   * event a simulated server spoke whose ingest is nobody's to await — which
+   * is why the sim provider counts them ({@link SimProvider.pending}) rather
+   * than trusting a `setImmediate` to have outrun them.
+   */
   const settle = async (): Promise<void> => {
     for (let round = 0; round < 50; round += 1) {
+      await sim.settle()
       await matches.settle()
       await webhooks.settle()
       await new Promise<void>(resolve => setImmediate(resolve))
-      // A settled chain may have armed a zero-delay timer (a tick flush).
       if (clock.nextDeadline() === clock.now()) await clock.advance(0)
-      else return
+      else if (sim.pending() === 0) return
     }
   }
 

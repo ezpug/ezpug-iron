@@ -39,15 +39,45 @@ import { createOrchestrator, type Orchestrator } from './orchestrator'
  * the Redis fan-out, every webhook POSTed to a real endpoint that verifies
  * the signature with the published verifier before the runner hears it.
  *
- * The sim plays at sixty times real time, so a Bo1 takes ten seconds or so and a
- * command still finds it live; the runner polls every quarter second. Skips loudly when the dev
- * world is down; `EZPUG_IRON_DATABASE_TESTS=required` (what
- * `pnpm verify:extended` sets) makes that red.
+ * **Time is the hard part here, and T10a is what it cost.** This tier has no
+ * fake clock: the story plays on real timers while the client talks over a
+ * real socket, so the two race. Two rules keep that honest, and both were
+ * bought with a red suite:
+ *
+ * 1. **The story is slow enough that a starved client still finds the match
+ *    live.** `SHORT_RULES` is two rounds — about four match-minutes — so at
+ *    the sixty times real time this file used to ask for, everything between
+ *    `going_live` and the last event fitted in four seconds. On a loaded box
+ *    a client's own round trips eat that, the flow's `pause` arrives at an
+ *    `ended` match and the machine refuses it `invalid_state`. At
+ *    {@link SIM_TIME_SCALE} the same window is a dozen seconds, which no
+ *    amount of scheduler starvation on this box has closed.
+ * 2. **`settle()` is a barrier, not a sleep.** The orchestrator runs in this
+ *    process, so "let the world catch up" can be its own promise —
+ *    {@link quiesce} drains every match chain and every webhook attempt and
+ *    leaves nothing due — instead of the half second of hope it used to be,
+ *    which under load returned while the last envelopes were still queued
+ *    and failed the flows' "every durable envelope was delivered" check.
+ *
+ * The runner polls every quarter second. Skips loudly when the dev world is
+ * down; `EZPUG_IRON_DATABASE_TESTS=required` (what `pnpm verify:extended`
+ * sets) makes that red.
  */
 
 const SECRET_ID = 'whsec-conformance'
 const SECRET = 'orchestrator-conformance-webhook-secret-not-a-real-one-0123456789'
 const namespace = testNamespace(import.meta.url)
+
+/**
+ * How much faster than real time the story plays. Twenty leaves roughly a
+ * dozen seconds between `going_live` and the end of a two-round map — the
+ * margin a client's own latency lives in (see the file's note).
+ */
+const SIM_TIME_SCALE = 20
+/** One flow's budget: a whole match at {@link SIM_TIME_SCALE}, with room to spare. */
+const FLOW_TIMEOUT_MS = 90_000
+/** {@link quiesce} gives up after this long rather than hang a flow. */
+const QUIESCE_TIMEOUT_MS = 15_000
 
 let orchestrator: Orchestrator | undefined
 let config: OrchestratorConfig | undefined
@@ -82,7 +112,7 @@ beforeAll(async () => {
       config,
       clock: systemClock,
       log,
-      sim: { timeScale: 60, positionTickIntervalMs: 60_000 },
+      sim: { timeScale: SIM_TIME_SCALE, positionTickIntervalMs: 60_000 },
     })
     await orchestrator.database.ping()
     await orchestrator.redis.ping()
@@ -193,6 +223,29 @@ afterAll(async () => {
   await sweepNamespace()
 }, 60_000)
 
+/**
+ * **The barrier** (T10a): every match chain settled, every webhook attempt
+ * finished, nothing left due. The orchestrator is in this process, so what
+ * `ctx.settle()` promises the flows — "the world has caught up" — is asked
+ * of it directly instead of slept for.
+ *
+ * A row in backoff is *not* due, so a flow that means a delivery to fail
+ * still gets its failure; a live match keeps writing while this runs, which
+ * is why the loop is bounded by {@link QUIESCE_TIMEOUT_MS} and by a pass
+ * count rather than waiting for a silence that will not come until the
+ * match is over.
+ */
+async function quiesce(): Promise<void> {
+  const o = orchestrator as Orchestrator
+  const deadline = systemClock.now() + QUIESCE_TIMEOUT_MS
+  for (let pass = 0; pass < 8; pass += 1) {
+    await o.matches.settle()
+    await o.webhooks.settle()
+    const due = await o.store.listDueDeliveries(systemClock.date(), 1)
+    if (due.length === 0 || systemClock.now() >= deadline) return
+  }
+}
+
 /** A fresh pair of keys per flow, on the one standing orchestrator. */
 async function target(flow: { id: string }): Promise<ConformanceTarget> {
   const o = orchestrator as Orchestrator
@@ -246,13 +299,15 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
       // never needs the flow to say.
       const page = await client.matches.list({ query: {} })
       for (const match of page.items) mine.add(match.id)
+      // Real time is what a poll waits for here; the barrier after it is so
+      // the next read sees a written world rather than a half-written one.
       await systemClock.sleep(Math.min(ms, 250))
+      await quiesce()
     },
     settle: async () => {
       const page = await client.matches.list({ query: {} })
       for (const match of page.items) mine.add(match.id)
-      // Deliveries leave within the tick; a real endpoint answers in milliseconds.
-      await systemClock.sleep(500)
+      await quiesce()
     },
     stream: (subscription, onFrame) => {
       const handle = client.subscribeStream({
@@ -266,9 +321,11 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
   }
 }
 
-describeMatchApiConformance('the orchestrator over a real socket, Postgres and Redis', {
-  target,
-})
+describeMatchApiConformance(
+  'the orchestrator over a real socket, Postgres and Redis',
+  { target },
+  { timeoutMs: FLOW_TIMEOUT_MS },
+)
 
 describe('the extended gate', () => {
   it('passes every flow it can run, verified every delivery, and left no server running', async () => {
@@ -281,5 +338,7 @@ describe('the extended gate', () => {
     expect(await o.fleet.servers()).toEqual([])
     expect(await o.providers.get('sim')?.list()).toEqual([])
     expect(log.lines.filter(line => line.startsWith('error'))).toEqual([])
-  }, 120_000)
+    // Every flow of the set, one after another, each a real match at
+    // `SIM_TIME_SCALE` — a budget, not an expectation.
+  }, 420_000)
 })

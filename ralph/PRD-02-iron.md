@@ -308,7 +308,7 @@ every offline proof here.
   ghcr publishes for nodes (T34) and what T18 uploads the plugin set from. References:
   legacy `Dockerfile`, `scripts/server.sh`, `scripts/setup.sh`.
 
-- [ ] **T10a (P1, fable): the conformance suite races the sim's story under load.**
+- [x] **T10a (P1, fable): the conformance suite races the sim's story under load.**
   Found in T10, pre-existing, not caused by it: on a loaded box `conformance.test.ts`'s
   `happy-bo1` fails `a pause is accepted — invalid_state` (sometimes the `announce` before
   it, sometimes `every durable envelope was delivered by webhook`), and `config-only` /

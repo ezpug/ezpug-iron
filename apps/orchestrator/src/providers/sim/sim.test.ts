@@ -295,6 +295,51 @@ describe('the sim provider', () => {
     expect(other.sim.engine(other.serverId)?.status().sim?.seed).toBe(`sim#${MATCH_TWO}`)
   })
 
+  it('keeps an event it spoke in sight until the machine has taken it (T10a)', async () => {
+    // A sink that answers when this test says so — a stand-in for the
+    // machine holding a match's chain while the story deals its next beat.
+    const clock = createFakeClock({ start: '2026-09-05T18:00:00.000Z' })
+    const answer: (() => void)[] = []
+    const sink: ServerEventSink = {
+      ingest: () =>
+        new Promise(resolve => {
+          answer.push(() => resolve('accepted'))
+        }),
+    }
+    const sim = createSimProvider({ clock, sink, links: createLinkRegistry() })
+    const [offering] = await sim.offerings()
+    if (!offering) throw new Error('the sim offered nothing')
+    const { serverId } = await sim.allocate(allocation(MATCH_ONE, offering))
+    await sim.configure(serverId, {
+      matchId: MATCH_ONE,
+      game: 'cs2',
+      request: request(),
+      gamemode: PUG,
+      joinPassword: 'not-a-secret',
+      link: { url: `ws://localhost:3430/link#${serverId}`, serverToken: 'ezis_not-a-secret' },
+    })
+    await sim.start(serverId)
+    expect(sim.pending()).toBe(0)
+
+    // The story speaks from a timer callback; nobody awaits what it starts.
+    for (let beat = 0; beat < 10 && sim.pending() === 0; beat += 1) await clock.next()
+    expect(sim.pending()).toBeGreaterThan(0)
+
+    let crossed = false
+    const barrier = sim.settle().then(() => {
+      crossed = true
+    })
+    // Time does not move and no microtask can finish an ingest nobody
+    // answered: a barrier that returned here would be lying.
+    await clock.advance(0)
+    expect(crossed).toBe(false)
+
+    for (const resolve of answer.splice(0)) resolve()
+    await barrier
+    expect(crossed).toBe(true)
+    expect(sim.pending()).toBe(0)
+  })
+
   it('restores a replacement server from a round backup and plays the match out on it', async () => {
     const world = await play(MATCH_THREE)
     const backups = world.sim.engine(world.serverId)?.backups() ?? []

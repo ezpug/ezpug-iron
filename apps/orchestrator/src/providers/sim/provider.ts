@@ -144,6 +144,14 @@ export interface SimProvider extends GameServerProvider {
   engine: (serverId: string) => SimulatedServer | null
   /** How many servers exist right now. */
   size: () => number
+  /**
+   * Events this provider has spoken and the machine has not finished taking
+   * — what a barrier must wait for, and what it must be able to see is *not*
+   * zero before it declares the world quiet.
+   */
+  pending: () => number
+  /** Resolve once every event spoken so far has been taken (T10a). */
+  settle: () => Promise<void>
 }
 
 export function createSimProvider(options: SimProviderOptions): SimProvider {
@@ -161,6 +169,29 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
 
   const ref = (serverId: string): ServerRef => ({ provider: SIM_PROVIDER_ID, serverId })
   const host = (serverId: string): string => `${serverId}.sim.invalid`
+
+  /**
+   * **Every ingest this provider has started and not yet finished** (T10a).
+   * A simulated server speaks from a timer callback and a channel reports
+   * what a command did while the machine still holds that match's chain, so
+   * neither promise is anybody's to await — but both must be *visible*, or a
+   * barrier ({@link SimProvider.settle}) returns while the match is still
+   * moving and the next thing a test reads is a half-played story. The
+   * promise joins the set inside `ingest`, before it is handed back, so
+   * there is no window in which the work exists and the set does not know it.
+   */
+  const ingesting = new Set<Promise<unknown>>()
+  const trackedSink: ServerEventSink = {
+    ingest: (source, event) => {
+      const promise = sink.ingest(source, event)
+      ingesting.add(promise)
+      void promise.then(
+        () => ingesting.delete(promise),
+        () => ingesting.delete(promise),
+      )
+      return promise
+    },
+  }
 
   const offering = (): ServerOffering => ({
     capabilities: { games: ['cs2'], region, tickrate: 128, lan: false, workshopMaps: true },
@@ -218,7 +249,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
         if (event.type === 'player_connected') presence.set(event.player.steamId64, event.player)
         else if (event.type === 'player_disconnected') presence.delete(event.player.steamId64)
         else if (event.type === 'going_live') currentMap = event.mapNumber
-        void sink.ingest(ref(serverId), event).catch((error: unknown) => {
+        void trackedSink.ingest(ref(serverId), event).catch((error: unknown) => {
           report(error, { serverId, matchId: configuration.matchId, where: 'ingest' })
         })
       })
@@ -229,7 +260,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
           server: ref(serverId),
           engine: server,
           matchId: configuration.matchId,
-          sink,
+          sink: trackedSink,
           presence,
           currentMap: () => currentMap,
         }),
@@ -310,5 +341,9 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
 
     engine: serverId => servers.get(serverId)?.server ?? null,
     size: () => servers.size,
+    pending: () => ingesting.size,
+    async settle() {
+      while (ingesting.size > 0) await Promise.allSettled([...ingesting])
+    },
   }
 }

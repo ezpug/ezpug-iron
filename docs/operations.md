@@ -612,3 +612,18 @@ transaction that is always rolled back; the suites that must commit stamp their 
 delete them. `pnpm verify:extended` runs `pnpm dev:up` first and sets
 `EZPUG_IRON_DATABASE_TESTS=required`, so a missing world is red there, and the conformance
 run against the real service is the round's first extended-tier gate.
+
+**Waiting is a barrier, never a sleep.** In process the world only moves when the fake
+clock is turned, and `createTestApp`'s `settle()` may return only once nothing is left
+moving: every match chain drained, every webhook attempt finished, no zero-delay timer
+armed, and no event a simulated server spoke still on its way into the machine — the sim
+provider counts those (`pending()`), because a server speaks from a timer callback and the
+promise that becomes is nobody's to await. Against the real service there is no fake clock:
+the story plays on real timers while the client talks over a real socket, so the extended
+suite asks the orchestrator itself when it has caught up (its `matches.settle()`,
+its `webhooks.settle()`, nothing due) instead of sleeping, and runs the story slowly enough
+(twenty times real time, not sixty) that a two-round map still has a dozen seconds of live
+match in it when a loaded box makes a client's own round trips slow. Both rules were paid
+for in red suites — a `settle()` that hoped returned while the last envelopes were queued,
+and a story that outran its client saw a `pause` refused `invalid_state` on a match that had
+already ended.
