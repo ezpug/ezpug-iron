@@ -73,6 +73,25 @@ offline afternoon. `pnpm dev:node down|status|logs|forget` are the rest of it; b
 still `pnpm node enrol <token>` and `pnpm node run` with the `EZPUG_NODE_*` lines from
 `.env.example`.
 
+**Exactly one agent per node identity.** Two agents holding the same identity replace each
+other's socket about once a second and never settle — one of them is always the newer
+`hello` — and it is quiet enough to be missed: whichever socket won looks perfectly
+healthy. On this box it cost two recorded runs (PRD-02 T21b), one buried under 1910
+`fleet.node_disconnected` facts and the next answering `503 no_capable_server` against a
+node that was doing nothing. So `up` **adopts** a live agent rather than starting a second
+one (and stops all of them first if it ever finds more than one), `down` ends every agent
+this checkout owns by process group rather than the one pid a file remembered, and
+`status` counts them and says so in red when the answer is not one. Discovery is by
+working directory (`apps/node`, which nothing else runs in), not by the pid file, because
+the pid file held the outermost `pnpm` of three and killing it left the agent behind.
+
+The orchestrator does not rely on any of that. A `hello` that replaces a socket younger
+than one heartbeat is logged as the warning it is, a replaced socket says nothing on its
+way out (the row belongs to whoever holds the identity now), and a close is only an
+incident worth a `fleet.node_disconnected` after fifteen seconds of real silence — with
+the node having to stay on the wire for the same fifteen before the next absence can raise
+a second one. A flapping identity therefore costs one fact, not one per flap.
+
 ## What the orchestrator does with it
 
 The other half of the story lives in the orchestrator (`docs/operations.md`, "Nodes"), and

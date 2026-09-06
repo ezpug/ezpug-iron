@@ -98,8 +98,16 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
   const { router, clock, log, store, registry } = options
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS_DEFAULT
   const helloTimeoutMs = options.helloTimeoutMs ?? HELLO_TIMEOUT_MS
+  /**
+   * A `hello` replacing a session younger than one heartbeat is not a
+   * reconnect, it is a second agent holding the same identity — the loop
+   * T21b found, which `dev-node.sh status` could not see because it read the
+   * winning socket. It costs one warn line and it is the only warning of it
+   * an operator gets from this side.
+   */
+  const replaceWarnMs = heartbeatIntervalMs
   const wss = new WebSocketServer({ noServer: true })
-  const sessions = new Map<string, { node: ConnectedNode; ws: WebSocket }>()
+  const sessions = new Map<string, { node: ConnectedNode; ws: WebSocket; since: number }>()
   const inflight = new Set<Promise<unknown>>()
   let closing = false
 
@@ -157,7 +165,13 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
     }
     if (ws.readyState !== ws.OPEN) return undefined
     const { row, nodeToken } = resolved
-    sessions.get(row.id)?.ws.close(LINK_CLOSE_CODES.replaced, 'replaced by a newer socket')
+    // Held, not closed yet: the old socket is hung up **after** this one owns
+    // the id, so its own `close` handler finds a newer session and writes
+    // nothing. Closing it first left a window across the `await` below in
+    // which the outgoing socket marked the row disconnected and detached the
+    // registry entry the incoming one was about to fill — which is how two
+    // agents on one identity produced a flap the fleet could see (T21b).
+    const previous = sessions.get(row.id)
     const at = clock.date()
     const inUse = hello.instances.filter(instance => instance.matchId !== undefined).length
     await store.updateNode(row.id, {
@@ -192,7 +206,16 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
       },
       disconnect: (code, reason) => ws.close(code, reason),
     }
-    sessions.set(row.id, { node, ws })
+    sessions.set(row.id, { node, ws, since: clock.now() })
+    if (previous) {
+      const age = clock.now() - previous.since
+      if (age < replaceWarnMs)
+        log.warn(
+          `node ${row.id}: a second hello replaced a socket ${age} ms old — ` +
+            'two agents may be running against one node identity',
+        )
+      previous.ws.close(LINK_CLOSE_CODES.replaced, 'replaced by a newer socket')
+    }
     node.send({
       type: 'welcome',
       protocol: PROTOCOL_VERSION,
@@ -330,8 +353,16 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
       silence?.cancel()
       if (!node) return
       const gone = node
-      if (sessions.get(gone.id)?.node === gone) sessions.delete(gone.id)
+      // A socket that has already been replaced says nothing on its way out:
+      // the row belongs to whoever holds the id now, and telling the ledger
+      // this node is disconnected would be a lie about a live session.
+      const current = sessions.get(gone.id)?.node === gone
+      if (current) sessions.delete(gone.id)
       registry.detach(gone)
+      if (!current) {
+        log.info(`node ${gone.id}: a replaced socket closed`)
+        return
+      }
       track(store.updateNode(gone.id, { connected: false }), `${gone.id} disconnected`)
       log.info(`node ${gone.id}: closed`)
     })

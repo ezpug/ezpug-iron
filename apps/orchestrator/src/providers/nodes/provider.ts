@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto'
-import type { Clock } from '@ezpug/core'
+import type { Clock, Timer } from '@ezpug/core'
 import type { InstancePorts, InstanceSpec, NodeInstance } from '@ezpug/protocol'
 import type { ServerRef } from '../../link/channels'
 import type { Log } from '../../log'
@@ -78,6 +78,22 @@ export const WARM_TTL_MS = 7 * 24 * 60 * 60 * 1000
 /** How long a node may be off the wire before its servers are reported `gone`. */
 export const NODE_LOST_MS = 60_000
 
+/**
+ * How long a node has to be gone before its absence is an incident worth a
+ * `fleet.node_disconnected` — and how long it has to be *back* before the
+ * next absence counts as a new one.
+ *
+ * Two agents holding one node identity replace each other's socket about
+ * once a second (`scripts/dev-node.sh` used to let that happen; PRD-02
+ * T21b), and billing a fact per close buried one match's log under 1910 of
+ * them. A window an order of magnitude above the agent's first reconnect
+ * backoff (`BACKOFF_INITIAL_MS_DEFAULT`, one second) turns that loop into
+ * the single fact it actually is, and still lands well inside
+ * {@link NODE_LOST_MS}, so nothing downstream learns about it later than it
+ * used to.
+ */
+export const NODE_DISCONNECT_GRACE_MS = 15_000
+
 /** The first game port a node's instances take; the GOTV relay is the one above it. */
 export const NODE_PORT_BASE = 27_415
 
@@ -113,6 +129,8 @@ export interface NodesProviderOptions {
   portBase?: number
   warmTtlMs?: number
   nodeLostMs?: number
+  /** How long a close waits before it is an incident ({@link NODE_DISCONNECT_GRACE_MS}). */
+  disconnectGraceMs?: number
   /** The bytes behind a minted server token; a test pins them. */
   random?: RandomBytes
   /** The RCON door (T20); the default opens a real socket to the game port. */
@@ -175,10 +193,29 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
   const rconClient = options.rcon ?? createRconClient({ clock })
   const warmTtlMs = options.warmTtlMs ?? WARM_TTL_MS
   const nodeLostMs = options.nodeLostMs ?? NODE_LOST_MS
+  const disconnectGraceMs = options.disconnectGraceMs ?? NODE_DISCONNECT_GRACE_MS
   const instances = new Map<string, Instance>()
   /** When a node dropped off the wire, so `status` can stop pretending. */
   const disconnectedAt = new Map<string, number>()
   const warned = new Set<string>()
+  /**
+   * **One `fleet.node_disconnected` per incident, never one per flap.**
+   * `pending` is the grace timer a close arms — only silence for the whole
+   * of it is an incident. `reported` is every node whose current incident has
+   * already been said out loud; `settling` is the timer a reconnect arms to
+   * prove the node stayed, and it is the only thing that clears `reported`.
+   * A node that re-`hello`s in a loop therefore costs exactly one fact, and
+   * a node that comes back for good can raise a fresh one the next time it
+   * goes ({@link NODE_DISCONNECT_GRACE_MS}).
+   */
+  const pendingDisconnect = new Map<string, Timer>()
+  const settlingAfter = new Map<string, Timer>()
+  const reportedDisconnect = new Set<string>()
+
+  const cancel = (timers: Map<string, Timer>, nodeId: string): void => {
+    timers.get(nodeId)?.cancel()
+    timers.delete(nodeId)
+  }
 
   const ref = (serverId: string): ServerRef => ({ provider: NODES_PROVIDER_ID, serverId })
   const on = (nodeId: string): Instance[] =>
@@ -408,6 +445,19 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
   const unwatch = registry.watch({
     connected: node => {
       disconnectedAt.delete(node.id)
+      cancel(pendingDisconnect, node.id)
+      // Back, but not yet believed: an incident closes only once the node has
+      // held the wire for a whole grace window, so a flapping identity cannot
+      // raise a second fact by reconnecting between two of them.
+      if (reportedDisconnect.has(node.id) && !settlingAfter.has(node.id))
+        settlingAfter.set(
+          node.id,
+          clock.after(disconnectGraceMs, () => {
+            settlingAfter.delete(node.id)
+            reportedDisconnect.delete(node.id)
+            log.info(`node ${node.id}: back on the wire and steady`)
+          }),
+        )
       track(`adopt ${node.id}`, async () => {
         await adopt(node)
         await topUp()
@@ -416,19 +466,29 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
     instances: () => track('top up', topUp),
     disconnected: (nodeId, lastSeenAt) => {
       disconnectedAt.set(nodeId, clock.now())
+      cancel(settlingAfter, nodeId)
       log.warn(`node ${nodeId}: disconnected; its servers are on their own until it dials back`)
       const facts = options.facts
-      if (!facts) return
-      track(`node_disconnected ${nodeId}`, async () => {
-        for (const instance of on(nodeId)) {
-          if (instance.matchId === undefined) continue
-          await facts.emit(instance.matchId, {
-            type: 'fleet.node_disconnected',
-            node: nodeId,
-            lastSeenAt,
+      if (!facts || pendingDisconnect.has(nodeId)) return
+      pendingDisconnect.set(
+        nodeId,
+        clock.after(disconnectGraceMs, () => {
+          pendingDisconnect.delete(nodeId)
+          // Silence for the whole window, and nothing said about it yet.
+          if (registry.get(nodeId) || reportedDisconnect.has(nodeId)) return
+          reportedDisconnect.add(nodeId)
+          track(`node_disconnected ${nodeId}`, async () => {
+            for (const instance of on(nodeId)) {
+              if (instance.matchId === undefined) continue
+              await facts.emit(instance.matchId, {
+                type: 'fleet.node_disconnected',
+                node: nodeId,
+                lastSeenAt,
+              })
+            }
           })
-        }
-      })
+        }),
+      )
     },
   })
 
@@ -675,6 +735,12 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
         ...(instance.matchId !== undefined && { matchId: instance.matchId }),
         warm: instance.bornWarm && !instance.claimed,
       })),
-    close: unwatch,
+    close: () => {
+      unwatch()
+      for (const timer of pendingDisconnect.values()) timer.cancel()
+      for (const timer of settlingAfter.values()) timer.cancel()
+      pendingDisconnect.clear()
+      settlingAfter.clear()
+    },
   }
 }

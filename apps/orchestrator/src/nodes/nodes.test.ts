@@ -14,6 +14,7 @@ import { attachServerLink, type ServerLink } from '../link/server-link'
 import {
   CS2_RCON_PASSWORD_VAR,
   createNodesProvider,
+  NODE_DISCONNECT_GRACE_MS,
   type NodesProvider,
 } from '../providers/nodes/provider'
 import { createFakeRcon } from '../rcon/fake-server'
@@ -505,8 +506,16 @@ describe('the warm pool', () => {
   })
 })
 
+/** Every `fleet.node_disconnected` in a match's durable log, in order. */
+async function facts(rig: NodeRig, matchId: string): Promise<unknown[]> {
+  const events = await rig.app.matches.events(rig.key, matchId, 0, 200)
+  return events.items
+    .map(item => item.payload)
+    .filter(payload => payload.type === 'fleet.node_disconnected')
+}
+
 describe('a node that goes away', () => {
-  it('says fleet.node_disconnected into every match it was holding', async () => {
+  it('says fleet.node_disconnected into every match it was holding, once the grace is out', async () => {
     const rig = await createNodeRig()
     const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
     const { match } = await rig.app.matches.create(rig.key, request())
@@ -514,11 +523,96 @@ describe('a node that goes away', () => {
     await node.close()
     await rig.settle()
 
-    const events = await rig.app.matches.events(rig.key, match.id, 0, 100)
-    const fact = events.items.find(item => item.payload.type === 'fleet.node_disconnected')
-    expect(fact?.payload).toMatchObject({ type: 'fleet.node_disconnected', node: 'devbox' })
+    // A close is not yet an incident: the agent has a reconnect and this is
+    // where it gets to use it (T21b).
+    expect(await facts(rig, match.id)).toEqual([])
+    await rig.app.clock.advance(NODE_DISCONNECT_GRACE_MS)
+    await rig.settle()
+    expect(await facts(rig, match.id)).toMatchObject([
+      { type: 'fleet.node_disconnected', node: 'devbox' },
+    ])
     const row = await rig.app.store.findNode('devbox')
     expect(row?.connected).toBe(false)
+  })
+
+  it('says nothing about a node that dropped and dialled back inside the grace', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    const { match } = await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    await node.close()
+    await rig.settle()
+    await rig.app.clock.advance(NODE_DISCONNECT_GRACE_MS - 1_000)
+    await node.connect()
+    await rig.settle()
+    // A whole grace window on the wire — and short of the two heartbeats
+    // whose silence would close this socket for real.
+    await rig.app.clock.advance(NODE_DISCONNECT_GRACE_MS)
+    await rig.settle()
+    expect(await facts(rig, match.id)).toEqual([])
+    expect((await rig.app.store.findNode('devbox'))?.connected).toBe(true)
+  })
+
+  it('raises a second incident once the node has been back for a whole grace window', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    const { match } = await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+
+    for (const _ of [1, 2]) {
+      await node.close()
+      await rig.settle()
+      await rig.app.clock.advance(NODE_DISCONNECT_GRACE_MS)
+      await rig.settle()
+      await node.connect()
+      await rig.settle()
+      // Back for long enough to be believed, which is what closes the first
+      // incident and lets the next one be told.
+      await rig.app.clock.advance(NODE_DISCONNECT_GRACE_MS)
+      await rig.settle()
+    }
+    expect(await facts(rig, match.id)).toHaveLength(2)
+  })
+
+  it('says it once for an identity two agents are fighting over, not once per flap', async () => {
+    const rig = await createNodeRig()
+    // Agent one, and the node token it was welcomed with — which is exactly
+    // what a second `pnpm dev:node up` on the same box would hand its own
+    // agent (T21b, where the two of them billed 1910 facts into one match).
+    const one = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    const { match } = await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    const two = createFakeNode({
+      url: rig.url,
+      token: one.nodeToken() as string,
+      hello: { capacity: { maxInstances: 2, warm: 0 } },
+    })
+    fakes.push({ close: () => void two.close() })
+
+    for (let round = 0; round < 8; round += 1) {
+      // Each hello closes the other's socket; each agent dials straight back
+      // on its first backoff. Neither is ever gone for a whole grace window.
+      await two.connect()
+      await rig.settle()
+      await rig.app.clock.advance(1_000)
+      await one.connect()
+      await rig.settle()
+      await rig.app.clock.advance(1_000)
+    }
+    // Nothing said, and the ledger never believed the losing socket over the
+    // winning one.
+    expect(await facts(rig, match.id)).toEqual([])
+    expect((await rig.app.store.findNode('devbox'))?.connected).toBe(true)
+
+    // And when they really do both go away, it is still one fact.
+    await one.close()
+    await two.close()
+    await rig.settle()
+    await rig.app.clock.advance(NODE_DISCONNECT_GRACE_MS)
+    await rig.settle()
+    expect(await facts(rig, match.id)).toMatchObject([
+      { type: 'fleet.node_disconnected', node: 'devbox' },
+    ])
   })
 
   it('keeps listing its containers so the reaper does not call a live match lost', async () => {

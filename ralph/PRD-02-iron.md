@@ -499,7 +499,7 @@ every offline proof here.
   `demo_available`/`demo.uploaded` pair into the fixtures. Never retried into green
   (working rules).
 
-- [ ] **T21b: `pnpm dev:node up` starts a second agent on top of the first, and the two
+- [x] **T21b: `pnpm dev:node up` starts a second agent on top of the first, and the two
   never settle.** Found in T21a, pre-existing, not caused by it: `scripts/dev-node.sh down`
   kills the one pid in `.ezpug-node/agent.pid` and `up` overwrites that file, so an `up`
   while an agent is already running orphans the first — and two agents holding the same
@@ -511,6 +511,29 @@ every offline proof here.
   (or adopt) when an agent is alive, make `down` end every `src/main.ts run` this checkout
   owns rather than one pid, and make the orchestrator debounce a node identity that
   re-`hello`s in a loop instead of billing a `fleet.node_disconnected` per flap.
+
+- [ ] **T21c (P1): the extended conformance suite's `happy-bo1` fails a match before it is
+  ready, under a whole-verify load.** Found in T21b, pre-existing, not caused by it:
+  `apps/orchestrator/src/conformance.extended.test.ts` failed
+  `happy-bo1` 7/8 on `the flow ran to its end — the match failed before it was ready`
+  (`packages/match-api/src/fixtures/conformance/flows.ts:198`, so the match reached
+  `failed` or `cancelled` between `create` and its connect facts) inside a full
+  `pnpm verify` — turbo running every TS suite plus `dotnet build`/`dotnet test` beside it —
+  on a box that was also running the dev orchestrator, the dev node agent and the
+  platform's own loop. It then passed **1 of 1 alone** on an idle box and **3 of 3** with
+  six busy CPU loops beside it, which is why it has been green: the spin-loop posture T10a
+  used does **not** reproduce this one, and the reproduction is the whole verify.
+  Untraced beyond that, because the two things that would say *why* were both out of
+  reach: this tier is on the **system clock** (the file's own note says so), so any of the
+  machine's deadlines — allocate, boot — can expire on a starved process, and the flow's
+  error prints the state without the reason. The match row that would carry the reason is
+  swept by `afterAll` (`:192, :241`), so a failing run leaves nothing behind to read.
+  Start by making that error name the failure reason (a fixtures-only change, but it is
+  still a `@ezpug/match-api` release), then reproduce under a real `pnpm verify` rather
+  than a synthetic load, and fix the deadline that a starved process blows — or make the
+  tier's deadlines as generous as `SIM_TIME_SCALE` already made its story. Never retried
+  into green (working rules); the verify this was found in was re-run for the commit gate
+  and the progress line says which runs were which.
 
 - [ ] **T22: `flying-scoutsman` and the generic flow.** The SDK's generic flow emitter
   for `flow: plugin | none` modes: `round_start`/`round_end` from game events (winner,
