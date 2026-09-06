@@ -832,7 +832,7 @@ When a demo does not arrive, `match.ended.demo.skipped` says which of these it w
 | --------- | ------------- |
 | `no_upload_url` | the request carried no `callbacks.demoUploadUrl` |
 | `not_recorded` | the gamemode's `records` is not `demo` |
-| `no_demo` | recording was on and nothing was ever announced — the match never went live, or the server was lost with the file on it |
+| `no_demo` | recording was on and nothing was ever announced — the match never went live, the server was lost with the file on it, or GOTV was evicted before it wrote one (see `bot_quota_mode` above) |
 | `upload_failed` | the server found its demo and the storage refused it; the bytes are still on the server, and the orchestrator's log says what the plugin was told |
 
 A presigned URL that has expired by the time the demo is finished is an `upload_failed`:
@@ -853,7 +853,7 @@ pnpm dev:up                                     # Postgres, Redis, migrations
 # .env: EZPUG_IRON_PROVIDERS=sim,nodes
 EZPUG_IRON_TRACE_FILE=.cache/trace/dev.ndjson pnpm dev
 pnpm dev:node up                                # this box becomes a node
-pnpm iron:match --write-fixtures                # ~10 minutes, one CS2 container
+pnpm iron:match --write-fixtures                # 15-25 minutes, one CS2 container
 ```
 
 What it does, in order: mints an admin key from the box (`keys:mint`), mints the run's own
@@ -873,11 +873,32 @@ script and the plugin now encode:
   as the single argument `http`; it answers "Invalid URL: http", the door is never wired,
   and every MatchZy event of that match is lost silently. `MatchZyRemoteLog` quotes all
   three values.
-- **The bots have to be standing before the match starts.** MatchZy's `warmup.cfg` runs
-  `bot_kick; bot_quota 0` and its `live.cfg` ends with `mp_warmup_end`; on an empty server
-  that ends nothing, so the engine stays in warmup and the match never plays a round. The
-  script fills during warmup, waits, and only then sends `css_start` — a dwell and not a
-  barrier, because a bot emits no `player_connected` (the vocabulary's players are people).
+- **`bot_quota_mode` decides whether the match records a demo, and whether the bots play
+  at all.** The engine counts the GOTV client as one of the bots it may evict, and the
+  mode in force decides what happens to it: measured on this box against CS2 1.41.7.8, a
+  `bot_quota` that *drops* while bots are standing kicks SourceTV along with them under
+  `normal` and under `fill`, and CS2 will not bring SourceTV back without a level change —
+  so the map records no demo at all. Under `competitive`, the mode
+  `gamemode_competitive.cfg` sets at every map load, the purge spares GOTV — but those
+  bots never fire a shot: ten of them played seven rounds with no kills and no damage
+  between them, every round to the CT side on the clock, so the map cannot be decided and
+  no `series_end` ever comes. `gamemodes/pug/cfg/ezpug/pug.cfg` therefore puts the server
+  in `normal` while the quota is zero (behind a `bot_kick`, because a cfg is one frame and
+  the eviction pass runs at the end of it), and the match's own `bot_quota` only ever goes
+  up. The measurement is in that file; PRD-02 T21a is where it was made.
+- **The bots have to be standing when warmup ends, and MatchZy's `live.cfg` opens with a
+  `bot_quota 0`.** Those two are in tension — the drop is exactly the one that takes GOTV
+  — so the script empties the server *before* `css_start`, which makes that drop a
+  no-change and a no-op, and asks for its bots once the match is live and the only way
+  left is up. The cost is that `live.cfg`'s own `mp_warmup_end` runs on an empty server
+  and ends nothing, so the script sends `mp_warmup_end` itself a poll later; outside
+  warmup it does nothing, which is what makes it safe to send.
+- **Bots draw.** Ten of them split a four-round map 2–2 more often than they win it, and
+  the overtime that follows is most of the difference between a twelve-minute run and a
+  twenty-five-minute one. The script's force-end wall is thirty-five minutes for that
+  reason and not because a match should take that long: a match ended in the middle cuts
+  GOTV off mid-file and the run records no demo, which is the one thing it exists to
+  produce.
 - **A drawn map in a Bo1 does not end the series.** With an even `mp_maxrounds` and no
   overtime a map can finish 2–2; MatchZy's `HandleMatchEnd` then reports `remainingMaps: 1`
   and replays the same map instead of sending `series_end`. The script asks for overtime by

@@ -28,6 +28,39 @@
     {
       "name": "round_end",
       "payload": {
+        "reason": 16,
+        "winner": {
+          "side": "1",
+          "team": "team2"
+        },
+        "team1": {
+          "series_score": 0,
+          "score": 0,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "series_score": 0,
+          "score": 0,
+          "score_ct": 0,
+          "score_t": 0,
+          "players": [],
+          "id": "",
+          "name": "EZPug B"
+        },
+        "round_time": 0,
+        "round_number": 0,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_end"
+      }
+    },
+    {
+      "name": "round_end",
+      "payload": {
         "reason": 9,
         "winner": {
           "side": "2",
@@ -61,7 +94,7 @@
     {
       "name": "round_end",
       "payload": {
-        "reason": 1,
+        "reason": 9,
         "winner": {
           "side": "2",
           "team": "team2"
@@ -77,40 +110,7 @@
         },
         "team2": {
           "series_score": 0,
-          "score": 1,
-          "score_ct": 0,
-          "score_t": 0,
-          "players": [],
-          "id": "",
-          "name": "EZPug B"
-        },
-        "round_time": 0,
-        "round_number": 1,
-        "map_number": 0,
-        "matchid": 1083740696,
-        "event": "round_end"
-      }
-    },
-    {
-      "name": "round_end",
-      "payload": {
-        "reason": 8,
-        "winner": {
-          "side": "3",
-          "team": "team2"
-        },
-        "team1": {
-          "series_score": 0,
-          "score": 1,
-          "score_ct": 0,
-          "score_t": 0,
-          "players": [],
-          "id": "",
-          "name": "EZPug A"
-        },
-        "team2": {
-          "series_score": 0,
-          "score": 1,
+          "score": 2,
           "score_ct": 0,
           "score_t": 0,
           "players": [],
@@ -127,9 +127,9 @@
     {
       "name": "round_end",
       "payload": {
-        "reason": 7,
+        "reason": 9,
         "winner": {
-          "side": "3",
+          "side": "2",
           "team": "team2"
         },
         "team1": {
@@ -160,7 +160,7 @@
     {
       "name": "round_end",
       "payload": {
-        "reason": 8,
+        "reason": 7,
         "winner": {
           "side": "3",
           "team": "team2"

@@ -57,9 +57,8 @@ const HELP = `iron-match — run one real match through the Match API and record
   --map <name>           default de_dust2
   --rounds <n>           mp_maxrounds; even, default 4
   --bots <n>             bot_quota, default 10; 0 leaves the server empty
-  --bot-fill-seconds <n> how long the bots get to join before the start; default 25
   --no-overtime          allow a drawn map — MatchZy then replays it, so the run hangs
-  --max-live-minutes <n> force-end a match still live after this long; default 15
+  --max-live-minutes <n> force-end a match still live after this long; default 35
   --base-url <url>       default $EZPUG_IRON_BASE_URL
   --trace <file>         the orchestrator's trace; default $EZPUG_IRON_TRACE_FILE
   --out <dir>            where the run is written; default .cache/iron-match/<run>
@@ -67,7 +66,7 @@ const HELP = `iron-match — run one real match through the Match API and record
   --write-fixtures       update the recorded fixtures from this run
   --rebuild <dir>        write the files again from a finished run's raw.json,
                          without playing another match
-  --timeout-minutes <n>  give up and cancel after this long; default 25
+  --timeout-minutes <n>  give up and cancel after this long; default 45
   --json                 print the run summary as JSON and nothing else
   --help
 `
@@ -115,6 +114,11 @@ const BASE_URL = (
 const GAMEMODE = flags.get('gamemode') ?? 'pug'
 const MAP = flags.get('map') ?? 'de_dust2'
 const ROUNDS = Number(flags.get('rounds') ?? 4)
+/**
+ * `bot_quota` — a head count, because `gamemodes/pug/cfg/ezpug/pug.cfg` puts
+ * the server in `bot_quota_mode normal`. Ten is a full 5v5; the *when* of it is
+ * the interesting part and lives down in the poll loop.
+ */
 const BOTS = Number(flags.get('bots') ?? 10)
 const WANT_DEMO = flags.get('no-demo') !== 'true'
 /**
@@ -126,10 +130,8 @@ const WANT_DEMO = flags.get('no-demo') !== 'true'
  */
 const OVERTIME = flags.get('no-overtime') !== 'true'
 const WRITE_FIXTURES = flags.get('write-fixtures') === 'true'
-const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 25) * 60_000
+const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 45) * 60_000
 const TRACE_FILE = flags.get('trace') ?? process.env.EZPUG_IRON_TRACE_FILE ?? null
-/** How long the bots get to walk in after `bot_quota` before the match is forced live. */
-const BOT_FILL_MS = Number(flags.get('bot-fill-seconds') ?? 25) * 1000
 /**
  * How long a live match may run before it is force-ended.
  *
@@ -147,7 +149,7 @@ const BOT_FILL_MS = Number(flags.get('bot-fill-seconds') ?? 25) * 1000
 // so MatchZy stops recording a `tv_delay` after the last round and the plugin
 // uploads what settles. The force-end is the wall for a match that wandered into
 // overtime, and it has to sit above the play *plus* that window.
-const MAX_LIVE_MS = Number(flags.get('max-live-minutes') ?? 15) * 60_000
+const MAX_LIVE_MS = Number(flags.get('max-live-minutes') ?? 35) * 60_000
 /**
  * **The wall clock, in one place.** Everything else in this repo runs on the
  * injected clock from `@ezpug/core` and the determinism guard makes a bare
@@ -580,15 +582,42 @@ async function run() {
     maps: [{ map: MAP, sides: 'ct' }],
     rules: {
       regulationRounds: ROUNDS,
+      // **Overtime is where the wall clock goes.** Ten bots are evenly matched,
+      // so a four-round map draws 2-2 more often than not and the overtime
+      // decides it: six more rounds, drawn again about a third of the time, six
+      // more after that. Sixteen rounds at a minute and a half is why
+      // {@link MAX_LIVE_MS} is thirty-five minutes rather than fifteen — a
+      // match force-ended in the middle cuts GOTV off and the run records no
+      // demo, which is the one thing this run exists to produce, and a run on
+      // this box reached `series_end` eight seconds the wrong side of a
+      // twenty-five minute wall. Two rounds of overtime was tried and is worse,
+      // not better: one round a side splits 1-1 far more often than six rounds
+      // split 3-3.
       overtime: { enabled: OVERTIME, maxRounds: 6, startMoney: 10_000 },
       warmup: { minPlayersToReady: 0, minSpectatorsToReady: 0 },
-      // MatchZy's own `live.cfg` sets `bot_quota 0`; these travel in the match
-      // config, which MatchZy re-applies a second after that cfg, so the bots
-      // that played warmup are the bots that play the match.
+      // These travel in the match config, which MatchZy re-applies a second
+      // after its own `live.cfg` — so the quota below is what the *match* runs
+      // with whatever that cfg did to it. `bot_quota_mode` is deliberately not
+      // among them: the mode is the server's, set once in `ezpug/pug.cfg` while
+      // the server is empty, and changing it with bots standing evicts GOTV
+      // along with them (PRD-02 T21a).
       cvars: {
+        // **A short freeze time, and nothing else about the round.** Eighteen
+        // seconds a round of bots standing still is four minutes of a run that
+        // has to finish inside {@link MAX_LIVE_MS}; five is plenty for a buy
+        // nobody makes. This travels in the match config, which MatchZy applies
+        // *after* its own `live.cfg`, so it is the last word.
+        //
+        // **`mp_roundtime` is deliberately left alone.** Cutting it to a minute
+        // was tried while the runs that motivated it were still losing every
+        // round to the CT side on the clock — which turned out to be the bots
+        // not fighting at all (`bot_quota_mode`, above), not the length of the
+        // round. It was reverted rather than kept on a reason that had already
+        // been shown to be something else; a shorter round is a change somebody
+        // can make later, on a measurement of its own.
+        mp_freezetime: '5',
         ...(BOTS > 0 && {
           bot_quota: String(BOTS),
-          bot_quota_mode: 'fill',
           bot_difficulty: '2',
           bot_join_after_player: '0',
         }),
@@ -649,7 +678,9 @@ async function run() {
       type: 'rcon',
       command,
     })
-  let filledAt = 0
+  let emptied = false
+  let filled = false
+  let warmupEnded = false
   let started = false
   let liveAt = 0
   let forced = false
@@ -680,26 +711,58 @@ async function run() {
     }
     if (now.state !== 'ready' && now.state !== 'live') continue
 
-    // **The bots have to be standing before the match starts.** MatchZy's
-    // `warmup.cfg` runs `bot_kick; bot_quota 0`, and its `live.cfg` ends with
-    // `mp_warmup_end` — with an empty server that ends nothing, so the engine
-    // stays in warmup and the match never plays a round (seen on this box).
-    // Fill during warmup, give them {@link BOT_FILL_MS} to walk in, then start.
+    // **The bots arrive after the match goes live, not before it** — and that
+    // order is the whole reason this box records a demo at all (PRD-02 T21a).
     //
-    // The wait is a dwell and not a barrier on purpose: a bot emits no
-    // `player_connected` (the SDK's `GamemodeRuntime` suppresses it — the
-    // vocabulary's players are people), so the public surface has nothing to
-    // wait *on*. The barrier that matters is further down: `match.ended`.
-    if (BOTS > 0 && filledAt === 0) {
-      filledAt = wall.now()
-      say(`filling the server with ${BOTS} bots`)
-      await rcon(`bot_quota_mode fill; bot_quota ${BOTS}`, 'bots')
+    // Two engine facts decide it, both measured on this box against CS2
+    // 1.41.7.8 with one command per boot:
+    //
+    //  - The GOTV client counts as one of the bots the engine may evict. Under
+    //    `bot_quota_mode normal` (and `fill`), a `bot_quota` that *drops* while
+    //    bots are standing takes SourceTV with it — and MatchZy's `live.cfg`
+    //    opens with exactly that drop. A drop with nothing to drop is a
+    //    no-change, fires no callback and evicts nobody; so is every *rise*.
+    //  - Bots under `bot_quota_mode competitive` — the mode
+    //    `gamemode_competitive.cfg` sets at every map load, and the one mode
+    //    whose purge does spare GOTV — do not fight. Ten of them played seven
+    //    rounds with zero kills and zero damage between them, every round to
+    //    the CT side on the clock, so the map cannot be decided and no
+    //    `series_end` ever comes. `normal` bots play properly.
+    //
+    // So `gamemodes/pug/cfg/ezpug/pug.cfg` puts the server in `normal` while
+    // the quota is zero, this empties the server *before* `css_start` so
+    // `live.cfg`'s drop is a no-op, and the bots are asked for once the match
+    // is live and the only way left is up.
+    //
+    // The cost is that `live.cfg`'s own `mp_warmup_end` runs on an empty server
+    // and ends nothing, so the warmup is ended here instead, a poll after the
+    // bots are in. A `mp_warmup_end` outside warmup does nothing, which is what
+    // makes it safe to send unconditionally.
+    if (now.state === 'ready') {
+      if (BOTS > 0 && !emptied) {
+        emptied = true
+        say('emptying the server before the start, so `live.cfg` cannot take GOTV with it')
+        await rcon('bot_kick; bot_quota 0', 'empty')
+        continue
+      }
+      if (!started) {
+        started = true
+        say('forcing the start (`css_start`): a bot never readies up')
+        await rcon('css_start', 'start')
+      }
       continue
     }
-    if (!started && wall.now() - filledAt >= (BOTS > 0 ? BOT_FILL_MS : 0)) {
-      started = true
-      say('forcing the start (`css_start`): a bot never readies up')
-      await rcon('css_start', 'start')
+
+    // Live. The bots, then the warmup, one poll apart.
+    if (BOTS > 0 && !filled) {
+      filled = true
+      say(`filling the server with ${BOTS} bots`)
+      await rcon(`bot_quota ${BOTS}`, 'bots')
+      continue
+    }
+    if (BOTS > 0 && !warmupEnded) {
+      warmupEnded = true
+      await rcon('mp_warmup_end', 'warmup-end')
     }
   }
   if (!TERMINAL.includes(final.state)) say(`gave up after ${TIMEOUT_MS / 60_000} minutes`)

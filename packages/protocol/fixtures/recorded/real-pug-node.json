@@ -2,27 +2,6 @@
   "schema": "NodeExchange",
   "exchange": [
     {
-      "from": "orchestrator",
-      "frame": {
-        "type": "start",
-        "instance": {
-          "id": "devbox-1",
-          "purpose": "match",
-          "image": "ghcr.io/ezpug/ezpug-iron/cs2:dev",
-          "serverId": "devbox-1",
-          "serverToken": "not-a-secret_recorded_server_token",
-          "ports": {
-            "game": 27415,
-            "tv": 27416
-          },
-          "env": {
-            "EZPUG_IRON_URL": "http://localhost:3430"
-          },
-          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
-        }
-      }
-    },
-    {
       "from": "node",
       "frame": {
         "type": "instances",
@@ -32,7 +11,7 @@
             "purpose": "match",
             "state": "starting",
             "serverId": "devbox-1",
-            "containerId": "fda7b71a34137e694fa744a8116428c6dd3af83a0f06f93317792be678ede43d",
+            "containerId": "a9eea2102c52c78ac809773a60d4f84f7c4643e5b82dc661db9a2588f64c8e9c",
             "ports": {
               "game": 27415,
               "tv": 27416
@@ -40,6 +19,12 @@
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
           }
         ]
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
       }
     },
     {
@@ -52,7 +37,7 @@
             "purpose": "match",
             "state": "running",
             "serverId": "devbox-1",
-            "containerId": "fda7b71a34137e694fa744a8116428c6dd3af83a0f06f93317792be678ede43d",
+            "containerId": "a9eea2102c52c78ac809773a60d4f84f7c4643e5b82dc661db9a2588f64c8e9c",
             "ports": {
               "game": 27415,
               "tv": 27416
@@ -60,6 +45,30 @@
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
           }
         ]
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
       }
     },
     {
@@ -340,7 +349,7 @@
             "purpose": "match",
             "state": "stopping",
             "serverId": "devbox-1",
-            "containerId": "fda7b71a34137e694fa744a8116428c6dd3af83a0f06f93317792be678ede43d",
+            "containerId": "a9eea2102c52c78ac809773a60d4f84f7c4643e5b82dc661db9a2588f64c8e9c",
             "ports": {
               "game": 27415,
               "tv": 27416
@@ -355,12 +364,6 @@
       "frame": {
         "type": "instances",
         "instances": []
-      }
-    },
-    {
-      "from": "node",
-      "frame": {
-        "type": "heartbeat"
       }
     }
   ]

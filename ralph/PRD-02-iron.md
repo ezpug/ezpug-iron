@@ -477,7 +477,7 @@ every offline proof here.
   Verified on the dev node against the platform's dev MinIO. References: legacy
   `GameDemos.cs`, decision 10.
 
-- [ ] **T21a (P1): GOTV does not survive a match on the dev image, so nothing records a
+- [x] **T21a (P1): GOTV does not survive a match on the dev image, so nothing records a
   demo.** Found in T21, pre-existing, not caused by it: on the dev node the engine counts
   the SourceTV client as a bot, so the first `bot_quota 0` after the map is up kicks it
   (`SourceTV kicked by Console (NETWORK_DISCONNECT_KICKED)`, right after `execing
@@ -498,6 +498,19 @@ every offline proof here.
   demo branch from "either outcome" back into "the demo landed" and record the real
   `demo_available`/`demo.uploaded` pair into the fixtures. Never retried into green
   (working rules).
+
+- [ ] **T21b: `pnpm dev:node up` starts a second agent on top of the first, and the two
+  never settle.** Found in T21a, pre-existing, not caused by it: `scripts/dev-node.sh down`
+  kills the one pid in `.ezpug-node/agent.pid` and `up` overwrites that file, so an `up`
+  while an agent is already running orphans the first — and two agents holding the same
+  node identity fight over `/node` forever (`the node link closed 4005 (replaced by a
+  newer socket)` on one side, a fresh `hello` on the other, a loop with no end). It is
+  silent: `dev-node.sh status` reads the *winning* socket and looks healthy. It cost two
+  T21a runs — one carried `fleet.node_disconnected` × 1910 and the next `POST /v1/matches`
+  answered `503 no_capable_server` against a node with nothing running. Make `up` refuse
+  (or adopt) when an agent is alive, make `down` end every `src/main.ts run` this checkout
+  owns rather than one pid, and make the orchestrator debounce a node identity that
+  re-`hello`s in a loop instead of billing a `fleet.node_disconnected` per flap.
 
 - [ ] **T22: `flying-scoutsman` and the generic flow.** The SDK's generic flow emitter
   for `flow: plugin | none` modes: `round_start`/`round_end` from game events (winner,
@@ -646,6 +659,31 @@ every offline proof here.
   what to do when a provider dies on a Saturday, rolling back a plugin), `docs/pins.md`,
   `CHANGELOG.md`; every doc checked by a test where it names a route, a command or a
   version.
+
+- [ ] **T38a (fable): What the platform's console found missing — the additive 0.2.0.**
+  The platform loop (`/root/ezpug/ralph/PRD-09-iron-platform.md`, its `> blocked:` notes
+  under T2, T4, T5, T14 and its T34) hit four contract gaps and, per decision 24, wrote
+  them down instead of editing a schema. Grow `@ezpug/match-api` **additively** for all
+  four, serve them in the orchestrator, exercise them in the fake and the conformance
+  suite, and release: (1) **prefer a venue, do not require one** — `requirements.lan`
+  narrows to nodes-or-nothing; add `requirements.preferLan` (or an ordering hint) so a
+  LAN night before a node is enrolled still gets a Dathost box; (2) **a scenario catalog
+  for the sim** — `GET /v1/sim/scenarios` (or the list on `Capacity` under the `sim`
+  provider) so a console offering a name knows it exists; (3) **one demo upload URL per
+  map** — `callbacks.demoUploadUrls` (per `mapNumber`) or a `{mapNumber}` template
+  beside the single `demoUploadUrl`, so a Bo3 does not overwrite map 1; (4) **a re-roll
+  that is a different box** — a `reroll` variant (or a `reprovision` command) that
+  releases the current server and walks again for the same `clientMatchId` before `live`,
+  and an admin-started recovery on a live match that reuses T14's restore path; the
+  ledger and the events route tell the story. Then publish `0.2.0`: `scripts/release.mjs`
+  learns a `--registry <url>` (or honours `npm_config_registry`) because npmjs is not
+  logged in on this box — the platform reads the box's Verdaccio at
+  `http://172.17.0.1:4873/` (the user token is in `~/.npmrc`; `npm whoami --registry
+  http://172.17.0.1:4873` answers `ezpug-box`); publish there now and to npmjs the day
+  the owner logs in. The changelog names which platform note each change answers.
+  Before starting, grep the platform's PRD and progress file for "contract gap" once more
+  and take anything newer than these four. References: decision 24, the four notes
+  named above, `packages/match-api`, `docs/match-api.md`.
 
 - [ ] **T39: Release.** `@ezpug/match-api` bumped to the round's additive changes (the
   changelog says which platform task each serves), images and plugin zip tagged, the
