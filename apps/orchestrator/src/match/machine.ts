@@ -22,6 +22,7 @@ import {
   isSimCommand,
   isTerminalMatchState,
   MATCH_API_ERROR_STATUS,
+  matchDemoOutcome,
   STREAM_CLOSE_CODES,
 } from '@ezpug/match-api'
 import {
@@ -104,6 +105,20 @@ export interface MatchDeadlines {
   joinMs: number
   /** The `recovering` window. */
   recoveryMs: number
+  /**
+   * **The demo window** (T21): how long after the gamemode said its series was
+   * over the match waits for the demo before ending anyway. GOTV records the
+   * *delayed* broadcast, so a `.dem` is only complete `tv_delay` seconds after
+   * the last round — and the server that holds it is released the moment the
+   * match ends. Only armed for a match that records a demo and was given
+   * somewhere to put it, and only until the demo is announced.
+   *
+   * Six minutes covers the plugin's whole timeline with room to spare: a GOTV
+   * delay of 105 s, the settle window it needs to know the file is finished,
+   * and the PUT itself with its retries (`DemoFlow` in `plugins/EZPug.Core`,
+   * whose own patience is four minutes).
+   */
+  demoMs: number
   /** No event from a live server for this long and it is probed. */
   heartbeatTimeoutMs: number
 }
@@ -113,6 +128,7 @@ export const DEFAULT_MATCH_DEADLINES: MatchDeadlines = {
   bootMs: 5 * 60_000,
   joinMs: 20 * 60_000,
   recoveryMs: 5 * 60_000,
+  demoMs: 6 * 60_000,
   heartbeatTimeoutMs: 3 * HEARTBEAT_INTERVAL_MS_DEFAULT,
 }
 
@@ -195,7 +211,7 @@ export interface Matches extends ServerEventSink {
   close: () => Promise<void>
 }
 
-type TimerName = 'allocate' | 'boot' | 'join' | 'recovery' | 'heartbeat' | 'ttl'
+type TimerName = 'allocate' | 'boot' | 'join' | 'recovery' | 'heartbeat' | 'ttl' | 'demo'
 
 interface Runtime {
   chain: Promise<void>
@@ -212,6 +228,15 @@ interface Runtime {
   restoring: { mapNumber: number; roundNumber: number } | null
   /** While `recovering`: a replacement walk is queued or running. */
   recovering: boolean
+  /**
+   * The demos this match's servers announced, and how many of those they had
+   * already put where the request said (T21) — what `match.ended.demo`
+   * reports. In memory beside the presence map: an orchestrator restarted
+   * mid-match forgets both, and the durable log keeps the facts either way.
+   */
+  demos: { announced: number; uploaded: number }
+  /** `series_end` arrived and the match is holding the server open for its demo. */
+  awaitingDemo: boolean
 }
 
 /** Round backups kept per match — MatchZy writes one a round; recovery wants the newest. */
@@ -295,6 +320,8 @@ export function createMatches(options: MatchesOptions): Matches {
         lastSeenWrittenAt: 0,
         restoring: null,
         recovering: false,
+        demos: { announced: 0, uploaded: 0 },
+        awaitingDemo: false,
       }
       runtimes.set(row.id, runtime)
     }
@@ -480,6 +507,46 @@ export function createMatches(options: MatchesOptions): Matches {
 
   // --- the end --------------------------------------------------------------------------
 
+  // --- demos (T21) --------------------------------------------------------------------
+
+  /**
+   * The object key the demo landed under, read out of the presigned URL the
+   * request carried — the same rule the published fake uses. The orchestrator
+   * never sees a byte of a demo; this is the one thing it can say about where
+   * one went.
+   */
+  const demoKeyOf = (row: MatchRow): string | undefined => {
+    const url = row.requestJson.callbacks.demoUploadUrl
+    if (!url) return undefined
+    try {
+      const key = new URL(url).pathname.replace(/^\/+/, '')
+      return key.length > 0 ? key : undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  /** What became of this match's demos, by the contract's own rule. */
+  const demoOf = (row: MatchRow) => {
+    const runtime = runtimes.get(row.id)
+    return matchDemoOutcome({
+      recordsDemo: manifestOf(row).records === 'demo',
+      hasUploadUrl: row.requestJson.callbacks.demoUploadUrl !== undefined,
+      announced: runtime?.demos.announced ?? 0,
+      uploaded: runtime?.demos.uploaded ?? 0,
+    })
+  }
+
+  /**
+   * Whether the match should hold its server open past `series_end` for a demo
+   * that has not been announced yet: the mode records one, the request said
+   * where to put it, and fewer demos have arrived than maps were played.
+   */
+  const demoPending = (row: MatchRow, runtime: Runtime): boolean =>
+    manifestOf(row).records === 'demo' &&
+    row.requestJson.callbacks.demoUploadUrl !== undefined &&
+    runtime.demos.announced < runtime.currentMap
+
   const end = async (
     row: MatchRow,
     state: 'ended' | 'failed' | 'cancelled',
@@ -502,7 +569,7 @@ export function createMatches(options: MatchesOptions): Matches {
       sim,
     }
     if (state === 'failed') await emit(row, { type: 'match.failed', state, reason }, patch)
-    else await emit(row, { type: 'match.ended', state, reason }, patch)
+    else await emit(row, { type: 'match.ended', state, reason, demo: demoOf(row) }, patch)
     hub.closeMatch(row.id, STREAM_CLOSE_CODES.matchEnded)
     runtimes.delete(row.id)
   }
@@ -535,6 +602,21 @@ export function createMatches(options: MatchesOptions): Matches {
         ? fail(fresh, 'provider_error', `no server_ready within ${deadlines.bootMs} ms`)
         : Promise.resolve(),
     )
+
+  /**
+   * The demo window: end the match anyway when the demo does not come. The
+   * fact is honest either way — `match.ended.demo` then says `no_demo`.
+   */
+  const armDemo = (row: MatchRow): void =>
+    setTimer(row, 'demo', clock.now() + deadlines.demoMs, fresh => {
+      const runtime = runtimes.get(fresh.id)
+      if (!runtime?.awaitingDemo) return Promise.resolve()
+      runtime.awaitingDemo = false
+      log.info(
+        `match ${fresh.id}: no demo within ${deadlines.demoMs} ms of series_end; ending without it`,
+      )
+      return end(fresh, 'ended', { kind: 'completed' }, 'released')
+    })
 
   const armJoin = (row: MatchRow): void =>
     setTimer(row, 'join', row.stateChangedAt.getTime() + deadlines.joinMs, fresh => {
@@ -984,7 +1066,38 @@ export function createMatches(options: MatchesOptions): Matches {
           await setState(row, 'live')
         }
         break
+      case 'demo_available': {
+        runtime.demos.announced += 1
+        // A hash means the server already PUT the file where the request said
+        // (decision 10): it owns the upload, the orchestrator owns the fact.
+        if (event.sha256 && event.contentType) {
+          runtime.demos.uploaded += 1
+          const key = demoKeyOf(row)
+          await emit(row, {
+            type: 'demo.uploaded',
+            mapNumber: event.mapNumber,
+            ...(key !== undefined && { key }),
+            size: event.sizeBytes ?? 0,
+            sha256: event.sha256,
+            contentType: event.contentType,
+          })
+        }
+        if (runtime.awaitingDemo && !demoPending(row, runtime)) {
+          cancelTimer(row, 'demo')
+          runtime.awaitingDemo = false
+          await end(row, 'ended', { kind: 'completed' }, 'released')
+        }
+        break
+      }
       case 'series_end':
+        // The series is over, but a GOTV demo is only finished `tv_delay`
+        // after the last round and the server is released the moment the
+        // match ends — so a match that records one waits for it (T21).
+        if (demoPending(row, runtime)) {
+          runtime.awaitingDemo = true
+          armDemo(row)
+          break
+        }
         await end(row, 'ended', { kind: 'completed' }, 'released')
         break
       default:

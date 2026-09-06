@@ -20,9 +20,10 @@ import { createTestApp, type TestApp } from './http/testing'
  * runs the same flows over a real socket, Postgres and Redis.
  *
  * What this target cannot offer, the runner skips with a reason: the
- * widget's tap (T24), a demo landing anywhere (T21). The fault knobs are the
- * sim provider's (`setFaults`, T14): a crash after a round, with or without
- * the backups to come back from.
+ * widget's tap (T24). The demo lands in the test's own bucket
+ * (`app.uploads`), which is a client's storage and not a door of ours. The
+ * fault knobs are the sim provider's (`setFaults`, T14): a crash after a
+ * round, with or without the backups to come back from.
  */
 
 const SECRET_ID = 'whsec-conformance'
@@ -102,7 +103,13 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
         handlers.delete(handler)
       }
     },
-    callbacks: { webhookUrl: 'https://platform.invalid/hooks/ezpug', webhookSecretId: SECRET_ID },
+    callbacks: {
+      webhookUrl: 'https://platform.invalid/hooks/ezpug',
+      webhookSecretId: SECRET_ID,
+      // The client's bucket: `app.uploads` is what a simulated server PUT
+      // there, and the demo checks are on (T21).
+      demoUploadUrl: 'https://bucket.invalid/demos/conformance.dem?signed=1',
+    },
     clock: app.clock,
     faults: faults => app.sim.setFaults(faults.crash === undefined ? {} : { crash: faults.crash }),
     advance: async ms => {

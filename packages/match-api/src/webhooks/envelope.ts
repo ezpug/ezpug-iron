@@ -2,7 +2,12 @@ import { z } from 'zod'
 import { assertClosedSet } from '../closed-set'
 import { clientMatchIdSchema, matchIdSchema, timestampSchema } from '../resources/common'
 import { budgetLimitsSchema, budgetUsageSchema } from '../resources/fleet'
-import { matchEndedReasonSchema, serverConnectSchema, serverTvSchema } from '../resources/match'
+import {
+  matchDemoOutcomeSchema,
+  matchEndedReasonSchema,
+  serverConnectSchema,
+  serverTvSchema,
+} from '../resources/match'
 import {
   backupWrittenEventSchema,
   bombDefusedEventSchema,
@@ -148,6 +153,12 @@ export const matchEndedFactSchema = factBase.extend({
   type: z.literal('match.ended'),
   state: z.enum(['ended', 'cancelled']),
   reason: matchEndedReasonSchema,
+  /**
+   * What became of the demos (PRD-02 T21): how many maps' demos reached the
+   * client's storage, and why there were not more. Absent only from a producer
+   * older than the field.
+   */
+  demo: matchDemoOutcomeSchema.optional(),
 })
 
 /**

@@ -125,6 +125,18 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   and 1.5 s after each live round start the newest `MatchZyDataBackup/matchzy_<matchid>_<map>_round<NN>.json`
   as a `backup` frame (restores to round `NN + 1`) plus `backup_written`, the remote-log
   header value scrubbed out of MatchZy's serialised config first.
+- **The demo, and its upload** (`DemoFlow`, `records: demo` only, T21). MatchZy records its
+  own flow's demo into `game/csgo/MatchZy/` and stops a GOTV delay after the last round;
+  for any other flow the core runs `tv_record` at the map and `tv_stoprecord` one `tv_delay`
+  after the win panel (`cs_win_panel_match`, the one end-of-map signal every flow shares).
+  **The upload is always the core's** — MatchZy's own uploader POSTs a multipart form and a
+  presigned PUT will not take one (decision 10). Nothing says when a `.dem` is finished, so
+  from the win panel on the newest one is watched until its length has stood still for
+  fifteen seconds, then hashed, streamed at the assignment's `demoUploadUrl` (four attempts
+  on the clock) and announced as `demo_available` with its size and hash — the hash is what
+  the orchestrator relays as `demo.uploaded`. No upload URL, or a storage that refuses:
+  the demo is still announced, hashless, and stays on the server. One demo per match,
+  because the request carries one URL.
 - **A restore** (T14). An assignment whose match resumes here after its server was lost
   carries `restore`: the loader goes to the backup's map (not the plan's first), and after
   `matchzy_loadmatch` writes the backup into `MatchZyDataBackup/` with this server's remote
@@ -206,5 +218,5 @@ then the map loads and the server stays up. What is still unproven on real hardw
 everything that needs a *link*: no server token exists until a provider allocates one
 (T12's node), so `hello`, `assign`, the gamemode loader and the console commands have only
 ever run on the SDK harness. The first linked run, and the first match, are T13's.
-`backup` frames (T9/T14), the demo upload (T21), the scoreboard rating (T27), the
-skins hand-off (T28) and branding beyond the hostname (T29) are the tasks that name them.
+`backup` frames (T9/T14), the scoreboard rating (T27), the skins hand-off (T28) and
+branding beyond the hostname (T29) are the tasks that name them.

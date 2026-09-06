@@ -103,6 +103,61 @@ export const matchEndedReasonSchema = z.object({
 })
 export type MatchEndedReason = z.infer<typeof matchEndedReasonSchema>
 
+/**
+ * **Why a match that could have had a demo has none in the client's storage**
+ * (decision 10, PRD-02 T21). The server owns the upload; the orchestrator only
+ * relays what it was told, so these are the four honest answers it can give.
+ */
+export const DEMO_SKIP_REASONS = [
+  /** The request carried no `callbacks.demoUploadUrl`; nothing was asked for. */
+  'no_upload_url',
+  /** The gamemode's `records` is not `demo` — this match was never going to have one. */
+  'not_recorded',
+  /** Recording was on and no demo was ever announced: the match never went live, or the server was lost with the file on it. */
+  'no_demo',
+  /** The server announced a demo it could not put where it was told; the bytes stayed on the server. */
+  'upload_failed',
+] as const
+export const demoSkipReasonSchema = z.enum(DEMO_SKIP_REASONS)
+export type DemoSkipReason = z.infer<typeof demoSkipReasonSchema>
+
+/**
+ * **What became of this match's demos**, carried by the `match.ended` fact.
+ * `uploaded` counts the maps whose demo reached the client's storage — one
+ * `demo.uploaded` each — and `skipped` says why there were not more. A series
+ * whose every recorded map landed carries no `skipped`; a match that was never
+ * going to record one carries `uploaded: 0` and `not_recorded`.
+ */
+export const matchDemoOutcomeSchema = z.object({
+  uploaded: z.number().int().nonnegative(),
+  skipped: demoSkipReasonSchema.optional(),
+})
+export type MatchDemoOutcome = z.infer<typeof matchDemoOutcomeSchema>
+
+/**
+ * The one rule every producer answers `match.ended.demo` by, so the fake and a
+ * real orchestrator cannot drift: what the gamemode records, whether the
+ * request gave the server somewhere to put it, how many demos the server
+ * announced and how many of those it managed to upload.
+ */
+export function matchDemoOutcome(input: {
+  /** The manifest's `records` is `demo`. */
+  recordsDemo: boolean
+  /** The request carried a `callbacks.demoUploadUrl`. */
+  hasUploadUrl: boolean
+  /** `demo_available` events seen for this match. */
+  announced: number
+  /** Of those, the ones that carried a hash — the ones that landed. */
+  uploaded: number
+}): MatchDemoOutcome {
+  if (!input.recordsDemo) return { uploaded: 0, skipped: 'not_recorded' }
+  if (!input.hasUploadUrl) return { uploaded: 0, skipped: 'no_upload_url' }
+  if (input.announced === 0) return { uploaded: 0, skipped: 'no_demo' }
+  if (input.uploaded < input.announced)
+    return { uploaded: input.uploaded, skipped: 'upload_failed' }
+  return { uploaded: input.uploaded }
+}
+
 export const matchSchema = z.object({
   id: matchIdSchema,
   clientMatchId: clientMatchIdSchema,

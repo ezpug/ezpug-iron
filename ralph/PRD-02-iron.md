@@ -467,7 +467,7 @@ every offline proof here.
   running the whole plugin suite ten times green with the box deliberately loaded. Never
   retried into green (working rules).
 
-- [ ] **T21: Demos over the link's shoulder** (and the half of T13's lane that waited on
+- [x] **T21: Demos over the link's shoulder** (and the half of T13's lane that waited on
   it: `demo.uploaded` in `cs2.extended.test.ts`). For `records: demo` the core plugin owns
   recording where MatchZy does not (`tv_record` on `going_live`/`OnStart`, `tv_stoprecord`
   on end) and **always owns the upload**: PUT the file to the request's `demoUploadUrl`
@@ -476,6 +476,28 @@ every offline proof here.
   `demoUploadUrl` means no upload and an honest `demo.skipped` reason in the ended fact.
   Verified on the dev node against the platform's dev MinIO. References: legacy
   `GameDemos.cs`, decision 10.
+
+- [ ] **T21a (P1): GOTV does not survive a match on the dev image, so nothing records a
+  demo.** Found in T21, pre-existing, not caused by it: on the dev node the engine counts
+  the SourceTV client as a bot, so the first `bot_quota 0` after the map is up kicks it
+  (`SourceTV kicked by Console (NETWORK_DISCONNECT_KICKED)`, right after `execing
+  ezpug/pug.cfg` in the container log) and CS2 does not bring SourceTV back without a
+  level change — `tv_enable 0` then `tv_enable 1` in one cfg is one frame and no change at
+  all, and the same pair spaced three seconds apart over the fleet RCON door did not bring
+  it back either. MatchZy's own `warmup.cfg` and `live.cfg` both run `bot_quota 0`, so
+  moving our cfg's bot lines above its GOTV block (done in T21) keeps *us* out of it and
+  does not fix it. The consequence: `matchzy_demo_recording_enabled` is on, MatchZy runs
+  `tv_record` and `tv_stoprecord` on its own schedule, and **no `.dem` is ever written** —
+  a whole T21 run ended, correctly and honestly, with `demo.skipped: no_demo` six minutes
+  after `series_end` (`no demo appeared in …/MatchZy within 240000 ms of the win panel`,
+  the plugin; `no demo within 360000 ms of series_end; ending without it`, the machine).
+  Everything either side of the missing file is proven — the watcher, the marker, both
+  windows, the ended fact — so this is one thing: make GOTV survive the bot purge (a
+  reserved slot, `tv_enable` before the players, a `bot_kick` that spares it, or the
+  plugin restoring GOTV once with a level change), then turn the `EZPUG_CS2_TESTS` lane's
+  demo branch from "either outcome" back into "the demo landed" and record the real
+  `demo_available`/`demo.uploaded` pair into the fixtures. Never retried into green
+  (working rules).
 
 - [ ] **T22: `flying-scoutsman` and the generic flow.** The SDK's generic flow emitter
   for `flow: plugin | none` modes: `round_start`/`round_end` from game events (winner,
@@ -634,6 +656,11 @@ every offline proof here.
 
 ## Working rules
 
+- **Never wait on a background task.** In the loop the run ends the moment you stop
+  talking: a command started in the background, or a turn that ends with "I'll report
+  when it lands", loses the iteration and leaves the task half-done (this round already
+  lost two that way). Long commands run in the foreground with an explicit timeout;
+  if a tier takes twenty minutes, wait twenty minutes.
 - **`pnpm verify` green before every commit**, TS and C# both; `pnpm verify:extended`
   for T3, T6, T9, T12–T14, T16, T21–T24, T26–T28, T32, T35–T37 and any task touching a
   flow; the `EZPUG_CS2_TESTS` lane whenever the dev node is up and the iteration says

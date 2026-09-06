@@ -2043,6 +2043,10 @@
         "state": "ended",
         "reason": {
           "kind": "completed"
+        },
+        "demo": {
+          "uploaded": 0,
+          "skipped": "not_recorded"
         }
       }
     }

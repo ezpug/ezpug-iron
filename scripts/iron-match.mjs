@@ -59,7 +59,7 @@ const HELP = `iron-match — run one real match through the Match API and record
   --bots <n>             bot_quota, default 10; 0 leaves the server empty
   --bot-fill-seconds <n> how long the bots get to join before the start; default 25
   --no-overtime          allow a drawn map — MatchZy then replays it, so the run hangs
-  --max-live-minutes <n> force-end a match still live after this long; default 12
+  --max-live-minutes <n> force-end a match still live after this long; default 15
   --base-url <url>       default $EZPUG_IRON_BASE_URL
   --trace <file>         the orchestrator's trace; default $EZPUG_IRON_TRACE_FILE
   --out <dir>            where the run is written; default .cache/iron-match/<run>
@@ -142,7 +142,12 @@ const BOT_FILL_MS = Number(flags.get('bot-fill-seconds') ?? 25) * 1000
  * is the wall in front of that: the match ends `force_ended`, the ledger row
  * closes, and the summary says which of the two happened.
  */
-const MAX_LIVE_MS = Number(flags.get('max-live-minutes') ?? 12) * 60_000
+// A match stays `live` past its own `series_end` while the orchestrator holds
+// the server open for the demo (PRD-02 T21): GOTV records the delayed broadcast,
+// so MatchZy stops recording a `tv_delay` after the last round and the plugin
+// uploads what settles. The force-end is the wall for a match that wandered into
+// overtime, and it has to sit above the play *plus* that window.
+const MAX_LIVE_MS = Number(flags.get('max-live-minutes') ?? 15) * 60_000
 /**
  * **The wall clock, in one place.** Everything else in this repo runs on the
  * injected clock from `@ezpug/core` and the determinism guard makes a bare
@@ -749,6 +754,11 @@ async function run() {
  * batch earned goes with it, or the recording would acknowledge frames it
  * does not contain.
  */
+/** What `match.ended` said became of this match's demos, or `null` before it landed. */
+function demoOutcome(envelopes) {
+  return envelopes.find(envelope => envelope.payload.type === 'match.ended')?.payload.demo ?? null
+}
+
 function exchanges(trace, kind) {
   const bySocket = new Map()
   const dropped = new Set()
@@ -813,6 +823,8 @@ function write(result) {
     /** True when the run had to end it rather than MatchZy finishing the series. */
     forcedEnd: result.forced === true,
     demoTarget: result.demoTarget,
+    /** What `match.ended` said became of the demos (T21). */
+    demo: result.match.endedReason ? (demoOutcome(result.envelopes) ?? null) : null,
     ledger: {
       rows: rows.length,
       open: rows.filter(row => row.releasedAt === null).length,

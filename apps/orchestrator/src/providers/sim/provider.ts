@@ -1,6 +1,13 @@
+import { createHash } from 'node:crypto'
 import type { Clock } from '@ezpug/core'
 import { createPrng } from '@ezpug/core'
-import type { GameserverPlayer, MatchRequest, RosterEntry, SimStatus } from '@ezpug/match-api'
+import type {
+  GameserverEvent,
+  GameserverPlayer,
+  MatchRequest,
+  RosterEntry,
+  SimStatus,
+} from '@ezpug/match-api'
 import type { MatchAssignment, SimPlan, SimulatedServer, SimulatorScenario } from '@ezpug/sim'
 import {
   assignmentFromMatchRequest,
@@ -8,6 +15,7 @@ import {
   findScenario,
   resolveScenario,
   SIM_PROVIDER_ID,
+  SIMULATED_MATCH_RECORD_CONTENT_TYPE,
 } from '@ezpug/sim'
 import type { LinkRegistry, ServerEventSink, ServerRef } from '../../link/channels'
 import type {
@@ -75,6 +83,13 @@ export interface SimProviderOptions {
   defaults?: SimPlan
   /** The determinism root; every story seed derives from it. Default `sim`. */
   seed?: string
+  /**
+   * How a simulated server PUTs its recording at the request's
+   * `demoUploadUrl` (T21). A simulated box is the server side of the link, so
+   * the upload is *its* job exactly as it is a real plugin's — the
+   * orchestrator only relays the fact. Default: the global `fetch`.
+   */
+  fetch?: typeof globalThis.fetch
   onError?: (error: unknown, context: Record<string, unknown>) => void
 }
 
@@ -190,6 +205,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
 
   const ref = (serverId: string): ServerRef => ({ provider: SIM_PROVIDER_ID, serverId })
   const host = (serverId: string): string => `${serverId}.sim.invalid`
+  const fetchImpl = options.fetch ?? globalThis.fetch
 
   /**
    * **Every ingest this provider has started and not yet finished** (T10a).
@@ -280,13 +296,74 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
       server.assign(assignment, { ...plan, seed })
       const presence = new Map<string, GameserverPlayer>()
       let currentMap = 1
+      /**
+       * **The story reaches the sink in the order it was told**, even when one
+       * beat has to go to the network first: a `demo_available` is held until
+       * the recording behind it has been PUT, and the `series_end` two seconds
+       * behind it must not overtake it — the machine ends the match on that
+       * one and would reject the demo that arrived after it. Each queued step
+       * is tracked so the barrier ({@link SimProvider.settle}) still sees it.
+       */
+      let tail: Promise<void> = Promise.resolve()
+      const feed = (step: () => Promise<unknown>): void => {
+        const next = tail.then(step, step).then(
+          () => undefined,
+          (error: unknown) => {
+            report(error, { serverId, matchId: configuration.matchId, where: 'ingest' })
+          },
+        )
+        tail = next
+        ingesting.add(next)
+        void next.then(
+          () => ingesting.delete(next),
+          () => ingesting.delete(next),
+        )
+      }
+      const demoUploadUrl =
+        configuration.gamemode.records === 'demo'
+          ? configuration.request.callbacks.demoUploadUrl
+          : undefined
+
+      /**
+       * What a real plugin does with a finished demo (decision 10, T21): PUT
+       * it where the request said and say what landed. The simulator's
+       * recording is not a `.dem` and never pretends to be one — it goes up as
+       * the JSON it is, under its own content type.
+       */
+      const uploadRecording = async (
+        event: Extract<GameserverEvent, { type: 'demo_available' }>,
+      ): Promise<GameserverEvent> => {
+        const recording = server.record(event.mapNumber)
+        if (!recording || !demoUploadUrl) return event
+        try {
+          const response = await fetchImpl(demoUploadUrl, {
+            method: 'PUT',
+            headers: { 'content-type': SIMULATED_MATCH_RECORD_CONTENT_TYPE },
+            body: recording.bytes as Uint8Array<ArrayBuffer>,
+          })
+          if (!response.ok) throw new Error(`the demo upload answered ${response.status}`)
+        } catch (error) {
+          // Honest: the demo exists on the box and nowhere else. The event
+          // still travels, without a hash, and `match.ended` says
+          // `upload_failed`.
+          report(error, { serverId, matchId: configuration.matchId, where: 'demo' })
+          return event
+        }
+        return {
+          ...event,
+          sizeBytes: recording.sizeBytes,
+          sha256: createHash('sha256').update(recording.bytes).digest('hex'),
+          contentType: SIMULATED_MATCH_RECORD_CONTENT_TYPE,
+        }
+      }
+
       server.events(event => {
         if (event.type === 'player_connected') presence.set(event.player.steamId64, event.player)
         else if (event.type === 'player_disconnected') presence.delete(event.player.steamId64)
         else if (event.type === 'going_live') currentMap = event.mapNumber
-        void trackedSink.ingest(ref(serverId), event).catch((error: unknown) => {
-          report(error, { serverId, matchId: configuration.matchId, where: 'ingest' })
-        })
+        if (event.type === 'demo_available' && demoUploadUrl)
+          feed(async () => sink.ingest(ref(serverId), await uploadRecording(event)))
+        else feed(() => sink.ingest(ref(serverId), event))
         // What a plugin does after `backup_written`: the file, up the link.
         // A faulted box keeps its files, and the loss is then a real one.
         if (event.type === 'backup_written' && entry.reportsBackups) {

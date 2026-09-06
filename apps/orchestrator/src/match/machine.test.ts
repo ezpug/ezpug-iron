@@ -1,5 +1,6 @@
 import {
   ApiError,
+  type GameserverEvent,
   type MatchRequest,
   type MatchRequestInput,
   matchRequestSchema,
@@ -11,7 +12,56 @@ import {
 import { describe, expect, it } from 'vitest'
 import { createTestApp, type TestApp } from '../http/testing'
 import type { AuthenticatedKey } from '../keys/service'
+import type { GameServerProvider, ServerConfiguration } from '../providers/provider'
 import { createMatches } from './machine'
+
+/** A LAN-shaped provider whose servers do nothing but exist, so a test speaks for them. */
+const PHANTOM = 'nodes'
+function createPhantomProvider(): GameServerProvider {
+  let counter = 0
+  const live = new Map<string, { matchId: string; fleetServerId: string }>()
+  const configured = new Map<string, ServerConfiguration>()
+  return {
+    id: PHANTOM,
+    offerings: () =>
+      Promise.resolve([
+        {
+          capabilities: {
+            games: ['cs2'],
+            region: 'devbox',
+            tickrate: 128,
+            lan: true,
+            workshopMaps: true,
+          },
+          hourlyCents: 0,
+          available: 4,
+        },
+      ]),
+    allocate: allocation => {
+      counter += 1
+      const serverId = `devbox-${counter}`
+      live.set(serverId, { matchId: allocation.matchId, fleetServerId: allocation.fleetServerId })
+      return Promise.resolve({ serverId, connect: { host: '127.0.0.1', port: 27_415 } })
+    },
+    configure: (serverId, configuration) => {
+      configured.set(serverId, configuration)
+      return Promise.resolve()
+    },
+    start: () => Promise.resolve(),
+    stop: () => Promise.resolve(),
+    status: serverId =>
+      Promise.resolve(
+        live.has(serverId)
+          ? { state: 'running', connect: { host: '127.0.0.1', port: 27_415 } }
+          : { state: 'gone' },
+      ),
+    deallocate: serverId => {
+      live.delete(serverId)
+      return Promise.resolve()
+    },
+    list: () => Promise.resolve([...live].map(([serverId, entry]) => ({ serverId, ...entry }))),
+  }
+}
 
 /**
  * **The machine, the walk, the deadlines, the reaper, the webhooks and the
@@ -659,5 +709,189 @@ describe('the stream', () => {
     expect(events.length).toBe(stored.length)
     expect(stored.some(e => (e.payload.type as string) === 'position_tick')).toBe(false)
     await app.close()
+  })
+})
+
+/**
+ * **Demos** (PRD-02 T21). The server owns the upload and the orchestrator owns
+ * the fact: a `demo_available` that carries a hash is relayed as
+ * `demo.uploaded`, and every `match.ended` says what became of the demos —
+ * including the honest answers when there was never going to be one.
+ */
+describe('the demo', () => {
+  const withDemo = (overrides: Partial<MatchRequestInput> = {}) =>
+    request({
+      callbacks: {
+        webhookUrl: 'https://platform.invalid/hooks',
+        webhookSecretId: SECRET_ID,
+        demoUploadUrl: 'https://bucket.invalid/demos/one.dem?signed=1',
+      },
+      ...overrides,
+    })
+
+  it('is PUT by the server, relayed as a fact, and counted in the ended fact', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, withDemo())
+    await app.playOut()
+
+    // The simulated server did the upload, exactly as a plugin does.
+    expect(app.uploads).toHaveLength(1)
+    expect(app.uploads[0]?.url).toBe('https://bucket.invalid/demos/one.dem?signed=1')
+    expect(app.uploads[0]?.contentType).toContain('application/json')
+    expect(app.uploads[0]?.bytes).toBeGreaterThan(0)
+
+    const order = types(app, match.id)
+    expect(order.indexOf('demo_available')).toBeGreaterThan(-1)
+    expect(order.indexOf('demo_available')).toBeLessThan(order.indexOf('demo.uploaded'))
+    const uploaded = app.store.rows.events.find(
+      e => e.matchId === match.id && e.payload.type === 'demo.uploaded',
+    )?.payload
+    expect(uploaded).toMatchObject({
+      mapNumber: 1,
+      key: 'demos/one.dem',
+      contentType: 'application/json; charset=utf-8',
+    })
+    expect((uploaded as { sha256: string }).sha256).toMatch(/^[0-9a-f]{64}$/)
+    expect((uploaded as { size: number }).size).toBe(app.uploads[0]?.bytes)
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 1 } })
+    await app.close()
+  })
+
+  it('is not asked for when the request named nowhere to put one', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request())
+    await app.playOut()
+
+    expect(app.uploads).toEqual([])
+    expect(types(app, match.id)).not.toContain('demo.uploaded')
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 0, skipped: 'no_upload_url' } })
+    await app.close()
+  })
+
+  it('is never expected of a mode that records events only', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(
+      key,
+      withDemo({ gamemode: 'flying-scoutsman', rules: undefined }),
+    )
+    await app.playOut()
+
+    expect(app.uploads).toEqual([])
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 0, skipped: 'not_recorded' } })
+    await app.close()
+  })
+
+  it('leaves the match ended honestly when the storage refuses it', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    app.storeDemo = () => 403
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, withDemo())
+    await app.playOut()
+
+    // The bytes stayed on the server: the demo was announced, nothing landed.
+    expect(app.uploads).toHaveLength(1)
+    expect(types(app, match.id)).toContain('demo_available')
+    expect(types(app, match.id)).not.toContain('demo.uploaded')
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 0, skipped: 'upload_failed' } })
+    await app.close()
+  })
+
+  /**
+   * **The window a real GOTV demo needs.** GOTV records the *delayed*
+   * broadcast, so MatchZy stops recording `tv_delay` after the last round and
+   * the plugin uploads what settles — all of it well after the `series_end`
+   * the orchestrator would otherwise end the match on, and ending it releases
+   * the server the file is still sitting on.
+   */
+  const scripted = async (app: TestApp, body = withDemo()) => {
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, body)
+    await app.settle()
+    const row = app.store.rows.servers.find(server => server.matchId === match.id)
+    if (!row?.serverId) throw new Error('the walk left no server')
+    const source = { provider: PHANTOM, serverId: row.serverId }
+    const say = async (event: Record<string, unknown> & { type: GameserverEvent['type'] }) =>
+      app.matches.ingest(source, { ...event, matchId: match.id, source } as GameserverEvent)
+    await say({ type: 'server_ready', map: 'de_mirage' })
+    await say({ type: 'going_live', mapNumber: 1, map: 'de_mirage' })
+    await app.settle()
+    return { key, match, say }
+  }
+
+  it('holds the match open past series_end until the demo lands', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key, match, say } = await scripted(app)
+
+    await say({ type: 'series_end', seriesScore: { teamA: 1, teamB: 0 }, winner: 'team_a' })
+    await app.settle()
+    // Still live, still holding its server: the demo is being written.
+    expect((await app.matches.get(key, match.id)).state).toBe('live')
+    expect(app.store.rows.servers.find(s => s.matchId === match.id)?.releasedAt).toBeFalsy()
+
+    // Two minutes later — a GOTV delay and a settle — the plugin says what it PUT.
+    await app.advance(120_000)
+    await say({
+      type: 'demo_available',
+      mapNumber: 1,
+      filename: 'match.dem',
+      sizeBytes: 90_000_000,
+      sha256: 'b'.repeat(64),
+      contentType: 'application/octet-stream',
+    })
+    await app.playOut()
+
+    expect((await app.matches.get(key, match.id)).state).toBe('ended')
+    const order = types(app, match.id)
+    expect(order.indexOf('demo.uploaded')).toBeLessThan(order.indexOf('match.ended'))
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 1 }, reason: { kind: 'completed' } })
+    expect(app.store.rows.servers.find(s => s.matchId === match.id)?.state).toBe('released')
+    await app.close()
+  })
+
+  it('ends anyway when the demo never comes, and says so', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key, match, say } = await scripted(app)
+
+    await say({ type: 'series_end', seriesScore: { teamA: 1, teamB: 0 }, winner: 'team_a' })
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('live')
+
+    await app.playOut()
+    expect((await app.matches.get(key, match.id)).state).toBe('ended')
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 0, skipped: 'no_demo' }, reason: { kind: 'completed' } })
+    expect(app.store.rows.servers.find(s => s.matchId === match.id)?.state).toBe('released')
+    await app.close()
+  })
+
+  it('does not hold a mode that records no demo, nor one with nowhere to put it', async () => {
+    for (const body of [request(), withDemo({ gamemode: 'flying-scoutsman', rules: undefined })]) {
+      const app = createTestApp({ providers: [createPhantomProvider()] })
+      const { key, match, say } = await scripted(app, body)
+      await say({ type: 'series_end', seriesScore: { teamA: 1, teamB: 0 }, winner: 'team_a' })
+      await app.settle()
+      expect((await app.matches.get(key, match.id)).state).toBe('ended')
+      await app.close()
+    }
   })
 })

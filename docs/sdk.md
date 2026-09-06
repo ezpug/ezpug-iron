@@ -15,7 +15,7 @@ write:
 
 | Seam | What it is | Production | Test |
 | ---- | ---------- | ---------- | ---- |
-| `IGameWorld` | players (SteamID64, slot, team, alive, position), say/print/center/HUD, give/strip, respawn, health/armor/speed, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, bomb, chat, map, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
+| `IGameWorld` | players (SteamID64, slot, team, alive, position), say/print/center/HUD, give/strip, respawn, health/armor/speed, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, bomb, chat, map started, map ended on the win panel, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
 | `IPlatformLink` | emit an event, report state, send a backup or a console tail; receive assignment, commands, player commands, profiles through `IPlatformLinkHandler` | `LinkClient` — one outbound WebSocket to `/link` | `FakePlatformLink` |
 | `IClock` | monotonic milliseconds and timers; the only time a mode may read | `SystemClock` for the link's threads; `GameThreadClock` for a mode — the core plugin fires its timers from the engine's tick | `FakeClock` |
 | `GamemodeRuntime` | the link's handler and the world's listener, routing both to the attached mode; stamps the per-match `seq`; emits the plumbing and gameplay events once | owned by the core plugin | owned by `GamemodeTestHost` |
@@ -267,6 +267,25 @@ hangs off three host events on the runtime, in the order a match goes through th
 | `Released(reason)` | after the mode's `OnEnd`, its timers and state cleared | `css_plugins unload` in reverse, the lobby map, then the runtime says `idle` |
 
 A mode never needs these; a second host (the harness is one) hooks the same three.
+
+**Demos** (`DemoFlow`, PRD-02 T21) hang off the same runtime and off one world hook,
+`MapEnded` — the engine's match win panel, the one end-of-map signal every flow shares.
+For a `records: demo` gamemode:
+
+- MatchZy runs `tv_record` for its own flow; for any other flow the SDK runs it itself at
+  `MapLoaded` and `tv_stoprecord` one GOTV delay (`tv_delay`) after the win panel, because
+  GOTV records the *delayed* broadcast and stopping on the panel would cut the last rounds
+  off the file.
+- **The upload is always the core plugin's** (decision 10): MatchZy's own uploader POSTs a
+  multipart form, which a presigned PUT will not take. Nothing says when a `.dem` is
+  finished, so from the win panel on the newest one is watched until its length has not
+  moved for a settle window, then `DemoUploader` hashes it, streams it at
+  `Assignment.DemoUploadUrl` and retries on the injected clock. What landed is announced as
+  `Facts.DemoAvailable(filename, sizeBytes, sha256, contentType)`; the hash is the
+  orchestrator's cue to relay `demo.uploaded`. Without an upload URL the demo is still
+  announced, hashless — it exists on this server and nowhere else.
+- The transport is a seam (`IDemoTransport`); `FakeDemoTransport` in `EZPug.Sdk.Testing`
+  records every attempt, so the retry loop is proven without a network.
 
 **A gamemode plugin** is the mode plus a CounterStrikeSharp shell, and the shell is
 written once in `EZPug.Sdk.Hosting`: derive from `GamemodePlugin`, name the module, return

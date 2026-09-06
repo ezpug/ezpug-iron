@@ -52,7 +52,12 @@ import type {
   SimStatus,
   WebhookSecretsRequest,
 } from '../resources'
-import { CONSOLE_LINES_MAX, gamemodeAllowsMap, isTerminalMatchState } from '../resources'
+import {
+  CONSOLE_LINES_MAX,
+  gamemodeAllowsMap,
+  isTerminalMatchState,
+  matchDemoOutcome,
+} from '../resources'
 import type { StreamCloseCode, StreamFrame } from '../stream/frames'
 import { STREAM_CLOSE_CODES } from '../stream/frames'
 import type { GameserverEvent, GameserverPlayer } from '../vocabulary/gameserver'
@@ -190,6 +195,8 @@ interface MatchRecord {
   lastSim: SimStatus | null
   /** A `pause` parked the server; the loss detector waits with it. */
   paused: boolean
+  /** `demo_available` events seen, and how many of those landed in the client's storage (T21). */
+  demos: { announced: number; uploaded: number }
 }
 
 interface PlayerTokenRecord {
@@ -867,6 +874,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       currentMap: 1,
       lastSim: null,
       paused: false,
+      demos: { announced: 0, uploaded: 0 },
     }
     // The story needs ten names; an open-join mode arrives with none.
     const { teams, invented } = inventRoster(record)
@@ -995,7 +1003,18 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     record.match.endedAt = iso()
     record.match.endedReason = reason
     if (state === 'failed') emit(record, { type: 'match.failed', state, reason })
-    else emit(record, { type: 'match.ended', state, reason })
+    else
+      emit(record, {
+        type: 'match.ended',
+        state,
+        reason,
+        demo: matchDemoOutcome({
+          recordsDemo: record.manifest.records === 'demo',
+          hasUploadUrl: record.request.callbacks.demoUploadUrl !== undefined,
+          announced: record.demos.announced,
+          uploaded: record.demos.uploaded,
+        }),
+      })
     closeStreams(record, STREAM_CLOSE_CODES.matchEnded)
   }
 
@@ -1147,6 +1166,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
         setState(record, 'live')
         break
       case 'demo_available':
+        record.demos.announced += 1
         await uploadDemo(record, server, event.mapNumber)
         break
       case 'series_end':
@@ -1199,6 +1219,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       return
     }
     const key = new URL(url).pathname.replace(/^\/+/, '')
+    record.demos.uploaded += 1
     emit(record, {
       type: 'demo.uploaded',
       mapNumber,

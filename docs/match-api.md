@@ -427,7 +427,7 @@ event type):
 | `match.recovering`           | `reason, backupRound` | the server was lost mid-match; a restore is being attempted. `backupRound` null means `match.failed` follows |
 | `match.recovered`            | `serverId, fleetServerId, resumedFromRound` | `live` again, possibly on a new server (a new `match.allocated` and `match.server_ready` came first) |
 | `match.failed`               | `state: failed, reason { kind, detail? }` | `kind ∈ server_lost, allocation_failed, provider_error` |
-| `match.ended`                | `state: ended \| cancelled, reason { kind, detail? }` | `kind ∈ completed, force_ended, cancelled, ttl_expired`; the last envelope of a match that did not fail |
+| `match.ended`                | `state: ended \| cancelled, reason { kind, detail? }, demo { uploaded, skipped? }` | `kind ∈ completed, force_ended, cancelled, ttl_expired`; the last envelope of a match that did not fail. `demo.uploaded` counts the maps whose demo reached the client's storage and `demo.skipped ∈ no_upload_url, not_recorded, no_demo, upload_failed` says why there were not more |
 | `demo.uploaded`              | `mapNumber, key?, size, sha256, contentType` | the map's demo landed through `demoUploadUrl`; `sha256` lowercase hex |
 | `player.joined`              | `player { steamId64, name, team? }, rostered` | a person is on the server; `rostered: false` in an open-join mode is the cue for a `profile` command |
 | `player.left`                | `player` | |
@@ -525,6 +525,31 @@ webhook, the stream's `event` frame and the events route all carry the same enve
 deduper in front of all three is what makes taking all three safe. The store is yours
 (`{ has, add }`, sync or async); keep entries longer than the retry schedule's sixteen
 hours. `createMemoryDeliveryStore()` is the `Map` version for tests.
+
+## Demos
+
+The orchestrator never sees a byte of a demo (decision 10). The request carries a
+presigned PUT in `callbacks.demoUploadUrl`, the **server** puts the file there, and the
+orchestrator relays a fact about what landed:
+
+1. The server finishes recording (MatchZy for a `matchzy` flow, the SDK for any other),
+   waits for the file to stop growing, PUTs it at `demoUploadUrl` and says
+   `demo_available` with `filename`, `sizeBytes`, `sha256` and `contentType`.
+2. The orchestrator relays `demo.uploaded` with those numbers and the object `key` it
+   reads out of the URL's path. A `demo_available` **without** `sha256` is honest news
+   that a demo exists on a server and nowhere else — no `demo.uploaded` follows it.
+3. `match.ended` carries `demo`: `uploaded`, how many maps' demos landed, and `skipped`,
+   why there were not more (`no_upload_url`, `not_recorded`, `no_demo`, `upload_failed`).
+
+**A match that records a demo stays `live` past its own `series_end`** until the demo is
+announced or the orchestrator's demo window (six minutes) runs out. GOTV records the
+*delayed* broadcast, so a `.dem` is only complete a `tv_delay` after the last round —
+and `match.ended` releases the server the file is still being written on. A client that
+watches `Match.state` sees `live` for a couple of minutes after `series_end` reaches its
+webhook; the series is over, the demo is not.
+
+Omit `demoUploadUrl` and none of this happens: no upload, no `demo.uploaded`, and
+`match.ended` says `demo: { uploaded: 0, skipped: 'no_upload_url' }`.
 
 ## The stream
 

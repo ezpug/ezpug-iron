@@ -303,6 +303,18 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
           'the demo was announced by the server before it was uploaded',
           order.indexOf('demo_available') < order.indexOf('demo.uploaded'),
         )
+        ctx.check(
+          'the ended fact counts the demos that landed',
+          ended?.demo?.uploaded === order.filter(t => t === 'demo.uploaded').length &&
+            ended?.demo?.skipped === undefined,
+          JSON.stringify(ended?.demo),
+        )
+      } else {
+        ctx.check(
+          'with nowhere to put a demo the ended fact says so',
+          ended?.demo?.uploaded === 0 && ended?.demo?.skipped === 'no_upload_url',
+          JSON.stringify(ended?.demo),
+        )
       }
     },
   },
@@ -332,6 +344,14 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         'a mode that records events only uploads no demo',
         manifest.records !== 'demo' ? !order.includes('demo.uploaded') : true,
         order.filter(t => t.startsWith('demo')).join(','),
+      )
+      const ended = payload(envelopes, 'match.ended')
+      ctx.check(
+        'and its ended fact says why there is none',
+        manifest.records !== 'demo'
+          ? ended?.demo?.uploaded === 0 && ended?.demo?.skipped === 'not_recorded'
+          : true,
+        JSON.stringify(ended?.demo),
       )
     },
   },

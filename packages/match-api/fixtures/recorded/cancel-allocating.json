@@ -167,6 +167,10 @@
         "state": "cancelled",
         "reason": {
           "kind": "cancelled"
+        },
+        "demo": {
+          "uploaded": 0,
+          "skipped": "no_demo"
         }
       }
     }

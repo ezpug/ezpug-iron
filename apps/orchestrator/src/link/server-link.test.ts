@@ -264,6 +264,18 @@ function eventsFor(matchId: string, serverId: string) {
       roundNumber: 1,
       positions: [{ steamId64: tk.steamId64, x: -412.5, y: 1180, z: 64, yaw: 92.5 }],
     }),
+    demoAvailable: at({
+      type: 'demo_available',
+      matchId,
+      source,
+      mapNumber: 1,
+      filename: 'ezpug_map1.dem',
+      sizeBytes: 4_096,
+      // The plugin already PUT it where the assignment said (T21); the hash and
+      // the content type are what the orchestrator relays as `demo.uploaded`.
+      sha256: 'a'.repeat(64),
+      contentType: 'application/octet-stream',
+    }),
     seriesEnd: at({
       type: 'series_end',
       matchId,
@@ -444,15 +456,35 @@ describe('the link', () => {
     expect(announced.status).toBe('applied')
     expect(fake.received().filter(f => f.type === 'command')).toHaveLength(3)
 
-    // The end: the server is told `release` before the provider stops it.
-    expect(await fake.emit(events.seriesEnd)).toEqual([{ seq: 6, status: 'accepted' }])
+    // The demo the plugin uploaded is relayed as a fact of the match (T21):
+    // the orchestrator never saw a byte of it and can still say what landed.
+    expect(await fake.emit(events.demoAvailable)).toEqual([{ seq: 6, status: 'accepted' }])
     await app.settle()
-    expect((await app.matches.get(key, matchId)).state).toBe('ended')
+    const uploaded = app.store.rows.events.find(
+      e => e.matchId === matchId && e.payload.type === 'demo.uploaded',
+    )?.payload
+    expect(uploaded).toMatchObject({
+      mapNumber: 1,
+      size: 4_096,
+      sha256: 'a'.repeat(64),
+      contentType: 'application/octet-stream',
+      key: 'demos/fixture.dem',
+    })
+
+    // The end: the server is told `release` before the provider stops it.
+    expect(await fake.emit(events.seriesEnd)).toEqual([{ seq: 7, status: 'accepted' }])
+    await app.settle()
+    const match = await app.matches.get(key, matchId)
+    expect(match.state).toBe('ended')
+    expect(
+      app.store.rows.events.find(e => e.matchId === matchId && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 1 } })
     const release = await fake.next('release')
     expect(release.reason).toBe('ended: completed')
     expect(fake.matchId()).toBeUndefined()
     expect(provider.stopped).toEqual([serverId])
-    expect(serverRow(app, serverId)).toMatchObject({ state: 'released', linkAckedSeq: 6 })
+    expect(serverRow(app, serverId)).toMatchObject({ state: 'released', linkAckedSeq: 7 })
     expect(app.links.size()).toBe(0)
     await eventually(() => expect(serverRow(app, serverId)?.linkState).toBe('idle'))
     await rig.link.settle()

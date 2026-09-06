@@ -44,6 +44,8 @@ public sealed class CorePlugin : BasePlugin
     private GamemodeRuntime? _runtime;
     private GamemodeLoader? _loader;
     private MatchZyFlow? _flow;
+    private DemoFlow? _demos;
+    private HttpDemoTransport? _demoTransport;
     private RuntimeHost? _host;
     private IPlatformLink? _link;
     private LinkClient? _client;
@@ -97,6 +99,12 @@ public sealed class CorePlugin : BasePlugin
         _loader.Bind(_runtime);
         _flow = new MatchZyFlow(_world, _runtime, _paths.CsgoDirectory, _log);
         _flow.Bind();
+        // The demo's own upload (decision 10, T21): MatchZy records for its own flow and
+        // the SDK records for every other, but the PUT is always this plugin's — a
+        // presigned URL takes a body, not MatchZy's multipart form.
+        _demoTransport = new HttpDemoTransport();
+        _demos = new DemoFlow(_world, _runtime, _paths.CsgoDirectory, new DemoUploader(_demoTransport, _world.Clock, _log), _log);
+        _demos.Bind();
         _world.MapStarted += OnMapStarted;
         _host = new RuntimeHost(_runtime, _log);
         GamemodeHost.Publish(_host);
@@ -136,6 +144,9 @@ public sealed class CorePlugin : BasePlugin
 
         _runtime?.Dispose();
         _buffer?.Dispose();
+        _demoTransport?.Dispose();
+        _demoTransport = null;
+        _demos = null;
         _runtime = null;
         _client = null;
         _link = null;

@@ -6,6 +6,29 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.4.0 — 2026-09-06
+
+Additive: the demo pipe says what landed and what did not. Serves PRD-02 T21 (the core
+plugin owns the upload, the orchestrator relays the fact) and the platform's demo
+handling in `PRD-09`, which otherwise cannot tell "no demo yet" from "there was never
+going to be one".
+
+- `demo_available` gains `sha256` (lowercase hex) and `contentType`, present together and
+  only once the server has already PUT the file where `callbacks.demoUploadUrl` said. That
+  pair is what the orchestrator relays as `demo.uploaded`; a `demo_available` without them
+  announces a demo that exists on the server and nowhere else.
+- `match.ended` gains `demo`: `uploaded`, the number of maps whose demo reached the
+  client's storage, and `skipped`, why there were not more — `no_upload_url`,
+  `not_recorded`, `no_demo` or `upload_failed` (`DEMO_SKIP_REASONS`). `matchDemoOutcome()`
+  is the one rule every producer answers it by, so the fake and a real orchestrator cannot
+  drift. Absent only from a producer older than the field.
+- No route, no state and no error code changed. A match that records a demo now stays
+  `live` past its own `series_end` until the demo is announced or the orchestrator's demo
+  window runs out: GOTV records the *delayed* broadcast, so a `.dem` is finished a
+  `tv_delay` after the last round and the server it is on is released the moment the match
+  ends. The conformance suite checks the ordering (`demo_available` before
+  `demo.uploaded`, both before `match.ended`).
+
 ## 0.3.0 — 2026-09-06
 
 Additive: the recovery flow's second `match.server_ready` says that it is one. Serves

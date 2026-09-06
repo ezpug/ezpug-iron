@@ -173,6 +173,7 @@ public sealed class CounterStrikeWorld : IGameWorld
     public event Action<PlayerDeath>? PlayerDied;
     public event Action? RoundStarted;
     public event Action<RoundEnd>? RoundEnded;
+    public event Action? MapEnded;
     public event Action<IGamePlayer, BombSiteName>? BombPlanted;
     public event Action<IGamePlayer, BombSiteName>? BombDefused;
     public event Action<BombSiteName>? BombExploded;
@@ -279,6 +280,15 @@ public sealed class CounterStrikeWorld : IGameWorld
                 ReasonOf((EngineRoundEndReason)gameEvent.Reason),
                 tScore,
                 ctScore));
+            return HookResult.Continue;
+        });
+
+        // The win panel is the map's own full stop: MatchZy's series ends on it and so
+        // does a mode that counts its own rounds, which is why the demo flow and the
+        // generic flow emitter both hang off this one event (T21, T22).
+        _plugin.RegisterEventHandler<EventCsWinPanelMatch>((_, _) =>
+        {
+            MapEnded?.Invoke();
             return HookResult.Continue;
         });
 

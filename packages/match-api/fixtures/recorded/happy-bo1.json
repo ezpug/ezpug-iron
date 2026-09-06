@@ -3836,6 +3836,9 @@
         "state": "ended",
         "reason": {
           "kind": "completed"
+        },
+        "demo": {
+          "uploaded": 1
         }
       }
     }

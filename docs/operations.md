@@ -802,6 +802,43 @@ Match API uses, keyed by the token's hash. The last score seen per match (how th
 winner is found: MatchZy's `winner.team` names the map leader) lives in the process; a
 restart between rounds falls back to the map plan's side schedule and logs it.
 
+## Demos
+
+The orchestrator never stores a demo byte (decision 10). What it does is wait for one and
+relay a fact about it.
+
+**On the server.** For a `records: demo` gamemode MatchZy records its own flow's demo into
+`game/csgo/MatchZy/` and stops a `tv_delay` after the last round (GOTV records the
+*delayed* broadcast, so stopping on the win panel would cut the last rounds off the file);
+for any other flow the core plugin runs `tv_record` and `tv_stoprecord` itself. **The
+upload is always the core plugin's**, because MatchZy's own uploader POSTs a multipart form
+and a presigned PUT will not take one. Nothing in CS2 says when a `.dem` is finished, so
+from the win panel on the plugin watches the newest one until its length has stopped moving
+for fifteen seconds, then hashes it, streams it at the request's `demoUploadUrl` (retried
+four times on a backoff) and emits `demo_available` with its size and hash. The plugin
+gives up four minutes after the win panel.
+
+**In the orchestrator.** A `demo_available` carrying a hash becomes `demo.uploaded` with
+the object key read out of the presigned URL's path. And because `series_end` would
+otherwise end the match — releasing the very server the demo is still being written on —
+**a match that records a demo stays `live` past `series_end`** until the demo is announced
+or the demo window (`deadlines.demoMs`, six minutes) runs out. Either way `match.ended`
+carries `demo: { uploaded, skipped? }`, so "there is no demo" is always a reason and never
+a silence.
+
+When a demo does not arrive, `match.ended.demo.skipped` says which of these it was:
+
+| `skipped` | What happened |
+| --------- | ------------- |
+| `no_upload_url` | the request carried no `callbacks.demoUploadUrl` |
+| `not_recorded` | the gamemode's `records` is not `demo` |
+| `no_demo` | recording was on and nothing was ever announced — the match never went live, or the server was lost with the file on it |
+| `upload_failed` | the server found its demo and the storage refused it; the bytes are still on the server, and the orchestrator's log says what the plugin was told |
+
+A presigned URL that has expired by the time the demo is finished is an `upload_failed`:
+the demo lands a couple of minutes after the last round, so mint the PUT with hours of
+validity, not minutes.
+
 ## One real match, recorded (`pnpm iron:match`)
 
 `scripts/iron-match.mjs` plays a whole match on real hardware through nothing but the

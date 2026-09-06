@@ -1119,6 +1119,16 @@ public sealed record DemoAvailableEvent : GameserverEvent
     [JsonPropertyOrder(7)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? SizeBytes { get; init; }
+
+    [JsonPropertyName("sha256")]
+    [JsonPropertyOrder(8)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Sha256 { get; init; }
+
+    [JsonPropertyName("contentType")]
+    [JsonPropertyOrder(9)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ContentType { get; init; }
 }
 
 /// <summary><c>chat_command</c> — one branch of <see cref="GameserverEvent"/>.</summary>

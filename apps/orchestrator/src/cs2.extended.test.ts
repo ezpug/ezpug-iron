@@ -16,6 +16,10 @@ import { loadRootEnv } from './env'
  * wait" would be a second answer to how a match is played, and the two would
  * drift. The script prints its summary as JSON; this file is the assertions.
  *
+ * The demo rides along: the script mints a presigned PUT into the platform's
+ * dev MinIO on this box and the core plugin uploads to it, so `demo.uploaded`
+ * is asserted here too (PRD-02 T21) whenever the match played itself out.
+ *
  * What it needs, and what it says when it does not have it: a dev orchestrator
  * answering on {@link BASE_URL} with the `nodes` provider registered, and this
  * box enrolled as a node (`pnpm dev:up && pnpm dev && pnpm dev:node up`).
@@ -91,13 +95,7 @@ describe.skipIf(reason !== null && !DEMANDED)('bots play a real match on the dev
     async () => {
       const run = spawnSync(
         'node',
-        [
-          'scripts/iron-match.mjs',
-          '--json',
-          '--no-demo',
-          '--timeout-minutes',
-          String(SCRIPT_MINUTES),
-        ],
+        ['scripts/iron-match.mjs', '--json', '--timeout-minutes', String(SCRIPT_MINUTES)],
         { cwd: REPO, encoding: 'utf8', timeout: BUDGET_MS },
       )
       // The exit code first: a run that died has no summary to parse, and its
@@ -112,6 +110,8 @@ describe.skipIf(reason !== null && !DEMANDED)('bots play a real match on the dev
         ledger?: { rows: number; open: number }
         payloads?: Record<string, number>
         counts?: Record<string, number>
+        demoTarget?: string | null
+        demo?: { uploaded: number; skipped?: string } | null
       }
 
       // The match played itself out: MatchZy said so and the machine agreed.
@@ -147,6 +147,37 @@ describe.skipIf(reason !== null && !DEMANDED)('bots play a real match on the dev
       // developer's recording switch, not something a test turns on.)
       expect(summary.payloads?.server_ready, 'the plugin never said it was ready').toBe(1)
       expect(summary.payloads?.player_death ?? 0, 'nobody died: no link events').toBeGreaterThan(0)
+
+      // **The demo pipe** (T21, the half of this lane that waited on it). Two
+      // outcomes are correct here and the lane asserts whichever it got:
+      //
+      // - The plugin found a finished `.dem`, PUT it at the presigned URL the
+      //   script minted into the platform's dev MinIO, and the orchestrator
+      //   relayed it — then `demo.uploaded` follows `demo_available` and the
+      //   ended fact counts it.
+      // - Nothing was recorded at all, which is what a **bots** match on this
+      //   box does today: MatchZy's own `warmup.cfg` and `live.cfg` run
+      //   `bot_quota 0`, the engine counts the GOTV client as a bot and kicks
+      //   it (`SourceTV kicked by Console`), and CS2 does not bring SourceTV
+      //   back without a level change. The match then ends honestly with
+      //   `demo.skipped: no_demo`, six minutes after `series_end`, and *that*
+      //   is the assertion — a silence here would be the bug.
+      //
+      // A forced end cuts the recording off before GOTV finished it, and a box
+      // without the platform's S3 credentials never minted a target at all;
+      // neither is asked about.
+      if (!summary.forcedEnd && summary.demoTarget) {
+        if ((summary.payloads?.demo_available ?? 0) > 0) {
+          expect(summary.payloads?.['demo.uploaded'], 'the demo never landed in MinIO').toBe(1)
+          expect(summary.demo, 'the ended fact did not count the demo').toEqual({ uploaded: 1 })
+        } else {
+          expect(summary.payloads?.['demo.uploaded'] ?? 0).toBe(0)
+          expect(summary.demo, 'the ended fact did not say why there is no demo').toEqual({
+            uploaded: 0,
+            skipped: 'no_demo',
+          })
+        }
+      }
     },
     BUDGET_MS + 30_000,
   )

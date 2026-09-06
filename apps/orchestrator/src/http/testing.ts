@@ -80,6 +80,10 @@ export interface TestApp {
   }) => number | null
   /** Every envelope the endpoint accepted, parsed. */
   received: WebhookEnvelope[]
+  /** Every demo a simulated server PUT at a `demoUploadUrl`, in order (T21). */
+  uploads: { url: string; contentType: string; bytes: number }[]
+  /** What the demo storage answers a PUT with; a test replaces it. Default: 200. */
+  storeDemo: (upload: { url: string; contentType: string; bytes: number }) => number
   /** Flip a rail's health; both start healthy. */
   rails: { database: boolean; redis: boolean }
   draining: { value: boolean }
@@ -140,7 +144,25 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const posted: TestApp['posted'] = []
   const attempts: WebhookAttemptReport[] = []
   const received: WebhookEnvelope[] = []
-  const rig: Pick<TestApp, 'respond'> = { respond: () => 200 }
+  const rig: Pick<TestApp, 'respond' | 'storeDemo'> = { respond: () => 200, storeDemo: () => 200 }
+  const uploads: TestApp['uploads'] = []
+
+  /**
+   * The demo storage a simulated server PUTs its recording at (T21). Nothing
+   * about it is an orchestrator door: the server owns the upload, so this is
+   * the *client's* bucket, standing in for the platform's MinIO.
+   */
+  const demoFetch: typeof globalThis.fetch = (url, init) => {
+    const headers = new Headers(init?.headers)
+    const body = init?.body
+    const upload = {
+      url: String(url),
+      contentType: headers.get('content-type') ?? '',
+      bytes: body instanceof Uint8Array ? body.byteLength : String(body ?? '').length,
+    }
+    uploads.push(upload)
+    return Promise.resolve(new Response(null, { status: rig.storeDemo(upload) }))
+  }
 
   const webhookFetch: typeof globalThis.fetch = (url, init) => {
     const headers: Record<string, string> = {}
@@ -199,6 +221,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     capacity: options.simCapacity,
     hourlyCents: options.simHourlyCents,
     defaults: options.sim,
+    fetch: demoFetch,
     onError: (error, context) => log.error(`sim ${JSON.stringify(context)}`, error),
   })
   if (options.providers) for (const provider of options.providers) providers.register(provider)
@@ -309,6 +332,13 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     },
     set respond(value) {
       rig.respond = value
+    },
+    uploads,
+    get storeDemo() {
+      return rig.storeDemo
+    },
+    set storeDemo(value) {
+      rig.storeDemo = value
     },
     received,
     rails,

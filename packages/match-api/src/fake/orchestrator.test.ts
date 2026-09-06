@@ -358,6 +358,9 @@ describe('cancel and commands', () => {
       type: 'match.ended',
       state: 'cancelled',
       reason: { kind: 'cancelled' },
+      // A pug records a demo and the request said where to put one; nobody
+      // ever played, so the honest answer is that there is none (T21).
+      demo: { uploaded: 0, skipped: 'no_demo' },
     })
     const admin = h.fake.client(h.fake.admin.secret)
     expect((await admin.fleet.ledger({ query: {} })).items[0]?.state).toBe('released')

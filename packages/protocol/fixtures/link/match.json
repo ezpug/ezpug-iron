@@ -475,6 +475,42 @@
                 "provider": "nodes",
                 "serverId": "devbox-1"
               },
+              "mapNumber": 1,
+              "type": "demo_available",
+              "filename": "ezpug_map1.dem",
+              "sizeBytes": 4096,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "contentType": "application/octet-stream"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 6,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 7,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
               "type": "series_end",
               "seriesScore": {
                 "teamA": 1,
@@ -507,7 +543,7 @@
         "type": "ack",
         "results": [
           {
-            "seq": 6,
+            "seq": 7,
             "status": "accepted"
           }
         ]

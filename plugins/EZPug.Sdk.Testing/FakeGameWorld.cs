@@ -167,6 +167,7 @@ public sealed class FakeGameWorld : IGameWorld
     public event Action<PlayerDeath>? PlayerDied;
     public event Action? RoundStarted;
     public event Action<RoundEnd>? RoundEnded;
+    public event Action? MapEnded;
     public event Action<IGamePlayer, BombSiteName>? BombPlanted;
     public event Action<IGamePlayer, BombSiteName>? BombDefused;
     public event Action<BombSiteName>? BombExploded;
@@ -225,6 +226,9 @@ public sealed class FakeGameWorld : IGameWorld
 
     public void EndRound(PlayerTeam winner, RoundEndReason reason, int tScore, int ctScore) =>
         RoundEnded?.Invoke(new RoundEnd(winner, reason, tScore, ctScore));
+
+    /// <summary>The engine put the match win panel up: the map is over.</summary>
+    public void EndMap() => MapEnded?.Invoke();
 
     public void PlantBomb(IGamePlayer player, BombSiteName site) => BombPlanted?.Invoke(player, site);
 

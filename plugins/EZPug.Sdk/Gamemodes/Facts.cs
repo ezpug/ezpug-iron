@@ -157,8 +157,25 @@ public sealed class Facts
     public BackupWrittenEvent BackupWritten(long roundNumber, string filename) =>
         new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, RoundNumber = roundNumber, Filename = filename };
 
-    public DemoAvailableEvent DemoAvailable(string filename, string? url = null, long? sizeBytes = null) =>
-        new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Filename = filename, Url = url, SizeBytes = sizeBytes };
+    /// <summary>
+    /// A map's demo is finished. <paramref name="sha256"/> and
+    /// <paramref name="contentType"/> travel together and only once the server has
+    /// already PUT the file where the assignment's <c>demoUploadUrl</c> said — that pair
+    /// is what the orchestrator relays as <c>demo.uploaded</c> (decision 10, PRD-02 T21).
+    /// A demo announced without them exists on this box and nowhere else.
+    /// </summary>
+    public DemoAvailableEvent DemoAvailable(string filename, long? sizeBytes = null, string? sha256 = null, string? contentType = null, string? url = null) =>
+        new()
+        {
+            MatchId = MatchId,
+            Source = Source,
+            MapNumber = Context.MapNumber,
+            Filename = filename,
+            Url = url,
+            SizeBytes = sizeBytes,
+            Sha256 = sha256,
+            ContentType = contentType,
+        };
 
     public ChatMessageEvent ChatMessage(IGamePlayer player, string text, bool teamOnly) =>
         new() { MatchId = MatchId, Source = Source, Player = Player(player), Text = text, Scope = teamOnly ? ServerChatScope.Team : ServerChatScope.All };

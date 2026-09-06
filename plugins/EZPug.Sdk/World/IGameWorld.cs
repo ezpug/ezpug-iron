@@ -157,6 +157,13 @@ public interface IGameWorld
     event Action<PlayerDeath>? PlayerDied;
     event Action? RoundStarted;
     event Action<RoundEnd>? RoundEnded;
+    /// <summary>
+    /// The map is over: the engine put the win panel up (<c>cs_win_panel_match</c>).
+    /// The one end-of-map signal every mode shares — MatchZy's series and a mode that
+    /// runs its own rounds both reach it — and what the demo flow stops recording on
+    /// (PRD-02 T21) and the generic flow emitter reports <c>map_end</c> from (T22).
+    /// </summary>
+    event Action? MapEnded;
     event Action<IGamePlayer, BombSiteName>? BombPlanted;
     event Action<IGamePlayer, BombSiteName>? BombDefused;
     event Action<BombSiteName>? BombExploded;

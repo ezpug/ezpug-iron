@@ -359,13 +359,26 @@ export const backupWrittenEventSchema = mapScoped.extend({
   filename: z.string().min(1),
 })
 
-/** The demo of a map is finished and fetchable — the T7 storage trigger. */
+/**
+ * The demo of a map is finished — the T7 storage trigger. The server owns the
+ * upload (decision 10): where it has already put the file where the request's
+ * `demoUploadUrl` said, it announces what it put there, and `sha256` is the
+ * orchestrator's cue to relay a `demo.uploaded` fact. Without a hash the demo
+ * exists and nothing has it but the server.
+ */
 export const demoAvailableEventSchema = mapScoped.extend({
   type: z.literal('demo_available'),
   filename: z.string().min(1),
   /** Where the provider exposes a direct fetch, the adapter passes it on. */
   url: z.url().optional(),
   sizeBytes: z.number().int().nonnegative().optional(),
+  /** Lowercase hex of the bytes the server uploaded; present only once they landed. */
+  sha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/, 'expected a lowercase hex sha256')
+    .optional(),
+  /** What the server PUT it as; `application/octet-stream` for a `.dem`. */
+  contentType: z.string().min(1).optional(),
 })
 
 // ---------------------------------------------------------------------------

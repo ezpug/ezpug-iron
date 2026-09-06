@@ -87,6 +87,8 @@ let url = ''
 let unavailable: string | undefined
 let endpoint: Server | undefined
 let endpointUrl = ''
+/** Every demo a simulated server PUT at the target's `demoUploadUrl`. */
+const demos: { url: string; bytes: number; contentType: string }[] = []
 const log = createMemoryLog()
 const minted: string[] = []
 let mints = 0
@@ -130,6 +132,18 @@ beforeAll(async () => {
       const chunks: Buffer[] = []
       request.on('data', chunk => chunks.push(chunk as Buffer))
       request.on('end', () => {
+        // The client's bucket, not a door of ours: a simulated server PUTs
+        // its recording here exactly as a plugin PUTs a `.dem` at a presigned
+        // URL (T21). Nothing is kept but the fact that it arrived.
+        if (request.method === 'PUT') {
+          demos.push({
+            url: request.url ?? '',
+            bytes: Buffer.concat(chunks).byteLength,
+            contentType: request.headers['content-type'] ?? '',
+          })
+          response.writeHead(200).end()
+          return
+        }
         const body = Buffer.concat(chunks).toString('utf8')
         void verifyWebhook({
           headers: request.headers,
@@ -294,7 +308,11 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
         handlers.delete(filtered)
       }
     },
-    callbacks: { webhookUrl: `${endpointUrl}/hooks/ezpug`, webhookSecretId: SECRET_ID },
+    callbacks: {
+      webhookUrl: `${endpointUrl}/hooks/ezpug`,
+      webhookSecretId: SECRET_ID,
+      demoUploadUrl: `${endpointUrl}/demos/conformance.dem?signed=1`,
+    },
     clock: systemClock,
     pollIntervalMs: 250,
     maxWaitMs: 120_000,
