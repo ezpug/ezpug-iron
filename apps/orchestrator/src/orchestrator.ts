@@ -23,6 +23,7 @@ import type { MatchStore } from './match/store'
 import { createMatchZyDoor } from './matchzy/door'
 import { createNodeRegistry, type NodeRegistry } from './nodes/registry'
 import { createNodes, type Nodes } from './nodes/service'
+import { createDathostProvider, DATHOST_PROVIDER_ID } from './providers/dathost/provider'
 import { createNodesProvider, type NodesProvider } from './providers/nodes/provider'
 import { createReaper, type Reaper } from './providers/reaper'
 import { createProviderRegistry, type ProviderRegistry } from './providers/registry'
@@ -96,6 +97,12 @@ export interface CreateOrchestratorOptions {
   fetch?: typeof globalThis.fetch
   /** The sim provider's defaults (time scale, boot delay) when it is registered. */
   sim?: Parameters<typeof createSimProvider>[0]['defaults']
+  /**
+   * What the Dathost provider calls the vendor with. Default: the global
+   * `fetch`. A suite that wants a whole orchestrator over the fake Dathost
+   * (T15) hands its door here; nothing in production sets it.
+   */
+  dathostFetch?: Parameters<typeof createDathostProvider>[0]['fetch']
 }
 
 export function createOrchestrator(options: CreateOrchestratorOptions): Orchestrator {
@@ -194,8 +201,30 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
         },
       })
       providers.register(nodesProvider)
+    } else if (id === DATHOST_PROVIDER_ID) {
+      // Registered iff the account is configured (T16). A deployment without
+      // the credentials still serves `sim` and `nodes` rather than refusing
+      // to boot — the deploy that goes out while the owner is finding the
+      // password (T35) — and says so once, loudly, at startup.
+      if (config.dathost)
+        providers.register(
+          createDathostProvider({
+            clock,
+            log,
+            email: config.dathost.email,
+            password: config.dathost.password,
+            templateServerId: config.dathost.templateServerId,
+            location: config.dathost.location,
+            ...(options.dathostFetch && { fetch: options.dathostFetch }),
+          }),
+        )
+      else
+        log.warn(
+          `EZPUG_IRON_PROVIDERS names "${DATHOST_PROVIDER_ID}" but no account is configured ` +
+            '(EZPUG_IRON_DATHOST_EMAIL, EZPUG_IRON_DATHOST_PASSWORD, ' +
+            'EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID) — the provider is not registered',
+        )
     } else {
-      // `dathost` (T16) registers here when it exists.
       throw new Error(`EZPUG_IRON_PROVIDERS names "${id}", which this build does not provide`)
     }
   }

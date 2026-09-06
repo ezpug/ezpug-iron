@@ -514,6 +514,54 @@ same reason.
 `nodes/nodes.test.ts` runs all of it over real sockets on a fake clock: the fake node from
 `@ezpug/protocol/fake-node` as the agent, the fake server as the containers it starts.
 
+## Dathost
+
+The rented half of the fleet (`providers/dathost/provider.ts`, PRD-02 T16). EZPug uses
+Dathost's **raw server API**, never their match API: we orchestrate MatchZy ourselves, so
+a box in Frankfurt and a node at the venue are the same thing to everything above the
+provider, and the same plugin runs on both. `references/dathost.md` is the digest of the
+vendor's pages the adapter was written from.
+
+**It is registered iff the account is configured** — `EZPUG_IRON_DATHOST_EMAIL`,
+`EZPUG_IRON_DATHOST_PASSWORD` and `EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID`, with
+`EZPUG_IRON_DATHOST_LOCATION` defaulting to `dusseldorf` (which is how Dathost spells
+Frankfurt). The PRD's unprefixed `EZPUG_DATHOST_*` names work as aliases. All three or
+none: half a credential set fails at boot with the missing names, and *no* credentials
+with `dathost` in `EZPUG_IRON_PROVIDERS` is a warning at startup and a fleet that runs on
+`sim` and `nodes` — which is exactly the deploy that goes out while the owner is finding
+the password. Neither the password nor the Basic-auth header is ever logged, put in an
+error or written into the ledger's `provider_meta`.
+
+**Allocation is a clone of one template.** `scripts/dathost-image.mjs` (T18) builds the
+template server once — Metamod, CounterStrikeSharp, MatchZy, retakes, our plugins, our
+cfgs — and its id is the environment variable above. Then, per match:
+
+| verb | what it does at Dathost |
+| --- | --- |
+| `offerings` | one `GET` of the template per minute: `cs2`, region `frankfurt`, workshop maps, `hourlyCents` from its `cost_per_hour`. Capacity is unbounded — the wall is the API key's budget, not a number Dathost publishes. |
+| `allocate` | `sync-files` on the template (at most once per ten minutes), `duplicate`, then one `PUT`: a readable name, the ledger tag in `user_data`, `autostop` and `reboot_on_crash` **off**, a freshly minted RCON password, the GSLT lease (T17). |
+| `configure` | the join password (`cs2_settings.password`) and `ezpug.json` — the link URL and this server's token — uploaded through the files API. Nothing else: the assignment travels over the link. |
+| `start` | `POST …/start`; the walk's boot deadline covers the boot. |
+| `status` | one `GET` (the *list* does not refresh `booting`). Off means **stopped**, which during a live match is the loss the probe is looking for. |
+| `deallocate` | `stop` + `delete`, idempotent on a 404, and the GSLT lease goes back. |
+| `list` | every server on the account carrying our tag, **or** untagged and cloned from our template (the window between `duplicate` and the `PUT`). A server wearing another deployment's tag is never claimed — two orchestrators may share an account. |
+| `rcon` / `console` | the vendor's console endpoint — a log, not a request/response channel — for the moment before the link is up (T20 owns the route). |
+
+**What it deliberately does not touch.** `cs2_settings.slots` and GOTV are the template's:
+slots are part of a pay-as-you-go price and the ledger snapshots `cost_per_hour` at
+allocate, so a clone that re-priced itself would make the budget a fiction. The template
+carries `deletion_protection` and is refused by every verb — it is the image, never a
+match's server.
+
+**Money rules.** A `duplicate` is never retried (a repeated clone is a second server on the
+bill); a 429 is backed off and retried on the injected clock; a 5xx or a dropped socket is
+retried only where repeating the call is safe. An allocation that fails after the clone
+exists deletes the clone before the walk moves on, and a clone it could not delete is
+still claimed by `list()` — cloned-from-our-template is a tag the vendor writes itself —
+so the reaper takes it within a grace window instead of billing quietly for it.
+`providers/dathost/provider.test.ts` proves each of those against the fake Dathost (T15);
+the one live lane is T19's smoke behind `EZPUG_DATHOST_TESTS=required`.
+
 ## The MatchZy door
 
 The one HTTP path a server speaks to besides its link: `POST /matchzy/log`

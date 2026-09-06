@@ -4,6 +4,7 @@ import {
   DATABASE_URL_VAR,
   REDIS_URL_VAR,
   readDatabaseConfig,
+  readDathostConfig,
   readOrchestratorConfig,
   readRedisConfig,
   redactUrl,
@@ -103,6 +104,46 @@ describe('readOrchestratorConfig', () => {
     expect(() => readOrchestratorConfig({ ...env, EZPUG_IRON_REDIS_URL: undefined })).toThrow(
       /EZPUG_IRON_REDIS_URL/,
     )
+  })
+})
+
+describe('readDathostConfig', () => {
+  const account = {
+    EZPUG_IRON_DATHOST_EMAIL: 'ops@ezpug.invalid',
+    EZPUG_IRON_DATHOST_PASSWORD: 'not-a-real-password',
+    EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID: '000000000000000000000001',
+  }
+
+  it('is null when the account is not configured — sim and nodes still run', () => {
+    expect(readDathostConfig(env)).toBeNull()
+    expect(readOrchestratorConfig(env).dathost).toBeNull()
+  })
+
+  it('defaults the location to Frankfurt’s id', () => {
+    expect(readDathostConfig({ ...env, ...account })).toEqual({
+      email: 'ops@ezpug.invalid',
+      password: 'not-a-real-password',
+      templateServerId: '000000000000000000000001',
+      location: 'dusseldorf',
+    })
+  })
+
+  it('accepts the PRD’s unprefixed names as aliases', () => {
+    expect(
+      readDathostConfig({
+        ...env,
+        EZPUG_DATHOST_EMAIL: 'ops@ezpug.invalid',
+        EZPUG_DATHOST_PASSWORD: 'not-a-real-password',
+        EZPUG_DATHOST_TEMPLATE_SERVER_ID: 'abc',
+        EZPUG_DATHOST_LOCATION: 'chicago',
+      }),
+    ).toMatchObject({ templateServerId: 'abc', location: 'chicago' })
+  })
+
+  it('refuses half a credential set, by name', () => {
+    expect(() =>
+      readDathostConfig({ ...env, EZPUG_IRON_DATHOST_EMAIL: account.EZPUG_IRON_DATHOST_EMAIL }),
+    ).toThrow(/EZPUG_IRON_DATHOST_PASSWORD, EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID missing/)
   })
 })
 

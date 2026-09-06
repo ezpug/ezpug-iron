@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DATHOST_DEFAULT_LOCATION } from './providers/dathost/provider'
 import { looksLikeToken } from './tokens'
 
 /**
@@ -79,6 +80,27 @@ export interface RateLimitConfig {
   readonly perSecond: number
 }
 
+/**
+ * **The Dathost account** (PRD-02 T16): the Basic-auth pair, the template
+ * server every match is cloned from, and where clones are created. The
+ * provider is registered *iff* all three secrets are present — a build
+ * without them still runs on `sim` and `nodes`, which is what a developer's
+ * box and a credential-less deploy get (T35).
+ *
+ * The names are `EZPUG_IRON_DATHOST_*` like everything else this process
+ * reads (`.env.example`); the PRD's unprefixed `EZPUG_DATHOST_*` are
+ * accepted as aliases, because that is what an operator who read the PRD
+ * types. Neither is ever logged: the password and the email are the account.
+ */
+export interface DathostConfig {
+  readonly email: string
+  readonly password: string
+  /** `EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID` — `scripts/dathost-image.mjs` prints it. */
+  readonly templateServerId: string
+  /** Frankfurt is `dusseldorf` (`references/dathost.md`). */
+  readonly location: string
+}
+
 export interface OrchestratorConfig {
   /** The orchestrator's own public origin — `baseUrl` for clients, webhook and token audience. */
   readonly baseUrl: string
@@ -111,6 +133,8 @@ export interface OrchestratorConfig {
   readonly database: DatabaseConfig
   readonly redis: RedisConfig
   readonly rateLimit: RateLimitConfig
+  /** The Dathost account, or `null` when this deployment has no credentials. */
+  readonly dathost: DathostConfig | null
 }
 
 function numberFromEnv(fallback: number) {
@@ -187,6 +211,38 @@ export function readRedisConfig(env: EnvRecord): RedisConfig {
   const parsed = redisUrl.safeParse(env[REDIS_URL_VAR])
   if (!parsed.success) fail(parsed.error.issues, { '': REDIS_URL_VAR, undefined: REDIS_URL_VAR })
   return { url: parsed.data, source: REDIS_URL_VAR }
+}
+
+/**
+ * The Dathost trio, or `null`. All three or none: half a credential set is a
+ * deployment mistake that would otherwise only surface when the first match
+ * looked for capacity, so it fails at boot with the names it wants.
+ */
+export function readDathostConfig(env: EnvRecord): DathostConfig | null {
+  const email = env.EZPUG_IRON_DATHOST_EMAIL ?? env.EZPUG_DATHOST_EMAIL ?? ''
+  const password = env.EZPUG_IRON_DATHOST_PASSWORD ?? env.EZPUG_DATHOST_PASSWORD ?? ''
+  const templateServerId =
+    env.EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID ?? env.EZPUG_DATHOST_TEMPLATE_SERVER_ID ?? ''
+  const location =
+    env.EZPUG_IRON_DATHOST_LOCATION ?? env.EZPUG_DATHOST_LOCATION ?? DATHOST_DEFAULT_LOCATION
+  const given = [
+    ['EZPUG_IRON_DATHOST_EMAIL', email],
+    ['EZPUG_IRON_DATHOST_PASSWORD', password],
+    ['EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID', templateServerId],
+  ] as const
+  const missing = given.filter(([, value]) => value.trim() === '').map(([name]) => name)
+  if (missing.length === given.length) return null
+  if (missing.length > 0)
+    throw new Error(
+      `invalid orchestrator configuration (Dathost is half-configured: ${missing.join(', ')} ` +
+        'missing; set all three or none)',
+    )
+  return {
+    email: email.trim(),
+    password,
+    templateServerId: templateServerId.trim(),
+    location: location.trim() || DATHOST_DEFAULT_LOCATION,
+  }
 }
 
 /** Read the whole configuration; throws with every problem named. */
@@ -270,6 +326,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
     database: readDatabaseConfig(env),
     redis: readRedisConfig(env),
     rateLimit: { burst: rateLimitBurst, perSecond: rateLimitPerSecond },
+    dathost: readDathostConfig(env),
   }
 }
 

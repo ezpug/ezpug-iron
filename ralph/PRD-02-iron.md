@@ -400,7 +400,7 @@ every offline proof here.
   vanishes, a console that times out. Every response validated against the merged OpenAPI
   schemas in a test. References: `references/dathost.md`.
 
-- [ ] **T16: The Dathost provider.** `createDathostProvider({email, password,
+- [x] **T16: The Dathost provider.** `createDathostProvider({email, password,
   templateServerId, location, clock, fetch})`: `offerings()` (cs2, `frankfurt` behind
   `dusseldorf`, `workshopMaps`, cost from the template's `cost_per_hour`); `allocate` =
   `sync-files` when stale → `duplicate` with our tag in `user_data` and a readable name →
