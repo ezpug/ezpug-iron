@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using EZPug.Sdk;
 
@@ -8,14 +9,28 @@ namespace EZPug.Sdk.Testing;
 /// frame, <see cref="Close"/> ends it from the peer's side, <see cref="NextSentAsync"/>
 /// awaits what the client wrote. Sessions come from a <see cref="ScriptedLinkSocketFactory"/>
 /// in the order the client dials.
+///
+/// <para>The client writes from the thread pool while the test reads from its own thread,
+/// so <see cref="Sent"/> hands out a snapshot taken under the same lock the writer takes.</para>
 /// </summary>
 public sealed class ScriptedLinkSocket : ILinkSocket
 {
     private readonly Channel<LinkReceived> _inbound = Channel.CreateUnbounded<LinkReceived>();
-    private readonly Channel<string> _sent = Channel.CreateUnbounded<string>();
+    private readonly Channel<string> _outbound = Channel.CreateUnbounded<string>();
     private readonly TaskCompletionSource<LinkClosure> _closedByClient = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly List<string> _sent = [];
 
-    public List<string> Sent { get; } = [];
+    /// <summary>Every frame the client has written so far, in order — a copy, safe to read while it writes.</summary>
+    public IReadOnlyList<string> Sent
+    {
+        get
+        {
+            lock (_sent)
+            {
+                return _sent.ToList();
+            }
+        }
+    }
 
     /// <summary>Set when the client closed this socket, with its code and reason.</summary>
     public Task<LinkClosure> ClosedByClient => _closedByClient.Task;
@@ -24,24 +39,32 @@ public sealed class ScriptedLinkSocket : ILinkSocket
 
     public void Close(int code, string reason = "") => _inbound.Writer.TryWrite(new LinkReceived.Closed(new LinkClosure(code, reason)));
 
-    /// <summary>The next frame the client sent, in order, within <paramref name="timeoutMs"/>.</summary>
-    public async Task<string> NextSentAsync(int timeoutMs = 5_000)
+    /// <summary>
+    /// The next frame the client sent, in order, within <paramref name="timeoutMs"/> —
+    /// the bound is <see cref="Patience"/>'s safety net, not the mechanism.
+    /// </summary>
+    public async Task<string> NextSentAsync(int timeoutMs = Patience.TimeoutMs)
     {
         using var timeout = new CancellationTokenSource(timeoutMs);
         try
         {
-            return await _sent.Reader.ReadAsync(timeout.Token).ConfigureAwait(false);
+            return await _outbound.Reader.ReadAsync(timeout.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            throw new TimeoutException($"the client sent nothing within {timeoutMs} ms; it had sent {Sent.Count} frames");
+            var sent = Sent;
+            throw new TimeoutException($"the client sent nothing within {timeoutMs} ms; it had sent {sent.Count} frames");
         }
     }
 
     public Task SendAsync(string text, CancellationToken cancellationToken)
     {
-        Sent.Add(text);
-        _sent.Writer.TryWrite(text);
+        lock (_sent)
+        {
+            _sent.Add(text);
+        }
+
+        _outbound.Writer.TryWrite(text);
         return Task.CompletedTask;
     }
 
@@ -61,22 +84,36 @@ public sealed class ScriptedLinkSocket : ILinkSocket
 public sealed class ScriptedLinkSocketFactory : ILinkSocketFactory
 {
     private readonly Channel<ScriptedLinkSocket> _next = Channel.CreateUnbounded<ScriptedLinkSocket>();
+    private readonly ConcurrentQueue<string> _refusals = new();
+    private readonly List<ScriptedLinkSocket> _sockets = [];
 
-    public List<ScriptedLinkSocket> Sockets { get; } = [];
+    /// <summary>Every socket handed out so far — a copy, so counting them races nothing.</summary>
+    public IReadOnlyList<ScriptedLinkSocket> Sockets
+    {
+        get
+        {
+            lock (_sockets)
+            {
+                return _sockets.ToList();
+            }
+        }
+    }
 
     /// <summary>The socket the client's next dial gets. Hand out one per session, in order.</summary>
     public ScriptedLinkSocket Expect()
     {
         var socket = new ScriptedLinkSocket();
-        Sockets.Add(socket);
+        lock (_sockets)
+        {
+            _sockets.Add(socket);
+        }
+
         _next.Writer.TryWrite(socket);
         return socket;
     }
 
     /// <summary>Make the next dial fail with <paramref name="message"/>, as a refused connection would.</summary>
     public void Refuse(string message = "connection refused") => _refusals.Enqueue(message);
-
-    private readonly Queue<string> _refusals = new();
 
     public async Task<ILinkSocket> ConnectAsync(Uri url, CancellationToken cancellationToken)
     {

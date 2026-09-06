@@ -191,7 +191,7 @@ public class LinkClientFixtureTests
             }
 
             session.Socket.Deliver(Compact(frame));
-            using var timeout = new CancellationTokenSource(5_000);
+            using var timeout = new CancellationTokenSource(Patience.TimeoutMs);
             await session.Instance.Client.Processed.WaitAsync(timeout.Token);
             if (type == "assign")
             {

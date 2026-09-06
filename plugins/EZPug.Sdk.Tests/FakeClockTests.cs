@@ -47,7 +47,7 @@ public class FakeClockTests
         var before = clock.NowMs;
         using var fired = new ManualResetEventSlim();
         clock.After(1, fired.Set);
-        Assert.True(fired.Wait(5_000));
+        Assert.True(fired.Wait(Patience.TimeoutMs));
         Assert.True(clock.NowMs >= before);
     }
 }

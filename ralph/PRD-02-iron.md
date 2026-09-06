@@ -449,7 +449,7 @@ every offline proof here.
   `fleet` scope, every line and its output in the ledger's audit column. Never a password
   in a response.
 
-- [ ] **T20a (P1): the SDK's link-client tests wait on the wall clock, not the injected
+- [x] **T20a (P1): the SDK's link-client tests wait on the wall clock, not the injected
   one.** Found in T20's `pnpm verify:extended`, pre-existing, not caused by it:
   `EZPug.Sdk.Tests.LinkClientTests.TheLoopReconnectsWithDoublingBackoffOnTheClockAndResetsItOnWelcome`
   failed once, on a box that was also running turbo's TS suites in parallel *and* the

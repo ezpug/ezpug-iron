@@ -264,8 +264,13 @@ public sealed class LinkClient : IPlatformLink, IAsyncDisposable
                 _backoffMs = Math.Min(_backoffMs * 2, _options.BackoffMaxMs);
             }
 
+            // Arm first, say so second. The line is what tells the outside world the wait
+            // exists — a test whose timeline is an injected clock reads it and then
+            // advances, and a timer armed after that advance would sleep straight through
+            // it. Logging after the arming makes the line a promise, not a prediction.
+            var waited = WaitAsync(wait, cancellationToken);
             _options.Log.Info($"link closed {closure}; reconnecting in {wait} ms");
-            await WaitAsync(wait, cancellationToken).ConfigureAwait(false);
+            await waited.ConfigureAwait(false);
         }
     }
 

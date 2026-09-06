@@ -17,8 +17,20 @@ public class LinkClientTests
         public MemoryEventBuffer Buffer { get; } = new();
         public LinkClient Client { get; }
         public List<(LinkClosure Closure, bool Fatal)> Downs { get; } = [];
-        public List<string> Log { get; } = [];
+        private readonly List<string> _log = [];
         private readonly SemaphoreSlim _logged = new(0);
+
+        /// <summary>Every line logged so far — a copy, because the client logs from the thread pool.</summary>
+        public IReadOnlyList<string> Log
+        {
+            get
+            {
+                lock (_log)
+                {
+                    return _log.ToList();
+                }
+            }
+        }
 
         public Rig(long backoffInitialMs = 1_000, long backoffMaxMs = 30_000)
         {
@@ -48,26 +60,26 @@ public class LinkClientTests
 
         private void Logged(string line)
         {
-            lock (Log)
+            lock (_log)
             {
-                Log.Add(line);
+                _log.Add(line);
             }
 
             _logged.Release();
         }
 
-        /// <summary>Resolves once a logged line satisfies <paramref name="condition"/>; the bounded wait is the safety net, not the mechanism.</summary>
-        public async Task LoggedAsync(Func<string, bool> condition, int timeoutMs = 5_000)
+        /// <summary>Resolves once a logged line satisfies <paramref name="condition"/>; the bounded wait is <see cref="Patience"/>'s safety net, not the mechanism.</summary>
+        public async Task LoggedAsync(Func<string, bool> condition, int timeoutMs = Patience.TimeoutMs)
         {
             using var timeout = new CancellationTokenSource(timeoutMs);
             var seen = 0;
             while (true)
             {
                 List<string> snapshot;
-                lock (Log)
+                lock (_log)
                 {
-                    snapshot = Log.Skip(seen).ToList();
-                    seen = Log.Count;
+                    snapshot = _log.Skip(seen).ToList();
+                    seen = _log.Count;
                 }
 
                 if (snapshot.Any(condition))
@@ -88,9 +100,9 @@ public class LinkClientTests
 
         public int LogCount(Func<string, bool> condition)
         {
-            lock (Log)
+            lock (_log)
             {
-                return Log.Count(condition);
+                return _log.Count(condition);
             }
         }
 
@@ -113,9 +125,10 @@ public class LinkClientTests
             return socket;
         }
 
+        /// <summary>One inbound frame applied on the socket thread; the bound is <see cref="Patience"/>'s, not a latency claim.</summary>
         public async Task WaitProcessedAsync()
         {
-            using var timeout = new CancellationTokenSource(5_000);
+            using var timeout = new CancellationTokenSource(Patience.TimeoutMs);
             await Client.Processed.WaitAsync(timeout.Token);
         }
 
