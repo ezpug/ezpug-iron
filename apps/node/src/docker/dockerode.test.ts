@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createDockerodeDocker } from './dockerode'
 import type { DockerPort } from './port'
 
@@ -13,12 +13,24 @@ import type { DockerPort } from './port'
  * a printed reason otherwise; `EZPUG_NODE_DOCKER_TESTS=required` makes the
  * skip a red run. A tiny image, a label unique to this run, and nothing
  * left behind.
+ *
+ * **And nothing left behind by a run that died either** (PRD-02 T37b). The
+ * `afterAll` cleans up what this run created, but a Vitest killed mid-test
+ * never reaches it — the rehearsal found three busybox containers from an
+ * interrupted run 35 hours old on this box. So the suite starts by sweeping
+ * every container carrying {@link SUITE_LABEL}, whatever run made it: that
+ * label is on this test's containers and on nothing else, which is why the
+ * sweep can be unconditional and `com.ezpug.node.managed` — a real node's
+ * label — can never be swept from here.
  */
 
 const SOCKET = process.env.EZPUG_NODE_DOCKER_SOCKET ?? '/var/run/docker.sock'
 const REQUIRED = process.env.EZPUG_NODE_DOCKER_TESTS === 'required'
 const IMAGE = 'busybox:1.37'
 const RUN_LABEL = 'com.ezpug.node.test-run'
+/** On every container this file ever creates, with the same value: what the sweep finds. */
+const SUITE_LABEL = 'com.ezpug.node.test-suite'
+const SUITE = 'dockerode'
 const RUN_ID = randomUUID()
 const NAME = `ezpug-node-test-${RUN_ID}`
 
@@ -39,6 +51,15 @@ if (!available) console.log(`skipping the dockerode suite: no docker socket at $
 describe.skipIf(!available)('the dockerode adapter against the daemon', () => {
   const docker = createDockerodeDocker({ socketPath: SOCKET })
   const created: string[] = []
+
+  /** Whatever an interrupted run left behind, before this one adds to it. */
+  beforeAll(async () => {
+    const leftovers = await docker.listContainers({ [SUITE_LABEL]: SUITE }).catch(() => [])
+    for (const leftover of leftovers) {
+      console.log(`sweeping a leftover from an interrupted run: ${leftover.name}`)
+      await docker.removeContainer(leftover.id).catch(() => undefined)
+    }
+  })
 
   afterAll(async () => {
     for (const id of created) await docker.removeContainer(id).catch(() => undefined)
@@ -70,7 +91,7 @@ describe.skipIf(!available)('the dockerode adapter against the daemon', () => {
       name: NAME,
       image: IMAGE,
       env: { EZPUG_TEST: 'yes' },
-      labels: { [RUN_LABEL]: RUN_ID, 'com.ezpug.node.managed': 'true' },
+      labels: { [RUN_LABEL]: RUN_ID, [SUITE_LABEL]: SUITE, 'com.ezpug.node.managed': 'true' },
       binds: [],
       tty: false,
       stopTimeoutSeconds: 1,

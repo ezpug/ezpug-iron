@@ -57,7 +57,8 @@ Usage:
   matches create|list|get|watch|cancel|command
                                  ask for a match, read it, watch it live, command it
   servers list|kill|console      the fleet ledger: what is running, what it cost
-  nodes enrol-token|list|drain   self-hosted capacity (docs/nodes.md)
+  nodes enrol-token|list|drain|remove
+                                 self-hosted capacity (docs/nodes.md)
   budget                         this key's ceilings and this month's spend
   dathost image --check|--build  the Dathost template server (needs a checkout)
 
@@ -185,7 +186,7 @@ function contextFor(
       return client
     },
     newId: dependencies.newId ?? defaultNewId,
-    readInput: dependencies.readInput ?? defaultReadInput,
+    readInput: dependencies.readInput ?? (path => defaultReadInput(path, dependencies.env)),
     onSignal: dependencies.onSignal ?? defaultSignals,
     dathostImage: dependencies.dathostImage ?? lazyDathostImage,
   }
@@ -228,14 +229,35 @@ function defaultNewId(): string {
   return globalThis.crypto.randomUUID()
 }
 
-async function defaultReadInput(path: string): Promise<string> {
+/**
+ * **A relative path means where you typed it** (PRD-02 T37b). `pnpm iron`
+ * is `pnpm --filter @ezpug/cli start`, and pnpm runs a workspace script with
+ * that package as the working directory — so `pnpm iron matches create --file
+ * request.json` looked for `apps/cli/request.json` and said the file was not
+ * there. pnpm (and npm) set `INIT_CWD` to the directory the command was typed
+ * in, which is the honest fix: it is the operator's cwd whether the wrapper
+ * moved or not, and it is simply absent for an installed `ezpug-iron`, where
+ * `process.cwd()` already is that directory.
+ *
+ * A path that is not found is reported as the absolute path that was looked
+ * for, so the answer to "which file did it want" is in the line itself.
+ */
+async function defaultReadInput(path: string, env: EnvRecord): Promise<string> {
   if (path === '-') {
     const chunks: Buffer[] = []
     for await (const chunk of process.stdin) chunks.push(chunk as Buffer)
     return Buffer.concat(chunks).toString('utf8')
   }
   const { readFile } = await import('node:fs/promises')
-  return await readFile(path, 'utf8')
+  const { isAbsolute, resolve } = await import('node:path')
+  const resolved = isAbsolute(path) ? path : resolve(env.INIT_CWD ?? process.cwd(), path)
+  try {
+    return await readFile(resolved, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      throw new CliUsageError(`no such file: ${resolved}`)
+    throw error
+  }
 }
 
 function defaultSignals(handler: () => void): () => void {

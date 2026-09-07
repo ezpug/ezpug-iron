@@ -26,7 +26,8 @@ curl -fsSL https://get.docker.com | sh
 docker run --rm -v cs2-data:/serverdata/serverfiles \
   --entrypoint install-game.sh ghcr.io/ezpug/ezpug-iron/cs2:<tag>
 
-# 3. enrol — the token comes from the platform's admin console (POST /v1/fleet/nodes) and is shown once
+# 3. enrol — the token is shown once, from the platform's admin console or from
+#    `ezpug-iron nodes enrol-token --id saarlan-1 --region eu-central` (`nodes remove` undoes it)
 docker run --rm --network host \
   -v ezpug-node:/var/lib/ezpug-node \
   -v /var/run/docker.sock:/var/run/docker.sock --group-add "$(stat -c %g /var/run/docker.sock)" \
@@ -60,9 +61,9 @@ assigns each server (`27415`/`27420` and up on this box); the agent itself opens
 un-enrolled.** The agent treats a revoked token as a decision — it stops dialling and exits
 `2` — and no docker restart policy can tell that exit from a crash, so docker starts it
 again and the decision is spent once per restart (eight dials in the first minute, measured
-in T37's rehearsal, each refused at the handshake). A node removed at the orchestrator is
-`docker stop ezpug-node` on the box; a box being rebuilt is `ezpug-node forget` and a fresh
-enrolment token.
+in T37's rehearsal, each refused at the handshake). A node removed at the orchestrator
+(`ezpug-iron nodes remove <nodeId>`) is `docker stop ezpug-node` on the box; a box being
+rebuilt is `ezpug-node forget` and a fresh enrolment token.
 
 Two things about that `docker run` line. `--network host` because the server containers
 the agent starts use the host network anyway (a game server's clients read the address
@@ -117,8 +118,8 @@ these are the parts a venue operator can see:
   gone — both are fatal to the agent, which stops dialling and says to run `forget` (and is
   restarted by docker anyway unless the container is stopped: see the restart policy above).
   The containers it was running keep running: they belong to the orchestrator's ledger, not
-  to the agent. There is no `nodes` verb for this in `ezpug-iron` yet — un-enrolling is the
-  route, by hand or from the platform's console.
+  to the agent. `ezpug-iron nodes remove <nodeId>` is the verb (T37b); the platform's
+  console pulls the same route.
 - **`POST …/drain`** stops new work landing here and tells the agent so; live matches
   finish. `…/undrain` takes it back.
 - **Capacity.** A connected, undrained node offers what it can still run. One that is not
@@ -356,8 +357,10 @@ drained refusals, a container that exits and one that vanishes, adoption after a
 the CLI's every verb with no token in its output. `docker/dockerode.test.ts` proves the
 one adapter that touches a daemon against the real one when this box has a socket, with a
 tiny image and nothing left behind, and skips with a printed reason when it does not
-(`EZPUG_NODE_DOCKER_TESTS=required` makes that red; an interrupted run leaves its busybox
-containers behind, which is a sweep the test does not do yet). The orchestrator's side of
+(`EZPUG_NODE_DOCKER_TESTS=required` makes that red; an interrupted run's busybox containers
+are swept at the *start* of the next one, by a suite label that is on this test's
+containers and on nothing else — T37b, after three of them were found on this box 35 hours
+old). The orchestrator's side of
 the link and the `nodes` provider are T12's, the first real `lan` match through a node is
 T13's, and the venue night against production — enrolment, a `lan` match, drain, a kill,
 un-enrolment — is T37's, written up above.

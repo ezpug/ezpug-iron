@@ -877,7 +877,7 @@ every offline proof here.
   (`apps/orchestrator/src/match/machine.ts`), `plugins/EZPug.Core` (the loader's restore),
   `docs/operations.md` "Recovery", `docs/nodes.md` "What a rehearsal found".
 
-- [ ] **T37b: The three terminal edges the rehearsal hit.** None is the API's fault and all
+- [x] **T37b: The three terminal edges the rehearsal hit.** None is the API's fault and all
   three cost a venue operator time: (1) `ezpug-iron keys create` cannot register a webhook
   secret, while every match request must name one — so the key that creates a match cannot
   be minted from the terminal at all (`--webhook-secret <id>`, the secret minted and shown
@@ -888,6 +888,28 @@ every offline proof here.
   directory — pnpm sets `INIT_CWD`, which is the honest fix for the wrapper. While there:
   `apps/node/src/docker/dockerode.test.ts` leaves its busybox containers behind when a run
   is interrupted (three were found on this box, 35 hours old); sweep the label at start.
+
+- [ ] **T37c (P1): the store contract's Postgres test flakes under a full `pnpm verify`.**
+  `src/match/store.contract.test.ts:368` ("holds over Postgres") failed once during T37b's
+  verify and passed on the next two runs of the same command and on every run of the file
+  alone. The throw came out of `postgres`'s `Function.begin` under
+  `database.rollback` → `withRollback` (`src/db/testing.ts:49`), i.e. opening the
+  transaction, not anything the contract asserts — so the suspect is the pool under the
+  whole repo's parallel load (`EZPUG_IRON_DATABASE_POOL_MAX`, `…_CONNECT_TIMEOUT=10`)
+  rather than the store. A flaky test is a P1 (the working rules): make the test database
+  helper survive a busy box — or prove it is something else — and pin it with a test that
+  fails without the fix. The error text was not captured; reproduce it by running
+  `pnpm verify` with the orchestrator suite alongside everything else, or by squeezing the
+  pool on purpose.
+
+- [ ] **T37d: `keys create` calls a ceiling of zero "no monthly ceiling".** The CLI's mint
+  prints `no monthly ceiling` for `--monthly-cents 0`, and zero is a ceiling of **zero** —
+  the orchestrator's `bootstrap.ts` and `budget/service.ts` say so, and a key minted with
+  the CLI's own defaults is refused `budget_exceeded` by the first match that costs
+  anything (T37b's round-trip test hit exactly this and had to name a real ceiling). The
+  same word is in the `keys:mint` script and in the runbook's table, so fix the sentence
+  in all three, and decide out loud whether the default of `0` is the right one for a
+  door an operator types at — a mint whose default cannot rent a box is a trap either way.
 
 - [ ] **T38: Docs for strangers.** `README.md` (install, run, first match in ten minutes),
   `docs/sdk.md` (write a gamemode), `docs/gamemodes.md` (manifest, tiers, the widget host

@@ -1,10 +1,14 @@
 /// <reference types="node" />
 import { spawn } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { Match } from '@ezpug/match-api'
 import { afterEach, describe, expect, it } from 'vitest'
 import { API_KEY_VAR } from './config'
 import { EXIT } from './exit'
-import { type CliHarness, createCliHarness } from './testing'
+import { type CliHarness, createCliHarness, pugRequest } from './testing'
 
 /**
  * **The process, run as a process.** Everything else in this suite calls
@@ -67,5 +71,40 @@ describe('ezpug-iron, as a process', () => {
     const { code, err } = await run(['gamemodes', 'list'], {})
     expect(code).toBe(EXIT.usage)
     expect(err).toContain(API_KEY_VAR)
+  })
+
+  /**
+   * The third of T37b's edges, and the only one no in-process test can see:
+   * `pnpm iron` runs the command with `apps/cli` as its working directory,
+   * so a relative `--file` was resolved there and not where it was typed.
+   * This spawns exactly that situation — the child's cwd is `apps/cli` (the
+   * suite's own), the document is somewhere else entirely, and `INIT_CWD`
+   * is what pnpm would have set.
+   */
+  it('resolves a relative --file where the operator typed it, not where pnpm ran it', async () => {
+    harness = await createCliHarness()
+    const directory = await mkdtemp(join(tmpdir(), 'ezpug-iron-cli-'))
+    try {
+      await writeFile(join(directory, 'request.json'), JSON.stringify(pugRequest()), 'utf8')
+      const env = {
+        [API_KEY_VAR]: harness.admin.secret,
+        EZPUG_IRON_CLI_URL: harness.listener.url,
+      }
+
+      const created = await run(['matches', 'create', '--file', 'request.json', '--json'], {
+        ...env,
+        INIT_CWD: directory,
+      })
+      expect(created.code, created.err).toBe(EXIT.ok)
+      expect((JSON.parse(created.out) as Match).clientMatchId).toBe('cli-match-1')
+
+      // Without it there is nothing to find, and the line says which path was looked for.
+      const missing = await run(['matches', 'create', '--file', 'request.json'], env)
+      expect(missing.code).toBe(EXIT.usage)
+      expect(missing.err).toContain('no such file:')
+      expect(missing.err).toContain('request.json')
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
   })
 })

@@ -15,6 +15,12 @@ import { orDash } from '../output'
  *
  * `drain` (and `--undrain`) is the lever before an event ends: stop placing
  * matches here, let the running ones finish, then unplug the box.
+ *
+ * `remove` is the end of that evening (PRD-02 T37b): the token is revoked,
+ * the socket the agent holds is closed in force and the row is gone. It is
+ * the one verb here that undoes an enrolment, and the rehearsal needed it
+ * with no way to type it — `docs/nodes.md` had to send an operator to
+ * `curl`.
  */
 
 export const NODES_USAGE = `ezpug-iron nodes — self-hosted capacity (docs/nodes.md)
@@ -22,9 +28,15 @@ export const NODES_USAGE = `ezpug-iron nodes — self-hosted capacity (docs/node
   nodes enrol-token --id <node-id> --region <region> [--label k=v]...
   nodes list
   nodes drain <nodeId> [--undrain]
+  nodes remove <nodeId>
 
 The enrolment token is printed once. On the venue box:
-  EZPUG_NODE_ORCHESTRATOR_URL=<this orchestrator> ezpug-node enrol <token>`
+  EZPUG_NODE_ORCHESTRATOR_URL=<this orchestrator> ezpug-node enrol <token>
+
+Drain before you remove: remove revokes the token and hangs up on the agent,
+but the containers it was running keep running — they belong to the ledger,
+not to the agent. On the venue box, docker stop the agent afterwards, or the
+restart policy dials it straight back into a refusal.`
 
 export async function runNodes(context: CommandContext): Promise<number> {
   const [verb, argument] = context.args.positionals.slice(1)
@@ -36,6 +48,8 @@ export async function runNodes(context: CommandContext): Promise<number> {
       return await list(context)
     case 'drain':
       return await drain(context, argument)
+    case 'remove':
+      return await remove(context, argument)
     default:
       throw new CliUsageError(
         verb === undefined ? 'nodes needs a verb' : `unknown verb 'nodes ${verb}'`,
@@ -104,5 +118,27 @@ async function drain(context: CommandContext, nodeId: string | undefined): Promi
       : `${node.id} takes matches again`,
   )
   context.out.emit(node)
+  return EXIT.ok
+}
+
+/**
+ * **Un-enrol** (`DELETE /v1/fleet/nodes/:nodeId`). The row goes, the token is
+ * revoked, the agent's socket is closed `4009` and every dial after it is
+ * refused `4001` — both fatal by design, so the agent exits and `docker stop`
+ * is what keeps its restart policy from dialling into the refusal forever.
+ *
+ * What it does *not* do is stop anything that is playing: the containers on
+ * that box belong to the orchestrator's ledger, and a match killed by an
+ * un-enrolment would be a match nobody asked to end. Hence the warning, and
+ * hence `drain` first.
+ */
+async function remove(context: CommandContext, nodeId: string | undefined): Promise<number> {
+  if (!nodeId) throw new CliUsageError('nodes remove needs the node id', NODES_USAGE)
+  await context.client().fleet.nodes.revoke({ params: { nodeId } })
+  context.out.say(
+    `${nodeId} is un-enrolled — its token is revoked and its agent is disconnected. ` +
+      'Whatever it was running keeps running; on the venue box, `docker stop` the agent.',
+  )
+  context.out.emit({ ok: true, nodeId })
   return EXIT.ok
 }

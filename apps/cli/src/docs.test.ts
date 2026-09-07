@@ -30,7 +30,7 @@ const VERBS: Readonly<Record<string, readonly string[]>> = {
   gamemodes: ['list'],
   matches: ['create', 'get', 'watch', 'cancel', 'command'],
   servers: ['list', 'kill', 'console'],
-  nodes: ['enrol-token', 'list', 'drain'],
+  nodes: ['enrol-token', 'list', 'drain', 'remove'],
   budget: [],
   dathost: ['image'],
 }

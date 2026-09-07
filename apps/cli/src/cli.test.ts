@@ -1,6 +1,12 @@
 /// <reference types="node" />
 import { eventually } from '@ezpug/core/testing'
-import type { ApiKeyCreated, Budget, Match, NodeEnrolment } from '@ezpug/match-api'
+import type {
+  ApiKeyCreated,
+  Budget,
+  Match,
+  NodeEnrolment,
+  WebhookSecretRegistration,
+} from '@ezpug/match-api'
 import { afterEach, describe, expect, it } from 'vitest'
 import { API_KEY_VAR } from './config'
 import { EXIT } from './exit'
@@ -158,6 +164,77 @@ describe('keys', () => {
     expect((await h.run('keys create --scopes admin')).code).toBe(EXIT.usage)
     expect((await h.run('keys create --name x --scopes wizard')).code).toBe(EXIT.usage)
     expect((await h.run('keys revoke')).code).toBe(EXIT.usage)
+  })
+
+  /**
+   * T37b's first edge. Every match request must name a registered webhook
+   * secret, so before `--webhook-secret` the one key a venue actually needs
+   * could not be minted from a terminal at all. The proof is the whole round
+   * trip: mint the key here, then create a match *with that key*, naming the
+   * id the mint registered.
+   */
+  it('registers a webhook secret it mints itself, so the minted key can create a match', async () => {
+    const h = await setup()
+    const created = await h.run(
+      // A ceiling it can actually spend under: `monthlyCents: 0` is no money,
+      // not no limit (the orchestrator's `bootstrap.ts`).
+      'keys create --name venue --scopes matches --monthly-cents 100000 --webhook-secret whsec-venue --json',
+    )
+    expect(created.code).toBe(EXIT.ok)
+    const minted = created.json<ApiKeyCreated & { webhookSecrets: WebhookSecretRegistration[] }>()
+    expect(minted.key.webhookSecretIds).toEqual(['whsec-venue'])
+    const registered = minted.webhookSecrets[0]!
+    expect(registered.id).toBe('whsec-venue')
+    // The grammar every other secret here uses, so the redactor knows it too.
+    expect(registered.secret).toMatch(/^eziw_[A-Za-z0-9_-]{43}$/)
+
+    const asVenue = {
+      [API_KEY_VAR]: minted.secret,
+      EZPUG_IRON_CLI_URL: h.listener.url,
+    }
+    const match = await h.run('matches create --file - --json', {
+      env: asVenue,
+      stdin: JSON.stringify(
+        pugRequest({
+          callbacks: {
+            webhookUrl: 'https://venue.invalid/hooks',
+            webhookSecretId: 'whsec-venue',
+          },
+        }),
+      ),
+    })
+    expect(match.code, match.err).toBe(EXIT.ok)
+    expect(match.json<Match>().id).toBeTruthy()
+
+    // Nothing serves it again, and the id alone is what a listing shows.
+    const listed = await h.run('keys list --json')
+    expect(listed.out).not.toContain(registered.secret)
+  })
+
+  it('shows the webhook secret once, on the human channel, beside the key’s own', async () => {
+    const h = await setup()
+    const created = await h.run('keys create --name venue --webhook-secret whsec-venue')
+    expect(created.code).toBe(EXIT.ok)
+    expect(created.out).toContain('The secret, once:')
+    expect(created.out).toContain("The webhook secret 'whsec-venue', once:")
+    expect(created.out).toContain('"webhookSecretId": "whsec-venue"')
+    const secrets = [...created.out.matchAll(/\n\n {4}(\S+)\n\n/g)].map(match => match[1]!)
+    expect(secrets).toHaveLength(2)
+    for (const secret of secrets) expect(created.out.split(secret).length - 1).toBe(1)
+  })
+
+  it('takes the id and never a secret: an empty flag, a repeat and nine are all usage', async () => {
+    const h = await setup()
+    const empty = await h.run('keys create --name x --webhook-secret')
+    expect(empty.code).toBe(EXIT.usage)
+    expect(empty.err).toContain('--webhook-secret needs the id')
+    const twice = await h.run('keys create --name x --webhook-secret a --webhook-secret a')
+    expect(twice.code).toBe(EXIT.usage)
+    expect(twice.err).toContain('was given twice')
+    const nine = Array.from({ length: 9 }, (_value, index) => `--webhook-secret w${index}`).join(
+      ' ',
+    )
+    expect((await h.run(`keys create --name x ${nine}`)).code).toBe(EXIT.usage)
   })
 })
 
@@ -337,6 +414,23 @@ describe('nodes', () => {
     const enrolment = enrolled.json<NodeEnrolment>()
     expect(enrolment.node.id).toBe('saarlan-2')
     expect(enrolment.token.length).toBeGreaterThan(16)
+  })
+
+  /** T37b's second edge: the end of a venue night, which had no verb. */
+  it('un-enrols a node, warns what keeps running, and says so when there is no such node', async () => {
+    const h = await setup()
+    await h.run('nodes enrol-token --id saarlan-3 --region eu-central')
+    expect((await h.run('nodes list')).out).toContain('saarlan-3')
+
+    const removed = await h.run('nodes remove saarlan-3')
+    expect(removed.code).toBe(EXIT.ok)
+    expect(removed.out).toContain('un-enrolled')
+    expect(removed.out).toContain('keeps running')
+    expect((await h.run('nodes list')).out).not.toContain('saarlan-3')
+
+    const gone = await h.run('nodes remove saarlan-3')
+    expect(gone.code).toBe(EXIT.refused)
+    expect((await h.run('nodes remove')).code).toBe(EXIT.usage)
   })
 })
 

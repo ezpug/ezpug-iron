@@ -1261,23 +1261,24 @@ exist here either. There is no admin surface that skips the API.
 
 ```sh
 pnpm iron --help                       # the map
-pnpm iron keys create --name platform --scopes matches,fleet
+pnpm iron keys create --name platform --scopes matches,fleet --webhook-secret whsec-2026-09
 pnpm iron gamemodes list               # what this orchestrator will play
 pnpm iron matches create --file req.json
 pnpm iron matches watch <matchId>      # the live stream until it closes
 pnpm iron servers list --all --since 2026-09-07T18:00:00Z   # what tonight cost
 pnpm iron nodes enrol-token --id saarlan-1 --region eu-central
+pnpm iron nodes remove saarlan-1        # un-enrol at the end of the venue night
 pnpm iron budget
 pnpm iron dathost image --check
 ```
 
 | Group | Verbs |
 | ----- | ----- |
-| `keys` | `create`, `list`, `revoke` — the `admin` scope's own. The mint's flags and defaults are `keys:mint`'s, so the two doors agree. |
+| `keys` | `create`, `list`, `revoke` — the `admin` scope's own. The mint's flags and defaults are `keys:mint`'s, so the two doors agree. `--webhook-secret <id>` (repeatable, up to 8) registers a webhook secret on the new key: the flag takes the **id**, the secret is drawn here and shown once. |
 | `gamemodes` | `list` — the catalog, titles in DE and EN (`--locale` narrows to one). |
 | `matches` | `create`, `list`, `get`, `watch`, `cancel`, `command` |
 | `servers` | `list` (`--all` reads the ledger, closed rows included), `kill`, `console` |
-| `nodes` | `enrol-token`, `list`, `drain` (`--undrain`) |
+| `nodes` | `enrol-token`, `list`, `drain` (`--undrain`), `remove` (un-enrol) |
 | `budget` | the calling key's three ceilings and this month against them |
 | `dathost` | `image --check` and `image --build` — a thin wrapper over `scripts/dathost-image.mjs` |
 
@@ -1315,14 +1316,29 @@ reads `docker/cs2/Dockerfile` for its pins and extracts artifacts out of the CS2
 it only means anything inside a checkout. Run from anywhere else it says so and exits
 `69`; every other verb works from anywhere.
 
-**Three edges T37's rehearsal hit**, all of them the terminal's rather than the API's.
-`pnpm iron` runs the command with `apps/cli` as its working directory, so a relative
-`--file` is resolved *there* and not where you typed it — pass an absolute path, or use the
-installed `ezpug-iron`. `keys create` cannot register a webhook secret, and a match request
-must name one (`callbacks.webhookSecretId`), so the key that creates matches is minted
-through `POST /v1/keys` (the platform's console, or `curl`) rather than here. And there is
-no verb for un-enrolling a node: `DELETE /v1/fleet/nodes/:id` is the door. All three are
-written down as the loop's follow-up work.
+**Three edges T37's rehearsal hit, and what T37b did about them.** All three were the
+terminal's rather than the API's, and all three cost a venue operator time.
+
+- **A relative `--file` is resolved where you typed it.** `pnpm iron` is `pnpm --filter
+  @ezpug/cli start`, so the command runs with `apps/cli` as its working directory and
+  `--file request.json` used to look for `apps/cli/request.json`. pnpm sets `INIT_CWD` to
+  the directory the command was typed in, and that is what the CLI resolves a relative path
+  against; an installed `ezpug-iron` has no `INIT_CWD` and its `process.cwd()` already is
+  that directory. A path that is not there is refused with the **absolute** path it looked
+  for, so "which file did it want" is in the line itself.
+- **`keys create --webhook-secret <id>`** registers a webhook secret on the key being
+  minted — repeat it for up to eight. Every match request must name one
+  (`callbacks.webhookSecretId`), so before this the one key a venue actually needs could
+  not be minted from a terminal at all. The flag takes the **id**; the secret behind it is
+  drawn from the CSPRNG here (`eziw_` and 43 characters, the same grammar as every other
+  secret in this system) and shown once beside the key's own. A client that already owns
+  its secret still registers it through `PUT /v1/keys/:keyId/webhook-secrets`, which is
+  the door for rotating one without a gap.
+- **`nodes remove <nodeId>`** un-enrols a node (`DELETE /v1/fleet/nodes/:id`): the token is
+  revoked, the agent's socket is closed in force and the row is gone. What it does *not*
+  do is stop anything that is playing — those containers belong to the ledger, not to the
+  agent — so `drain` first, and `docker stop` the agent on the venue box afterwards or its
+  restart policy dials it straight back into a refusal (`docs/nodes.md`).
 
 ## Keys, scopes, rate limits, logs
 
