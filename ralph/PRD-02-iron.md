@@ -736,7 +736,7 @@ every offline proof here.
 
 **Proving, operating, closing**
 
-- [ ] **T32: Fifty matches with fault injection.** A Vitest suite (extended tier, seeded
+- [x] **T32: Fifty matches with fault injection.** A Vitest suite (extended tier, seeded
   PRNG, virtual clock): fifty matches across sim, the fake Dathost and the fake node with
   injected faults — allocation refused, a boot that never ends, a crash with a restorable
   backup, a crash without, duplicate and out-of-order link frames, a node that disconnects
@@ -746,6 +746,21 @@ every offline proof here.
   events route replaying every delivered webhook in order, no GSLT leased, spend equal to
   the sum of closed rows. One deterministic seed in the test, a `--seed` door for
   reproduction.
+  > note: one world, fifty matches, fourteen scenario kinds dealt by the seed
+  > (`faults.extended.test.ts`, `pnpm faults --seed <seed>`). It needs no database, so it
+  > runs in `pnpm verify` too, in about a second and a half. Two things it found: a
+  > webhook endpoint that fails **reorders what a client receives** (the events route is
+  > the order, which is why it exists), and T32a below.
+
+- [ ] **T32a: A container the agent was holding when it went away.** A node that
+  disconnects mid-match and comes back finds its container still running: the match failed
+  while the agent was gone, so its ledger row is closed, and `adopt()` in the nodes
+  provider only reads *open* rows — the container is neither adopted nor listed, so
+  nothing stops it and the reaper cannot see it. Found by T32, whose comment names the
+  assertion this earns (`rig.node.instances()` empty at the end of the night). The fix is a decision, not a patch: what
+  an agent's snapshot means when the orchestrator has no open row for a container it
+  reports — stop it, adopt it as an orphan so the reaper does, or refuse to touch what
+  another deployment may own (T21c's lesson: `nodes` is not deployment-scoped).
 
 - [ ] **T33: `ezpug-iron`, the CLI.** `apps/cli` (published later as a bin in the
   orchestrator image and runnable with `pnpm iron`): `keys create|list|revoke`,

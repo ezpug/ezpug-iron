@@ -1305,6 +1305,19 @@ for in red suites — a `settle()` that hoped returned while the last envelopes 
 and a story that outran its client saw a `pause` refused `invalid_state` on a match that had
 already ended.
 
+**Fifty matches with fault injection** (`faults.extended.test.ts`) is the tier that asks
+what a bad night leaves behind. One world — the orchestrator over memory on a fake clock,
+`/link` and `/node` on a real port, the simulator, the fake Dathost and a fake node behind
+it — plays fifty matches from a deck one seed shuffles: an allocation refused, a boot that
+never ends, a crash with a restorable backup and one without, duplicate and out-of-order
+link frames, an agent that disconnects mid-match, the vendor's API down for a minute, a
+webhook endpoint that fails ten times, a key at its budget. Then it asserts the wreckage:
+every ledger row closed, every provider listing nothing of ours, every match terminal with
+a reason, the events route replaying every webhook the endpoint accepted, no GSLT still
+leased, and each key's month equal to the sum of its closed rows. It needs no world of its
+own, so it runs in `pnpm verify` too; `pnpm faults --seed <seed>` replays a different night
+and is how a red run is reproduced — the summary names the seed either way.
+
 The **`EZPUG_CS2_TESTS` lane** is the third tier and is nobody's default: ten minutes, a
 CS2 container and a node on this box (see "One real match, recorded"). `pnpm verify` never
 runs it, `pnpm verify:extended` runs it only when the variable is set, and
