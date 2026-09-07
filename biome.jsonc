@@ -10,6 +10,10 @@
       "!**/obj",
       // Reference material (vendor OpenAPI dumps, upstream clones): read, never linted.
       "!references",
+      // The vendored community plugins (PRD-02 T23, T28): somebody else's tree,
+      // verbatim at a tag and never patched, so its json — cs2-retakes' spawn
+      // configs and translations, the allocator's HUD — is upstream's to format.
+      "!plugins/vendor",
       "!ralph/logs",
       "!scripts/lint/__fixtures__",
       // The conformance suite's golden files (PRD-01 T8): machine-written by

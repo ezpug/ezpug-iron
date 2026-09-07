@@ -13,6 +13,7 @@ dist
 **/bin
 **/obj
 **/TestResults
+plugins/vendor/*/build-output
 
 # Local state and secrets — an image never carries either
 .env

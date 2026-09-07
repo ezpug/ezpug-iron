@@ -6,6 +6,25 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.4.3 — 2026-09-07
+
+Catalog only: `retakes` is a mode a server can actually play. Serves PRD-02 T23, which
+vendored cs2-retakes 3.1.0 and a weapon allocator into the server image and taught the
+loader to write a vendored plugin's own config file before it enables it.
+
+- The `retakes` manifest the fake serves (and the orchestrator ships) is at `0.2.0`:
+  `plugins` names the allocator beside the plugin (`RetakesPlugin`, `RetakesAllocator`,
+  in load order — the allocator resolves the retakes capability a tenth of a second after
+  its own load), `maps.catalog` gains `de_train` and is now exactly the maps the pinned
+  release ships spawn configs for, and `cvars` carries the two the mode needs to land
+  after cs2-retakes' own cfg (`bot_quota_mode`, `bot_join_after_player`). The description
+  says who hands out the guns.
+- No schema, route, event, error code or state changed. cs2-retakes' own settings —
+  `MaxPlayers`, `ShouldAutoJoinGame` — are not in the manifest and are not cvars: the
+  orchestrator derives them from `slots` into the plugin's config file, over the link.
+  A client that pinned `0.4.2` sees the same shapes; a client rendering the catalog sees
+  a corrected card and one more map.
+
 ## 0.4.2 — 2026-09-07
 
 Catalog only: `flying-scoutsman` grew a story and says so. Serves PRD-02 T22, which gave

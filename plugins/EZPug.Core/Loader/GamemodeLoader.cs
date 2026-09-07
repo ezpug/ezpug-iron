@@ -6,8 +6,10 @@ using EZPug.Sdk.Protocol;
 namespace EZPug.Core;
 
 /// <summary>
-/// <b>The gamemode loader</b> (decision 16): on <c>assign</c>, enable exactly the plugin
-/// folders the assignment names, set the hostname and go to the first map; when that map
+/// <b>The gamemode loader</b> (decision 16): on <c>assign</c>, write each vendored
+/// plugin's own config where CounterStrikeSharp will read it (<see cref="PluginConfigsDirectory"/>),
+/// enable exactly the plugin folders the assignment names, set the hostname and go to the
+/// first map; when that map
 /// is up (the runtime's <c>MapLoaded</c>, before <c>server_ready</c>), exec the mode's cfg,
 /// and then — a beat later, in a console frame of its own, because the engine reconciles a
 /// cvar once per frame and two writes in one net out (<see cref="CvarSettleMs"/>) — set the
@@ -41,6 +43,9 @@ public sealed class GamemodeLoader
     /// <summary>Where the MatchZy config is written, relative to <c>game/csgo</c> — what <c>matchzy_loadmatch</c> reads.</summary>
     public const string MatchConfigFile = "cfg/ezpug/match.json";
 
+    /// <summary>Where CounterStrikeSharp reads a plugin's own config, relative to <c>game/csgo</c>: <c>&lt;this&gt;/&lt;folder&gt;/&lt;folder&gt;.json</c> (its <c>ConfigManager.Load</c>, keyed on the plugin's folder name).</summary>
+    public const string PluginConfigsDirectory = "addons/counterstrikesharp/configs/plugins";
+
     /// <summary>
     /// <b>The beat between the mode's cfg and everything the assignment asks for.</b> The
     /// engine reconciles a cvar's <i>effects</i> once at the end of the console frame it
@@ -63,6 +68,7 @@ public sealed class GamemodeLoader
     private readonly ILinkLog _log;
     private readonly MatchZyRemoteLog? _remoteLog;
     private readonly List<InstalledPlugin> _enabled = [];
+    private readonly List<string> _writtenConfigs = [];
     private GamemodeRuntime? _runtime;
     private bool _matchLoaded;
 
@@ -96,6 +102,11 @@ public sealed class GamemodeLoader
         var map = MapFor(assignment);
         _matchLoaded = false;
         _world.SetCvar("hostname", HostnameFor(assignment, map));
+
+        // Before the first `css_plugins load`, never after: CounterStrikeSharp reads a
+        // plugin's config once, while it loads it, and a file that lands a frame later is
+        // a file nobody opens.
+        WritePluginConfigs(assignment);
 
         foreach (var name in assignment.Plugins)
         {
@@ -274,6 +285,56 @@ public sealed class GamemodeLoader
         return copy;
     }
 
+    /// <summary>
+    /// <b>A vendored plugin's own config file</b> (PRD-02 T23): one document per plugin
+    /// folder, written where that folder's plugin will read it —
+    /// <c>addons/counterstrikesharp/configs/plugins/&lt;folder&gt;/&lt;folder&gt;.json</c>.
+    /// The door for a community plugin whose settings are not cvars: cs2-retakes keeps
+    /// <c>MaxPlayers</c> and <c>ShouldAutoJoinGame</c> in one, and the orchestrator builds
+    /// it from the manifest (<c>apps/orchestrator/src/match-config/retakes.ts</c>).
+    ///
+    /// A folder name that is not a plain folder name is refused rather than written: this
+    /// is the one place a frame's key becomes a path.
+    ///
+    /// CounterStrikeSharp prefers a <c>&lt;folder&gt;.toml</c> beside the json when one
+    /// exists. Nothing in the image ships one, and one that appeared would silently win
+    /// over what the orchestrator sent — so it is warned about rather than deleted, because
+    /// a file this loader did not write is not this loader's to remove.
+    /// </summary>
+    private void WritePluginConfigs(Assignment assignment)
+    {
+        if (assignment.PluginConfigs is not { Count: > 0 } configs)
+        {
+            return;
+        }
+
+        foreach (var (name, config) in configs)
+        {
+            if (!IsSafePluginFolderName(name))
+            {
+                _log.Warn($"the assignment carries a config for {name}, which is not a plugin folder name; not written");
+                continue;
+            }
+
+            var folder = Path.Combine(_csgoDirectory, PluginConfigsDirectory, name);
+            Directory.CreateDirectory(folder);
+            if (File.Exists(Path.Combine(folder, name + ".toml")))
+            {
+                _log.Warn($"{name} has a {name}.toml beside its config; CounterStrikeSharp reads that first and the assignment's settings will not apply");
+            }
+
+            File.WriteAllText(Path.Combine(folder, name + ".json"), config.ToJsonString(ProtocolJson.Options));
+            _writtenConfigs.Add(name);
+        }
+    }
+
+    /// <summary>A CounterStrikeSharp plugin folder: letters, digits, <c>.</c>, <c>_</c> and <c>-</c>, and nothing that could leave the configs directory.</summary>
+    public static bool IsSafePluginFolderName(string name) =>
+        name.Length is > 0 and <= 64
+        && name != "."
+        && name != ".."
+        && name.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-');
+
     private void OnReleased(string? reason)
     {
         for (var at = _enabled.Count - 1; at >= 0; at--)
@@ -289,6 +350,19 @@ public sealed class GamemodeLoader
             File.Delete(config);
         }
 
+        // The match's plugin configs go with it, so a server started by hand between
+        // matches never runs a vendored plugin on the last match's settings. The plugin
+        // writes its own defaults back the next time it loads without one.
+        foreach (var name in _writtenConfigs)
+        {
+            var path = Path.Combine(_csgoDirectory, PluginConfigsDirectory, name, name + ".json");
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+
+        _writtenConfigs.Clear();
         _world.ChangeLevel(LobbyMap);
     }
 

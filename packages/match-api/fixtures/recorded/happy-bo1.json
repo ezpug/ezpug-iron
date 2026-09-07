@@ -99,8 +99,8 @@
               "en": "Retakes"
             },
             "description": {
-              "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, die Teams werden vom Plugin gemischt. Ereignisse ohne Demo.",
-              "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, teams shuffled by the plugin. Events, no demo."
+              "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, die Teams stellt das Plugin zusammen. Waffen verteilt der Allocator, den Spielablauf erzählt das SDK aus den Ereignissen der Engine. Ereignisse ohne Demo.",
+              "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, teams put together by the plugin. The allocator hands out the guns and the SDK tells the match flow from the engine's own events. Events, no demo."
             },
             "slots": {
               "teamSize": 5,
@@ -110,7 +110,7 @@
             "flow": "plugin",
             "records": "events",
             "ranked": false,
-            "version": "0.1.0",
+            "version": "0.2.0",
             "maps": {
               "catalog": [
                 "de_ancient",
@@ -120,17 +120,22 @@
                 "de_mirage",
                 "de_nuke",
                 "de_overpass",
+                "de_train",
                 "de_vertigo"
               ],
               "workshop": []
             },
             "plugins": [
-              "RetakesPlugin"
+              "RetakesPlugin",
+              "RetakesAllocator"
             ],
             "cfg": [
               "ezpug/retakes.cfg"
             ],
-            "cvars": {},
+            "cvars": {
+              "bot_quota_mode": "normal",
+              "bot_join_after_player": "0"
+            },
             "capabilities": {
               "positions": true,
               "chat": true,

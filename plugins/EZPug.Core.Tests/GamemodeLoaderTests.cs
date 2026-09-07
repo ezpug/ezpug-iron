@@ -43,6 +43,10 @@ public class GamemodeLoaderTests
 
         public string MatchConfigPath => Path.Combine(Image.CsgoDirectory, GamemodeLoader.MatchConfigFile);
 
+        /// <summary>Where CounterStrikeSharp would read <paramref name="plugin"/>'s own config.</summary>
+        public string PluginConfigPath(string plugin) =>
+            Path.Combine(Image.CsgoDirectory, GamemodeLoader.PluginConfigsDirectory, plugin, plugin + ".json");
+
         /// <summary>
         /// The map comes up <b>and the loader's second console frame lands</b>: the cfg is
         /// exec'd on the map hook, everything the assignment asks for
@@ -386,6 +390,86 @@ public class GamemodeLoaderTests
         rig.StartMap("de_nuke");
         Assert.Equal(["server_ready", "server_ready"], rig.Link.EventTypes);
         Assert.Equal("de_nuke", Assert.IsType<ServerReadyEvent>(rig.Link.Events[1]).Map);
+    }
+
+    [Fact]
+    public void ARetakesAssignmentWritesEachPluginsConfigBeforeItLoadsIt()
+    {
+        using var rig = new Rig("RetakesPlugin", "RetakesAllocator");
+        var config = JsonNode.Parse(@"{""GameSettings"":{""MaxPlayers"":10,""EnableFallbackAllocation"":false},""QueueSettings"":{""ShouldAutoJoinGame"":true}}")!.AsObject();
+        var assignment = GamemodeTestHost.AssignmentFor(Manifest("retakes"), map: "de_nuke") with
+        {
+            PluginConfigs = new Dictionary<string, JsonObject> { ["RetakesPlugin"] = config },
+            // The merge's flat map: the mode's `bot_quota_mode` over the request's bots.
+            Cvars = new Dictionary<string, string> { ["bot_quota"] = "10", ["bot_quota_mode"] = "normal" },
+        };
+
+        // The file exists before the first `css_plugins load`, because CounterStrikeSharp
+        // reads it while it loads the plugin and never again.
+        var seenAtLoad = new List<string>();
+        rig.World.Acted += action =>
+        {
+            if (action.ToString().StartsWith("command css_plugins load"))
+            {
+                seenAtLoad.Add($"{action} config={File.Exists(rig.PluginConfigPath("RetakesPlugin"))}");
+            }
+        };
+
+        rig.Link.Assign(assignment);
+        Assert.Equal(
+            [
+                "command css_plugins load plugins/disabled/RetakesPlugin/RetakesPlugin.dll config=True",
+                "command css_plugins load plugins/disabled/RetakesAllocator/RetakesAllocator.dll config=True",
+            ],
+            seenAtLoad);
+        // The allocator resolves the retakes capability a tenth of a second after its own
+        // load, so the order the manifest names them in is the order they are enabled in.
+        Assert.Equal(["RetakesPlugin", "RetakesAllocator"], rig.Loader.Enabled);
+        Assert.Equal(config.ToJsonString(ProtocolJson.Options), File.ReadAllText(rig.PluginConfigPath("RetakesPlugin")));
+        Assert.False(File.Exists(rig.PluginConfigPath("RetakesAllocator")));
+
+        // From there it is a plugin flow like any other: the mode's cfg alone on the map
+        // hook, everything the assignment asks for a beat later, then server_ready.
+        rig.World.StartMap();
+        Assert.Equal(["exec ezpug/retakes.cfg"], rig.Actions.Skip(4));
+        rig.World.Elapse(GamemodeLoader.CvarSettleMs);
+        Assert.Equal(["cvar bot_quota 10", "cvar bot_quota_mode normal"], rig.Actions.Skip(5));
+        Assert.Equal(["server_ready"], rig.Link.EventTypes);
+        Assert.False(File.Exists(rig.MatchConfigPath));
+
+        // Release takes the config with it: a server started by hand between matches never
+        // runs a vendored plugin on the last match's settings.
+        rig.Link.Release("ended: completed");
+        Assert.False(File.Exists(rig.PluginConfigPath("RetakesPlugin")));
+        Assert.DoesNotContain(rig.Log.Lines, line => line.StartsWith("warn"));
+    }
+
+    [Fact]
+    public void APluginConfigKeyedByAPathIsRefusedAndAStaleTomlIsWarnedAbout()
+    {
+        using var rig = new Rig("RetakesPlugin");
+        var config = JsonNode.Parse(@"{""GameSettings"":{""MaxPlayers"":10}}")!.AsObject();
+
+        // The one place a frame's key becomes a path, so it is the one place it is checked.
+        rig.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("retakes")) with
+        {
+            PluginConfigs = new Dictionary<string, JsonObject> { ["../../cfg/ezpug"] = config },
+        });
+        Assert.Contains(rig.Log.Lines, line => line.StartsWith("warn: the assignment carries a config for ../../cfg/ezpug"));
+        Assert.False(File.Exists(Path.Combine(rig.Image.CsgoDirectory, "cfg", "ezpug", "ezpug.json")));
+
+        // A toml beside the json wins inside CounterStrikeSharp, so a server that has one
+        // would silently ignore everything the assignment sent.
+        using var withToml = new Rig("RetakesPlugin");
+        var folder = Path.Combine(withToml.Image.CsgoDirectory, GamemodeLoader.PluginConfigsDirectory, "RetakesPlugin");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "RetakesPlugin.toml"), "MaxPlayers = 2\n");
+        withToml.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("retakes")) with
+        {
+            PluginConfigs = new Dictionary<string, JsonObject> { ["RetakesPlugin"] = config },
+        });
+        Assert.Contains(withToml.Log.Lines, line => line.StartsWith("warn: RetakesPlugin has a RetakesPlugin.toml beside its config"));
+        Assert.True(File.Exists(withToml.PluginConfigPath("RetakesPlugin")));
     }
 
     [Theory]

@@ -627,7 +627,7 @@ every offline proof here.
   carries). Do **not** loosen the assertion. Re-prove with `EZPUG_CS2_TESTS=required` and
   re-record `real-pug-bo1.json` if the shape changes. Never retried into green.
 
-- [ ] **T23: `retakes`.** Vendor cs2-retakes 3.1.0 and one allocator at their pins
+- [x] **T23: `retakes`.** Vendor cs2-retakes 3.1.0 and one allocator at their pins
   (`plugins/vendor/`, `docs/pins.md`), the manifest (`tier: plugin`, `flow: plugin`,
   `records: events`, `openJoin`, its map list with the release's spawn configs, `cvars`
   for `MaxPlayers` and `ShouldAutoJoinGame: true` via its `retakes_config.json` rendered

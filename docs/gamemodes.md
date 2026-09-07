@@ -34,7 +34,7 @@ Three tiers, each proved by one shipped mode (decision 15), plus the queue's mod
 | Tier     | Mode               | What it is |
 | -------- | ------------------ | ---------- |
 | `config` | `flying-scoutsman` | stock CS2 by cfg alone: no plugin anywhere. The match flow is the SDK's generic emitter, read off the engine ("The generic flow" below) |
-| `plugin` | `retakes`          | a vendored community plugin (B3none/cs2-retakes) under the core plugin: its own flow, its own map pool, events without a demo |
+| `plugin` | `retakes`          | two vendored community plugins (B3none/cs2-retakes and a weapon allocator, `docs/pins.md`) under the core plugin: its own rounds and spawns, its own map pool, open join, events without a demo. Its settings arrive as a file, not as cvars ("A vendored plugin's own config file" below), and the SDK's generic emitter tells the match flow |
 | `plugin` | `pug`              | 5v5 on MatchZy: knife, overtime, demo, round backups — the queue's default and its only mode |
 | `sdk`    | `powerup-dm`       | an original mode on `EZPug.Sdk`: player commands, per-player state and a phone widget |
 
@@ -186,6 +186,43 @@ until a whole match's events go missing:
   other switches are `[ConsoleCommand]` handlers that use `bool.TryParse`, where `true` and
   `false` are right and `1` is silently a no-op. There is no rule to infer — read the
   vendor's declaration, then check the server's console output on the first boot.
+
+## A vendored plugin's own config file
+
+MatchZy takes its match as a document. So does cs2-retakes, and so will the WeaponPaints
+fork — a community plugin's settings are usually not cvars but a JSON file
+CounterStrikeSharp hands it while it loads it. The assignment carries one document per
+plugin folder in `pluginConfigs`, and the loader writes each where that plugin will look:
+
+```
+game/csgo/addons/counterstrikesharp/configs/plugins/<folder>/<folder>.json
+```
+
+Three things about it are load-bearing:
+
+- **Before the first `css_plugins load`, never after.** CounterStrikeSharp reads the file
+  once, inside `InitializeConfig`, on the way into the plugin's `Load`. A file that lands a
+  frame later is a file nobody opens — which is why the loader writes every config at
+  `assign`, before it enables anything, and not on the map hook with the cfg.
+- **It is deliberately partial.** The plugin deserialises the document into its own config
+  class, whose every property carries the vendor's default, so a key the orchestrator does
+  not write is a key that keeps the value the plugin shipped with. `retakes` writes four
+  (`match-config/retakes.ts`): the head count from `slots`, open join from
+  `slots.openJoin`, the plugin's fallback allocation off because the vendored allocator
+  does it, and both queue priority flags emptied — a `@css/vip` entry would make a
+  CounterStrikeSharp admin file decide who keeps a slot, and EZPug has one permission
+  mechanism.
+- **The mode does not carry it.** There is no `pluginConfigs` in a manifest and there will
+  not be one: the file belongs to the *plugin*, the orchestrator derives it from the
+  manifest, and a client never sees it. What a manifest's `cvars` are for is the handful of
+  console values that must beat what the vendor's own cfg does at map start —
+  `gamemodes/retakes/cfg/ezpug/retakes.cfg` explains why that is the manifest's job and not
+  the cfg's.
+
+A folder name that is not a plain folder name is refused and warned about rather than
+written: it is the one place a frame's key becomes a path. A `<folder>.toml` beside the
+json wins inside CounterStrikeSharp, so the loader warns when it finds one instead of
+letting the assignment be silently ignored.
 
 ## The generic flow
 

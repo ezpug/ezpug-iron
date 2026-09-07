@@ -198,6 +198,16 @@ export const ORCHESTRATOR_FRAME_FIXTURES: {
     heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS_DEFAULT,
     ackedSeq: 0,
   },
+  /**
+   * The **fullest** assign there is, not the likeliest — and deliberately not
+   * a match anybody would ever be sent. This table is one frame per type, and
+   * its job is that both languages read and write every field, so every
+   * optional is present at once: `restore` belongs to a match resuming after
+   * a lost server, and `pluginConfigs` to a mode whose vendored plugin is
+   * configured by file rather than by cvar, which today is `retakes` and its
+   * `RetakesPlugin` (T23) and never a `pug`. The realistic shapes are the
+   * recorded fixtures, one per mode, written by a match that really happened.
+   */
   assign: {
     type: 'assign',
     matchId: FIXTURE_MATCH_ID,
@@ -211,6 +221,12 @@ export const ORCHESTRATOR_FRAME_FIXTURES: {
       num_maps: 1,
       maplist: ['de_mirage'],
       players_per_team: 5,
+    },
+    pluginConfigs: {
+      RetakesPlugin: {
+        GameSettings: { MaxPlayers: 10, EnableFallbackAllocation: false },
+        QueueSettings: { ShouldAutoJoinGame: true },
+      },
     },
     maps: [{ map: 'de_mirage', sides: 'knife' }],
     rules: {

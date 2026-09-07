@@ -46,10 +46,20 @@ ENV EZPUG_GIT_SHA=${EZPUG_GIT_SHA}
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     ./publish.sh /out
 
+# ── The vendored community plugins, from their own source ──────────────────
+# cs2-retakes is source under `plugins/vendor/`, at the tag
+# `plugins/vendor/vendored.json` records, built by its own csproj with its own
+# properties (`plugins/vendor/README.md`). It lands in `plugins/disabled/`
+# exactly like MatchZy — installed, never enabled until a manifest names it.
+FROM plugins AS vendorplugins
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    ./vendor/build.sh /vendor-out
+
 # ── The community plugins, stock and pinned ────────────────────────────────
-# Downloaded here rather than vendored: Metamod, CounterStrikeSharp and MatchZy
-# ship binary releases and this repo never patches them (the one exception is
-# the WeaponPaints fork, which is source under `plugins/vendor/`, T28). Each
+# Downloaded here rather than vendored: Metamod, CounterStrikeSharp, MatchZy and
+# the retakes weapon allocator ship binary releases and this repo never patches
+# them (the exceptions are cs2-retakes, whose spawn configs we need out of its
+# tree, and the WeaponPaints fork, both source under `plugins/vendor/`). Each
 # artifact is checked against the SHA-256 recorded in `docs/pins.md` — a URL
 # that changed under us is a red build, not a surprise on a Saturday.
 FROM debian:bookworm-slim AS vendor
@@ -64,6 +74,8 @@ ARG COUNTER_STRIKE_SHARP_VERSION=1.0.373
 ARG COUNTER_STRIKE_SHARP_SHA256=2b9b64069c06c78bbb1ad92d59f165b32c107845c18eb7ca6e5c808a26fb6906
 ARG MATCHZY_VERSION=0.8.15
 ARG MATCHZY_SHA256=425955d7565df84915dd6002d0a7848546d3859d376cb493f2988ed182586b57
+ARG RETAKES_ALLOCATOR_VERSION=3.2.5
+ARG RETAKES_ALLOCATOR_SHA256=68e6e8ecfe999e7a09898b17bc33250efb0aa47ff35fb82e4040e9fa871ef24d
 
 # `/out` is overlaid onto `game/csgo` at boot, so it is laid out exactly like it.
 RUN mkdir -p /out/addons /out/cfg
@@ -99,12 +111,31 @@ RUN curl -fsSL -o matchzy.zip \
     && cp -a matchzy/cfg/. /out/cfg/ \
     && rm -rf matchzy matchzy.zip
 
-# **The slot the next tasks fill.** cs2-retakes and its allocator (T23) and the
-# WeaponPaints data-layer fork (T28) are *source* under `plugins/vendor/`, built
-# by the stage above and dropped into `plugins/disabled/<Name>/` exactly like
-# MatchZy. Until they exist the folder is simply not there and the core plugin's
-# loader warns and skips — an assignment naming a plugin the server does not
-# have is refused by the orchestrator before it is ever sent (T6).
+# The retakes weapon allocator (`docs/pins.md` says why this fork): a release
+# zip laid out exactly like the tree it extracts into, plus the gamedata file
+# PanoramaManager reads its signatures from. `RetakesPluginShared.dll` is
+# dropped from its folder because the retakes build below puts the one copy in
+# `shared/`, and the contract the two find each other through
+# (`RetakesPluginEventSenderCapability`) has to be one assembly — the same rule
+# `plugins/publish.sh` states for `EZPug.Sdk`.
+RUN curl -fsSL -o allocator.zip \
+      "https://github.com/Ravid-A/cs2-retakes-weapon-allocator/releases/download/v${RETAKES_ALLOCATOR_VERSION}/RetakesAllocator-v${RETAKES_ALLOCATOR_VERSION}.zip" \
+    && echo "${RETAKES_ALLOCATOR_SHA256}  allocator.zip" | sha256sum -c - \
+    && unzip -q -o allocator.zip -d allocator \
+    && mv allocator/addons/counterstrikesharp/plugins/RetakesAllocator \
+          /out/addons/counterstrikesharp/plugins/disabled/RetakesAllocator \
+    && rm -f /out/addons/counterstrikesharp/plugins/disabled/RetakesAllocator/RetakesPluginShared.dll \
+    && mkdir -p /out/addons/counterstrikesharp/gamedata \
+    && cp -a allocator/addons/counterstrikesharp/gamedata/. /out/addons/counterstrikesharp/gamedata/ \
+    && rm -rf allocator allocator.zip
+
+# cs2-retakes and its shared contract, built from the vendored source by the
+# `vendorplugins` stage. **The slot T28 still fills** is the WeaponPaints
+# data-layer fork, the one plugin this repo patches; until it exists the folder
+# is simply not there and the core plugin's loader warns and skips — an
+# assignment naming a plugin the server does not have is refused by the
+# orchestrator before it is ever sent (T6).
+COPY --from=vendorplugins /vendor-out/addons/ /out/addons/
 
 # The EZPug tree last, so it wins over anything a vendor put in `shared/`.
 COPY --from=plugins /out/addons/ /out/addons/

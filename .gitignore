@@ -6,6 +6,8 @@ dist/
 test-results/
 bin/
 obj/
+# The vendored community plugins build where their own csproj says
+plugins/vendor/cs2-retakes/build-output/
 TestResults/
 *.user
 

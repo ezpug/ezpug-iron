@@ -8,6 +8,7 @@ import {
 } from '@ezpug/protocol'
 import { mergeCvars } from '../match-config/cvars'
 import { buildMatchZyConfig } from '../match-config/matchzy'
+import { pluginConfigsFor } from '../match-config/retakes'
 
 export { derivedCvars, mergeCvars } from '../match-config/cvars'
 
@@ -27,6 +28,11 @@ export { derivedCvars, mergeCvars } from '../match-config/cvars'
  * `live.cfg` would undo a cvar the loader set and MatchZy re-applies its
  * config's cvars after that cfg — the document is what keeps the round
  * format in force, and MatchZy is what reads it.
+ *
+ * A vendored plugin configured by *file* rather than by cvar gets the same
+ * treatment one level down: `pluginConfigs` carries one document per plugin
+ * folder (`match-config/retakes.ts`, T23), and the loader writes each where
+ * CounterStrikeSharp will read it before the folder is enabled.
  */
 
 /** The plugin folder the skins layer lives in (decision 20, T28); enabled when a loadout is on the roster and the image has it. */
@@ -84,17 +90,20 @@ export function missingPlugins(manifest: GamemodeManifest, installed: readonly s
 export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'> {
   const { matchId, request, manifest, installed, restore } = input
   const teams = withProfiles(request.teams, input.profiles)
+  const plugins = pluginsFor(manifest, teams, installed)
+  const pluginConfigs = pluginConfigsFor(manifest, plugins)
   return assignOrchestratorFrameSchema.parse({
     type: 'assign',
     matchId,
     game: request.game,
     gamemode: assignedGamemode(manifest),
-    plugins: pluginsFor(manifest, teams, installed),
+    plugins,
     cfg: manifest.cfg,
     cvars: mergeCvars(request, manifest),
     ...(manifest.flow === 'matchzy' && {
       matchzyConfig: buildMatchZyConfig({ matchId, request, manifest }),
     }),
+    ...(pluginConfigs && { pluginConfigs }),
     maps: request.maps,
     ...(request.rules && { rules: request.rules }),
     teams,

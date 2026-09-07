@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    **The shield.** MSBuild walks up from a project directory and stops at the
+    first `Directory.Build.props` it finds, so this empty file is what keeps
+    `plugins/Directory.Build.props` — our target framework, our
+    CounterStrikeSharp pin, `TreatWarningsAsErrors` — off the vendored trees
+    below it. They are stock, pinned and never patched (docs/pins.md): they
+    build with the properties upstream wrote and against the package versions
+    upstream chose, and a warning in somebody else's source is not ours to
+    fail a build over.
+
+    Nothing here is in `plugins/EZPug.sln`, so `pnpm verify`'s
+    `dotnet build -warnaserror` never sees it either; `plugins/vendor/build.sh`
+    is the one thing that builds it, and `docker/cs2/Dockerfile` is the one
+    thing that calls that.
+  -->
+</Project>

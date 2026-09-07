@@ -62,11 +62,22 @@ them under `plugins/vendor/` and updates the "Vendored at" column with the commi
 | Plugin | Pin | Builds against | Vendored at |
 | ------ | --- | -------------- | ----------- |
 | [MatchZy](https://github.com/shobhit-pathak/MatchZy) | `0.8.15` | CounterStrikeSharp.API 1.0.342, `net8.0` | the release binary, not source: `docker/cs2/Dockerfile`, `MATCHZY_VERSION` (+ `MATCHZY_SHA256`), unzipped into `plugins/disabled/MatchZy/` with its `cfg/MatchZy/` set. The platform's read-only reference checkout is at `ef289d51` ("0.8.15: noclip command fix") |
-| [cs2-retakes](https://github.com/B3none/cs2-retakes) | `3.1.0` | `net8.0` | not yet |
+| [cs2-retakes](https://github.com/B3none/cs2-retakes) | `3.1.0` | CounterStrikeSharp.API 1.0.369, `net10.0` | source, `plugins/vendor/cs2-retakes/` at tag `3.1.0` (commit `157d2bbd`), built by `plugins/vendor/build.sh` into `plugins/disabled/RetakesPlugin/` with its `map_config/` spawn set; `RetakesPluginShared` 2.0.0 goes to `shared/` |
+| [cs2-retakes-weapon-allocator](https://github.com/Ravid-A/cs2-retakes-weapon-allocator) | `3.2.5` | CounterStrikeSharp.API 1.0.373, `net10.0`, RetakesPluginShared 2.0.0 | the release binary, not source: `docker/cs2/Dockerfile`, `RETAKES_ALLOCATOR_VERSION` (+ `RETAKES_ALLOCATOR_SHA256`), unzipped into `plugins/disabled/RetakesAllocator/` with the `gamedata/panoramamanager.json` PanoramaManager reads. The one allocator built against the API we actually ship — `plugins/vendor/README.md` says why this fork and not the original, and why its source is not in this repo |
 | [cs2-WeaponPaints](https://github.com/Nereziel/cs2-WeaponPaints) | commit `fa8936f3` | CounterStrikeSharp.API 1.0.367, Dapper 2.1.72, MySqlConnector 2.5.0, `net8.0` | not yet — the commit is the platform's recorded one, whose `CREATE TABLE`s the `Loadout` schema mirrors field for field |
 
 A `net8.0` plugin loads unchanged on the .NET 10 runtime CounterStrikeSharp ships, which is
-why these three stay where upstream put them and only `EZPug.Sdk` moved.
+why MatchZy and the WeaponPaints fork stay where upstream put them and only `EZPug.Sdk`
+moved; cs2-retakes and its allocator had already moved themselves.
+
+The four downloaded plugin artifacts each carry a SHA-256 beside their version; refreshing
+one is `curl -fsSL <url> | sha256sum`.
+
+A vendored *source* tree has a second home, `plugins/vendor/vendored.json` (repo, tag,
+commit, and the line of source that carries the version) — that file is what
+`scripts/check-pins.mjs` reads, and it checks the version against the source itself, not
+against a copy of it. A vendor that publishes a release is pinned like MatchZy instead: a
+version and a checksum in the image, and nothing of theirs in our tree.
 
 The WeaponPaints fork is the one exception to "never patched": its data layer takes the
 in-memory loadout the core plugin hands it instead of querying MySQL (decision 20). Its

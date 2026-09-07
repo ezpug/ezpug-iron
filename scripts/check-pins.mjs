@@ -4,9 +4,8 @@
 // and forgets the other goes red in `pnpm lint` (PRD-01 T10).
 //
 // Only the pins with a machine-readable home are checked. This script grows a
-// case per home as one appears; the vendored plugins that are still source
-// nobody has taken yet (cs2-retakes, the WeaponPaints fork) are prose until
-// PRD-02 T23 and T28 give them one.
+// case per home as one appears; the WeaponPaints fork is prose until PRD-02 T28
+// gives it one.
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +21,7 @@ const workspace = read('pnpm-workspace.yaml')
 const orchestratorImage = read('docker/orchestrator/Dockerfile')
 const nodeImage = read('docker/node/Dockerfile')
 const cs2Image = read('docker/cs2/Dockerfile')
+const vendored = JSON.parse(read('plugins/vendor/vendored.json'))
 
 /** The value of an `ARG NAME=value` line in a Dockerfile, or undefined. */
 const dockerArg = (dockerfile, name) =>
@@ -66,6 +66,11 @@ const expected = [
   ],
   ['MatchZy', dockerArg(cs2Image, 'MATCHZY_VERSION'), 'docker/cs2/Dockerfile'],
   [
+    'cs2-retakes-weapon-allocator',
+    dockerArg(cs2Image, 'RETAKES_ALLOCATOR_VERSION'),
+    'docker/cs2/Dockerfile',
+  ],
+  [
     'steamrt sniper (the base image)',
     // Tag plus the first eight of the digest, which is how the table writes
     // it — a full sha256 in a prose table is unreadable and nobody would ever
@@ -76,6 +81,17 @@ const expected = [
       .join('@sha256:'),
     'docker/cs2/Dockerfile',
   ],
+  // The vendored **source** trees (PRD-02 T23): the home is the source itself.
+  // `vendored.json` names the file and the exact line that carries the version,
+  // so a re-vendor that forgot to move the tag is caught by the code it took —
+  // not by a number somebody typed twice.
+  ...vendored.plugins.map(plugin => [
+    plugin.directory,
+    read(`plugins/vendor/${plugin.versionHome}`).includes(plugin.versionPattern)
+      ? plugin.version
+      : undefined,
+    `plugins/vendor/${plugin.versionHome}`,
+  ]),
   ...[
     'typescript',
     'vitest',
@@ -108,6 +124,16 @@ if (compiledAgainst !== shippedInTheImage)
       `(plugins/Directory.Build.props) but the server image ships ${shippedInTheImage} ` +
       '(docker/cs2/Dockerfile COUNTER_STRIKE_SHARP_VERSION)',
   )
+
+// A vendored tree's commit is not in its own source, so the table is the only
+// place it is written down twice — here and in `vendored.json`.
+for (const plugin of vendored.plugins) {
+  if (!pins.includes(`\`${plugin.commit.slice(0, 8)}\``))
+    problems.push(
+      `docs/pins.md does not carry the commit \`${plugin.commit.slice(0, 8)}\` ` +
+        `${plugin.directory} is vendored at (plugins/vendor/vendored.json)`,
+    )
+}
 
 if (problems.length > 0) {
   console.error('check-pins: docs/pins.md disagrees with the files a build reads')

@@ -78,6 +78,17 @@
         ],
         "players_per_team": 5
       },
+      "pluginConfigs": {
+        "RetakesPlugin": {
+          "GameSettings": {
+            "MaxPlayers": 10,
+            "EnableFallbackAllocation": false
+          },
+          "QueueSettings": {
+            "ShouldAutoJoinGame": true
+          }
+        }
+      },
       "maps": [
         {
           "map": "de_mirage",

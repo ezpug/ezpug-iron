@@ -2851,6 +2851,20 @@
               },
               "additionalProperties": {}
             },
+            "pluginConfigs": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+              },
+              "additionalProperties": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
             "maps": {
               "minItems": 1,
               "type": "array",

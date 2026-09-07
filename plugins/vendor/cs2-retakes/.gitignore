@@ -1,0 +1,7 @@
+﻿# Rider IDE
+/.idea
+/RetakesPlugin/.idea
+/RetakesPluginShared/.idea
+/build-output
+*.DotSettings.user
+*.sln

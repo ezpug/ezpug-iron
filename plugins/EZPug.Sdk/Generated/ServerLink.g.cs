@@ -2529,34 +2529,39 @@ public sealed record AssignOrchestratorFrame : OrchestratorFrame
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonObject? MatchzyConfig { get; init; }
 
-    [JsonPropertyName("maps")]
+    [JsonPropertyName("pluginConfigs")]
     [JsonPropertyOrder(8)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, JsonObject>? PluginConfigs { get; init; }
+
+    [JsonPropertyName("maps")]
+    [JsonPropertyOrder(9)]
     public required IReadOnlyList<MapPlan> Maps { get; init; }
 
     [JsonPropertyName("rules")]
-    [JsonPropertyOrder(9)]
+    [JsonPropertyOrder(10)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public MatchRules? Rules { get; init; }
 
     [JsonPropertyName("teams")]
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(11)]
     public required MatchTeams Teams { get; init; }
 
     [JsonPropertyName("warmupLines")]
-    [JsonPropertyOrder(11)]
+    [JsonPropertyOrder(12)]
     public IReadOnlyList<string> WarmupLines { get; init; } = [];
 
     [JsonPropertyName("branding")]
-    [JsonPropertyOrder(12)]
+    [JsonPropertyOrder(13)]
     public MatchBranding Branding { get; init; } = new();
 
     [JsonPropertyName("demoUploadUrl")]
-    [JsonPropertyOrder(13)]
+    [JsonPropertyOrder(14)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? DemoUploadUrl { get; init; }
 
     [JsonPropertyName("restore")]
-    [JsonPropertyOrder(14)]
+    [JsonPropertyOrder(15)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public RoundBackup? Restore { get; init; }
 }

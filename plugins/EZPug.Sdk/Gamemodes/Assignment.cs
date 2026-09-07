@@ -6,7 +6,7 @@ namespace EZPug.Sdk;
 /// <summary>
 /// One match as the orchestrator assigned it to this server (<c>assign</c>, composed in
 /// <c>apps/orchestrator/src/link/assign.ts</c>): the manifest resolved, the plugins to
-/// enable, the cfg and the flat cvars, the map plan, the rules, the roster with every
+/// enable and their own config files, the cfg and the flat cvars, the map plan, the rules, the roster with every
 /// profile and loadout, the warmup lines, the branding, the demo's upload URL, and the
 /// backup to restore when the match resumes here. Profiles pushed later
 /// (<c>profile</c> frames: open-join players, a refreshed rating) land in
@@ -41,6 +41,9 @@ public sealed class Assignment
     public IReadOnlyList<string> Cfg => Frame.Cfg;
     public IReadOnlyDictionary<string, string> Cvars => Frame.Cvars;
     public JsonObject? MatchzyConfig => Frame.MatchzyConfig;
+
+    /// <summary>A vendored plugin's own config file, by plugin folder — what the loader writes where CounterStrikeSharp reads it, before the folder is enabled (PRD-02 T23).</summary>
+    public IReadOnlyDictionary<string, JsonObject>? PluginConfigs => Frame.PluginConfigs;
     public IReadOnlyList<MapPlan> Maps => Frame.Maps;
     public MatchRules? Rules => Frame.Rules;
     public MatchTeams Teams => Frame.Teams;

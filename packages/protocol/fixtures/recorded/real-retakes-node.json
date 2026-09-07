@@ -1,0 +1,280 @@
+{
+  "schema": "NodeExchange",
+  "exchange": [
+    {
+      "from": "node",
+      "frame": {
+        "type": "instances",
+        "instances": [
+          {
+            "id": "devbox-1",
+            "purpose": "match",
+            "state": "starting",
+            "serverId": "devbox-1",
+            "containerId": "64c6d900548ce7fe0a82838ce6a0b45047b27de115542d4153412ec1eca75e0a",
+            "ports": {
+              "game": 27415,
+              "tv": 27416
+            },
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
+          }
+        ]
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "instances",
+        "instances": [
+          {
+            "id": "devbox-1",
+            "purpose": "match",
+            "state": "running",
+            "serverId": "devbox-1",
+            "containerId": "64c6d900548ce7fe0a82838ce6a0b45047b27de115542d4153412ec1eca75e0a",
+            "ports": {
+              "game": 27415,
+              "tv": 27416
+            },
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
+          }
+        ]
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "heartbeat"
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "stop",
+        "instanceId": "devbox-1",
+        "reason": "stopped"
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "stop",
+        "instanceId": "devbox-1",
+        "reason": "deallocated"
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "instances",
+        "instances": [
+          {
+            "id": "devbox-1",
+            "purpose": "match",
+            "state": "stopping",
+            "serverId": "devbox-1",
+            "containerId": "64c6d900548ce7fe0a82838ce6a0b45047b27de115542d4153412ec1eca75e0a",
+            "ports": {
+              "game": 27415,
+              "tv": 27416
+            },
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
+          }
+        ]
+      }
+    },
+    {
+      "from": "node",
+      "frame": {
+        "type": "instances",
+        "instances": []
+      }
+    }
+  ]
+}

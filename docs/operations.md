@@ -931,6 +931,14 @@ script and the plugin now encode:
   and replays the same map instead of sending `series_end`. The script asks for overtime by
   default; `--no-overtime` is there for whoever wants to watch that happen.
 
+**The trace path is relative to whoever resolves it.** The orchestrator resolves
+`EZPUG_IRON_TRACE_FILE` against the directory it was started in, and every way of starting
+it here (`pnpm dev`, `pnpm --filter @ezpug/orchestrator start`) runs in
+`apps/orchestrator/`; `pnpm iron:match` runs in the repo root. The script therefore looks in
+both, repo root first, and **stops** when it finds a trace in neither — a run that played a
+whole match and then wrote an empty conversation over a good fixture is worse than no run.
+An absolute path in `.env` avoids the question entirely.
+
 **The trace** (`EZPUG_IRON_TRACE_FILE`) is the only part of this the orchestrator itself
 does: with the variable set it appends one scrubbed NDJSON line per `/link` frame, per
 `/node` frame and per MatchZy payload, so the script can record the two conversations no

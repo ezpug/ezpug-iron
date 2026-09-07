@@ -64,6 +64,20 @@ public sealed class FakeGameWorld : IGameWorld
     public Dictionary<ulong, List<string>> Said { get; } = new();
     public Dictionary<ulong, List<string>> Centered { get; } = new();
 
+    /// <summary>
+    /// Every action as it is taken, for a test that has to stand <i>between</i> two of
+    /// them — <see cref="Actions"/> answers "what happened", this answers "what was true
+    /// when it did" (the loader writing a plugin's config before it loads the plugin,
+    /// PRD-02 T23).
+    /// </summary>
+    public event Action<WorldAction>? Acted;
+
+    private void Record(WorldAction action)
+    {
+        Actions.Add(action);
+        Acted?.Invoke(action);
+    }
+
     public IGamePlayer? Find(ulong steamId64) => _players.FirstOrDefault(player => player.SteamId64 == steamId64);
 
     // ------------------------------------------------------------------ verbs
@@ -71,92 +85,92 @@ public sealed class FakeGameWorld : IGameWorld
     public void Say(string text)
     {
         Broadcasts.Add(text);
-        Actions.Add(new WorldAction("say", null, text));
+        Record(new WorldAction("say", null, text));
     }
 
     public void Say(IGamePlayer player, string text)
     {
         Said.GetOrAdd(player.SteamId64).Add(text);
-        Actions.Add(new WorldAction("say", player.SteamId64, text));
+        Record(new WorldAction("say", player.SteamId64, text));
     }
 
     public void PrintCenter(IGamePlayer player, string text)
     {
         Centered.GetOrAdd(player.SteamId64).Add(text);
-        Actions.Add(new WorldAction("center", player.SteamId64, text));
+        Record(new WorldAction("center", player.SteamId64, text));
     }
 
-    public void PrintHud(IGamePlayer player, string text) => Actions.Add(new WorldAction("hud", player.SteamId64, text));
+    public void PrintHud(IGamePlayer player, string text) => Record(new WorldAction("hud", player.SteamId64, text));
 
-    public void PrintConsole(IGamePlayer player, string text) => Actions.Add(new WorldAction("console", player.SteamId64, text));
+    public void PrintConsole(IGamePlayer player, string text) => Record(new WorldAction("console", player.SteamId64, text));
 
     public void Give(IGamePlayer player, string item)
     {
         Fake(player).Items.Add(item);
-        Actions.Add(new WorldAction("give", player.SteamId64, item));
+        Record(new WorldAction("give", player.SteamId64, item));
     }
 
     public void Strip(IGamePlayer player)
     {
         Fake(player).Items.Clear();
-        Actions.Add(new WorldAction("strip", player.SteamId64, ""));
+        Record(new WorldAction("strip", player.SteamId64, ""));
     }
 
     public void Respawn(IGamePlayer player)
     {
-        Actions.Add(new WorldAction("respawn", player.SteamId64, ""));
+        Record(new WorldAction("respawn", player.SteamId64, ""));
         Spawn(player);
     }
 
     public void SetHealth(IGamePlayer player, int health)
     {
         Fake(player).Health = health;
-        Actions.Add(new WorldAction("health", player.SteamId64, health.ToString()));
+        Record(new WorldAction("health", player.SteamId64, health.ToString()));
     }
 
     public void SetArmor(IGamePlayer player, int armor)
     {
         Fake(player).Armor = armor;
-        Actions.Add(new WorldAction("armor", player.SteamId64, armor.ToString()));
+        Record(new WorldAction("armor", player.SteamId64, armor.ToString()));
     }
 
     public void SetSpeed(IGamePlayer player, float multiplier)
     {
         Fake(player).Speed = multiplier;
-        Actions.Add(new WorldAction("speed", player.SteamId64, multiplier.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        Record(new WorldAction("speed", player.SteamId64, multiplier.ToString(System.Globalization.CultureInfo.InvariantCulture)));
     }
 
     public void SetTeam(IGamePlayer player, PlayerTeam team)
     {
         Fake(player).Team = team;
-        Actions.Add(new WorldAction("team", player.SteamId64, team.ToString()));
+        Record(new WorldAction("team", player.SteamId64, team.ToString()));
     }
 
     public void Kick(IGamePlayer player, string reason)
     {
-        Actions.Add(new WorldAction("kick", player.SteamId64, reason));
+        Record(new WorldAction("kick", player.SteamId64, reason));
         Disconnect(player);
     }
 
-    public void ExecCfg(string file) => Actions.Add(new WorldAction("exec", null, file));
+    public void ExecCfg(string file) => Record(new WorldAction("exec", null, file));
 
-    public void ExecCommand(string line) => Actions.Add(new WorldAction("command", null, line));
+    public void ExecCommand(string line) => Record(new WorldAction("command", null, line));
 
     public string? GetCvar(string name) => _cvars.GetValueOrDefault(name);
 
     public void SetCvar(string name, string value)
     {
         _cvars[name] = value;
-        Actions.Add(new WorldAction("cvar", null, $"{name} {value}"));
+        Record(new WorldAction("cvar", null, $"{name} {value}"));
     }
 
     public void ChangeLevel(string map)
     {
-        Actions.Add(new WorldAction("changelevel", null, map));
+        Record(new WorldAction("changelevel", null, map));
         Map = map;
     }
 
-    public void HostWorkshopMap(string workshopId) => Actions.Add(new WorldAction("host_workshop_map", null, workshopId));
+    public void HostWorkshopMap(string workshopId) => Record(new WorldAction("host_workshop_map", null, workshopId));
 
     // ------------------------------------------------------------------ hooks
 

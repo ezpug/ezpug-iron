@@ -438,7 +438,8 @@ export const welcomeOrchestratorFrameSchema = z.object({
 /**
  * Everything a server needs to play one match, composed by the orchestrator
  * from the request, the manifest and the ledger (PRD-02 T6). The core plugin
- * enables `plugins`, execs `cfg`, sets `cvars`, changes to the first map,
+ * writes each of `pluginConfigs` where CounterStrikeSharp reads it, enables
+ * `plugins`, execs `cfg`, sets `cvars`, changes to the first map,
  * writes `matchzyConfig` and loads it when the mode's flow is `matchzy`,
  * sets the hostname from `branding`, hands each roster entry's loadout to
  * the skins layer, and reports `state: assigned`. `restore` is present when
@@ -461,6 +462,22 @@ export const assignOrchestratorFrameSchema = z.object({
   cvars: gamemodeCvarsSchema,
   /** The MatchZy match config to write and load, when the flow is `matchzy`. Opaque here; T9 builds it. */
   matchzyConfig: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * **A vendored plugin's own config file, by plugin folder** (PRD-02 T23):
+   * what CounterStrikeSharp will read for that folder at
+   * `addons/counterstrikesharp/configs/plugins/<folder>/<folder>.json`,
+   * written by the loader *before* the folder is enabled — the plugin parses
+   * it once, at load, and a file that arrives later is a file nobody reads.
+   *
+   * The door a community plugin gets when its settings are not cvars.
+   * cs2-retakes keeps `MaxPlayers` and `ShouldAutoJoinGame` here rather than
+   * on the console, so a mode that wants ten players and open join has to
+   * say so in a JSON document; `matchzyConfig` is the same idea one plugin
+   * earlier, kept separate because MatchZy's is loaded by a console command
+   * mid-match and this one is not. Opaque here: the builders are the
+   * orchestrator's (`match-config/retakes.ts`).
+   */
+  pluginConfigs: z.record(pluginFolderNameSchema, z.record(z.string(), z.unknown())).optional(),
   /** The map plan, in order; the first entry is loaded before the mode starts. */
   maps: z.array(mapPlanSchema).min(1),
   /** Absent for a mode with its own defaults (a config-only mode). */

@@ -38,7 +38,8 @@ game/csgo/
         ├── EZPug.Core/EZPug.Core.dll (+ .deps.json, .pdb, build.json)
         └── disabled/
             ├── MatchZy/MatchZy.dll             ← vendored at docs/pins.md's version, untouched
-            ├── RetakesPlugin/…
+            ├── RetakesPlugin/…                  ← + its lang/ and map_config/ spawn set
+            ├── RetakesAllocator/…               ← the weapon allocator that runs beside it
             ├── WeaponPaints/…                  ← the data-layer fork (T28)
             └── EZPug.PowerupDm/…               ← an SDK mode (T26): its dll, no EZPug.Sdk.dll beside it
 ```
@@ -58,7 +59,11 @@ On a CS2 dedicated server with Metamod and CounterStrikeSharp at the pinned vers
    over the server's `game/csgo/addons` (it only adds `shared/EZPug.Sdk` and
    `plugins/EZPug.Core`).
 2. Put the vendored plugins under `plugins/disabled/<Name>/` — the folder name is what a
-   manifest's `plugins` lists (`MatchZy`, `RetakesPlugin`, `WeaponPaints`).
+   manifest's `plugins` lists (`MatchZy`, `RetakesPlugin`, `RetakesAllocator`,
+   `WeaponPaints`). MatchZy is a release zip; the retakes pair is source under
+   `plugins/vendor/`, and `plugins/vendor/build.sh` writes the same tree for it (its
+   `shared/RetakesPluginShared` goes beside `shared/EZPug.Sdk`, and its
+   `gamedata/panoramamanager.json` beside the plugins folder).
 3. Copy each `gamemodes/<id>/cfg/` tree into `game/csgo/cfg/` (the manifests name their
    files as `ezpug/<id>.cfg`, so `gamemodes/pug/cfg/ezpug/pug.cfg` lands at
    `game/csgo/cfg/ezpug/pug.cfg`). The image's entrypoint does exactly this at every boot.
@@ -96,6 +101,10 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   hostname and map. Reconnects with capped backoff; events are buffered on disk until the
   orchestrator acks them (`docs/sdk.md`, "The link").
 - **`assign` → the loader.** Hostname from `branding.hostname` or `EZPug · <mode> · <Map>`;
+  each of `assign.pluginConfigs` written to
+  `addons/counterstrikesharp/configs/plugins/<Name>/<Name>.json` **before** anything is
+  loaded, because CounterStrikeSharp reads a plugin's config once, on the way into its
+  `Load` (`docs/gamemodes.md`, "A vendored plugin's own config file"); then
   `css_plugins load plugins/disabled/<Name>/<Name>.dll` for each plugin the assignment
   names, in order; `changelevel` (or `host_workshop_map` for a workshop id) to the first
   map. That second is announced first (`Runtime.ExpectMapChange`, `docs/sdk.md`): on a
@@ -166,7 +175,9 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   its connection, obviously synthetic, and a bot's death is a real event in a match bots
   play.
 - **`release` → unload.** The plugins it enabled are unloaded in reverse, the match config
-  removed, the server goes back to the lobby map, state `idle`.
+  and every plugin config it wrote removed — so a server started by hand between matches
+  never runs a vendored plugin on the last match's settings — the server goes back to the
+  lobby map, state `idle`.
 - **Commands over the link.** `announce`, `kick`, `rcon` and `profile` are answered by the
   runtime; for a `matchzy` flow `pause` and `unpause` are MatchZy's `css_forcepause` /
   `css_forceunpause`; `restart_round`, `force_end` and `reroll` are the flow owner's (the

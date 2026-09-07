@@ -22,10 +22,10 @@
 // the fixtures' own so a second run produces the same bytes.
 import { spawnSync } from 'node:child_process'
 import { createHash, createHmac, randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -131,7 +131,22 @@ const WANT_DEMO = flags.get('no-demo') !== 'true'
 const OVERTIME = flags.get('no-overtime') !== 'true'
 const WRITE_FIXTURES = flags.get('write-fixtures') === 'true'
 const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 45) * 60_000
-const TRACE_FILE = flags.get('trace') ?? process.env.EZPUG_IRON_TRACE_FILE ?? null
+/**
+ * The orchestrator's trace, found rather than assumed. A **relative**
+ * `EZPUG_IRON_TRACE_FILE` — which is what `.env.example` and
+ * `docs/operations.md` both show — is resolved by each process against its own
+ * working directory, and the orchestrator's is its package (`pnpm dev` runs the
+ * task there, `pnpm --filter … start` too) while this script's is the repo. So
+ * both are looked in, repo first, and neither existing is fatal below rather
+ * than a run that plays a whole match and records an empty conversation.
+ */
+const TRACE_FLAG = flags.get('trace') ?? process.env.EZPUG_IRON_TRACE_FILE ?? null
+const TRACE_FILE = (() => {
+  if (!TRACE_FLAG) return null
+  if (isAbsolute(TRACE_FLAG)) return TRACE_FLAG
+  const candidates = [join(repo, TRACE_FLAG), join(repo, 'apps/orchestrator', TRACE_FLAG)]
+  return candidates.find(path => existsSync(path)) ?? candidates[0]
+})()
 /**
  * How long a live match may run before it is force-ended.
  *
@@ -504,8 +519,19 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 async function run() {
   const startedAt = wall.now()
   const traceFrom = traceOffset()
-  if (TRACE_FILE) say(`recording the orchestrator's trace from ${TRACE_FILE}`)
-  else
+  if (TRACE_FILE) {
+    // **A named trace that is not there is a stop, not a shrug.** Without this
+    // the run plays a whole match and then writes an empty `LinkExchange` over
+    // a good fixture — "verified" by nobody, which is the one thing this
+    // recording exists not to be.
+    if (!existsSync(TRACE_FILE))
+      die(
+        `no trace at ${TRACE_FILE} (nor under apps/orchestrator/) — start the ` +
+          'orchestrator with EZPUG_IRON_TRACE_FILE set and let it write at least one ' +
+          'frame before recording a match.',
+      )
+    say(`recording the orchestrator's trace from ${TRACE_FILE}`)
+  } else
     say(
       'no trace file: link frames and MatchZy payloads will not be recorded ' +
         '(start the orchestrator with EZPUG_IRON_TRACE_FILE=<file>)',

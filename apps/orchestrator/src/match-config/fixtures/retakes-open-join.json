@@ -1,0 +1,11 @@
+{
+  "GameSettings": {
+    "MaxPlayers": 10,
+    "EnableFallbackAllocation": false
+  },
+  "QueueSettings": {
+    "ShouldAutoJoinGame": true,
+    "QueuePriorityFlag": [],
+    "QueueImmunityFlag": []
+  }
+}
