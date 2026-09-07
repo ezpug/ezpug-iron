@@ -61,7 +61,7 @@
       }
     }
   ],
-  "widget": { "entry": "widget/powerup-dm.js", "needs": ["tokens", "locale", "playerToken"] },
-  "version": "0.1.0",
+  "widget": { "entry": "dist/widget.js", "needs": ["tokens", "locale", "playerToken"] },
+  "version": "0.1.1",
   "sdkVersion": "0.1.0"
 }

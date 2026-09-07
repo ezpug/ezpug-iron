@@ -2,10 +2,20 @@
   "name": "@ezpug/gamemodes",
   "version": "0.0.0",
   "private": true,
-  "description": "The gamemode manifests EZPug Iron ships, one directory per mode, authored as data (decision 14). Read by the orchestrator, bundled into @ezpug/match-api as the catalog the fake serves, built against by the plugins.",
+  "description": "The gamemode manifests EZPug Iron ships, one directory per mode, authored as data (decision 14), and beside an sdk mode's manifest the source of its phone widget, built by @ezpug/gamemode-kit into <id>/dist/widget.js (decision 17). Read by the orchestrator, bundled into @ezpug/match-api as the catalog the fake serves, built against by the plugins.",
   "type": "module",
   "exports": {
     "./*/manifest.json": "./*/manifest.json",
     "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "ezpug-widget build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ezpug/gamemode-kit": "workspace:*",
+    "typescript": "catalog:",
+    "vue": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

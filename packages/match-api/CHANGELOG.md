@@ -6,6 +6,24 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.6.0 — 2026-09-07
+
+The widget's address: the catalog names where a gamemode's widget is served (decision 17).
+Serves PRD-02 T25, the `gamemode-kit` that builds a widget and the orchestrator route that
+serves it. Additive; a client that pinned `0.5.0` sees every shape it knew unchanged and
+strips the one new field.
+
+- **`widget.url`** on the served manifest (`GamemodeWidget`, optional): the absolute,
+  immutable, content-hashed URL of the HTML document the platform mounts in its sandboxed
+  frame — `<orchestrator>/gamemodes/<id>/widget/<sha256[0..16]>/index.html`, whose
+  script is `./widget.js` beside it. The orchestrator adds it to the manifests it serves
+  when it has the mode's bundle; an authored `manifest.json` never carries it, and the
+  fake's catalog never does (the fake serves no bundle — the platform's dev twin stands
+  in). A `capabilities.widget` mode without a `url` is one this orchestrator cannot mount
+  yet; a host mounts nothing rather than a blank frame.
+- **`widget.entry`** of the shipped `powerup-dm` (manifest `0.1.1`) is now `dist/widget.js`,
+  the path relative to the mode's directory that `ezpug-widget build` produces.
+
 ## 0.5.0 — 2026-09-07
 
 The widget socket: a gamemode's widget opens its own socket to the orchestrator with a

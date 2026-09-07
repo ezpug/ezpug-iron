@@ -15,6 +15,16 @@ import type { RateLimiter } from './http/rate-limit'
 import { requestIdOf, requestLog } from './http/request-log'
 import type { Log } from './log'
 import type { MatchZyDoor } from './matchzy/door'
+import {
+  baseUrlHost,
+  requestHost,
+  type WidgetBundles,
+  widgetCsp,
+  widgetDocument,
+  widgetDocumentPath,
+  widgetScriptPath,
+  widgetStablePath,
+} from './widget/bundles'
 
 /**
  * **The HTTP app** — Hono, with one handler per route of the Match API
@@ -25,11 +35,14 @@ import type { MatchZyDoor } from './matchzy/door'
  * `internal` with a request id and a log line, never a stack trace on the
  * wire.
  *
- * Two paths live outside `/v1/`: `/healthz` — no key, no scope, the drain's
- * first step (`shutdown.ts`) is what turns it 503 — and the MatchZy door
+ * Three things live outside `/v1/`: `/healthz` — no key, no scope, the
+ * drain's first step (`shutdown.ts`) is what turns it 503 — the MatchZy door
  * (`matchzy/door.ts`), which a server authenticates with its own link token
  * in a header rather than an API key, because it is a server speaking, not
- * a client.
+ * a client — and the widget bundles (`widget/bundles.ts`, T25): a gamemode's
+ * built widget and the document that frames it, public and immutable at a
+ * content-hashed path, no key because a phone in a sandboxed frame has none
+ * and the bundle is source from this repo.
  *
  * The stream route is an upgrade and Hono never sees one: the listener
  * (T3) handles the upgrade on the raw server, and a plain GET on the path
@@ -47,6 +60,10 @@ export interface AppOptions {
   isDraining?: () => boolean
   /** The MatchZy remote-log door (T9); absent in a composition that serves no server. */
   matchzy?: MatchZyDoor
+  /** The gamemode widgets to serve (T25); absent serves none. */
+  widgets?: WidgetBundles
+  /** The orchestrator's public origin, for the widget document's CSP; absent means the request's host alone. */
+  baseUrl?: string
 }
 
 type Variables = { requestId: string }
@@ -105,6 +122,46 @@ export function createApp(options: AppOptions): Hono<{ Variables: Variables }> {
       }
       const answer = await door.handle({ token, body: await c.req.text() })
       return c.json(answer.body, answer.status as 200)
+    })
+  }
+
+  if (options.widgets) {
+    const widgets = options.widgets
+    const immutable = 'public, max-age=31536000, immutable'
+    const script = (id: string | undefined) => (id ? widgets.get(id) : null)
+    app.get(widgetDocumentPath(':id', ':hash'), c => {
+      const bundle = script(c.req.param('id'))
+      if (!bundle || bundle.hash !== c.req.param('hash')) return c.notFound()
+      const hosts = [requestHost(c.req.url, c.req.header('x-forwarded-host'))]
+      if (options.baseUrl) hosts.push(baseUrlHost(options.baseUrl))
+      c.header('cache-control', immutable)
+      c.header('content-security-policy', widgetCsp(hosts))
+      c.header('x-content-type-options', 'nosniff')
+      c.header('referrer-policy', 'no-referrer')
+      return c.html(widgetDocument(bundle.id))
+    })
+    app.get(widgetScriptPath(':id', ':hash'), c => {
+      const bundle = script(c.req.param('id'))
+      if (!bundle || bundle.hash !== c.req.param('hash')) return c.notFound()
+      c.header('cache-control', immutable)
+      c.header('content-type', 'text/javascript; charset=utf-8')
+      c.header('x-content-type-options', 'nosniff')
+      // A module script in a sandboxed frame is a CORS request from the
+      // opaque origin `null`; the bundle is public source, so anyone may.
+      c.header('access-control-allow-origin', '*')
+      return c.body(bundle.source)
+    })
+    app.get(widgetStablePath(':id'), c => {
+      const bundle = script(c.req.param('id'))
+      if (!bundle) return c.notFound()
+      const etag = `"${bundle.hash}"`
+      c.header('cache-control', 'no-cache')
+      c.header('etag', etag)
+      c.header('x-content-type-options', 'nosniff')
+      c.header('access-control-allow-origin', '*')
+      if (c.req.header('if-none-match') === etag) return c.body(null, 304)
+      c.header('content-type', 'text/javascript; charset=utf-8')
+      return c.body(bundle.source)
     })
   }
 

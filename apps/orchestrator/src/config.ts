@@ -174,6 +174,13 @@ export interface OrchestratorConfig {
   readonly migrateOnBoot: boolean
   /** Where the migration SQL lives, when it is not beside the code (the image). */
   readonly migrationsDir: string | null
+  /**
+   * Where the gamemodes' built widgets are (T25): `<dir>/<id>/dist/widget.js`
+   * per `sdk` mode, `EZPUG_IRON_GAMEMODES_DIR`. `null` means "find the
+   * workspace's `gamemodes/` through `@ezpug/gamemodes`", the dev box's
+   * answer; the image sets the directory it copied the bundles into.
+   */
+  readonly gamemodesDir: string | null
   readonly database: DatabaseConfig
   readonly redis: RedisConfig
   readonly rateLimit: RateLimitConfig
@@ -356,6 +363,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       traceFile: z.string().min(1).nullable(),
       migrateOnBoot: booleanFromEnv(false),
       migrationsDir: z.string().min(1).nullable(),
+      gamemodesDir: z.string().min(1).nullable(),
       nodeServerImage: z.string().min(1).max(512),
     })
     .safeParse({
@@ -376,6 +384,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       traceFile: env[TRACE_FILE_VAR] || null,
       migrateOnBoot: env.EZPUG_IRON_MIGRATE_ON_BOOT,
       migrationsDir: env.EZPUG_IRON_MIGRATIONS_DIR || null,
+      gamemodesDir: env.EZPUG_IRON_GAMEMODES_DIR || null,
       nodeServerImage: env.EZPUG_IRON_NODE_SERVER_IMAGE || DEFAULT_NODE_SERVER_IMAGE,
     })
   if (!parsed.success)
@@ -391,6 +400,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       traceFile: TRACE_FILE_VAR,
       migrateOnBoot: 'EZPUG_IRON_MIGRATE_ON_BOOT',
       migrationsDir: 'EZPUG_IRON_MIGRATIONS_DIR',
+      gamemodesDir: 'EZPUG_IRON_GAMEMODES_DIR',
       nodeServerImage: 'EZPUG_IRON_NODE_SERVER_IMAGE',
     })
   const { rateLimitBurst, rateLimitPerSecond, ...rest } = parsed.data

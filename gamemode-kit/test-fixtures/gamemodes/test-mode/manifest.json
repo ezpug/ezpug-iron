@@ -1,0 +1,4 @@
+{
+  "id": "test-mode",
+  "note": "a build fixture for gamemode-kit's own tests — not a shipped manifest"
+}

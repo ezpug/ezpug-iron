@@ -450,6 +450,16 @@ describe('the widget socket', () => {
     foreign.hello(token.token)
     expect(await foreign.closed).toMatchObject({ code: WIDGET_CLOSE_CODES.forbidden })
 
+    // The platform's frame is sandboxed without `allow-same-origin`: its
+    // origin is opaque and the browser sends the literal `null` — the
+    // widget's own door (T25), greeted, never `forbidden`.
+    const sandboxed = rig.widget({ origin: 'null' })
+    await sandboxed.open
+    sandboxed.hello(token.token)
+    const [greeted] = await sandboxed.until(1)
+    expect(greeted).toMatchObject({ type: 'hello', matchId })
+    sandboxed.close()
+
     const future = rig.widget()
     await future.open
     future.send({ type: 'hello', protocol: 2, token: token.token })

@@ -107,8 +107,9 @@ turns on `capabilities.widget` and `capabilities.playerCommands`.
 
 | Field | Meaning |
 | ----- | ------- |
-| `entry` | the built bundle's path, relative to the mode's widget output (`gamemode-kit` produces it in PRD-02). The orchestrator serves it as an HTML document; the platform mounts that document in a sandboxed `iframe` and never hosts the code itself |
+| `entry` | the built bundle's path relative to the mode's directory — `dist/widget.js`, what `ezpug-widget build` produces from `widget/index.ts` ("Building a widget" below). The orchestrator reads it at boot and serves it inside an HTML document; the platform mounts that document in a sandboxed `iframe` and never hosts the code itself |
 | `needs` | what the host must inject, a non-empty subset of `tokens` (the platform's design tokens as CSS custom properties), `locale` (`de` or `en`, the player's) and `playerToken` (the match- and SteamID-scoped token the widget opens its own socket with; a widget that needs it renders a "watching only" state when the host passes `null`) |
+| `url` | **served, never authored.** The orchestrator adds it to the manifest `GET /v1/gamemodes` returns: the absolute, immutable, content-hashed address of the document to mount — `https://gs.ezpug.com/gamemodes/powerup-dm/widget/<sha256[0..16]>/index.html`. Absent when the orchestrator has no bundle for the mode (named in its boot log) and absent from the fake's catalog, which serves no bundle; a host that finds none mounts nothing rather than a blank frame (`@ezpug/match-api` 0.6.0) |
 
 Everything under "The widget host" below is how those three arrive.
 
@@ -284,12 +285,33 @@ platform's locale layer; nothing is translated on the platform's side.
 ## The widget host
 
 Decision 17: an `sdk` mode ships a built web component (`widget.entry`, produced by this
-repo's `gamemode-kit` in PRD-02); the orchestrator serves it as an HTML document; the
-platform mounts that document in an `iframe` with `sandbox="allow-scripts"` and no
-same-origin, and injects what `widget.needs` lists. The widget then opens its own socket to
-the orchestrator with the player token — `GET /v1/widget`, the token in its first frame,
-the frames and close codes in `docs/match-api.md` "The widget socket" — taps become player
-commands; gameplay traffic never touches the platform.
+repo's `gamemode-kit`); the orchestrator serves it inside an HTML document at the address
+the catalog advertises (`widget.url`); the platform mounts that document in an `iframe`
+with `sandbox="allow-scripts"` and no same-origin, and injects what `widget.needs` lists.
+The widget then opens its own socket to the orchestrator with the player token — `GET
+/v1/widget`, the token in its first frame, the frames and close codes in
+`docs/match-api.md` "The widget socket" — taps become player commands; gameplay traffic
+never touches the platform.
+
+**The document** (`apps/orchestrator/src/widget/bundles.ts`) is a viewport, a dark colour
+scheme, a transparent body and one module script, `./widget.js`, beside it — no inline
+script. Both live under `/gamemodes/<id>/widget/<hash>/` where `<hash>` is the first
+sixteen hex characters of the bundle's SHA-256, cached a year and immutable; a hash that
+is not this boot's is `404`, never a stale answer. `/gamemodes/<id>/widget.js` is the same
+bundle under its stable name, revalidated on every request with the hash as its `ETag`. No
+API key on any of the three: a phone in a sandboxed frame has none, and the bundle is source
+from this repo. The document's Content-Security-Policy allows scripts and a socket to this
+orchestrator alone (the host the request came to and the one `EZPUG_IRON_BASE_URL` names,
+`ws://` and `wss://` of each for the socket), inline styles (Vue puts an SFC's styles into
+the shadow root as `<style>` elements) and data URLs — and nothing else, which is why the
+kit's build refuses a bundle that reaches for `fetch()` ("Building a widget").
+
+**The sandbox's origin is opaque.** Two consequences the orchestrator honours: the module
+script is a CORS request from the origin `null`, so the bundle is served with
+`Access-Control-Allow-Origin: *`; and the widget's socket carries `Origin: null`, which the
+widget door greets rather than refusing against the request's `streamAllowedOrigins` — the
+token is the credential there, and an allow-list of page origins cannot name a frame that
+has none.
 
 The transport is a `postMessage` handshake at protocol `1`, `WidgetHostMessage` in the
 package. A URL fragment would put the player token into browser history and referrers; a
@@ -308,10 +330,95 @@ query string would put it into the orchestrator's logs.
 5. The widget posts `{ type: 'ezpug.widget.error', message }` when the host should show
    something instead of it.
 
-Both sides check `event.origin`: the widget accepts messages only from the origin it was
-mounted from (the host passes nothing before `init`, so the widget learns it from the first
-message and pins it), the host only from the orchestrator's origin. A host and a widget on
-different `protocol` majors do not talk; the host shows its error state.
+Both sides check who is talking: the widget accepts messages only from the origin it was
+mounted from (the host passes nothing before `init`, so the widget learns it — and the
+window — from the first valid `init` and pins both), and the host trusts the frame by
+`event.source`, because a sandboxed frame's `event.origin` reads `"null"`. A host and a
+widget on different `protocol` majors do not talk; the host shows its error state. The
+kit's shell re-posts `ready` every second until `init` arrives, so a host whose script
+attaches its listener after the frame ran still hears it, and after ten seconds of silence
+the widget says it belongs on a match page.
+
+### The design tokens
+
+What the host injects as `tokens`, and what a widget may read with `var(--…)`: the
+platform's own custom property names (`packages/ui/app/assets/css/signal.css`, the list in
+`packages/ui/src/widget.ts`). The kit sets every name on the element before the first
+paint — the injected value, else the fallback below (Signal's values on 2026-09-07) — so
+`var(--ui-text)` never resolves to nothing and a widget mounted with no tokens at all still
+renders as the platform would. `WIDGET_TOKEN_FALLBACKS` in the kit is this table, and a
+kit test keeps the two lists equal.
+
+| Token | Fallback | Use |
+| ----- | -------- | --- |
+| `--ui-primary` / `--ui-on-primary` | `#f0ece3` / `#0b0a09` | the one solid button, active states, and what sits on it |
+| `--ui-bg`, `--ui-bg-muted`, `--ui-bg-elevated`, `--ui-bg-accented` | `#0b0a09`, `#110f0d`, `#171512`, `#1f1c18` | surfaces, darkest first |
+| `--ui-border`, `--ui-border-muted`, `--ui-border-accented` | `#242019`, `#1b1814`, `#332e27` | hairlines |
+| `--ui-text-dimmed`, `--ui-text-muted`, `--ui-text-toned`, `--ui-text`, `--ui-text-highlighted` | `#5c564d`, `#8a8378`, `#b0a99d`, `#dad4c9`, `#f7f3ec` | text, quietest first |
+| `--ui-ct` / `--ui-t` | `#86a6ff` / `#f0b655` | the team colours; `--ui-info` and `--ui-warning` alias them |
+| `--ui-live`, `--ui-success` | `#f43f5e`, `#7bd69a` | live, and positive |
+| `--ui-radius` | `0.5rem` | the shape scale (a card is `calc(var(--ui-radius) * 2)`) |
+| `--ui-motion-hover`, `--ui-motion-layout`, `--ui-motion-media` | `150ms`, `400ms`, `800ms` | the three motion bands; reduced motion is honoured by the kit's base rules |
+| `--font-sans`, `--font-mono` | `"Manrope", ui-sans-serif, system-ui, sans-serif`, `"DM Mono", ui-monospace, monospace` | type; the fonts themselves are the page's, a widget loads none |
+
+## Building a widget
+
+`gamemode-kit/` (`@ezpug/gamemode-kit`) is the toolchain and the runtime. A gamemode keeps
+its widget beside its manifest — `gamemodes/<id>/widget/index.ts` and the Vue components it
+imports — and `pnpm build` (through `@ezpug/gamemodes`'s own build, `ezpug-widget build`)
+turns it into `gamemodes/<id>/dist/widget.js`: one ES module with Vue, the kit and the
+components inside, built by Vite in library mode with Vue's custom-element mode on so an
+SFC's `<style>` lands in the shadow root. That file is what `widget.entry` names, what the
+orchestrator hashes and serves, and what the image carries (`docker/orchestrator/Dockerfile`
+collects every `gamemodes/*/dist` into `EZPUG_IRON_GAMEMODES_DIR`).
+
+The entry is two lines:
+
+```ts
+import { defineWidget } from '@ezpug/gamemode-kit'
+import Widget from './Widget.vue'
+export default defineWidget(Widget)
+```
+
+`defineWidget` defines `<ezpug-widget>` around the component — the host contract as
+attributes or properties, `orchestrator-url`, `player-token`, `locale`, `match-id`, and the
+tokens as custom properties on the element — and, when the bundle runs inside a frame, mounts
+the element and runs the host handshake itself. Inside the component:
+
+- `useWidget()` gives the **link** (`useWidgetLink()` over T24's socket: `state`, the
+  orchestrator's `hello`, the declared `commands` with `chargesLeft` and `readyAt` as last
+  reported, `onEvent()` for every durable fact, `send(command, args?)` resolving to the
+  `command_result`, and a backoff reconnect on a network close — never on a close code the
+  orchestrator decided, `4000` being the match's end), the **locale** (the host's, else the
+  roster's from `hello`, else German), **`t()`**, the match id, the token or `null` for a
+  viewer, and a ticking `now` for countdowns.
+- Copy is `{ de, en }` where it is used — `t({ de: '…', en: '…' }, { n: 2 })` — the
+  manifest's rule; the kit's own states (`KIT_COPY`: connecting, watching only, ended,
+  refused) come both ways too.
+- Every deadline is on the kit's `WidgetClock` (`browserClock` in a browser, a fake in a
+  test), the one place the kit reads the wall clock.
+- The socket answers a refused tap with a `message` in the player's language; show it as it
+  is. The plugin validates `args`; the widget's buttons send what the manifest declares.
+
+**What a widget may not do**: reach the network by any door but its socket. The frame's CSP
+has no `connect-src` but the orchestrator, so `ezpug-widget build` refuses a bundle that
+contains `fetch(`, `XMLHttpRequest`, `EventSource`, `sendBeacon`, `importScripts` or a
+dynamic `import(` — a widget that would break on the match page does not build.
+
+**The harness**: `pnpm --filter @ezpug/gamemodes exec ezpug-widget dev powerup-dm` (port
+`EZPUG_IRON_WIDGET_HARNESS_PORT`, 3432) serves the widget under Vite the way the platform
+mounts it — a sandboxed frame on a document shaped like the orchestrator's, the
+`postMessage` handshake with the tokens, a locale switch, a "watching only" switch, a
+"new match" button and a log of every message — against the published fake orchestrator
+running in the same process on the wall clock, with a simulated `powerup-dm` match and a
+player token minted for a rostered player. No CS2, no Postgres, no platform; the socket the
+widget opens is a real one to the fake's `/v1/widget`. `--time-scale 20` plays the match
+faster.
+
+**Tests**: the kit's own (`gamemode-kit/src/*.test.ts`) run the link against the fake over
+a real socket, the handshake and the element under `happy-dom`, and the preset over a
+fixture widget; a gamemode's widget is checked by `vue-tsc` in `pnpm typecheck` and built by
+`pnpm build`, so a widget that stops building fails `pnpm verify`.
 
 ## Authoring the next one
 
@@ -322,6 +429,7 @@ different `protocol` majors do not talk; the host shows its error state.
    id list agree.
 3. `pnpm verify`. The manifest is now in the catalog the fake serves and in the JSON Schema
    the C# side generates from.
-4. What the manifest names — the plugin folder, the cfg, the widget bundle — is built in
-   the plugin and gamemode work of PRD-02; a manifest may lead its implementation, never
-   trail it.
+4. What the manifest names — the plugin folder, the cfg — is built in the plugin work of
+   PRD-02; a manifest may lead its implementation, never trail it. A widget is
+   `gamemodes/<id>/widget/index.ts` ("Building a widget" above) and `entry` is
+   `dist/widget.js`.

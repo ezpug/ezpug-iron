@@ -20,7 +20,7 @@ gamemodes, the node agent and the server image.
 - `apps/orchestrator` — the service behind `gs.ezpug.com`.
 - `apps/node` — `ezpug-node`, turns a docker host into capacity.
 - `plugins/` — `EZPug.Sdk`, the core plugin, gamemodes and pinned vendored plugins.
-- `gamemode-kit/` — the toolchain for a gamemode's phone widget.
+- `gamemode-kit/` — the toolchain for a gamemode's phone widget: the runtime a widget is written on, the Vite preset that builds `gamemodes/<id>/widget/` into one bundle, and a dev harness against the fake (`pnpm --filter @ezpug/gamemodes exec ezpug-widget dev powerup-dm`; `docs/gamemodes.md` "Building a widget").
 - `docs/decisions.md` — why things are the way they are. Start there.
 - `docs/match-api.md` — the contract, written to be read instead of the code.
   `docs/gamemodes.md` is the manifest, `docs/pins.md` every version we are fixed to.

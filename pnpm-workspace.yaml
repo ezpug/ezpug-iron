@@ -48,3 +48,13 @@ catalog:
   # hand-rolled schema walker would be a second thing to trust. Test-only —
   # nothing the orchestrator ships imports it.
   ajv: ^8.17.1
+  # The widget toolchain (PRD-02 T25, `gamemode-kit/`): a gamemode's phone
+  # widget is a Vue custom element built by Vite in library mode. The platform's
+  # versions (its `packages/ui` runs the same Vue and the same Vite), so a
+  # widget and the page that frames it agree on the runtime. `happy-dom` is the
+  # kit's test DOM only.
+  vue: ^3.5.41
+  vue-tsc: ^3.3.11
+  vite: ^8.2.2
+  "@vitejs/plugin-vue": ^6.0.8
+  happy-dom: ^20.11.6

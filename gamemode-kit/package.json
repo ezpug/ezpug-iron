@@ -1,0 +1,40 @@
+{
+  "name": "@ezpug/gamemode-kit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The widget toolchain of EZPug Iron (decision 17): a Vite library preset that builds a gamemode's widget/ into one custom-element bundle, the runtime a widget is written on (the link to the orchestrator's widget socket, the host handshake, the design tokens with fallbacks, a tiny t()), and a dev harness that mounts the widget against the fake orchestrator the way the platform does.",
+  "type": "module",
+  "bin": {
+    "ezpug-widget": "./ezpug-widget.mjs"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./vite": "./src/vite.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@hono/node-server": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "hono": "catalog:",
+    "vite": "catalog:",
+    "vue": "catalog:",
+    "ws": "catalog:",
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "@ezpug/match-api": "workspace:*"
+  },
+  "devDependencies": {
+    "@ezpug/core": "workspace:*",
+    "@types/node": "catalog:",
+    "happy-dom": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

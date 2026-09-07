@@ -102,6 +102,10 @@ const expected = [
     'postgres',
     'ioredis',
     'dockerode',
+    'vue',
+    'vue-tsc',
+    'vite',
+    '@vitejs/plugin-vue',
   ].map(name => [name, catalogVersion(name), 'pnpm-workspace.yaml catalog']),
 ]
 

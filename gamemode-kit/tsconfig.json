@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // The runtime (`src/index.ts` and what it reaches) runs in a browser, the
+    // CLI in Node: the DOM lib for the widget side, `@types/node` for the
+    // tooling, and the two never share a file except by types.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"],
+    "jsx": "preserve"
+  },
+  "include": ["src", "harness"]
+}

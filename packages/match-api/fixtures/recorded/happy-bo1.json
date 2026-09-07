@@ -167,7 +167,7 @@
             "flow": "plugin",
             "records": "events",
             "ranked": false,
-            "version": "0.1.0",
+            "version": "0.1.1",
             "maps": {
               "catalog": [
                 "de_ancient",
@@ -236,7 +236,7 @@
               }
             ],
             "widget": {
-              "entry": "widget/powerup-dm.js",
+              "entry": "dist/widget.js",
               "needs": [
                 "tokens",
                 "locale",

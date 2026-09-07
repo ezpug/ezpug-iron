@@ -179,9 +179,15 @@ serves it. `docs/gamemodes.md` explains every field; the wire shape is:
   capabilities: { positions, chat, playerCommands, widget, backups, scoreboardRating },
   commands: [{ name, title: {de, en}, description?: {de, en}, cooldownMs, charges: { count,
     per: life | round | map | match } | null, args?: <JSON Schema, type object> }],
-  widget?: { entry, needs: (tokens | locale | playerToken)[] },
+  widget?: { entry, needs: (tokens | locale | playerToken)[], url? },
   version, sdkVersion }
 ```
+
+`widget.url` is the orchestrator's addition to the manifest it serves (0.6.0): the absolute,
+immutable, content-hashed address of the document the platform mounts
+(`docs/gamemodes.md` "The widget host"). An authored manifest never carries it, the fake's
+catalog never does (it serves no bundle), and an orchestrator without the mode's bundle
+leaves it out — a host that finds none mounts nothing.
 
 `GamemodeSummary` is the first line of it (`id … version`), for a client that only renders
 a card. `ranked` is `false` by construction. The tier constrains the rest (a config mode

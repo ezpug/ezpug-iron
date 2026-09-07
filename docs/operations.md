@@ -508,6 +508,33 @@ over (`invalid_state`). The drain closes the widget sockets in the stream's step
 `widget/upgrade.test.ts` runs the whole thing over a real socket against a real link with
 the protocol's fake server as the plugin.
 
+## The widget bundles
+
+Decision 17, T25: a gamemode's widget is a file the orchestrator serves, not code it
+bundles. `gamemode-kit` builds `gamemodes/<id>/dist/widget.js` for every `sdk` mode with a
+widget (`@ezpug/gamemodes`'s own `build`; `pnpm build`, and `pnpm dev` builds its
+dependencies first), `widget/bundles.ts` reads each at boot from `EZPUG_IRON_GAMEMODES_DIR`
+— the workspace's `gamemodes/` through `@ezpug/gamemodes` on a dev box, `/app/gamemodes` in
+the image, where the Dockerfile collects every `gamemodes/*/dist` — hashes it, logs one
+line per bundle, and `app.ts` serves three paths without a key:
+
+| Path | Answer | Cache |
+| ---- | ------ | ----- |
+| `GET /gamemodes/:id/widget/:hash/index.html` | the document the platform mounts: one module script, `./widget.js`, a CSP that allows scripts and a socket to this orchestrator alone (`widgetCsp`: the host the request came to — `x-forwarded-host` behind Traefik — and `EZPUG_IRON_BASE_URL`'s, `ws://` and `wss://` of each) | a year, immutable; a hash that is not this boot's is `404` |
+| `GET /gamemodes/:id/widget/:hash/widget.js` | the bundle, `Access-Control-Allow-Origin: *` because a sandboxed frame's module script is a CORS request from the origin `null` | a year, immutable |
+| `GET /gamemodes/:id/widget.js` | the current bundle under its stable name | `no-cache`, the hash as `ETag`, `304` on `If-None-Match` |
+
+The catalog advertises the document's URL as `widget.url` on the served manifest
+(`@ezpug/match-api` 0.6.0); the platform mounts by that address and never builds one. A mode
+whose bundle is missing is a `warn` line at boot naming the file and a manifest without a
+`url` — the platform then mounts nothing for it, which is honest; `pnpm build` makes the
+bundle. The widget door greets a socket whose `Origin` is the literal `null` (the sandbox's
+opaque origin) instead of holding it against `streamAllowedOrigins`; the player token is the
+credential there.
+
+Nothing here touches the ledger, the machine or a key: the bundles are public source from
+this repo, read once, served from memory.
+
 ## The console and RCON
 
 Two operator doors, both behind the `fleet` scope, both on `GET`/`POST

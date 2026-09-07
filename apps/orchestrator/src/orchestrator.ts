@@ -39,6 +39,7 @@ import { createStreamHub, type StreamHub } from './stream/hub'
 import { attachStreamUpgrade, attachUpgradeRouter, type UpgradeRouter } from './stream/upgrade'
 import { createFileTrace, nullTrace, type Trace } from './trace'
 import { createWebhookWorker, type WebhookWorker } from './webhooks/worker'
+import { defaultGamemodesDir, loadWidgetBundles } from './widget/bundles'
 import { createWidgetService, type WidgetService } from './widget/service'
 import { attachWidgetUpgrade } from './widget/upgrade'
 
@@ -315,17 +316,31 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
    */
   let shutdown: Shutdown | undefined
 
+  // The widget bundles (T25): read once, hashed, served by the app and
+  // advertised in the catalog as `widget.url`. `EZPUG_IRON_GAMEMODES_DIR` in
+  // the image; the workspace's `gamemodes/` through `@ezpug/gamemodes` on a
+  // dev box; a missing bundle is a warning and a manifest without a url.
+  const widgetBundles = loadWidgetBundles({
+    gamemodes: SHIPPED_GAMEMODES,
+    dir: config.gamemodesDir ?? defaultGamemodesDir(),
+    baseUrl: config.baseUrl,
+    log,
+  })
+  const catalog = widgetBundles.decorate(SHIPPED_GAMEMODES)
+
   const app = createApp({
     clock,
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet, nodes, gslt }),
+      createHandlers({ keys, budgets, gamemodes: catalog, matches, fleet, nodes, gslt }),
     ),
     rateLimiter: createRateLimiter({ clock, ...config.rateLimit }),
     health,
     isDraining: () => shutdown?.draining === true,
     matchzy: createMatchZyDoor({ store, matches, log, trace }),
+    widgets: widgetBundles,
+    baseUrl: config.baseUrl,
   })
 
   const server = createAdaptorServer({ fetch: app.fetch }) as HttpServer

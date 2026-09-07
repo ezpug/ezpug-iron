@@ -76,7 +76,13 @@ function issuesOf(input: GamemodeManifestInput): string[] {
 describe('the four shipped manifests', () => {
   it('are every directory under gamemodes/, each with a manifest.json, in catalog order', () => {
     const directories = readdirSync(gamemodesDir, { withFileTypes: true })
-      .filter(entry => entry.isDirectory())
+      // `@ezpug/gamemodes` has a devDependency on the kit that builds its
+      // widgets (PRD-02 T25), so pnpm gives it a `node_modules` and Turbo a
+      // `.turbo`; neither is a mode.
+      .filter(
+        entry =>
+          entry.isDirectory() && entry.name !== 'node_modules' && !entry.name.startsWith('.'),
+      )
       .map(entry => entry.name)
       .sort()
     expect(directories).toEqual([...SHIPPED_GAMEMODE_IDS].sort())

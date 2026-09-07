@@ -1,5 +1,12 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["data"]
+  "tags": ["data"],
+  "tasks": {
+    "build": {
+      // One bundle per `sdk` mode with a widget, beside its manifest — what
+      // the orchestrator serves (PRD-02 T25).
+      "outputs": ["*/dist/**"]
+    }
+  }
 }

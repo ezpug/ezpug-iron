@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // A widget runs in a browser: the DOM lib and nothing of Node. `vue-tsc`
+    // resolves the `.vue` imports itself, so no module shim is needed.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "preserve"
+  },
+  "include": ["*/widget/**/*.ts", "*/widget/**/*.vue"]
+}

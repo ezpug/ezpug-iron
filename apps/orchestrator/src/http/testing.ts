@@ -28,6 +28,7 @@ import {
   type WebhookAttemptReport,
   type WebhookWorker,
 } from '../webhooks/worker'
+import type { WidgetBundles } from '../widget/bundles'
 import { createWidgetService, type WidgetService } from '../widget/service'
 import { createDispatch } from './dispatch'
 import { createHandlers } from './handlers'
@@ -129,6 +130,8 @@ export interface TestAppOptions {
   /** The GSLT pool's ceiling (T17). */
   gsltMax?: number
   gsltSweepIntervalMs?: number
+  /** The widget bundles to serve and advertise (T25); none by default. */
+  widgets?: WidgetBundles
 }
 
 /** The key the test world's fake Steam expects — obviously not a real one. */
@@ -265,12 +268,13 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const rail = (name: keyof typeof rails) => (): Promise<void> =>
     rails[name] ? Promise.resolve() : Promise.reject(new Error(`${name} is down`))
   const health = createHealth({ clock, database: rail('database'), redis: rail('redis') })
+  const catalog = options.widgets ? options.widgets.decorate(SHIPPED_GAMEMODES) : SHIPPED_GAMEMODES
   const app = createApp({
     clock,
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, budgets, gamemodes: SHIPPED_GAMEMODES, matches, fleet, nodes, gslt }),
+      createHandlers({ keys, budgets, gamemodes: catalog, matches, fleet, nodes, gslt }),
     ),
     rateLimiter: createRateLimiter({
       clock,
@@ -280,6 +284,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     health,
     isDraining: () => draining.value,
     matchzy: createMatchZyDoor({ store, matches, log }),
+    ...(options.widgets && { widgets: options.widgets, baseUrl: 'http://localhost:3430' }),
   })
   void hub.start()
 

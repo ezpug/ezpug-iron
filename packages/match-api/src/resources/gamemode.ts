@@ -274,13 +274,20 @@ export type WidgetNeed = z.infer<typeof widgetNeedSchema>
 /**
  * The widget block (decision 17): a built web component the orchestrator
  * serves and the platform embeds in a sandboxed frame. `entry` is the bundle
- * file relative to the gamemode's directory, produced by `gamemode-kit`.
+ * file relative to the gamemode's directory, produced by `gamemode-kit`
+ * (`dist/widget.js`). `url` is the orchestrator's addition to the manifest
+ * it *serves* (PRD-02 T25): the absolute, immutable, content-hashed address
+ * of the document the platform mounts — absent in the authored file, absent
+ * from the fake's catalog (which serves no bundle), and absent when the
+ * orchestrator that answers has no bundle for the mode, so a host that finds
+ * none mounts nothing rather than a blank frame.
  */
 export const gamemodeWidgetSchema = z.object({
   entry: z
     .string()
     .regex(/^(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.js$/, 'the built bundle, relative, `.js`'),
   needs: z.array(widgetNeedSchema).min(1).max(WIDGET_NEEDS.length),
+  url: z.url().optional(),
 })
 export type GamemodeWidget = z.infer<typeof gamemodeWidgetSchema>
 

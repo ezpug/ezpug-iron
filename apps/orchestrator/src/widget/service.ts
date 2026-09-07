@@ -191,7 +191,18 @@ export function createWidgetService(options: WidgetServiceOptions): WidgetServic
     if (!facts) return refused(WIDGET_CLOSE_CODES.unauthorized, 'no such match')
     const { row, manifest, profile } = facts
     const allowed = row.requestJson.callbacks.streamAllowedOrigins
-    if (request.origin !== undefined && allowed !== undefined && !allowed.includes(request.origin))
+    // The platform mounts the widget in a sandboxed frame without
+    // `allow-same-origin` (decision 17, `docs/gamemodes.md` "The widget
+    // host"), whose origin is opaque: the browser sends the literal `null`.
+    // That is the widget's own door, not a stranger's — the token is the
+    // credential here, and an allow-list of page origins cannot name a
+    // frame that has none (T25).
+    if (
+      request.origin !== undefined &&
+      request.origin !== 'null' &&
+      allowed !== undefined &&
+      !allowed.includes(request.origin)
+    )
       return refused(WIDGET_CLOSE_CODES.forbidden, 'origin not allowed')
     const locale = profile?.locale
     const { matchId, steamId64 } = record

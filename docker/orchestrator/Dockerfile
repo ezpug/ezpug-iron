@@ -40,7 +40,23 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 # `@ezpug/protocol`'s build regenerates the C# wire types beside the JSON
 # Schema; `--filter=@ezpug/orchestrator...` builds it and everything else the
 # service depends on, in dependency order, and nothing else in the workspace.
-RUN pnpm --filter=@ezpug/orchestrator... build
+# Through Turbo rather than `pnpm -r`: the kit that builds the widgets is a
+# devDependency of the manifests and a *peer* of the published package, an
+# edge pnpm counts as a cycle and refuses to order (it would start the widget
+# build before the kit exists), and Turbo's graph does not (PRD-02 T25).
+RUN pnpm exec turbo run build --filter=@ezpug/orchestrator...
+
+# The gamemode widgets (PRD-02 T25): `gamemodes/<id>/dist/widget.js`, built by
+# the workspace build above (`@ezpug/gamemodes` through `gamemode-kit`),
+# collected as `<id>/dist/widget.js` under one directory the runtime image
+# carries and `EZPUG_IRON_GAMEMODES_DIR` names. Only the bundles: no source,
+# no node_modules.
+RUN set -eu; mkdir -p /widgets; \
+    for d in gamemodes/*/dist; do \
+      [ -d "$d" ] || continue; \
+      id="$(basename "$(dirname "$d")")"; \
+      mkdir -p "/widgets/$id"; cp -r "$d" "/widgets/$id/dist"; \
+    done; ls -R /widgets
 
 # ── Runtime tree ───────────────────────────────────────────────────────────
 # `pnpm deploy` resolves one package's production dependencies into a
@@ -63,11 +79,15 @@ ENV NODE_ENV=production \
     # put it, and applies what is pending before the port opens. Idempotent
     # and advisory-locked, so two replicas starting together is not a race.
     EZPUG_IRON_MIGRATIONS_DIR=/app/drizzle \
-    EZPUG_IRON_MIGRATE_ON_BOOT=true
+    EZPUG_IRON_MIGRATE_ON_BOOT=true \
+    # The widget bundles are files the app serves, not code it bundles
+    # (T25); `widget/bundles.ts` reads them from here at boot.
+    EZPUG_IRON_GAMEMODES_DIR=/app/gamemodes
 COPY --from=deploy --chown=node:node /out /app
 # `drizzle/` holds the migration SQL and its journal; `db/migrate.ts` reads it
 # through EZPUG_IRON_MIGRATIONS_DIR above.
 COPY --from=build --chown=node:node /app/apps/orchestrator/drizzle /app/drizzle
+COPY --from=build --chown=node:node /widgets /app/gamemodes
 # Which commit this image was built from — what a rollback has to be able to
 # ask of `:previous` (T35).
 ARG EZPUG_GIT_SHA=unknown

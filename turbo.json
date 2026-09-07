@@ -51,11 +51,22 @@
         "dependencies": { "deny": ["app", "published", "internal", "plugins", "engine", "data"] }
       },
       "data": {
-        // Authored data every side reads (the gamemode manifests): no code, no
-        // dependencies; `published` bundles it, the apps and plugins read it.
+        // Authored data every side reads (the gamemode manifests) and, beside
+        // an `sdk` mode's manifest, its widget source: no code of its own that
+        // anything imports, and the one edge it has is the `kit` that builds
+        // the widget (a devDependency, PRD-02 T25). `published` bundles the
+        // manifests, the apps and plugins read them.
         "dependencies": {
           "deny": ["app", "published", "core", "internal", "plugins", "data", "engine"]
         }
+      },
+      "kit": {
+        // `gamemode-kit` (PRD-02 T25): the widget toolchain. Its runtime leans
+        // on nothing internal (a widget bundle carries Vue and the kit, never a
+        // schema library), its dev harness runs the published fake, and only
+        // `data` depends on it — to build what a manifest names.
+        "dependencies": { "deny": ["app", "internal", "plugins", "engine", "data"] },
+        "dependents": { "deny": ["app", "published", "core", "internal", "plugins", "engine"] }
       },
       "internal": {
         // Internal packages (the protocol): shared by the apps, never reaching

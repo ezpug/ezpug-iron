@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tags": ["kit"],
+  "boundaries": {
+    // `@ezpug/match-api` is a *peer* of the kit, not a graph edge — the same
+    // arrangement as `packages/sim`: the published package's devDependency on
+    // `@ezpug/gamemodes` and the manifests' devDependency on this kit would
+    // otherwise close a cycle. The kit's runtime imports only *types* from it
+    // (a widget bundle never carries a schema library); the CLI's dev harness
+    // runs the published fake and `tsdown` bundles it from source.
+    "implicitDependencies": ["@ezpug/match-api"]
+  }
+}

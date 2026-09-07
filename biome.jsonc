@@ -114,6 +114,18 @@
       "formatter": { "enabled": false }
     },
     {
+      // A single-file component's `<script setup>` symbols are used by its
+      // `<template>`, which Biome does not read (PRD-02 T25): every handler
+      // and every imported component would be "unused". `vue-tsc` checks the
+      // SFC whole in `pnpm typecheck`.
+      "includes": ["**/*.vue"],
+      "linter": {
+        "rules": {
+          "correctness": { "noUnusedVariables": "off", "noUnusedImports": "off" }
+        }
+      }
+    },
+    {
       // The ops scripts (`release.mjs`) are run by a human or by a GitHub
       // Actions job, never by Turbo — `noUndeclaredEnvVars` would have us
       // declare `NPM_TOKEN` and the `GITHUB_*` variables as Turbo cache inputs

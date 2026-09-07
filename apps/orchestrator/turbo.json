@@ -3,6 +3,14 @@
   "extends": ["//"],
   "tags": ["app"],
   "tasks": {
+    "dev": {
+      // `pnpm dev` serves the widget bundles (T25) beside the API, and a
+      // bundle is a build product of `@ezpug/gamemodes` (through the kit):
+      // build the dependencies first, then watch the service.
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
     "test": {
       // Not cacheable: the suite talks to a Postgres and a Redis that may be
       // up or down, and a cached "skipped" would still read as green once

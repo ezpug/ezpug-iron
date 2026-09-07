@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EZPug · widget harness</title>
+    <link rel="stylesheet" href="/host.css" />
+  </head>
+  <body>
+    <main class="host">
+      <header class="bar">
+        <strong>EZPug widget harness</strong>
+        <span id="gamemode" class="muted"></span>
+        <span class="grow"></span>
+        <label>Sprache <select id="locale"><option value="de">de</option><option value="en">en</option></select></label>
+        <label><input id="watching" type="checkbox" /> nur zuschauen</label>
+        <label><input id="tokens" type="checkbox" checked /> Tokens injizieren</label>
+        <button id="fresh" type="button">Neues Match</button>
+      </header>
+      <section class="frame-wrap">
+        <iframe id="frame" title="widget" sandbox="allow-scripts" src="/frame.html"></iframe>
+      </section>
+      <section class="status">
+        <span id="session" class="muted">…</span>
+      </section>
+      <pre id="log" class="log"></pre>
+    </main>
+    <script type="module" src="/host.ts"></script>
+  </body>
+</html>

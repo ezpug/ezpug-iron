@@ -645,7 +645,7 @@ every offline proof here.
   `powerup-dm` twin answers commands so the platform can test its host without CS2.
   References: decision 17, T6, T7.
 
-- [ ] **T25 (fable): `gamemode-kit`.** `gamemode-kit/`: a Vite library preset that builds
+- [x] **T25 (fable): `gamemode-kit`.** `gamemode-kit/`: a Vite library preset that builds
   a gamemode's `widget/` (Vue 3 `defineCustomElement`, one file, no runtime fetch beyond
   its socket) into `gamemodes/<id>/dist/widget.js`, the **host contract** the platform
   implements (`<ezpug-widget orchestrator-url player-token locale>`; design tokens as CSS
