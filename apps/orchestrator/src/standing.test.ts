@@ -5,18 +5,18 @@
  * the drain in order, the port gone afterwards. Skips loudly when the dev
  * world is down; `EZPUG_IRON_DATABASE_TESTS=required` makes that red.
  *
- * It writes one key through the pool (the HTTP path has no transaction to
- * roll back), stamped with this file's namespace and deleted in `finally`.
+ * It writes keys through the pool (the HTTP path has no transaction to roll
+ * back), stamped with this file's namespace and swept by that prefix both
+ * before the suite and after it (T26a) — `afterAll` is the hook a cancelled
+ * run never reaches, and a leftover key would fail the next run's mint on
+ * the live-name unique index.
  */
 
 import { systemClock } from '@ezpug/core'
 import { createMatchApiClient } from '@ezpug/match-api/client'
-import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { type OrchestratorConfig, readDatabaseConfig, readOrchestratorConfig } from './config'
-import { createDatabase } from './db/client'
-import { apiKeys, apiKeyWebhookSecrets } from './db/schema'
-import { testNamespace } from './db/testing'
+import { sweepTestNamespace, testNamespace } from './db/testing'
 import { loadRootEnv } from './env'
 import { createMemoryLog } from './log'
 import { createOrchestrator, type Orchestrator } from './orchestrator'
@@ -26,7 +26,6 @@ let config: OrchestratorConfig | undefined
 let url = ''
 let unavailable: string | undefined
 const log = createMemoryLog()
-const minted: string[] = []
 const namespace = testNamespace(import.meta.url)
 
 beforeAll(async () => {
@@ -43,6 +42,7 @@ beforeAll(async () => {
     await orchestrator.redis.ping()
     const { runMigrations } = await import('./db/migrate')
     await runMigrations(orchestrator.database)
+    await sweepTestNamespace(config.database, namespace)
     await orchestrator.start()
     url = (await orchestrator.listen({ port: 0, host: '127.0.0.1' })).url
   } catch (error) {
@@ -66,17 +66,9 @@ beforeEach(ctx => {
 afterAll(async () => {
   if (!orchestrator || !config) return
   // The last test drained the orchestrator, pool included, so the rows it
-  // committed are removed through a handle of the suite's own.
+  // committed are removed through a handle of the sweep's own.
   if (orchestrator.server.listening) await orchestrator.close('afterAll')
-  const cleanup = createDatabase(config.database, { applicationName: 'ezpug-iron-test-cleanup' })
-  try {
-    for (const id of minted) {
-      await cleanup.db.delete(apiKeyWebhookSecrets).where(eq(apiKeyWebhookSecrets.keyId, id))
-      await cleanup.db.delete(apiKeys).where(eq(apiKeys.id, id))
-    }
-  } finally {
-    await cleanup.close()
-  }
+  await sweepTestNamespace(config.database, namespace)
 })
 
 describe('the orchestrator over a real socket', () => {
@@ -94,13 +86,12 @@ describe('the orchestrator over a real socket', () => {
 
   it('mints a key through the real store and serves the catalog to it with the published client', async () => {
     const o = orchestrator as Orchestrator
-    const { key, secret } = await o.keys.mint({
+    const { secret } = await o.keys.mint({
       name: `${namespace}-root`,
       scopes: ['admin'],
       budget: { maxConcurrentServers: 1, maxServerLifetimeMinutes: 60, monthlyCents: 0 },
       webhookSecrets: [],
     })
-    minted.push(key.id)
     const client = createMatchApiClient({ baseUrl: url, apiKey: secret, clock: systemClock })
     const catalog = await client.gamemodes.list()
     expect(catalog.gamemodes.map(m => m.id)).toEqual([
@@ -117,7 +108,6 @@ describe('the orchestrator over a real socket', () => {
         webhookSecrets: [],
       },
     })
-    minted.push(created.key.id)
     expect(created.secret).toMatch(/^ezik_/)
     const listed = await client.keys.list()
     expect(listed.keys.some(k => k.id === created.key.id)).toBe(true)

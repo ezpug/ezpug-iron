@@ -10,24 +10,10 @@ import {
 } from '@ezpug/match-api/fixtures'
 import { describeMatchApiConformance } from '@ezpug/match-api/fixtures/vitest'
 import { verifyWebhook } from '@ezpug/match-api/webhooks'
-import { eq, inArray, like } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
 import { type OrchestratorConfig, readDatabaseConfig, readOrchestratorConfig } from './config'
-import { createDatabase } from './db/client'
-import {
-  apiKeys,
-  apiKeyWebhookSecrets,
-  backups,
-  matchCommands,
-  matchEvents,
-  matches,
-  playerTokens,
-  servers,
-  serverTokens,
-  webhookDeliveries,
-} from './db/schema'
-import { testNamespace } from './db/testing'
+import { sweepTestNamespace, testNamespace } from './db/testing'
 import { loadRootEnv } from './env'
 import { createMemoryLog } from './log'
 import { createOrchestrator, type Orchestrator } from './orchestrator'
@@ -92,7 +78,6 @@ let endpointUrl = ''
 /** Every demo a simulated server PUT at the target's `demoUploadUrl`. */
 const demos: { url: string; bytes: number; contentType: string }[] = []
 const log = createMemoryLog()
-const minted: string[] = []
 let mints = 0
 const handlers = new Set<(envelope: WebhookEnvelope) => void>()
 const unverified: string[] = []
@@ -191,59 +176,13 @@ beforeEach(ctx => {
 })
 
 /**
- * Everything this file ever wrote to the shared test database — every key
- * under its namespace (the names are stable per file, `testNamespace`), with
- * the matches, servers, tokens, events, deliveries and commands hanging off
- * them. Run before a suite as well as after it: a run Turbo cancelled
- * mid-flight (a sibling task failed) never reaches `afterAll`, and its rows
- * would otherwise make the next run's key names collide and its `sim-1` rows
- * leak into other suites' listings.
+ * Everything this file ever wrote to the shared test database — the shared
+ * sweep (`db/testing.ts`), which finds it all by the prefix this suite's key
+ * names carry. Run before the suite as well as after it: a run Turbo
+ * cancelled mid-flight (a sibling task failed) never reaches `afterAll`.
  */
 async function sweepNamespace(): Promise<void> {
-  if (!config) return
-  const cleanup = createDatabase(config.database, { applicationName: 'ezpug-iron-test-cleanup' })
-  try {
-    const { db } = cleanup
-    const keys = await db
-      .select({ id: apiKeys.id })
-      .from(apiKeys)
-      .where(like(apiKeys.name, `${namespace}-%`))
-    const keyIds = [...new Set([...keys.map(row => row.id), ...minted])]
-    if (keyIds.length === 0) return
-    const rows = await db
-      .select({ id: matches.id })
-      .from(matches)
-      .where(inArray(matches.keyId, keyIds))
-    const ids = rows.map(row => row.id)
-    if (ids.length > 0) {
-      await db.delete(webhookDeliveries).where(inArray(webhookDeliveries.matchId, ids))
-      await db.delete(matchEvents).where(inArray(matchEvents.matchId, ids))
-      await db.delete(matchCommands).where(inArray(matchCommands.matchId, ids))
-      // Round backups hang off a match too (the sim reports them since T14).
-      await db.delete(backups).where(inArray(backups.matchId, ids))
-      // Player tokens (T24) name a match; the widget flow mints them.
-      await db.delete(playerTokens).where(inArray(playerTokens.matchId, ids))
-    }
-    const owned = await db
-      .select({ id: servers.id })
-      .from(servers)
-      .where(inArray(servers.keyId, keyIds))
-    if (owned.length > 0)
-      await db.delete(serverTokens).where(
-        inArray(
-          serverTokens.fleetServerId,
-          owned.map(row => row.id),
-        ),
-      )
-    await db.delete(servers).where(inArray(servers.keyId, keyIds))
-    await db.delete(matches).where(inArray(matches.keyId, keyIds))
-    for (const id of keyIds) {
-      await db.delete(apiKeyWebhookSecrets).where(eq(apiKeyWebhookSecrets.keyId, id))
-      await db.delete(apiKeys).where(eq(apiKeys.id, id))
-    }
-  } finally {
-    await cleanup.close()
-  }
+  if (config) await sweepTestNamespace(config.database, namespace)
 }
 
 afterAll(async () => {
@@ -294,7 +233,6 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
     budget: { ...budget, maxServerLifetimeMinutes: 60 },
     webhookSecrets,
   })
-  minted.push(platform.key.id, thrifty.key.id)
   const options = {
     baseUrl: url,
     clock: systemClock,

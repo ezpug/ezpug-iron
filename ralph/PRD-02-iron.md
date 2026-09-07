@@ -719,7 +719,7 @@ every offline proof here.
   > lines. Proved against the world seam and the fake, not on a screen: a bot reads no
   > chat, and the dev CS2 container was down (`EZPUG_CS2_TESTS` skipped with its reason).
 
-- [ ] **T26a: The extended suites clean up after a run that was killed.**
+- [x] **T26a: The extended suites clean up after a run that was killed.**
   `deployments.extended.test.ts` (and any suite that commits rows and undoes them in
   `afterAll`) sweeps only the ids it minted *this* run, so a run Turbo cancelled — the
   ordinary shape of a red `pnpm verify` — leaves its API keys behind and the next run

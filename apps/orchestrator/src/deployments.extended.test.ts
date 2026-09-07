@@ -34,23 +34,9 @@
 import { randomUUID } from 'node:crypto'
 import { systemClock } from '@ezpug/core'
 import { createMatchApiClient } from '@ezpug/match-api/client'
-import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { type OrchestratorConfig, readDatabaseConfig, readOrchestratorConfig } from './config'
-import { createDatabase } from './db/client'
-import {
-  apiKeys,
-  apiKeyWebhookSecrets,
-  backups,
-  matchCommands,
-  matchEvents,
-  matches,
-  playerTokens,
-  servers,
-  serverTokens,
-  webhookDeliveries,
-} from './db/schema'
-import { testNamespace } from './db/testing'
+import { sweepTestNamespace, testNamespace } from './db/testing'
 import { loadRootEnv } from './env'
 import { createMemoryLog } from './log'
 import { createOrchestrator, type Orchestrator } from './orchestrator'
@@ -65,7 +51,6 @@ let config: OrchestratorConfig | undefined
 let url = ''
 let unavailable: string | undefined
 const log = createMemoryLog()
-const minted: string[] = []
 
 /** The same composition twice, differing only in which deployment it is. */
 function stand(deployment: string): Orchestrator {
@@ -120,45 +105,12 @@ beforeEach(ctx => {
   if (unavailable) ctx.skip(`dev world unavailable: ${unavailable}`)
 })
 
-/** Everything this file committed, through a handle of its own. */
+/**
+ * Everything this file committed, by the prefix its keys carry — the shared
+ * sweep (`db/testing.ts`), before the suite as well as after it.
+ */
 async function sweep(): Promise<void> {
-  if (!config || minted.length === 0) return
-  const cleanup = createDatabase(config.database, { applicationName: 'ezpug-iron-test-cleanup' })
-  try {
-    const { db } = cleanup
-    const rows = await db
-      .select({ id: matches.id })
-      .from(matches)
-      .where(inArray(matches.keyId, minted))
-    const ids = rows.map(row => row.id)
-    if (ids.length > 0) {
-      await db.delete(webhookDeliveries).where(inArray(webhookDeliveries.matchId, ids))
-      await db.delete(matchEvents).where(inArray(matchEvents.matchId, ids))
-      await db.delete(matchCommands).where(inArray(matchCommands.matchId, ids))
-      await db.delete(backups).where(inArray(backups.matchId, ids))
-      // Player tokens (T24) name a match; the widget flow mints them.
-      await db.delete(playerTokens).where(inArray(playerTokens.matchId, ids))
-    }
-    const owned = await db
-      .select({ id: servers.id })
-      .from(servers)
-      .where(inArray(servers.keyId, minted))
-    if (owned.length > 0)
-      await db.delete(serverTokens).where(
-        inArray(
-          serverTokens.fleetServerId,
-          owned.map(row => row.id),
-        ),
-      )
-    await db.delete(servers).where(inArray(servers.keyId, minted))
-    await db.delete(matches).where(inArray(matches.keyId, minted))
-    for (const id of minted) {
-      await db.delete(apiKeyWebhookSecrets).where(eq(apiKeyWebhookSecrets.keyId, id))
-      await db.delete(apiKeys).where(eq(apiKeys.id, id))
-    }
-  } finally {
-    await cleanup.close()
-  }
+  if (config) await sweepTestNamespace(config.database, namespace)
 }
 
 afterAll(async () => {
@@ -170,13 +122,12 @@ afterAll(async () => {
 /** A match on `mine`, left `configuring` with an open ledger row. */
 async function startMatch(name: string) {
   const o = mine as Orchestrator
-  const { key, secret } = await o.keys.mint({
+  const { secret } = await o.keys.mint({
     name: `${namespace}-${name}`,
     scopes: ['matches'],
     budget: { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 0 },
     webhookSecrets: [{ id: SECRET_ID, secret: SECRET }],
   })
-  minted.push(key.id)
   const client = createMatchApiClient({
     baseUrl: url,
     apiKey: secret,
