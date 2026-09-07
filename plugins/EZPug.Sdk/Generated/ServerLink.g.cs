@@ -24,6 +24,7 @@ public static class ProtocolConstants
     public const string MatchzyLogPath = "/matchzy/log";
     public const string MatchzyTokenHeader = "x-ezpug-server-token";
     public const int MatchzyPayloadMax = 262144;
+    public const string BackupRestoredEvent = "backup_restored";
     public const int HeartbeatIntervalMsDefault = 10000;
     public const int HelloTimeoutMs = 10000;
     public const int EventsBatchMax = 200;

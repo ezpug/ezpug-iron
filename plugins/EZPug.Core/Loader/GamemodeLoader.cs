@@ -135,7 +135,7 @@ public sealed class GamemodeLoader
         // assign lands inside that beat — so say the change is coming before asking for
         // it, or the boot map arrives holding this assignment and the match reports a
         // server_ready for a map that was never its own (PRD-02 T22c).
-        _runtime?.ExpectMapChange();
+        _runtime?.ExpectMapChange(map);
         if (WorkshopId.IsMatch(map))
         {
             _world.HostWorkshopMap(map);
@@ -252,8 +252,13 @@ public sealed class GamemodeLoader
         }));
     }
 
-    /// <summary>The <c>plugin_event</c> name a restored server says, the simulator's word for it (its <c>data</c> too: <c>mapNumber</c>, <c>roundNumber</c>, <c>filename</c>).</summary>
-    public const string BackupRestoredEvent = "backup_restored";
+    /// <summary>
+    /// The <c>plugin_event</c> name a restored server says, the protocol's own word for it
+    /// (its <c>data</c> too: <c>mapNumber</c>, <c>roundNumber</c>, <c>filename</c>). The
+    /// orchestrator closes its recovery window on this event, because a <c>matchzy</c> flow
+    /// never says <c>going_live</c> a second time (PRD-02 T37a).
+    /// </summary>
+    public const string BackupRestoredEvent = ProtocolConstants.BackupRestoredEvent;
 
     /// <summary>The map to load: the backup's when the match resumes here, the plan's first otherwise.</summary>
     public static string MapFor(Assignment assignment)

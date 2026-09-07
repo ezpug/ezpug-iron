@@ -44,6 +44,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     private IClockTimer? _settling;
     private (long DelayMs, Action Then)? _asked;
     private long? _mapAskedAtMs;
+    private string? _mapAskedFor;
 
     /// <summary>How often positions are streamed while a match is assigned and the mode asks for them.</summary>
     public const long PositionTickIntervalMs = 100;
@@ -145,9 +146,16 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     /// <c>server_ready</c> for a map that was never its own before the real one follows a
     /// second later (PRD-02 T22c). So every <see cref="MapStart"/> the engine began
     /// before this call is the old map's and is dropped; the first one that began after
-    /// it is the match's map, and the wait is over.
+    /// it is the match's map, and the wait is over. <paramref name="map"/> is the map that
+    /// was asked for, so the line the drop writes names what is being waited for instead of
+    /// reading like a fault (PRD-02 T37a — on a restore it is the only line in the log
+    /// between the assignment and the match's map, and it read like one).
     /// </summary>
-    public void ExpectMapChange() => _mapAskedAtMs = World.Clock.NowMs;
+    public void ExpectMapChange(string map)
+    {
+        _mapAskedAtMs = World.Clock.NowMs;
+        _mapAskedFor = map;
+    }
 
     /// <summary>The host's unloader, after the mode's <c>OnEnd</c>.</summary>
     public event Action<string?>? Released;
@@ -314,6 +322,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         _mapReady = false;
         _ready = false;
         _mapAskedAtMs = null;
+        _mapAskedFor = null;
         Flow.OnAssigned(assignment);
         // The voice before anything speaks with it: the rating greeting a connect fires
         // carries this match's prefix, not the last one's.
@@ -390,6 +399,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             _mapReady = false;
             _ready = false;
             _mapAskedAtMs = null;
+            _mapAskedFor = null;
             Released?.Invoke(released);
             SetState(LinkServerState.Idle, reason);
         }
@@ -506,12 +516,14 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         {
             // The map was already standing when the host asked for the change; the world
             // is only now getting round to announcing it. Not this match's map — the one
-            // the host asked for is still coming. See ExpectMapChange.
-            _log.Info($"the map {start.Map} started before the assignment asked for a level change; waiting for the match's map");
+            // the host asked for is still coming. See ExpectMapChange. Expected on every
+            // cold boot and on every restore, so it says so.
+            _log.Info($"{start.Map} was already up when the assignment arrived; waiting for the level change to {_mapAskedFor ?? "the match's map"}");
             return;
         }
 
         _mapAskedAtMs = null;
+        _mapAskedFor = null;
         var map = start.Map;
         if (_mapReady && Assignment.Gamemode.Flow == GamemodeFlow.Matchzy)
         {

@@ -39,6 +39,17 @@ export const MATCHZY_TOKEN_HEADER = 'x-ezpug-server-token'
 export const MATCHZY_PAYLOAD_MAX = 256 * 1024
 
 /**
+ * **The word a restored server says.** The `plugin_event` name a plugin emits
+ * once it has written and loaded the round backup an `assign.restore` carried
+ * (`data`: `mapNumber`, `roundNumber`, `filename`). It is a state transition
+ * and not a nicety: MatchZy says `going_live` once per series and never again
+ * after a restore, so this — not a second `going_live` — is what closes the
+ * orchestrator's recovery window on a `matchzy` flow (PRD-02 T37a, found on
+ * hardware in T37). A name both ends must agree on, so it lives here.
+ */
+export const BACKUP_RESTORED_EVENT = 'backup_restored'
+
+/**
  * What `welcome` says when nothing else is configured: a heartbeat every ten
  * seconds. Silence past two intervals is what makes the orchestrator probe
  * the provider (PRD-02 T6).
@@ -113,6 +124,7 @@ export const PROTOCOL_CONSTANTS = Object.freeze({
   MATCHZY_LOG_PATH,
   MATCHZY_TOKEN_HEADER,
   MATCHZY_PAYLOAD_MAX,
+  BACKUP_RESTORED_EVENT,
   HEARTBEAT_INTERVAL_MS_DEFAULT,
   HELLO_TIMEOUT_MS,
   EVENTS_BATCH_MAX,

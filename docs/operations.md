@@ -446,7 +446,7 @@ restart re-arms each at the same absolute instant (`DEFAULT_MATCH_DEADLINES`):
 | boot | `configuring` until `server_ready` | 5 min | `failed: provider_error` |
 | join | `ready` until `going_live` | 20 min | `ended: ttl_expired` |
 | recovery | `recovering` until the replacement's `server_ready` | 5 min | `failed: server_lost` |
-| join, again | the replacement's `server_ready` until `going_live` | 20 min | `failed: server_lost` |
+| join, again | the replacement's `server_ready` until it shows a sign of play | 20 min | `failed: server_lost` |
 | ttl | the request's `ttlMinutes` | — | `ended: ttl_expired` |
 | the loss detector | no event from the server for three heartbeat intervals | 30 s | the provider is probed; `gone` or `stopped` opens `recovering` from `live`, fails `provider_error` before it, and fails `server_lost` when it is the replacement that died |
 
@@ -462,7 +462,7 @@ provider's `restore` verb where that is its way (the sim loads the story point),
 today, Dathost when T16 exists). The match stays `recovering` throughout: the recovery
 window is the deadline for the replacement's `server_ready`, which re-announces the
 connect facts as `match.server_ready` with `restored: true` and the round, and re-arms
-the join deadline; the replacement's `going_live` says `match.recovered`
+the join deadline; **the first sign the replacement is playing** says `match.recovered`
 (`resumedFromRound`) and the match is `live` again, on its second server. No backup, an
 exhausted candidate list, the window or the join deadline running out, or the
 replacement dying too: `failed: server_lost`, with everything recorded kept. Events the
@@ -472,18 +472,32 @@ window, none at all re-runs the walk). The conformance flows `crash-restore` and
 `crash-lost` run against the orchestrator through the sim provider's `setFaults`, the
 same knobs the published fake takes.
 
-**What hardware said about that last step** (T37, on a node against production): everything
-up to `match.server_ready` is real and fast — 38 seconds from a `docker kill` to a
-replacement container whose plugin had loaded the round backup, and 30 seconds to
-`failed: server_lost` when the walk had no candidate left. But **a `matchzy` flow never
-says `going_live` a second time**: MatchZy resumes from the checkpoint it loaded (its own
-log says so) without repeating the event that belongs to the start of a series, so the
-window closes on the deadline instead of on the recovery, and a match whose server is up
-and playing ends `failed: server_lost` twenty minutes later. The `unpause` command cannot
-help, because it is refused outside `live` — only `rcon` reaches the pause MatchZy takes
-after a restore. Closing the window on something the real flow does emit (the replacement's
-`backup_restored`, or its first round) is the loop's next task; until then a `pug` that
-loses its server ends, with its backups kept.
+**Three signs close that window, and hardware is why** (T37, T37a). Everything up to
+`match.server_ready` was real and fast on a node against production — 38 seconds from a
+`docker kill` to a replacement whose plugin had loaded the round backup, 30 seconds to
+`failed: server_lost` when the walk had no candidate left — and then the recovery did not
+finish, because **a `matchzy` flow never says `going_live` a second time**: MatchZy
+resumes from the checkpoint it loaded (its own log says so) without repeating the event
+that belongs to the start of a series. The window used to close on that event alone, so a
+match whose server was up and playing ended `failed: server_lost` twenty minutes later.
+It now closes on the first of three, whichever the flow gives:
+
+1. **`going_live`** — a flow that restarts its series, and every simulated one.
+2. **the plugin's `backup_restored`** (`plugin_event`, `@ezpug/protocol`'s
+   `BACKUP_RESTORED_EVENT`) — said the moment `matchzy_loadbackup` has been given the file
+   the assignment carried. A plugin loads the backup on its way up, so this usually
+   arrives *before* the replacement's `server_ready`; it is then held until the connect
+   facts have gone out, and `match.recovered` never precedes the `match.server_ready` it
+   belongs to.
+3. **the first `round_end` on the replacement** — the sign no flow can withhold, for the
+   case where the plugin is older than this or its frame was lost.
+
+The deadlines are unchanged, so a replacement that truly never came still fails
+`server_lost` — "no sign of play within 1200000 ms of the replacement being ready". And
+because the match is `live` again from the restore rather than twenty minutes after it,
+`unpause` is legal where a venue needs it: MatchZy pauses after a restore
+(`matchzy_pause_after_restore`), and lifting that pause used to need `rcon` because
+`unpause` is refused outside `live`.
 
 **Commands** are idempotent on `correlationId` across a restart (`match_commands`):
 `force_end`, `restore` (`no_backup` with nothing to restore from, `invalid_state` while

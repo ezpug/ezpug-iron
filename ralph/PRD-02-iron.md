@@ -856,7 +856,7 @@ every offline proof here.
   credentials are present, else `failed: server_lost` honestly); un-enrol. The venue
   runbook in `docs/nodes.md` is corrected by what actually happened.
 
-- [ ] **T37a: A recovery that finishes on a `matchzy` flow.** T37 killed a live pug's
+- [x] **T37a: A recovery that finishes on a `matchzy` flow.** T37 killed a live pug's
   container on a node against production and the whole path worked but the last step:
   30 s to `match.recovering`, 38 s to a replacement whose plugin had loaded the round
   backup and announced `match.server_ready` with `restored`, MatchZy resuming from the

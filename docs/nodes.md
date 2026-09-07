@@ -315,20 +315,32 @@ with ten bots each. What it changed in this file is above; what it measured is h
   With the node **drained** there is nowhere to go and the match is `failed: server_lost`
   ("no server to restore onto: no_capable_server") 30 seconds after the kill, which is the
   honest answer a venue with one box should get.
-- **…and then the recovery does not finish on a `matchzy` flow.** The replacement loads the
+- **…and then the recovery did not finish on a `matchzy` flow.** The replacement loads the
   round backup and MatchZy resumes from it ("Loaded server checkpoint …, starting match
   with score 1:1 after round 2"), but it never says `going_live` a second time — that event
-  belongs to the start of the series — and `going_live` is what closes the orchestrator's
-  window. So the match sits in `recovering` while the server is up and playing, the API's
-  `unpause` is refused before it (`invalid_state — unpause only while live`) so only an
-  `rcon` command can reach the pause MatchZy takes after a restore, and twenty minutes later
-  the match is `failed: server_lost` — "no going_live within 1200000 ms of the replacement
-  being ready" — with both ledger rows closed and the container stopped. The ledger and the
-  clean-up are right; the outcome is not. T14 proved this path against the simulator and a
-  fake node, where the replacement's `going_live` is scripted; hardware is where the real
-  MatchZy disagreed. **Until the loop's follow-up task lands, a mid-match server loss on a
-  `pug` ends the match** — the round backups are kept, so the honest venue move is to start
-  the next match from them rather than to wait out the window.
+  belongs to the start of the series — and `going_live` was all that closed the
+  orchestrator's window. So the match sat in `recovering` while the server was up and
+  playing, the API's `unpause` was refused before it (`invalid_state — unpause only while
+  live`) so only an `rcon` command could reach the pause MatchZy takes after a restore, and
+  twenty minutes later the match was `failed: server_lost` — "no going_live within 1200000
+  ms of the replacement being ready" — with both ledger rows closed and the container
+  stopped. The ledger and the clean-up were right; the outcome was not. T14 proved this
+  path against the simulator and a fake node, where the replacement's `going_live` is
+  scripted; hardware is where the real MatchZy disagreed.
+- **The same kill, after T37a: forty seconds from `docker kill` to `match.recovered`.**
+  Rehearsed the same way (a `lan` `pug`, ten bots, the node against production, 2026-09-07):
+  `match.recovering` at +30 s with `backupRound 2`, `match.allocated` in the same second,
+  and at +40 s the replacement said all three of `backup_restored`, `server_ready` and —
+  because the window now closes on the first sign of play (`docs/operations.md`,
+  "Recovery") — `match.recovered` with `resumedFromRound 2`, in that order, the plugin's
+  word having been held until the connect facts had gone out. MatchZy then resumed from the
+  file by its own log ("Loaded server checkpoint …, starting match with score 1:0 after
+  round 1") and paused itself (`matchzy_pause_after_restore`) — and **that pause was lifted
+  by `ezpug-iron matches command <id> unpause`**, which is only legal because the match is
+  `live` again from the restore rather than twenty minutes after it. The bots-only dance
+  (`bot_kick; bot_quota 0` → `css_start` → `bot_quota 10` → `mp_warmup_end`) has to be typed
+  a second time on the replacement, for the same reason it is typed at all: MatchZy waits
+  for players to ready up and there are none. A venue with players types neither.
 - **Un-enrolling is two close codes and one docker habit.** `DELETE /v1/fleet/nodes/:id`
   closes the socket in force with `4009`; every dial after it is `4001`, the row being gone.
   Both are fatal by design and the agent exits `2` — and `--restart unless-stopped` then

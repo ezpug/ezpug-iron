@@ -378,7 +378,9 @@ public class GamemodeLoaderTests
         rig.World.Elapse(GamemodeLoader.CvarSettleMs);
         Assert.Empty(rig.Link.Events);
         Assert.DoesNotContain("exec ezpug/pug.cfg", rig.Actions);
-        Assert.Contains(rig.Log.Lines, line => line.StartsWith("info: the map de_dust2 started before the assignment"));
+        // …and the line it writes names the map being waited for, because this is the
+        // happy path on every cold boot and every restore (T37a).
+        Assert.Contains(rig.Log.Lines, line => line == "info: de_dust2 was already up when the assignment arrived; waiting for the level change to de_mirage");
 
         // The map the loader asked for: the one cfg, the one server_ready.
         rig.StartMap("de_mirage");

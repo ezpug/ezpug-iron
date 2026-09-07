@@ -934,7 +934,13 @@ export interface StoryResumePoint {
   roundNumber: number
 }
 
-/** The `plugin_event` a restored server emits before the map goes live again. */
+/**
+ * The `plugin_event` a restored server emits before the map goes live again —
+ * `@ezpug/protocol`'s `BACKUP_RESTORED_EVENT`, spelled again here because the
+ * simulator stands beside a real plugin rather than behind its protocol. It is
+ * what closes the orchestrator's recovery window (PRD-02 T37a); this story says
+ * `going_live` after it too, which real MatchZy does not.
+ */
 export const BACKUP_RESTORED_EVENT = 'backup_restored'
 
 export class SimulatorRestoreError extends Error {

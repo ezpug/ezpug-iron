@@ -29,6 +29,7 @@ import {
   STREAM_CLOSE_CODES,
 } from '@ezpug/match-api'
 import {
+  BACKUP_RESTORED_EVENT,
   HEARTBEAT_INTERVAL_MS_DEFAULT,
   type OrchestratorFrameOf,
   type RoundBackup,
@@ -98,11 +99,11 @@ import { envelopeOf, matchView } from './views'
  * `restore` when that is its way (the sim), and the plugin gets it in
  * `assign.restore` over the link (a node, Dathost). The replacement's
  * `server_ready` re-announces the connect facts (`match.server_ready` with
- * `restored: true` and the round) and re-arms the join deadline; its
- * `going_live` says `match.recovered` and the match is `live` again. No
- * backup, an exhausted list, the window or the join deadline running out,
- * or the replacement dying too: `failed: server_lost`, with everything
- * recorded kept.
+ * `restored: true` and the round) and re-arms the join deadline; the first
+ * sign it is playing (`resumed`) says `match.recovered` and the match is
+ * `live` again. No backup, an exhausted list, the window or the join
+ * deadline running out, or the replacement dying too: `failed: server_lost`,
+ * with everything recorded kept.
  */
 
 export interface MatchDeadlines {
@@ -274,6 +275,15 @@ interface Runtime {
   restoring: { mapNumber: number; roundNumber: number } | null
   /** While `recovering`: a replacement walk is queued or running. */
   recovering: boolean
+  /** While `recovering`: the replacement's `server_ready` has been announced. */
+  replacementReady: boolean
+  /**
+   * While `recovering`: the sign of play that reached us before the
+   * replacement's connect facts did — a plugin loads the backup on its way up,
+   * so `backup_restored` arrives before `server_ready`. Held so a client never
+   * hears `match.recovered` for a server it has not been told about.
+   */
+  resumePending: string | null
   /**
    * The demos this match's servers announced, and how many of those they had
    * already put where the request said (T21) — what `match.ended.demo`
@@ -366,6 +376,8 @@ export function createMatches(options: MatchesOptions): Matches {
         lastSeenWrittenAt: 0,
         restoring: null,
         recovering: false,
+        replacementReady: false,
+        resumePending: null,
         demos: { announced: 0, uploaded: 0 },
         awaitingDemo: false,
       }
@@ -707,13 +719,13 @@ export function createMatches(options: MatchesOptions): Matches {
           { kind: 'ttl_expired', detail: `no going_live within ${deadlines.joinMs} ms of ready` },
           'released',
         )
-      // The replacement stood ready and nobody came back: the match was
+      // The replacement stood ready and never played a beat: the match was
       // live and could not be restored, which is what `server_lost` means.
       if (fresh.state === 'recovering')
         return fail(
           fresh,
           'server_lost',
-          `no going_live within ${deadlines.joinMs} ms of the replacement being ready`,
+          `no sign of play within ${deadlines.joinMs} ms of the replacement being ready`,
         )
       return Promise.resolve()
     })
@@ -781,6 +793,8 @@ export function createMatches(options: MatchesOptions): Matches {
     }
     cancelTimer(row, 'heartbeat')
     const runtime = runtimeOf(row)
+    runtime.replacementReady = false
+    runtime.resumePending = null
     const backup = await store.latestBackup(row.id)
     await emit(row, {
       type: 'match.recovering',
@@ -1044,6 +1058,45 @@ export function createMatches(options: MatchesOptions): Matches {
     armHeartbeat(row)
   }
 
+  /**
+   * **The window closes on the first sign the replacement is playing** (T37a).
+   * It used to close on `going_live` alone, which is true of a flow that
+   * restarts its series and false of the one that matters: MatchZy says
+   * `going_live` once per series and, after `matchzy_loadbackup`, resumes from
+   * the checkpoint without repeating it — so on hardware a match whose server
+   * was up and playing sat in `recovering` until the join deadline failed it
+   * `server_lost` (T37, the LAN rehearsal). Three signs close it now: that
+   * `going_live` where a flow does say it, the plugin's `backup_restored`, and
+   * the first `round_end` on the replacement if both were somehow missed. The
+   * deadlines are untouched, so a replacement that truly never came still
+   * fails.
+   *
+   * A plugin loads the backup on its way up, before it reports the map is
+   * ready, so a sign that arrives ahead of the replacement's `server_ready` is
+   * held until the client has its connect facts: `match.recovered` never comes
+   * before the `match.server_ready` it belongs to.
+   */
+  const resumed = async (row: MatchRow, source: ServerRef, sign: string): Promise<void> => {
+    if (row.state !== 'recovering' || !row.fleetServerId) return
+    const runtime = runtimeOf(row)
+    if (!runtime.replacementReady) {
+      runtime.resumePending = sign
+      return
+    }
+    cancelTimer(row, 'join')
+    cancelTimer(row, 'recovery')
+    runtime.resumePending = null
+    log.info(`match ${row.id}: recovered on ${sign}`)
+    await emit(row, {
+      type: 'match.recovered',
+      serverId: source.serverId,
+      fleetServerId: row.fleetServerId,
+      resumedFromRound: runtime.restoring?.roundNumber ?? null,
+    })
+    runtime.restoring = null
+    await setState(row, 'live')
+  }
+
   // --- events from the server -----------------------------------------------------------
 
   const onServerEvent = async (
@@ -1112,6 +1165,11 @@ export function createMatches(options: MatchesOptions): Matches {
           })
         }
         armJoin(row)
+        if (restoring) {
+          runtime.replacementReady = true
+          // The backup was loaded on the way up: the sign was waiting for this.
+          if (runtime.resumePending) await resumed(row, source, runtime.resumePending)
+        }
         break
       }
       case 'player_connected':
@@ -1133,18 +1191,22 @@ export function createMatches(options: MatchesOptions): Matches {
         if (row.state === 'ready') {
           cancelTimer(row, 'join')
           await setState(row, 'live', { liveAt: now() })
-        } else if (row.state === 'recovering' && row.fleetServerId) {
-          cancelTimer(row, 'join')
-          cancelTimer(row, 'recovery')
-          await emit(row, {
-            type: 'match.recovered',
-            serverId: source.serverId,
-            fleetServerId: row.fleetServerId,
-            resumedFromRound: runtime.restoring?.roundNumber ?? null,
-          })
-          runtime.restoring = null
-          await setState(row, 'live')
+        } else if (row.state === 'recovering') {
+          await resumed(row, source, 'going_live')
         }
+        break
+      case 'plugin_event':
+        // The one `plugin_event` the machine reads: a restored server saying
+        // it has the backup, which on a `matchzy` flow is the only sign of the
+        // resume that ever comes (T37a).
+        if (event.name === BACKUP_RESTORED_EVENT && row.state === 'recovering')
+          await resumed(row, source, `the plugin's ${BACKUP_RESTORED_EVENT}`)
+        break
+      case 'round_end':
+        // A round ended on the replacement: whatever else was missed, it is
+        // playing. Last of the three signs, and the one no flow can withhold.
+        if (row.state === 'recovering')
+          await resumed(row, source, `round ${event.roundNumber} ending on the replacement`)
         break
       case 'demo_available': {
         runtime.demos.announced += 1
@@ -1669,6 +1731,9 @@ export function createMatches(options: MatchesOptions): Matches {
               roundNumber: newest.roundNumber,
             }
           if (replacement && !replacement.releasedAt && replacement.state === 'running') {
+            // It said `server_ready` before the restart, so the next sign of
+            // play closes the window rather than waiting for another one.
+            runtimeOf(row).replacementReady = true
             armJoin(row)
             armHeartbeat(row)
           } else if (replacement && !replacement.releasedAt) {

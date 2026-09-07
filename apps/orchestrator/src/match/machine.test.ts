@@ -13,11 +13,11 @@ import { describe, expect, it } from 'vitest'
 import { createTestApp, type TestApp } from '../http/testing'
 import type { AuthenticatedKey } from '../keys/service'
 import type { GameServerProvider, ServerConfiguration } from '../providers/provider'
-import { createMatches } from './machine'
+import { createMatches, DEFAULT_MATCH_DEADLINES } from './machine'
 
 /** A LAN-shaped provider whose servers do nothing but exist, so a test speaks for them. */
 const PHANTOM = 'nodes'
-function createPhantomProvider(): GameServerProvider {
+function createPhantomProvider(): GameServerProvider & { kill: (serverId: string) => void } {
   let counter = 0
   const live = new Map<string, { matchId: string; fleetServerId: string }>()
   const configured = new Map<string, ServerConfiguration>()
@@ -60,6 +60,10 @@ function createPhantomProvider(): GameServerProvider {
       return Promise.resolve()
     },
     list: () => Promise.resolve([...live].map(([serverId, entry]) => ({ serverId, ...entry }))),
+    /** The venue's `docker kill`: the box is gone and the provider says so. */
+    kill: serverId => {
+      live.delete(serverId)
+    },
   }
 }
 
@@ -542,7 +546,7 @@ describe('recovery', () => {
     expect(final.state).toBe('failed')
     expect(final.endedReason).toMatchObject({
       kind: 'server_lost',
-      detail: expect.stringContaining('no going_live'),
+      detail: expect.stringContaining('no sign of play'),
     })
     expect(types(app, match.id)).not.toContain('match.recovered')
     expect(app.sim.size()).toBe(0)
@@ -655,6 +659,149 @@ describe('recovery', () => {
     expect((await revived.get(key, match.id)).state).toBe('ended')
     expect(types(app, match.id).filter(t => t === 'match.allocated')).toHaveLength(3)
     await revived.close()
+    await app.close()
+  })
+
+  /**
+   * **The flow that never goes live twice** (T37a). MatchZy says `going_live`
+   * once per series: after `matchzy_loadbackup` it resumes from the checkpoint
+   * and says nothing the old window would have heard, which is why the LAN
+   * rehearsal (T37) watched a restored server play while its match sat in
+   * `recovering` until the join deadline failed it `server_lost`. The
+   * simulator and the fake node both script the `going_live` real MatchZy
+   * withholds, so the loss is scripted by hand here: everything the
+   * replacement says is what the plugin said on hardware, and nothing else.
+   */
+  const lostMidMatch = async (app: TestApp, provider: ReturnType<typeof createPhantomProvider>) => {
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request({ rules }))
+    await app.settle()
+    const first = { provider: PHANTOM, serverId: 'devbox-1' }
+    const say = async (
+      source: { provider: string; serverId: string },
+      event: Record<string, unknown> & { type: GameserverEvent['type'] },
+    ) => app.matches.ingest(source, { ...event, matchId: match.id, source } as GameserverEvent)
+    await say(first, { type: 'server_ready', map: 'de_mirage' })
+    await say(first, { type: 'going_live', mapNumber: 1, map: 'de_mirage' })
+    await app.matches.backup(first, {
+      mapNumber: 1,
+      roundNumber: 2,
+      filename: 'matchzy_1_de_mirage_round02.json',
+      content: '{"matchid":"1"}',
+    })
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('live')
+
+    // `docker kill`: the link goes quiet and the probe finds the box gone.
+    provider.kill('devbox-1')
+    await app.advance(DEFAULT_MATCH_DEADLINES.heartbeatTimeoutMs + 1)
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('recovering')
+    expect((await app.matches.get(key, match.id)).serverId).toBe('devbox-2')
+    return { key, match, say, replacement: { provider: PHANTOM, serverId: 'devbox-2' } }
+  }
+
+  it("closes the window on the plugin's backup_restored, which a restored server says on its way up", async () => {
+    const provider = createPhantomProvider()
+    const app = createTestApp({ providers: [provider] })
+    const { key, match, say, replacement } = await lostMidMatch(app, provider)
+
+    // The plugin writes the backup and loads it before the map is up, so this
+    // arrives first — and is held, because a client hears about a server
+    // before it hears the match came back on it.
+    await say(replacement, {
+      type: 'plugin_event',
+      name: 'backup_restored',
+      data: { mapNumber: 1, roundNumber: 2, filename: 'matchzy_1_de_mirage_round02.json' },
+    })
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('recovering')
+    expect(types(app, match.id)).not.toContain('match.recovered')
+
+    await say(replacement, { type: 'server_ready', map: 'de_mirage' })
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('live')
+    const order = types(app, match.id)
+    expect(order.lastIndexOf('match.server_ready')).toBeLessThan(order.indexOf('match.recovered'))
+    expect(
+      app.store.rows.events.find(e => e.payload.type === 'match.recovered')?.payload,
+    ).toMatchObject({ serverId: 'devbox-2', resumedFromRound: 2 })
+
+    // And the match finishes there, on a flow that never said `going_live` again.
+    await say(replacement, {
+      type: 'round_end',
+      mapNumber: 1,
+      roundNumber: 3,
+      score: { teamA: 2, teamB: 1 },
+      winner: { team: 'team_a', side: 'ct', reason: 'elimination' },
+    })
+    await say(replacement, {
+      type: 'series_end',
+      seriesScore: { teamA: 1, teamB: 0 },
+      winner: 'team_a',
+    })
+    await app.playOut()
+    const final = await app.matches.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.endedReason).toEqual({ kind: 'completed' })
+    expect(types(app, match.id).filter(t => t === 'going_live')).toHaveLength(1)
+    await app.close()
+  })
+
+  it('closes it on the first round the replacement plays when nothing else was heard', async () => {
+    const provider = createPhantomProvider()
+    const app = createTestApp({ providers: [provider] })
+    const { key, match, say, replacement } = await lostMidMatch(app, provider)
+
+    // No `backup_restored` (an old plugin, a lost frame) and no second
+    // `going_live` (MatchZy): a round ending is the sign no flow can withhold.
+    await say(replacement, { type: 'server_ready', map: 'de_mirage' })
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('recovering')
+    await say(replacement, {
+      type: 'round_end',
+      mapNumber: 1,
+      roundNumber: 3,
+      score: { teamA: 2, teamB: 1 },
+      winner: { team: 'team_a', side: 'ct', reason: 'elimination' },
+    })
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('live')
+    expect(
+      app.store.rows.events.find(e => e.payload.type === 'match.recovered')?.payload,
+    ).toMatchObject({ serverId: 'devbox-2', resumedFromRound: 2 })
+    await app.close()
+  })
+
+  it('takes the unpause a restored MatchZy needs, because the match is live again', async () => {
+    const provider = createPhantomProvider()
+    const app = createTestApp({ providers: [provider] })
+    const { key, match, say, replacement } = await lostMidMatch(app, provider)
+
+    // `matchzy_pause_after_restore` is MatchZy's default, so the first thing a
+    // venue wants on the replacement is `unpause` — refused outside `live`,
+    // which before T37a it never reached.
+    const early = await app.matches.command(key, match.id, {
+      type: 'unpause',
+      correlationId: 'u1',
+    })
+    expect(early).toMatchObject({
+      status: 'rejected',
+      code: 'invalid_state',
+      message: 'unpause only while live',
+    })
+
+    await say(replacement, {
+      type: 'plugin_event',
+      name: 'backup_restored',
+      data: { mapNumber: 1, roundNumber: 2, filename: 'matchzy_1_de_mirage_round02.json' },
+    })
+    await say(replacement, { type: 'server_ready', map: 'de_mirage' })
+    await app.settle()
+    // The state check is passed now — what refuses is the missing channel, a
+    // phantom holding no link, and not the match's state any more.
+    const taken = await app.matches.command(key, match.id, { type: 'unpause', correlationId: 'u2' })
+    expect(taken).toMatchObject({ message: 'no server while live' })
     await app.close()
   })
 })
