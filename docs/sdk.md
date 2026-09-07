@@ -155,6 +155,18 @@ sets `FakeGameWorld.Rules`). A second map while a `matchzy` flow is assigned is 
 next map: the map number advances, the round resets; a mode that owns its flow advances
 the map by emitting `map_end`.
 
+**The generic flow.** A `flow: plugin | none` mode gets `going_live`, `round_start`,
+`round_end`, `side_swap`, `map_end` and `series_end` for nothing: `GenericFlow` reads them
+off the engine through `IGameWorld` and emits them through the runtime, which is how
+`flying-scoutsman` — a manifest, a cfg and no class anywhere — tells a complete match.
+`going_live` is the first round start outside warmup; the score comes from the round-end
+event's two team scores, put in team order by the sides in effect; `side_swap` follows the
+gamerules' halftime flag (polled every `GenericFlow.PollIntervalMs`) and the map plan's
+ends at a new map; `map_end` is the win panel and `series_end` the win panel of the last
+map planned. Override `OwnsFlow => true` on a mode that emits these itself and the emitter
+falls silent for it — everything else the runtime does stays. `docs/gamemodes.md` has the
+table; `GenericFlowTests` plays a whole map of it on the harness.
+
 **Position ticks** are the runtime's too: every `GamemodeRuntime.PositionTickIntervalMs`
 (100 ms) while a match is assigned, the manifest's `positions` capability is on and the
 link is up, the alive players' positions go out as one `position_tick` — unsequenced, and

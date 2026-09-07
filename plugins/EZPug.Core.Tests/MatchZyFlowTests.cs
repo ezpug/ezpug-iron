@@ -262,17 +262,23 @@ public class MatchZyFlowTests
         rig.Rules(paused: true, swapping: true);
         rig.Poll();
         rig.World.StartRound();
-        Assert.Empty(rig.Link.Events);
+        // The SDK's generic emitter owns a `plugin` flow's story (PRD-02 T22) and says
+        // its part; none of MatchZy's own — a pause, a backup — is said by anybody.
+        Assert.Equal(["going_live", "side_swap", "round_start"], rig.Link.EventTypes);
+        Assert.Empty(rig.Link.EventsOf<MatchPausedEvent>());
+        Assert.Empty(rig.Link.Backups);
 
         var result = rig.Link.Command(new PauseCommand { CorrelationId = "c-1" });
         Assert.Equal(LinkCommandStatus.Rejected, result!.Status);
         Assert.Equal(MatchApiErrorCode.CommandUnsupported, result.Code);
         Assert.DoesNotContain("command css_forcepause", rig.World.Actions.Select(action => action.ToString()));
 
-        // Released: the poll is gone with the assignment.
+        // Released: the poll is gone with the assignment, and so is the generic emitter's.
+        rig.Link.Events.Clear();
         rig.Link.Release();
         rig.Rules(paused: false);
         rig.Poll();
+        rig.World.StartRound();
         Assert.Empty(rig.Link.Events);
     }
 

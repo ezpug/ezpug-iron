@@ -33,7 +33,7 @@ Three tiers, each proved by one shipped mode (decision 15), plus the queue's mod
 
 | Tier     | Mode               | What it is |
 | -------- | ------------------ | ---------- |
-| `config` | `flying-scoutsman` | stock CS2 by cfg alone: no plugin, no match flow; the map runs until the client ends the match or the TTL does |
+| `config` | `flying-scoutsman` | stock CS2 by cfg alone: no plugin anywhere. The match flow is the SDK's generic emitter, read off the engine ("The generic flow" below) |
 | `plugin` | `retakes`          | a vendored community plugin (B3none/cs2-retakes) under the core plugin: its own flow, its own map pool, events without a demo |
 | `plugin` | `pug`              | 5v5 on MatchZy: knife, overtime, demo, round backups — the queue's default and its only mode |
 | `sdk`    | `powerup-dm`       | an original mode on `EZPug.Sdk`: player commands, per-player state and a phone widget |
@@ -51,7 +51,7 @@ same data.
 | `tier` | `config`, `plugin` or `sdk` — see above |
 | `title`, `description` | `{ de, en }`, both always present, German first. The card's headline and its one paragraph |
 | `slots` | how many people play and how they arrive — `teamSize`, `teams`, `openJoin`, below |
-| `flow` | who owns match flow. `matchzy`: MatchZy runs ready-up, knife, live, the series; its events are translated into the vocabulary once, by the orchestrator, off the HTTP remote log the core plugin points at it ("The `matchzy` flow" below). `plugin`: the mode's plugin speaks `going_live`, `round_end`, `map_end`, `series_end` itself. `none`: nobody does; the match ends by `force_end`, `cancel` or the TTL |
+| `flow` | who owns match flow. `matchzy`: MatchZy runs ready-up, knife, live, the series; its events are translated into the vocabulary once, by the orchestrator, off the HTTP remote log the core plugin points at it ("The `matchzy` flow" below). `plugin`: the mode's plugin may speak `going_live`, `round_end`, `map_end`, `series_end` itself, and the SDK's generic emitter speaks for it when it does not. `none`: no plugin at all — the generic emitter is the whole story ("The generic flow" below) |
 | `records` | `demo`: a demo is recorded and uploaded to the request's `demoUploadUrl` **by the server** (MatchZy records for a `matchzy` flow, the SDK for any other; the core plugin always owns the PUT), `demo.uploaded` follows, the match waits for it past `series_end`, and every durable event flows. `events`: the durable events only. `none`: orchestration facts only; the game's events still stream live but nothing is promised durably. Positions and chat are never records |
 | `ranked` | always `false`. The manifest states what the server records, never what counts |
 | `maps` | `"any"` — the request plans whatever it likes, workshop maps included; the platform's map pool decides. Or an allow-list `{ catalog: [engine names], workshop: [published-file ids] }`; a request planning a map outside it is refused `map_not_allowed` at the door. A plugin that ships spawn files per map lists them; a mode built for one map lists one |
@@ -186,6 +186,32 @@ until a whole match's events go missing:
   other switches are `[ConsoleCommand]` handlers that use `bool.TryParse`, where `true` and
   `false` are right and `1` is silently a no-op. There is no rule to infer — read the
   vendor's declaration, then check the server's console output on the first boot.
+
+## The generic flow
+
+A `matchzy` mode has MatchZy. A `plugin` or `none` mode has nobody — a vendored community
+plugin speaks its own language and a config-only mode speaks none at all — so the SDK
+reads the flow off the engine and emits it through the runtime (`GenericFlow`, PRD-02 T22).
+It is in every server, because it lives in `EZPug.Sdk` and the core plugin's runtime owns
+one; a mode does not enable it and a `config` mode has nothing to enable it *with*.
+
+| Event | Read from |
+| ----- | --------- |
+| `going_live` | the first round start outside warmup. "After warmup" is the only start a stock server gives: `mp_warmup_end`, or the warmup running out, restarts the game and the round after it is round 1 |
+| `round_start` | every round start after that, with the score so far |
+| `round_end` | the engine's round-end event: the winning side, why it won (`elimination`, `bomb_exploded`, `bomb_defused`, `time_expired`), and the two team scores as `cs_gamerules` keeps them |
+| `side_swap` | the gamerules flagging a swap at the next round reset (`mp_halftime`), polled every 250 ms because the flag is transient — and at a new map of a series, on the ends its plan named |
+| `map_end` | the win panel (`cs_win_panel_match`), the engine's own full stop, whatever decided the map — `mp_maxrounds`, a clinch or `mp_timelimit` |
+| `series_end` | the same win panel, when the map that ended was the last one the request planned |
+
+**Why `side_swap` is not optional.** CS2 swaps the team *scores* along with the players at
+halftime, so a score read after the swap is in the new sides' order; without the swap
+crossing the link, every round from halftime on lands on the wrong team. The emitter never
+speaks during warmup, never before its map is up, never for a `matchzy` flow, and never
+for a mode whose class says `OwnsFlow` — a mode that knows better is always right.
+
+**It emits no pause.** Nothing pauses a stock server but an admin, and answering that
+command is the mode's job.
 
 ## What the tier allows
 

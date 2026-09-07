@@ -119,7 +119,10 @@ public class GamemodeHarnessTests
         Assert.Equal(0, host.Clock.Pending);
 
         Assert.Equal(
-            ["server_ready", "player_connected", "player_connected", "plugin_event", "chat_command", "plugin_event", "chat_message", "player_death", "plugin_event", "player_disconnected", "player_death"],
+            // `going_live` and `round_start` are the SDK's generic flow emitter (PRD-02
+            // T22) speaking for this `flow: plugin` mode: the round the test starts below
+            // is the first one outside warmup, so it is the match's first.
+            ["server_ready", "player_connected", "player_connected", "plugin_event", "chat_command", "plugin_event", "chat_message", "going_live", "round_start", "player_death", "plugin_event", "player_disconnected", "player_death"],
             link.EventTypes);
         Assert.Equal(Enumerable.Range(1, link.Events.Count).Select(seq => (long?)seq), link.Events.Select(EventStamper.SeqOf));
     }

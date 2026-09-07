@@ -15,14 +15,23 @@ namespace EZPug.Sdk.Testing;
 /// </summary>
 public sealed class GamemodeTestHost : IDisposable
 {
-    public GamemodeTestHost(Gamemode mode, FakeClock? clock = null, string map = "de_mirage")
+    /// <summary>
+    /// <paramref name="mode"/> may be <c>null</c>: a <c>config</c>-tier mode is a manifest
+    /// and a cfg with no class anywhere (PRD-02 T22), and the runtime — the vocabulary it
+    /// emits, the SDK's generic flow — is exactly what such a match is made of.
+    /// </summary>
+    public GamemodeTestHost(Gamemode? mode = null, FakeClock? clock = null, string map = "de_mirage")
     {
         Clock = clock ?? new FakeClock();
         World = new FakeGameWorld(Clock, map);
         Link = new FakePlatformLink();
         Runtime = new GamemodeRuntime(World, Link);
         Mode = mode;
-        Runtime.Attach(mode);
+        if (mode is not null)
+        {
+            Runtime.Attach(mode);
+        }
+
         Link.Welcome();
     }
 
@@ -30,7 +39,7 @@ public sealed class GamemodeTestHost : IDisposable
     public FakeGameWorld World { get; }
     public FakePlatformLink Link { get; }
     public GamemodeRuntime Runtime { get; }
-    public Gamemode Mode { get; }
+    public Gamemode? Mode { get; }
 
     /// <summary>Assign the match and bring the first map up, which is when <c>OnStart</c> fires and <c>server_ready</c> is emitted.</summary>
     public Assignment Start(AssignOrchestratorFrame assignment)
@@ -43,15 +52,17 @@ public sealed class GamemodeTestHost : IDisposable
     /// <summary>
     /// An <c>assign</c> for <paramref name="manifest"/> (the shipped JSON, as a string or a
     /// parsed <see cref="AssignedGamemode"/>) with a Bo1 on the manifest's first map or
-    /// <paramref name="map"/>, the roster given, the mode's own cvars, no rules. What the
-    /// orchestrator's <c>link/assign.ts</c> would compose for a plain request.
+    /// <paramref name="map"/> (or the whole <paramref name="maps"/> plan for a series), the
+    /// roster given, the mode's own cvars, no rules. What the orchestrator's
+    /// <c>link/assign.ts</c> would compose for a plain request.
     /// </summary>
     public static AssignOrchestratorFrame AssignmentFor(
         AssignedGamemode manifest,
         string matchId = "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
         string map = "de_mirage",
         IReadOnlyList<RosterEntry>? teamA = null,
-        IReadOnlyList<RosterEntry>? teamB = null) =>
+        IReadOnlyList<RosterEntry>? teamB = null,
+        IReadOnlyList<MapPlan>? maps = null) =>
         new()
         {
             MatchId = matchId,
@@ -60,7 +71,7 @@ public sealed class GamemodeTestHost : IDisposable
             Plugins = manifest.Plugins,
             Cfg = manifest.Cfg,
             Cvars = new Dictionary<string, string>(manifest.Cvars),
-            Maps = [new MapPlan { Map = map, Sides = MapPlanSides.Knife }],
+            Maps = maps ?? [new MapPlan { Map = map, Sides = MapPlanSides.Knife }],
             Teams = new MatchTeams
             {
                 TeamA = new Roster { Name = "Team A", Players = teamA ?? [] },

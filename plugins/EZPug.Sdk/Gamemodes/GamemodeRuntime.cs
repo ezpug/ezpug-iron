@@ -50,6 +50,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         _log = log ?? NullLinkLog.Instance;
         Localizer = new Localizer();
         Facts = new Facts(() => Match, () => Link.Source ?? new GameserverSource { Provider = "unknown", ServerId = "unknown" }, () => Assignment);
+        Flow = new GenericFlow(world, this, _log);
         link.Handler = this;
         world.MapStarted += OnMapStarted;
         world.PlayerConnected += OnPlayerConnected;
@@ -58,6 +59,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         world.PlayerDied += OnPlayerDied;
         world.RoundStarted += OnRoundStarted;
         world.RoundEnded += OnRoundEnded;
+        world.MapEnded += OnMapEnded;
         world.BombPlanted += OnBombPlanted;
         world.BombDefused += OnBombDefused;
         world.BombExploded += OnBombExploded;
@@ -70,6 +72,10 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     public Localizer Localizer { get; private set; }
     public Facts Facts { get; }
     public MatchContext Match { get; } = new();
+
+    /// <summary>The SDK's own flow emitter, speaking for a <c>plugin</c> or <c>none</c> flow (PRD-02 T22).</summary>
+    public GenericFlow Flow { get; }
+
     public Assignment? Assignment { get; private set; }
     public CommandTable? Commands { get; private set; }
     public Gamemode? Mode => _mode;
@@ -77,6 +83,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     /// <summary>The attached mode when the assignment is for it; a mode assigned another manifest hears nothing.</summary>
     private Gamemode? Active =>
         _mode is { } mode && Assignment is { } assignment && mode.Id == assignment.Gamemode.Id ? mode : null;
+
+    /// <summary>Whether the mode attached for this assignment says it tells its own flow story.</summary>
+    internal bool ModeOwnsFlow => Active?.OwnsFlow == true;
 
     /// <summary>The server's state as the link reports it.</summary>
     public LinkServerState State => _state;
@@ -233,6 +242,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
         Commands = new CommandTable(frame.Gamemode.Commands, World.Clock, Localizer);
         _mapReady = false;
+        Flow.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
         {
@@ -293,6 +303,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             _positionTicker = null;
             Commands = null;
             var released = reason;
+            Flow.OnReleased();
             Assignment = null;
             Match.Clear();
             _mapReady = false;
@@ -405,6 +416,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
         _mapReady = true;
         Commands?.Reset(PlayerCommandChargePeriod.Map);
+        Flow.OnMapStarted();
         MapLoaded?.Invoke(Assignment, map);
         Emit(Facts.ServerReady(map));
         Active?.OnStart();
@@ -474,10 +486,15 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
+        // `going_live` and a `side_swap` belong before round 1 exists, and emitting
+        // `going_live` resets the counter — so the generic flow speaks on either side of
+        // the numbering, never in the middle of it.
+        Flow.OnRoundStarting();
         // The engine's own count when the world has one (warmup and a knife round never
         // count, mp_restartgame resets it); a plain count when it does not (the harness).
         Match.RoundNumber = World.Rules is { } rules ? rules.RoundsPlayed + 1 : Match.RoundNumber + 1;
         Commands?.Reset(PlayerCommandChargePeriod.Round);
+        Flow.OnRoundStarted();
         Active?.OnRoundStart(Match.RoundNumber);
     }
 
@@ -488,7 +505,16 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
+        Flow.OnRoundEnded(roundEnd);
         Active?.OnRoundEnd(roundEnd);
+    }
+
+    private void OnMapEnded()
+    {
+        if (Assignment is not null)
+        {
+            Flow.OnMapEnded();
+        }
     }
 
     private void OnBombPlanted(IGamePlayer player, BombSiteName site)

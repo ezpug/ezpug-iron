@@ -114,7 +114,11 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   `chat_message` / `chat_command` by the vocabulary's prefix rule, position ticks every
   100 ms while linked, heartbeats on the interval `welcome` gave. Match-flow events are
   the flow owner's: MatchZy's remote log for `flow: matchzy`, translated by the
-  orchestrator (T9), the SDK's generic emitter for `flow: plugin | none` (T22).
+  orchestrator (T9), the SDK's generic emitter for `flow: plugin | none` (`GenericFlow`,
+  T22) — `going_live` at the first round outside warmup, `round_start` / `round_end` /
+  `side_swap` off the gamerules, `map_end` on the win panel and `series_end` with it when
+  the last map planned is over. It is in every server because the runtime owns one, which
+  is what lets a `config` mode with no plugin at all tell a whole match.
 - **What MatchZy cannot say, observed** (`MatchZyFlow`, `flow: matchzy` only): MatchZy
   0.8.15 sends no pause, side-swap or backup event, so the core reads the engine —
   `match_paused` / `match_unpaused` off `cs_gamerules` every 250 ms (a tactical timeout

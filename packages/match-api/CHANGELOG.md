@@ -6,6 +6,20 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.4.2 — 2026-09-07
+
+Catalog only: `flying-scoutsman` grew a story and says so. Serves PRD-02 T22, which gave
+the SDK a generic flow emitter — `going_live`, `round_start`, `round_end`, `side_swap`,
+`map_end`, `series_end` read off the engine — so a `flow: plugin | none` mode with no
+match plugin anywhere still tells a complete match.
+
+- The `flying-scoutsman` manifest the fake serves (and the orchestrator ships) is at
+  `0.2.0`: `slots.openJoin` is `true` (a scout duel is open to whoever walks in), and the
+  description no longer says the mode has no match flow, because it now has one. The two
+  recorded flows that read the catalog — `config-only`, `happy-bo1` — carry the new text.
+- No schema, route, event, error code or state changed. A client that pinned `0.4.1` sees
+  the same shapes; a client rendering the catalog sees a corrected card.
+
 ## 0.4.1 — 2026-09-06
 
 Fixtures only: a conformance flow that finds its match already over says **why**. Serves

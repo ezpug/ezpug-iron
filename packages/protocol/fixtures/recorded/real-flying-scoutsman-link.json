@@ -1,0 +1,2330 @@
+{
+  "schema": "LinkExchange",
+  "exchange": [
+    {
+      "from": "server",
+      "frame": {
+        "type": "hello",
+        "protocol": 1,
+        "token": "not-a-secret_recorded_link_token",
+        "versions": {
+          "plugin": "0.1.0",
+          "sdk": "0.1.0",
+          "counterStrikeSharp": "1.0.373",
+          "matchzy": "1.0.0"
+        },
+        "capabilities": [
+          "positions",
+          "chat",
+          "playerCommands",
+          "widget",
+          "backups"
+        ],
+        "plugins": [
+          "EZPug.Core",
+          "MatchZy"
+        ],
+        "hostname": "ezpug",
+        "map": "unknown",
+        "state": "booting",
+        "lastSeq": 0
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "welcome",
+        "protocol": 1,
+        "provider": "nodes",
+        "serverId": "devbox-1",
+        "heartbeatIntervalMs": 10000,
+        "ackedSeq": 0
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "assign",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "game": "cs2",
+        "gamemode": {
+          "id": "flying-scoutsman",
+          "game": "cs2",
+          "tier": "config",
+          "title": {
+            "de": "Flying Scoutsman",
+            "en": "Flying Scoutsman"
+          },
+          "description": {
+            "de": "CS2s Modus mit Scout und wenig Schwerkraft auf den normalen Karten. Nur Konfiguration, kein Plugin: den Matchablauf – live, Runden, Seitenwechsel, Kartenende – erzählt das SDK aus den Ereignissen der Engine.",
+            "en": "CS2's low-gravity Scout mode on the normal maps. Configuration only, no plugin: the match flow – live, rounds, the side swap, the end of the map – is told by the SDK from the engine's own events."
+          },
+          "slots": {
+            "teamSize": 5,
+            "teams": 2,
+            "openJoin": true
+          },
+          "flow": "none",
+          "records": "events",
+          "ranked": false,
+          "version": "0.2.0",
+          "plugins": [],
+          "cfg": [
+            "ezpug/flying-scoutsman.cfg"
+          ],
+          "cvars": {},
+          "capabilities": {
+            "positions": true,
+            "chat": true,
+            "playerCommands": false,
+            "widget": false,
+            "backups": false,
+            "scoreboardRating": false
+          },
+          "commands": [],
+          "sdkVersion": "0.1.0"
+        },
+        "plugins": [],
+        "cfg": [
+          "ezpug/flying-scoutsman.cfg"
+        ],
+        "cvars": {
+          "mp_freezetime": "5",
+          "bot_difficulty": "2",
+          "bot_join_after_player": "0",
+          "mp_maxrounds": "4",
+          "mp_overtime_enable": "0",
+          "mp_overtime_maxrounds": "6",
+          "mp_overtime_startmoney": "10000"
+        },
+        "maps": [
+          {
+            "map": "de_dust2",
+            "sides": "ct"
+          }
+        ],
+        "rules": {
+          "regulationRounds": 4,
+          "overtime": {
+            "enabled": false,
+            "maxRounds": 6,
+            "startMoney": 10000
+          },
+          "warmup": {
+            "minPlayersToReady": 0,
+            "minSpectatorsToReady": 0
+          },
+          "cvars": {
+            "mp_freezetime": "5",
+            "bot_difficulty": "2",
+            "bot_join_after_player": "0"
+          }
+        },
+        "teams": {
+          "teamA": {
+            "name": "EZPug A",
+            "players": []
+          },
+          "teamB": {
+            "name": "EZPug B",
+            "players": []
+          }
+        },
+        "warmupLines": [
+          "Willkommen bei EZPug.",
+          "Welcome to EZPug."
+        ],
+        "branding": {
+          "hostname": "EZPug · flying-scoutsman · de_dust2",
+          "eventName": "iron-match"
+        }
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "state",
+        "state": "assigned",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "detail": "plugins loaded"
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 1,
+              "type": "server_ready",
+              "map": "de_dust2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 4,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 2,
+              "type": "server_ready",
+              "map": "de_dust2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 4,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "command",
+        "command": {
+          "correlationId": "iron-match-recorded-bots",
+          "type": "rcon",
+          "command": "bot_quota 10"
+        }
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "command_result",
+        "correlationId": "iron-match-recorded-bots",
+        "status": "applied",
+        "output": ""
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 10135
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 125,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 3,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000010",
+                "name": "Marlin",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000001",
+                "name": "K",
+                "team": "spec"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000005",
+                    "name": "Kong",
+                    "team": "team_a"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "famas",
+              "headshot": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 125,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 20131
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 170,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 4,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000001",
+                "name": "K",
+                "team": "spec"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [],
+              "weapon": "sg556",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 170,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 184,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 5,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000009",
+                "name": "Terrington",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "aug",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 184,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 194,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 6,
+              "mapNumber": 1,
+              "type": "going_live",
+              "map": "de_dust2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 195,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 7,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "round_start",
+              "score": {
+                "teamA": 0,
+                "teamB": 0
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 194,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 195,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 30132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 40132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 50132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 463,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 8,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000007",
+                "name": "Hood",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000010",
+                "name": "Marlin",
+                "team": "team_b"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 463,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 484,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 9,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000010",
+                "name": "Marlin",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000005",
+                "name": "Kong",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 484,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 507,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 10,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000005",
+                "name": "Kong",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000010",
+                    "name": "Marlin",
+                    "team": "team_b"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 508,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 11,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000001",
+                "name": "K",
+                "team": "spec"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000010",
+                    "name": "Marlin",
+                    "team": "team_b"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false,
+              "penetrated": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 507,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 508,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 60132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 70132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 695,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 12,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000009",
+                "name": "Terrington",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 695,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 80132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 757,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 13,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000006",
+                "name": "Gustov",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000003",
+                "name": "Guerrilla",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 757,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 90132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 896,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 14,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000003",
+                "name": "Guerrilla",
+                "team": "team_a"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000009",
+                    "name": "Terrington",
+                    "team": "team_a"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 896,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 100132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 110132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1030,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 15,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000003",
+                "name": "Guerrilla",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000004",
+                "name": "Orlow",
+                "team": "team_b"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000006",
+                    "name": "Gustov",
+                    "team": "team_b"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1030,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1031,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 16,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "round_end",
+              "winner": {
+                "team": "team_b",
+                "side": "t"
+              },
+              "winCondition": "elimination",
+              "score": {
+                "teamA": 0,
+                "teamB": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1031,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 120132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1123,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 17,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "round_start",
+              "score": {
+                "teamA": 0,
+                "teamB": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1123,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 130131
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 140132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1345,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 18,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000001",
+                "name": "K",
+                "team": "spec"
+              },
+              "killer": {
+                "steamId64": "90000000000000010",
+                "name": "Marlin",
+                "team": "team_b"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1346,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 19,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000005",
+                "name": "Kong",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000010",
+                "name": "Marlin",
+                "team": "team_b"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false,
+              "penetrated": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1345,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1346,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1357,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 20,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000010",
+                "name": "Marlin",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000003",
+                "name": "Guerrilla",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1357,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 150132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1432,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 21,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000002",
+                "name": "Aspirant",
+                "team": "spec"
+              },
+              "killer": {
+                "steamId64": "90000000000000007",
+                "name": "Hood",
+                "team": "team_a"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000009",
+                    "name": "Terrington",
+                    "team": "team_a"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1432,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 160132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1465,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 22,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000009",
+                "name": "Terrington",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false,
+              "noscope": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1465,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1471,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 23,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000004",
+                "name": "Orlow",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000007",
+                "name": "Hood",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1471,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 170132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 180132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1699,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 24,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000003",
+                "name": "Guerrilla",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000006",
+                    "name": "Gustov",
+                    "team": "team_b"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1699,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 190132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1781,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 25,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000007",
+                "name": "Hood",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000002",
+                    "name": "Aspirant",
+                    "team": "spec"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1782,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 26,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "round_end",
+              "winner": {
+                "team": "team_b",
+                "side": "t"
+              },
+              "winCondition": "elimination",
+              "score": {
+                "teamA": 0,
+                "teamB": 2
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1781,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1782,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 200132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1860,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 27,
+              "mapNumber": 1,
+              "type": "side_swap",
+              "sides": {
+                "teamA": "t",
+                "teamB": "ct"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 1861,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 28,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "round_start",
+              "score": {
+                "teamA": 0,
+                "teamB": 2
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1860,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 1861,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 210132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 220133
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 230132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 2182,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 29,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000007",
+                "name": "Hood",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000002",
+                "name": "Aspirant",
+                "team": "spec"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000008",
+                    "name": "Juuvy",
+                    "team": "team_b"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 2182,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 240133
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 250132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 2314,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 30,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000003",
+                "name": "Guerrilla",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000002",
+                "name": "Aspirant",
+                "team": "spec"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 2314,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 2358,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 31,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000004",
+                "name": "Orlow",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000005",
+                "name": "Kong",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 2358,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 260132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 2466,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 32,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000002",
+                "name": "Aspirant",
+                "team": "spec"
+              },
+              "killer": {
+                "steamId64": "90000000000000009",
+                "name": "Terrington",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 2466,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 270132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 2502,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 33,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000009",
+                "name": "Terrington",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [
+                {
+                  "player": {
+                    "steamId64": "90000000000000002",
+                    "name": "Aspirant",
+                    "team": "spec"
+                  },
+                  "flash": false
+                }
+              ],
+              "weapon": "ssg08",
+              "headshot": false,
+              "noscope": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 2502,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 280132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 2630,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 34,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000010",
+                "name": "Marlin",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "90000000000000001",
+                "name": "K",
+                "team": "spec"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 2630,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 290132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 300132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 310132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 320132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 2979,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 35,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000005",
+                "name": "Kong",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "90000000000000008",
+                "name": "Juuvy",
+                "team": "team_b"
+              },
+              "assists": [],
+              "weapon": "ssg08",
+              "headshot": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 2979,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "heartbeat",
+        "state": "assigned",
+        "map": "de_dust2",
+        "playerCount": 11,
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "uptimeMs": 330132
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 3071,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 36,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "round_end",
+              "winner": {
+                "team": "team_b",
+                "side": "ct"
+              },
+              "winCondition": "time_expired",
+              "score": {
+                "teamA": 0,
+                "teamB": 3
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 3071,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 3100,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 37,
+              "mapNumber": 1,
+              "type": "map_end",
+              "map": "de_dust2",
+              "score": {
+                "teamA": 0,
+                "teamB": 3
+              },
+              "winner": "team_b"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "events",
+        "events": [
+          {
+            "seq": 3101,
+            "event": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "devbox-1"
+              },
+              "seq": 38,
+              "type": "series_end",
+              "seriesScore": {
+                "teamA": 0,
+                "teamB": 1
+              },
+              "winner": "team_b"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 3100,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "release",
+        "reason": "ended: completed"
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "state",
+        "state": "idle",
+        "detail": "ended: completed"
+      }
+    },
+    {
+      "from": "orchestrator",
+      "frame": {
+        "type": "ack",
+        "results": [
+          {
+            "seq": 3101,
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "from": "orchestrator",
+      "close": {
+        "code": 1006,
+        "reason": ""
+      }
+    }
+  ]
+}

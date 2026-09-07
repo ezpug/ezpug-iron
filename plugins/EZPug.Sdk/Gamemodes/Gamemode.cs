@@ -25,6 +25,16 @@ public abstract class Gamemode
     /// </summary>
     protected virtual Localizer CreateLocalizer() => new();
 
+    /// <summary>
+    /// <b>This mode tells its own match-flow story</b>, so the SDK's
+    /// <see cref="GenericFlow"/> stays silent for it: no <c>going_live</c>,
+    /// <c>round_start</c>, <c>round_end</c>, <c>side_swap</c>, <c>map_end</c> or
+    /// <c>series_end</c> from the runtime. Say true only when the mode emits them itself —
+    /// the generic emitter reads the engine and covers a plain round-based map on its own
+    /// (PRD-02 T22).
+    /// </summary>
+    public virtual bool OwnsFlow => false;
+
     // ------------------------------------------------------------------ what the runtime provides
 
     protected IGameWorld World => Runtime.World;

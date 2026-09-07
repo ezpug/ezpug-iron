@@ -558,7 +558,7 @@ every offline proof here.
   tautologically — but the run that found it is the run T21c was verified with, and the
   progress line says which runs were which. Never retried into green (working rules).
 
-- [ ] **T22: `flying-scoutsman` and the generic flow.** The SDK's generic flow emitter
+- [x] **T22: `flying-scoutsman` and the generic flow.** The SDK's generic flow emitter
   for `flow: plugin | none` modes: `round_start`/`round_end` from game events (winner,
   reason, score from the game rules), `map_end` on the win panel, `series_end` when the
   manifest's `rounds`/`timeLimit` is reached, `going_live` after warmup — so a mode with no
@@ -566,6 +566,66 @@ every offline proof here.
   (`game_type 0 game_mode 0` with the scoutsman cvars, low gravity, the normal maps),
   `records: events`, `openJoin: true`, no plugin at all — proven on the dev node with
   bots, recorded into the fixtures.
+
+- [ ] **T22a (P1): the loader's flat cvars land in the same console frame as the mode's
+  cfg, so the two net out.** Found in T22, pre-existing, not caused by it:
+  `GamemodeLoader.OnMapLoaded` execs the manifest's cfg files and then sets the
+  assignment's flat cvars, all through `Server.ExecuteCommand`, so the whole lot reaches
+  the engine's console in **one frame** — and the engine reconciles a cvar's *effects*
+  once at the end of it, against the value it had before. A value the cfg sets and the
+  request then sets back is therefore not two changes but none. Measured on the dev node
+  with `flying-scoutsman` (CS2 1.41.7.8): the cfg's `bot_kick; bot_quota 0` and the
+  request's `rules.cvars.bot_quota 10` produced an **empty** server — ten bots kicked at
+  1.2 s, `going_live` at 21 s, no player for the twenty minutes that followed — and one
+  `bot_quota 10` over RCON, a frame of its own, filled it inside a second. Dropping
+  `bot_kick` did not fix it: a `bot_quota_mode` switch evicts the standing bots on its
+  own, and the same-frame raise still cannot bring them back. T22 worked around it in
+  `scripts/iron-match.mjs` (the bots are asked for over the fleet RCON door at `ready`,
+  for every non-`matchzy` flow) rather than reordering the loader inside a task that had
+  no other business there — but a **client** cannot do that, and must not have to: a
+  request's `rules.cvars` is documented as merged under the mode's, which is a promise
+  the console frame is currently breaking for any cvar with a population or eviction
+  side effect. Fix the loader — a beat between the cfg and the cvars, whatever the flows
+  need — keep the `matchzy` ordering the pug lane proved (cvars, then the match config,
+  then `matchzy_loadmatch`, then the remote log), put `bot_quota` back into
+  `iron-match.mjs`'s `rules.cvars` for every flow, and re-prove **both** lanes with
+  `EZPUG_CS2_TESTS=required`.
+
+- [ ] **T22b (P1): `pnpm verify` is red while `pnpm cs2:up` is running.** Found in T22,
+  pre-existing, not caused by it: `apps/orchestrator/src/nodes/nodes.test.ts`'s `is an
+  honest 503 with an audit line when the container is not listening` says in its own
+  comment "the provider dials 27415 on the node; nothing in this test is there" — and
+  `pnpm cs2:up`, the documented dev CS2 lane, puts a real CS2 server on exactly 27415.
+  The test then reaches a server that answers, the RCON audit reads `<failed:
+  auth_failed>` instead of `<failed: unreachable>`, and the whole verify is red.
+  Deterministic in both directions and confirmed both ways in T22 (red with the container
+  up, green the moment `pnpm cs2:down` returned). It is not flake: it is a unit test
+  dialling a real port on a box whose own README tells the reader to occupy it. Give the
+  fake node's instances a port nothing on this box uses, or point the test at a closed
+  port it owns, so the two lanes stop sharing a number.
+
+- [ ] **T22c (P1): the runtime says `server_ready` for the map the server was already on,
+  so a match sometimes reports two.** Found in T22's `EZPUG_CS2_TESTS` lane, pre-existing,
+  not caused by it: `cs2.extended.test.ts`'s `plays a pug end to end and closes its ledger
+  row` failed on `the plugin never said it was ready: expected 2 to be 1`, and **nothing
+  else in that match was wrong** — `going_live`, eight `round_end`s, two `side_swap`s,
+  `map_end`, `series_end`, `demo_available` + `demo.uploaded`, `match.ended: completed`,
+  one ledger row closed. Mechanism, from the recording's own clock: the two `server_ready`
+  envelopes are **1.34 s apart**, and `CounterStrikeWorld.MapReadyDelayMs` is 1 s. The
+  container boots on the image's start map, the engine's `OnMapStart` arms that one-second
+  timer, the `assign` lands inside it, and by the time the timer fires `Assignment` is no
+  longer null — so `GamemodeRuntime.OnMapStarted` emits a `server_ready` for the **boot**
+  map, and the loader's own `changelevel` emits the real one a second later. It is a race
+  on container boot timing, in code T22 did not touch (the generic emitter is inert for a
+  `matchzy` flow: `_armed` is false, no timer is armed), and it flips with anything that
+  moves the boot by a second — the committed `real-pug-bo1.json` has one `server_ready`,
+  today's rebuilt image gave two, twice. The consequence is small but real: a client's
+  durable log holds a `server_ready` for a map that was never the match's, and the lane
+  is red. Fix it where the two halves meet — the loader knows it asked for a level change,
+  the runtime does not, and a map start that predates that request is not the match's map
+  (a token the loader raises and the runtime waits for, or a map-start time the seam
+  carries). Do **not** loosen the assertion. Re-prove with `EZPUG_CS2_TESTS=required` and
+  re-record `real-pug-bo1.json` if the shape changes. Never retried into green.
 
 - [ ] **T23: `retakes`.** Vendor cs2-retakes 3.1.0 and one allocator at their pins
   (`plugins/vendor/`, `docs/pins.md`), the manifest (`tier: plugin`, `flow: plugin`,

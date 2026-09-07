@@ -571,6 +571,18 @@ async function run() {
     say(`demo target: ${s3.endpoint}/${s3.bucket}/iron-match/${RUN_ID}.dem`)
   }
 
+  // 3b. **Who owns the flow.** A `matchzy` mode needs a `css_start` and an empty
+  //     server before it (below); a `plugin` or `none` mode needs neither — the
+  //     SDK's generic emitter reads the flow off the engine (PRD-02 T22), so the
+  //     mode's own cfg decides when warmup ends and nothing here drives it. The
+  //     catalog is asked rather than the checkout, because what the orchestrator
+  //     serves is what the server was assigned.
+  const catalog = await api('GET', '/v1/gamemodes')
+  const manifest = catalog.gamemodes.find(mode => mode.id === GAMEMODE)
+  if (!manifest) die(`the orchestrator serves no gamemode "${GAMEMODE}"`)
+  const FLOW = manifest.flow
+  say(`gamemode ${GAMEMODE} v${manifest.version}: flow ${FLOW}, records ${manifest.records}`)
+
   // 4. The request. Bots, four rounds, no overtime, nobody rostered — MatchZy
   //    plays it out and `css_start` is what starts it, because a bot never
   //    types `.ready`.
@@ -617,9 +629,20 @@ async function run() {
         // can make later, on a measurement of its own.
         mp_freezetime: '5',
         ...(BOTS > 0 && {
-          bot_quota: String(BOTS),
           bot_difficulty: '2',
           bot_join_after_player: '0',
+          // **`bot_quota` travels here only for MatchZy, and the reason is a frame.** The
+          // loader execs the mode's cfg and sets these cvars into the *same* console
+          // frame, and the engine reconciles the bot population once at the end of it —
+          // so a `bot_quota_mode` switch in a mode's cfg evicts whoever is standing and a
+          // `bot_quota` beside it cannot bring them back. Measured on the dev node with
+          // `flying-scoutsman`: bots kicked at 1.2 s, `going_live` at 21 s, an empty
+          // server for twenty minutes — then one `bot_quota 10` over RCON and ten bots
+          // inside a second. A `matchzy` flow does not care (MatchZy's `live.cfg` moves
+          // the quota itself, which is what the dance in the poll loop is about); every
+          // other flow asks for its bots there instead, in a frame of their own. The
+          // loader's own ordering is PRD-02 T22a.
+          ...(FLOW === 'matchzy' && { bot_quota: String(BOTS) }),
         }),
       },
     },
@@ -739,6 +762,20 @@ async function run() {
     // bots are in. A `mp_warmup_end` outside warmup does nothing, which is what
     // makes it safe to send unconditionally.
     if (now.state === 'ready') {
+      // A mode whose flow is nobody's plugin starts itself: the SDK's generic
+      // emitter ends the warmup twenty seconds after the map is up and the round
+      // after that is `going_live` (PRD-02 T22). Nothing to force and nothing to
+      // empty — `live.cfg` is MatchZy's file and no other flow has one — so the
+      // only thing to do here is ask for the bots, in a frame of their own and
+      // inside those twenty seconds, so they are standing when the match starts.
+      if (FLOW !== 'matchzy') {
+        if (BOTS > 0 && !filled) {
+          filled = true
+          say(`filling the server with ${BOTS} bots`)
+          await rcon(`bot_quota ${BOTS}`, 'bots')
+        }
+        continue
+      }
       if (BOTS > 0 && !emptied) {
         emptied = true
         say('emptying the server before the start, so `live.cfg` cannot take GOTV with it')
@@ -753,7 +790,9 @@ async function run() {
       continue
     }
 
-    // Live. The bots, then the warmup, one poll apart.
+    // Live. The bots, then the warmup, one poll apart — MatchZy's order, and
+    // only its. Another flow already had both before it went live.
+    if (FLOW !== 'matchzy') continue
     if (BOTS > 0 && !filled) {
       filled = true
       say(`filling the server with ${BOTS} bots`)
@@ -792,6 +831,7 @@ async function run() {
     run: RUN_ID,
     forced,
     matchId,
+    flow: FLOW,
     request,
     match: final,
     envelopes,
@@ -952,10 +992,14 @@ function write(result) {
     join(OUT_DIR, 'node.json'),
     stringify(scrub({ schema: 'NodeExchange', exchange: node })),
   )
-  writeFileSync(
-    join(OUT_DIR, 'matchzy.json'),
-    stringify(scrub({ schema: 'MatchZyExchange', events: matchzy })),
-  )
+  // Only a `matchzy` flow has a MatchZy exchange, and an empty one is not
+  // evidence of anything: another flow's story crosses `/link` and is already
+  // in `link.json`.
+  if (matchzy.length > 0)
+    writeFileSync(
+      join(OUT_DIR, 'matchzy.json'),
+      stringify(scrub({ schema: 'MatchZyExchange', events: matchzy })),
+    )
   writeFileSync(join(OUT_DIR, 'ledger.json'), stringify(scrub(result.ledger)))
   say(`wrote the run to ${OUT_DIR}`)
 
@@ -969,9 +1013,10 @@ function write(result) {
   const files = [
     [join(protocolDir, `real-${GAMEMODE}-link.json`), join(OUT_DIR, 'link.json')],
     [join(protocolDir, `real-${GAMEMODE}-node.json`), join(OUT_DIR, 'node.json')],
-    [join(protocolDir, `real-${GAMEMODE}-matchzy.json`), join(OUT_DIR, 'matchzy.json')],
     [join(matchApiDir, `real-${GAMEMODE}-bo1.json`), join(OUT_DIR, 'client.json')],
   ]
+  if (matchzy.length > 0)
+    files.push([join(protocolDir, `real-${GAMEMODE}-matchzy.json`), join(OUT_DIR, 'matchzy.json')])
   for (const [target, source] of files) {
     writeFileSync(target, readFileSync(source, 'utf8'))
     say(`fixture ${target.replace(`${repo}/`, '')}`)
