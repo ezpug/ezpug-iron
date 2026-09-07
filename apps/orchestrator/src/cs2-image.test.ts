@@ -152,6 +152,21 @@ describe('the CS2 server image', () => {
     }
   })
 
+  it('unlocks the scoreboard rating and says why it may', () => {
+    // PRD-02 T27: CounterStrikeSharp refuses `m_iCompetitiveRanking` and
+    // `m_iCompetitiveRankType` while `FollowCS2ServerGuidelines` is on, and
+    // EZ Rating is those two fields (decision 21). Written from the pinned
+    // release's own example so no other key is ours to keep up to date, and
+    // asserted right there so an upstream rename fails the build.
+    expect(dockerfile).toContain('"FollowCS2ServerGuidelines": false')
+    expect(dockerfile).toContain('configs/core.example.json')
+    expect(dockerfile).toContain('configs/core.json')
+    expect(dockerfile).toMatch(/grep -q '"FollowCS2ServerGuidelines": false'/)
+    // The risk it buys is a GSLT the guidelines could withhold, and that is an
+    // operator's business, not a build's.
+    expect(repo('docs/operations.md')).toContain('FollowCS2ServerGuidelines: false')
+  })
+
   it('is run by a compose file and the scripts the docs name', () => {
     expect(compose).toContain('dockerfile: docker/cs2/Dockerfile')
     expect(compose).toContain('network_mode: host')

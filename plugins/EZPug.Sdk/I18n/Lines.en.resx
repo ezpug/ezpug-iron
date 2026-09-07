@@ -40,4 +40,13 @@
   <data name="link.disconnected" xml:space="preserve">
     <value>Lost the link to EZPug – reconnecting.</value>
   </data>
+  <data name="rating.connect" xml:space="preserve">
+    <value>Welcome, {0}. Your EZ Rating: {1}.</value>
+  </data>
+  <data name="rating.connect.rank" xml:space="preserve">
+    <value>Welcome, {0}. Your EZ Rating: {1} · {2}.</value>
+  </data>
+  <data name="rating.connect.unrated" xml:space="preserve">
+    <value>Welcome, {0}. No EZ Rating yet – this match counts.</value>
+  </data>
 </root>

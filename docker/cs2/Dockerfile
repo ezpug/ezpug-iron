@@ -97,7 +97,25 @@ RUN curl -fsSL -o css.zip \
       "https://github.com/roflmuffin/CounterStrikeSharp/releases/download/v${COUNTER_STRIKE_SHARP_VERSION}/counterstrikesharp-with-runtime-linux-${COUNTER_STRIKE_SHARP_VERSION}.zip" \
     && echo "${COUNTER_STRIKE_SHARP_SHA256}  css.zip" | sha256sum -c - \
     && unzip -q -o css.zip -d /out \
-    && rm css.zip
+    && rm css.zip \
+    # **`FollowCS2ServerGuidelines: false`** (PRD-02 T27). CounterStrikeSharp
+    # refuses to read or write a handful of controller fields while that flag
+    # is on, `m_iCompetitiveRanking` and `m_iCompetitiveRankType` among them —
+    # the two EZ Rating is drawn with (decision 21), measured on the dev node
+    # as `Cannot set or get 'CCSPlayerController::m_iCompetitiveRanking'`. The
+    # flag exists because Valve's guidelines ask a server not to alter what a
+    # client shows about a player's *Valve* rank; ours draws EZPug's own number
+    # on a private league's servers, on a scoreboard nobody mistakes for
+    # matchmaking, and writes nothing back to Steam. **The risk is Valve's to
+    # take**: a server that flouts the guidelines can be refused a GSLT, which
+    # would cost the Dathost half of the fleet its public listing. Turned off
+    # here rather than in a hand-written config so every other key stays
+    # exactly what the pinned release ships; the `grep` makes an upstream
+    # rename a failed build instead of a silent no-op.
+    && sed 's/"FollowCS2ServerGuidelines": true/"FollowCS2ServerGuidelines": false/' \
+         /out/addons/counterstrikesharp/configs/core.example.json \
+         > /out/addons/counterstrikesharp/configs/core.json \
+    && grep -q '"FollowCS2ServerGuidelines": false' /out/addons/counterstrikesharp/configs/core.json
 
 # MatchZy, into `plugins/disabled/` — CounterStrikeSharp auto-loads every folder
 # directly under `plugins/` and skips `disabled/`, which is exactly the door the

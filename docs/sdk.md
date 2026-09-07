@@ -15,7 +15,7 @@ write:
 
 | Seam | What it is | Production | Test |
 | ---- | ---------- | ---------- | ---- |
-| `IGameWorld` | players (SteamID64, slot, team, alive, position), say/print/center/HUD, give/strip, respawn, health/armor/speed, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, bomb, chat, map started, map ended on the win panel, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
+| `IGameWorld` | players (SteamID64, slot, team, alive, position, scoreboard rating), say/print/center/HUD, give/strip, respawn, health/armor/speed, the scoreboard's rating, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, bomb, chat, map started, map ended on the win panel, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
 | `IPlatformLink` | emit an event, report state, send a backup or a console tail; receive assignment, commands, player commands, profiles through `IPlatformLinkHandler` | `LinkClient` — one outbound WebSocket to `/link` | `FakePlatformLink` |
 | `IClock` | monotonic milliseconds and timers; the only time a mode may read | `SystemClock` for the link's threads; `GameThreadClock` for a mode — the core plugin fires its timers from the engine's tick | `FakeClock` |
 | `GamemodeRuntime` | the link's handler and the world's listener, routing both to the attached mode; stamps the per-match `seq`; emits the plumbing and gameplay events once | owned by the core plugin | owned by `GamemodeTestHost` |
@@ -120,6 +120,47 @@ Helpers on the base: `World`, `Link`, `Clock`, `Localizer`, `Facts`, `Match`,
 `Assignment`, `Commands`; `Emit`, `EmitPluginEvent`, `PushWidget`; `Lines(player)`, `Say`,
 `SayAll`, `PrintCenter` (all localized per player); `PlayerState<T>(factory)`; `After`,
 `Every`.
+
+### EZ Rating on the scoreboard
+
+A mode writes nothing for this. When the manifest's `scoreboardRating` capability is on,
+the runtime's `RatingBoard` draws the roster's `rating` where Premier draws its own
+number — `SetScoreboardRating(player, rating)` on the world, which is
+`m_iCompetitiveRanking` with `m_iCompetitiveRankType` set to Premier's `11` on the real
+thing (decision 21). No clan tag, no chat spam, no HUD card: the scoreboard cell and one
+connect line, and that is all EZ Rating gets in-game.
+
+The rating is the platform's and is only relayed: it arrives in the assignment's profiles
+or in a later `profile` push, and a player nobody has a profile for is left alone rather
+than shown a zero. The engine forgets the fields across a level change, a reconnect and a
+round, so the numbers are written again on the assignment, on a connect, on a profile, when
+the map is ready and at every round start. `release` clears them.
+
+The **connect line** is bilingual (`rating.connect`, `rating.connect.rank`,
+`rating.connect.unrated` in the SDK's catalog, German default) and is said **once per
+connection**, at the first moment there is something to say: on connect for a rostered
+player, on their `profile` for somebody who joined open and was a stranger until it
+arrived. Bots are drawn and never talked to. A roster entry carries no streak, so the line
+names the rating and the rank and nothing else.
+
+**Two things the engine decides, both measured on the dev node** (T27):
+
+- The fields are locked unless CounterStrikeSharp's `FollowCS2ServerGuidelines` is off
+  (`Cannot set or get 'CCSPlayerController::m_iCompetitiveRanking'`). The image turns it
+  off; `docs/operations.md` carries the reason and the risk. Where it is on, the write is
+  refused, warned about once and drawn nowhere — never thrown, because a throw inside a
+  link command eats the answer the orchestrator is waiting for.
+- **A bot's number is the engine's, not ours.** A bot takes the rank *type* and keeps it,
+  and reads its ranking back as `0` however often it is written. So a bots run proves the
+  path — profile pushed, link crossed, controller written, read back — and proves nothing
+  about the cell a human sees; that half is a human with a client, and is written as
+  visual where it is claimed.
+
+Reading it back: `IGamePlayer.ScoreboardRating` is the engine's own value, not what was
+asked for, and `ezpug_status`'s `scoreboard:` line is that read. `ezpug_status` answers on
+the *server console*, not to whoever ran it, so on a node its RCON reply is empty and the
+report also goes into the plugin's console buffer — `GET /v1/fleet/servers/:id/console` is
+the door that hands it back from anywhere.
 
 ### `PushWidget` — a picture for one phone
 

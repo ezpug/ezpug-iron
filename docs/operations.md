@@ -187,6 +187,19 @@ both the boot log and `ezpug_status` say so. The boot log names the orchestrator
 never the token; `-usercon` gets a password that is minted per boot and not logged unless
 `EZPUG_IRON_CS2_RCON_PASSWORD` chose one.
 
+**`FollowCS2ServerGuidelines: false`.** CounterStrikeSharp ships a flag that refuses to
+read or write a handful of controller fields, `m_iCompetitiveRanking` and
+`m_iCompetitiveRankType` among them — the two EZ Rating is drawn with (decision 21). The
+image writes a `core.json` from the pinned release's own `core.example.json` with that one
+key flipped, so every other key stays whatever upstream ships and a rename upstream fails
+the build rather than passing quietly. **The risk is Valve's to take:** the guideline asks a
+server not to alter what a client shows about a player's *Valve* rank, and a server that
+flouts the guidelines can be refused a GSLT — which would cost the Dathost half of the fleet
+its public listing. What EZPug draws is its own number, on a private league's servers, on a
+scoreboard nobody mistakes for matchmaking, and nothing is ever written back to Steam.
+Turning the flag back on is one line here and costs only the rating: the plugin warns once
+and draws nothing (PRD-02 T27).
+
 **No GSLT.** A Steam Game Server Login Token is leased per running server and the pool
 exists for Dathost (T17); without one CS2 accepts LAN connections, which is all this box and
 a venue node ever need. Bots are allowed — `bot_quota` is a cfg and a request's cvar, not an

@@ -23,6 +23,8 @@ public sealed class FakePlayer : IGamePlayer
     public int Health { get; set; } = 100;
     public int Armor { get; set; }
     public float Speed { get; set; } = 1f;
+    /// <summary>What the scoreboard would show, as the world last set it.</summary>
+    public int? ScoreboardRating { get; set; }
     /// <summary>What <c>Give</c> handed this player, in order, until a <c>Strip</c>.</summary>
     public List<string> Items { get; } = [];
 }
@@ -138,6 +140,12 @@ public sealed class FakeGameWorld : IGameWorld
     {
         Fake(player).Speed = multiplier;
         Record(new WorldAction("speed", player.SteamId64, multiplier.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
+    public void SetScoreboardRating(IGamePlayer player, int? rating)
+    {
+        Fake(player).ScoreboardRating = rating;
+        Record(new WorldAction("rating", player.SteamId64, rating?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none"));
     }
 
     public void SetTeam(IGamePlayer player, PlayerTeam team)

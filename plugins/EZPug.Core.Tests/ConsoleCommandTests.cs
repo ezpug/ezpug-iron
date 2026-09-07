@@ -27,10 +27,14 @@ public class ConsoleCommandTests
         Assert.Contains("state: booting, map de_dust2, 0 player(s)", unlinked);
         Assert.Contains("match: none", unlinked);
         Assert.Contains("mode: none attached", unlinked);
+        Assert.Contains("scoreboard: no match", unlinked);
         Assert.Contains("plugins enabled: none", unlinked);
         Assert.Contains("plugins installed: EZPug.Core, MatchZy", unlinked);
 
-        link.Assign(GamemodeTestHost.AssignmentFor(Manifest("pug"), map: "de_mirage"));
+        link.Assign(GamemodeTestHost.AssignmentFor(
+            Manifest("pug"),
+            map: "de_mirage",
+            teamA: [GamemodeTestHost.Player(76561198279375306, "tk", rating: 1820)]));
         world.StartMap();
         world.Connect(76561198279375306, "tk", PlayerTeam.Terrorist);
         var linked = StatusReport.Render(new StatusReport.Input(
@@ -39,6 +43,9 @@ public class ConsoleCommandTests
         Assert.Contains("buffer: lastSeq 41, 2 unacked", linked);
         Assert.Contains("state: assigned, map de_mirage, 1 player(s)", linked);
         Assert.Contains("match: 6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b (pug, flow matchzy), map 1 round 0", linked);
+        // The one line an operator reads to know EZ Rating reached the scoreboard: read
+        // back off the players, not off what the assignment asked for (PRD-02 T27).
+        Assert.Contains("scoreboard: 1 rated: tk 1820", linked);
         Assert.Contains("plugins enabled: MatchZy", linked);
         Assert.DoesNotContain("never-here", linked);
         Assert.DoesNotContain("token", linked, StringComparison.OrdinalIgnoreCase);
@@ -54,7 +61,7 @@ public class ConsoleCommandTests
         Assert.Equal(SdkInfo.CounterStrikeSharpApiVersion, hello.Versions.CounterStrikeSharp);
         Assert.Equal(SdkInfo.Version, hello.Versions.Matchzy);
         Assert.Null(hello.Versions.Metamod);
-        Assert.Equal([GamemodeCapability.Positions, GamemodeCapability.Chat, GamemodeCapability.PlayerCommands, GamemodeCapability.Widget, GamemodeCapability.Backups], hello.Capabilities);
+        Assert.Equal([GamemodeCapability.Positions, GamemodeCapability.Chat, GamemodeCapability.PlayerCommands, GamemodeCapability.Widget, GamemodeCapability.Backups, GamemodeCapability.ScoreboardRating], hello.Capabilities);
         Assert.Equal(["EZPug.Core", "MatchZy", "RetakesPlugin"], hello.Plugins);
         Assert.Equal("EZPug · pug · Mirage", hello.Hostname);
         Assert.Equal("ezpug", HelloFactsBuilder.Build(image.Catalog(), " ").Hostname);

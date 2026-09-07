@@ -56,6 +56,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Localizer = new Localizer();
         Facts = new Facts(() => Match, () => Link.Source ?? new GameserverSource { Provider = "unknown", ServerId = "unknown" }, () => Assignment);
         Flow = new GenericFlow(world, this, _log);
+        Ratings = new RatingBoard(world, () => Localizer);
         link.Handler = this;
         world.MapStarted += OnMapStarted;
         world.PlayerConnected += OnPlayerConnected;
@@ -80,6 +81,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>The SDK's own flow emitter, speaking for a <c>plugin</c> or <c>none</c> flow (PRD-02 T22).</summary>
     public GenericFlow Flow { get; }
+
+    /// <summary>EZ Rating on the scoreboard and the line that greets a player with it, when the manifest asks for them (PRD-02 T27).</summary>
+    public RatingBoard Ratings { get; }
 
     public Assignment? Assignment { get; private set; }
     public CommandTable? Commands { get; private set; }
@@ -295,6 +299,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         _ready = false;
         _mapAskedAtMs = null;
         Flow.OnAssigned(assignment);
+        Ratings.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
         {
@@ -357,6 +362,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Commands = null;
             var released = reason;
             Flow.OnReleased();
+            Ratings.OnReleased();
             Assignment = null;
             Match.Clear();
             _mapReady = false;
@@ -377,6 +383,11 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     public void OnProfile(RosterEntry player)
     {
         Assignment?.Push(player);
+        if (ulong.TryParse(player.SteamId64, out var steamId64))
+        {
+            Ratings.OnProfile(steamId64);
+        }
+
         Active?.OnProfile(player);
     }
 
@@ -510,6 +521,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     private void Ready(string map)
     {
         _ready = true;
+        Ratings.DrawAll();
         Emit(Facts.ServerReady(map));
         Active?.OnStart();
     }
@@ -533,6 +545,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Emit(Facts.PlayerConnected(player));
         }
 
+        Ratings.OnPlayerConnected(player);
         Active?.OnPlayerJoined(player);
     }
 
@@ -548,6 +561,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Emit(Facts.PlayerDisconnected(player));
         }
 
+        Ratings.OnPlayerDisconnected(player);
         Active?.OnPlayerLeft(player);
         Commands?.Forget(player.SteamId64);
         foreach (var leave in _playerLeavers)
@@ -593,6 +607,10 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         // count, mp_restartgame resets it); a plain count when it does not (the harness).
         Match.RoundNumber = World.Rules is { } rules ? rules.RoundsPlayed + 1 : Match.RoundNumber + 1;
         Commands?.Reset(PlayerCommandChargePeriod.Round);
+        // The engine raises this after the round's spawns, so it is where the numbers go
+        // back on for everybody who just spawned, before anybody opens the scoreboard
+        // to look at them (T27).
+        Ratings.DrawAll();
         Flow.OnRoundStarted();
         Active?.OnRoundStart(Match.RoundNumber);
     }

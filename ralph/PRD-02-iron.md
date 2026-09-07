@@ -667,13 +667,20 @@ every offline proof here.
   widget's link is exercised against the fake; a real run on the dev node with bots and a
   phone, recorded, with the loop saying plainly which part was visual.
 
-- [ ] **T27: EZ Rating on the scoreboard, and the connect line.** From the assignment's
+- [x] **T27: EZ Rating on the scoreboard, and the connect line.** From the assignment's
   or `profile`'s rating: `CompetitiveRanking`/`CompetitiveRankType` set on connect and on
   profile push (the Premier-style number), refreshed after a `profile` command; a
   bilingual connect line (rating, rank name, streak if the profile carries it). No clan
   tag, no HUD card. Verified on the dev node by reading the scoreboard values back
   through the SDK's world, and visually once. References: decision 21,
   `CCSPlayerController.g.cs`.
+  > note: a roster entry carries no streak, so the connect line names the rating and the
+  > rank and nothing else; a streak is an additive field for T38a if the platform wants
+  > one. The write path is proven on the dev node (profile push → link → controller →
+  > read back through `ezpug_status`), and needed CounterStrikeSharp's
+  > `FollowCS2ServerGuidelines` off in the image. **The pixel is not proven**: the engine
+  > holds a *bot's* `m_iCompetitiveRanking` at 0 whatever is written to it, and this box
+  > has no CS2 client — see the note under T36.
 
 - [ ] **T28 (fable): Skins over the link — the WeaponPaints fork.** Vendor cs2-WeaponPaints
   at its pin as a fork under `plugins/vendor/WeaponPaints/` with `PATCHES.md`; replace the
@@ -761,6 +768,9 @@ every offline proof here.
   arrives at a webhook the CLI hosts for the run. Recorded as the `dathost-*` fixtures.
   The closing note carries the ledger line (cost), the account listing no tagged server
   afterwards, and the CLI transcript. The server is deleted in `finally` whatever happens.
+  > note (T27): while a human is connected to that server, open the scoreboard and look at
+  > the EZ Rating cell. It is the one thing T27 could not prove — a bot's ranking is held
+  > at 0 by the engine, so the dev node proved the write and not the number.
 
 - [ ] **T37: The LAN rehearsal.** `ezpug-node` on this box enrolled against the
   **production** orchestrator with the ghcr image; a `requirements.lan` request lands on

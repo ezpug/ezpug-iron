@@ -112,6 +112,12 @@ const BASE_URL = (
   'http://127.0.0.1:3430'
 ).replace(/\/+$/, '')
 const GAMEMODE = flags.get('gamemode') ?? 'pug'
+/**
+ * The first synthetic SteamID64 a bot is known by — `EZPug.Sdk`'s `BotIdentity`,
+ * the one rule the plugin, the harness and the sim all follow. A BigInt because
+ * 17 digits do not survive a double.
+ */
+const BOT_STEAM_ID_BASE = 90000000000000000n
 const MAP = flags.get('map') ?? 'de_dust2'
 const ROUNDS = Number(flags.get('rounds') ?? 4)
 /**
@@ -607,6 +613,9 @@ async function run() {
   const manifest = catalog.gamemodes.find(mode => mode.id === GAMEMODE)
   if (!manifest) die(`the orchestrator serves no gamemode "${GAMEMODE}"`)
   const FLOW = manifest.flow
+  // EZ Rating is drawn only where the manifest asks for it, and a bots run can
+  // only push a profile into a roster that is open (T27, the step in the loop).
+  const RATED = manifest.capabilities.scoreboardRating && manifest.slots.openJoin
   say(`gamemode ${GAMEMODE} v${manifest.version}: flow ${FLOW}, records ${manifest.records}`)
 
   // 4. The request. Bots, four rounds, no overtime, nobody rostered — MatchZy
@@ -730,8 +739,43 @@ async function run() {
       type: 'rcon',
       command,
     })
+  /**
+   * The `scoreboard:` line of `ezpug_status` — EZ Rating read back off the
+   * controllers rather than off what was asked for (PRD-02 T27).
+   *
+   * Two doors, in this order and for a reason. RCON *runs* the command: a node
+   * opens a Source RCON socket on the game port, which is the only way to make
+   * the plugin print anything on demand. RCON does not *read* it: a
+   * `SERVER_ONLY` CounterStrikeSharp command answers on the server console, so
+   * the RCON reply is empty (measured here). The report also goes into the
+   * plugin's console buffer, and `GET /v1/fleet/servers/:id/console` is what
+   * hands that back. Null rather than a failure at every step — this is a check
+   * on the way past, never a reason to lose a match.
+   */
+  const readScoreboard = async id => {
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      if (!row) return null
+      await api('POST', `/v1/fleet/servers/${row.id}/rcon`, { command: 'ezpug_status' })
+      await wall.sleep(1_000)
+      const tail = await api('GET', `/v1/fleet/servers/${row.id}/console`)
+      return (
+        tail.lines
+          .map(entry => entry.line.trim())
+          .filter(line => line.includes('scoreboard:'))
+          .at(-1) ?? null
+      )
+    } catch (error) {
+      return `unreadable: ${error.message}`
+    }
+  }
   let emptied = false
   let filled = false
+  let polls = 0
+  let rated = false
+  let ratedAt = 0
+  let scoreboard = null
   let warmupEnded = false
   let started = false
   let liveAt = 0
@@ -762,6 +806,45 @@ async function run() {
       continue
     }
     if (now.state !== 'ready' && now.state !== 'live') continue
+
+    // **EZ Rating on the scoreboard** (PRD-02 T27), on real hardware, without a
+    // human: a bot has no Steam account but it does have a SteamID64 the whole
+    // tree agrees on (`BotIdentity`, slot + 90000000000000000), so the platform
+    // can push a `profile` for one exactly as it would for a person who joined
+    // open. Only for a gamemode whose manifest asks for the number *and* opens
+    // its roster — anywhere else the push is refused, correctly, and there is
+    // nothing to see. One poll's grace first, so the bots the loader asked for
+    // are standing when the profiles land.
+    if (RATED && !rated && polls++ > 0) {
+      rated = true
+      ratedAt = polls
+      for (let slot = 0; slot < Math.max(BOTS, 2); slot++) {
+        await api('POST', `/v1/matches/${matchId}/commands`, {
+          correlationId: `${RUN_ID}-profile-${slot}`,
+          type: 'profile',
+          player: {
+            steamId64: String(BOT_STEAM_ID_BASE + BigInt(slot)),
+            name: `EZ Bot ${slot}`,
+            locale: slot % 2 === 0 ? 'de' : 'en',
+            rating: 1000 + slot * 111,
+            rankName: 'Iron',
+          },
+        })
+      }
+      say(`pushed ${Math.max(BOTS, 2)} bot profiles`)
+      continue
+    }
+
+    // …and read the numbers back a few polls later, off the controllers rather
+    // than off what was asked for. Later on purpose: a bot's competitive fields
+    // are reset by the engine at every spawn, so the only honest moment to look
+    // is once the match is standing and everybody has spawned at least once
+    // (measured — read at `ready`, only the players who had already spawned
+    // showed a number).
+    if (rated && scoreboard === null && polls++ > ratedAt + 3) {
+      scoreboard = await readScoreboard(matchId)
+      say(`scoreboard: ${scoreboard ?? 'not readable'}`)
+    }
 
     // **The bots arrive after the match goes live, not before it** — and that
     // order is the whole reason this box records a demo at all (PRD-02 T21a).
@@ -865,6 +948,7 @@ async function run() {
     trace: readTrace(traceFrom),
     startedAt,
     demoTarget: s3 ? `${s3.endpoint}/${s3.bucket}/iron-match/${RUN_ID}.dem` : null,
+    scoreboard,
   }
 }
 
@@ -951,6 +1035,8 @@ function write(result) {
     demoTarget: result.demoTarget,
     /** What `match.ended` said became of the demos (T21). */
     demo: result.match.endedReason ? (demoOutcome(result.envelopes) ?? null) : null,
+    /** `ezpug_status`'s `scoreboard:` line while the match was up, or null when this gamemode does not show a rating (T27). */
+    scoreboard: result.scoreboard ?? null,
     ledger: {
       rows: rows.length,
       open: rows.filter(row => row.releasedAt === null).length,

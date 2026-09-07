@@ -16,7 +16,8 @@ public static class HelloFactsBuilder
     /// <summary>
     /// The capabilities this build of the plugin can honour. <c>backups</c> since PRD-02 T9
     /// (MatchZy's round backups cross the link; the restore is T14); <c>scoreboardRating</c>
-    /// arrives with T27 — claiming it before it exists would be a lie the fleet console repeats.
+    /// since T27, where the SDK's <see cref="RatingBoard"/> made it true — claiming one
+    /// before it exists would be a lie the fleet console repeats.
     /// </summary>
     public static readonly IReadOnlyList<GamemodeCapability> Capabilities =
     [
@@ -25,6 +26,7 @@ public static class HelloFactsBuilder
         GamemodeCapability.PlayerCommands,
         GamemodeCapability.Widget,
         GamemodeCapability.Backups,
+        GamemodeCapability.ScoreboardRating,
     ];
 
     public const string MatchZyPlugin = "MatchZy";

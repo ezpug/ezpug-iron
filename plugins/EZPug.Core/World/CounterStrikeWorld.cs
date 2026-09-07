@@ -73,6 +73,41 @@ public sealed class CounterStrikePlayer : IGamePlayer
 
     public int Armor => Valid ? _controller.PawnArmor : 0;
 
+    /// <summary>
+    /// <c>m_iCompetitiveRanking</c>, but only while <c>m_iCompetitiveRankType</c> says the
+    /// scoreboard is drawing it Premier-style — the engine leaves the number behind when
+    /// the type is cleared, so the type is what "something is shown" means here.
+    /// <c>null</c> when the fields cannot be read at all: CounterStrikeSharp refuses both
+    /// while <c>FollowCS2ServerGuidelines</c> is on (the image turns it off, PRD-02 T27),
+    /// and a status line an operator asks for may not take the console down over it.
+    /// </summary>
+    public int? ScoreboardRating
+    {
+        get
+        {
+            if (!Valid)
+            {
+                return null;
+            }
+
+            try
+            {
+                return _controller.CompetitiveRankType == PremierRankType ? _controller.CompetitiveRanking : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// <c>m_iCompetitiveRankType</c> for Premier: the one rank type whose scoreboard cell
+    /// is a plain number, which is why EZ Rating borrows it (decision 21). Every other
+    /// type draws a CS:GO skill-group icon instead.
+    /// </summary>
+    public const sbyte PremierRankType = 11;
+
     internal CCSPlayerPawn? Pawn => Valid ? _controller.PlayerPawn.Value : null;
 
     public static PlayerTeam TeamOf(CsTeam team) =>
@@ -119,6 +154,8 @@ public sealed class CounterStrikeWorld : IGameWorld
     private readonly Dictionary<int, CounterStrikePlayer> _bySlot = new();
     private IReadOnlyList<IGamePlayer> _players = [];
     private string _map;
+    /// <summary>One warning is enough: a refused rating is refused for every player, every round.</summary>
+    private bool _ratingRefused;
 
     public CounterStrikeWorld(BasePlugin plugin, GameThreadClock clock, ILinkLog log, string initialMap)
     {
@@ -442,6 +479,39 @@ public sealed class CounterStrikeWorld : IGameWorld
         {
             pawn.VelocityModifier = multiplier;
             Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flVelocityModifier");
+        });
+
+    /// <summary>
+    /// The scoreboard's Premier cell (decision 21). Both fields are networked, so both
+    /// are marked changed; clearing the type is what hides the number, and the number
+    /// goes to zero with it so a stale rating cannot resurface.
+    ///
+    /// A refusal is caught and warned about once per boot rather than thrown: these two
+    /// fields are the only ones in the seam an *option* can lock — CounterStrikeSharp
+    /// says "Cannot set or get ... with FollowCS2ServerGuidelines option enabled" and the
+    /// image turns that off (PRD-02 T27, `docker/cs2/Dockerfile`) — and a server whose
+    /// config somebody changed should draw no rating, not drop a `release` on the floor
+    /// (measured on the dev node: the throw ate the command's answer and the orchestrator
+    /// called it `provider_unavailable`).
+    /// </summary>
+    public void SetScoreboardRating(IGamePlayer player, int? rating) =>
+        WithController(player, controller =>
+        {
+            try
+            {
+                controller.CompetitiveRanking = rating ?? 0;
+                controller.CompetitiveRankType = rating is null ? (sbyte)0 : CounterStrikePlayer.PremierRankType;
+                Utilities.SetStateChanged(controller, "CCSPlayerController", "m_iCompetitiveRanking");
+                Utilities.SetStateChanged(controller, "CCSPlayerController", "m_iCompetitiveRankType");
+            }
+            catch (Exception error)
+            {
+                if (!_ratingRefused)
+                {
+                    _ratingRefused = true;
+                    _log.Warn($"the scoreboard rating was refused by the engine and will not be drawn: {error.Message}");
+                }
+            }
         });
 
     public void SetTeam(IGamePlayer player, PlayerTeam team) => WithController(player, controller => controller.ChangeTeam(CounterStrikePlayer.CsTeamOf(team)));

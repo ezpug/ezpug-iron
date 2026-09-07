@@ -175,7 +175,17 @@ public sealed class CorePlugin : BasePlugin
             return;
         }
 
-        info.ReplyToCommand(StatusReport.Render(new StatusReport.Input(_runtime, _link, _linkUrl, _client?.BufferState, _catalog, _loader)));
+        var report = StatusReport.Render(new StatusReport.Input(_runtime, _link, _linkUrl, _client?.BufferState, _catalog, _loader));
+        info.ReplyToCommand(report);
+        // …and into the buffer the fleet's console route reads. A reply is only a reply
+        // to whoever asked, and RCON is not one of them: CounterStrikeSharp answers a
+        // `SERVER_ONLY` command on the server console, so `ezpug_status` down a node's
+        // RCON socket comes back empty (measured on the dev node, PRD-02 T27). The
+        // console tail is the door that works from anywhere.
+        foreach (var line in report.Split('\n'))
+        {
+            _runtime?.Console($"[status] {line}");
+        }
     }
 
     [ConsoleCommand("ezpug_announce", "Say a line to everybody on the server, as the announce command over the link would.")]

@@ -31,6 +31,15 @@ public interface IGamePlayer
     Vector3? Position { get; }
     int Health { get; }
     int Armor { get; }
+
+    /// <summary>
+    /// The number the scoreboard shows where Premier shows its own (decision 21), read
+    /// back from the engine, or <c>null</c> when nothing is shown. Written through
+    /// <see cref="IGameWorld.SetScoreboardRating"/> — reading it here is how a test, and
+    /// an operator's <c>ezpug_status</c>, sees what actually landed rather than what was
+    /// asked for.
+    /// </summary>
+    int? ScoreboardRating { get; }
 }
 
 /// <summary>What the engine said when somebody died.</summary>
@@ -146,6 +155,13 @@ public interface IGameWorld
     void SetArmor(IGamePlayer player, int armor);
     /// <summary>The entity minimum a power-up needs: movement speed as a multiplier of normal.</summary>
     void SetSpeed(IGamePlayer player, float multiplier);
+    /// <summary>
+    /// Show <paramref name="rating"/> on the scoreboard where Premier shows its number,
+    /// or hide it with <c>null</c> (decision 21). The engine keeps one such number per
+    /// player and it is the only place a rating is drawn: no clan tag, no HUD card.
+    /// Read back through <see cref="IGamePlayer.ScoreboardRating"/>.
+    /// </summary>
+    void SetScoreboardRating(IGamePlayer player, int? rating);
     void SetTeam(IGamePlayer player, PlayerTeam team);
     void Kick(IGamePlayer player, string reason);
 

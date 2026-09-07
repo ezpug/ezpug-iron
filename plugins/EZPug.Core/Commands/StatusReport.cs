@@ -38,8 +38,26 @@ public static class StatusReport
             ? $"match: {assignment.MatchId} ({assignment.Gamemode.Id}, flow {assignment.Gamemode.Flow.ToString().ToLowerInvariant()}), map {runtime.Match.MapNumber} round {runtime.Match.RoundNumber}{(runtime.Match.Live ? ", live" : "")}"
             : "match: none");
         lines.AppendLine($"mode: {runtime.Mode?.Id ?? "none attached"}");
+        // Read back off the controllers, not off what was asked for: this line is how a
+        // real server proves EZ Rating reached the scoreboard (PRD-02 T27).
+        lines.AppendLine($"scoreboard: {Ratings(runtime)}");
         lines.AppendLine($"plugins enabled: {(input.Loader.Enabled.Count == 0 ? "none" : string.Join(", ", input.Loader.Enabled))}");
         lines.Append($"plugins installed: {string.Join(", ", input.Catalog.Installed)}");
         return lines.ToString();
+    }
+
+    /// <summary>EZ Rating as the engine holds it right now, per player, or why nothing is drawn.</summary>
+    private static string Ratings(GamemodeRuntime runtime)
+    {
+        if (!runtime.Ratings.Active)
+        {
+            return runtime.Assignment is null ? "no match" : "not asked for by this gamemode";
+        }
+
+        var shown = runtime.World.Players
+            .Where(player => player.ScoreboardRating is not null)
+            .Select(player => $"{player.Name} {player.ScoreboardRating}")
+            .ToList();
+        return shown.Count == 0 ? "nobody rated yet" : $"{shown.Count} rated: {string.Join(", ", shown)}";
     }
 }

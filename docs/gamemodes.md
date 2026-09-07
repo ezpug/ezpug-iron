@@ -81,7 +81,7 @@ same data.
 | `playerCommands` | the verbs in `commands` are accepted from a widget or as `!verb` in chat. True exactly when `commands` is non-empty |
 | `widget` | a phone widget exists. True exactly when the `widget` block does; implies `playerCommands` |
 | `backups` | round backups cross the link as they are written (`backup_written`), so a crashed server can be recovered mid-match (PRD-02 T14). Needs a flow owner (`flow` is not `none`); the core plugin honours it for `matchzy` |
-| `scoreboardRating` | EZ Rating shows on the scoreboard Premier-style from the roster's `rating` (decision 21) |
+| `scoreboardRating` | EZ Rating shows on the scoreboard Premier-style from the roster's `rating`, and an arriving player gets one bilingual connect line naming it (decision 21, `docs/sdk.md`). A player with no profile is left alone; nothing else in-game says a rating |
 
 ### Player commands
 
