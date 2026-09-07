@@ -127,6 +127,28 @@ endpoint of its own and on the match's stream, forces the start (a bot never typ
 one CS2 container; `docs/operations.md`, "One real match, recorded", is the long version,
 and `EZPUG_CS2_TESTS=required` turns it into a test.
 
+## `ezpug-iron`, the command
+
+`pnpm iron` is the operator's terminal over the same Match API the platform speaks — every
+verb one call on the typed client, `--json` on every one of them:
+
+```sh
+export EZPUG_IRON_API_KEY=$(pnpm --filter @ezpug/orchestrator keys:mint -- \
+  --name me --scopes admin | tail -1)     # the first key of a fresh database
+
+pnpm iron --help                          # the map
+pnpm iron gamemodes list                  # what this orchestrator will play
+pnpm iron matches create --file req.json  # a Match API request document
+pnpm iron matches watch <matchId>         # the live stream until it closes
+pnpm iron servers list                    # the ledger: what is running, what it cost
+pnpm iron budget                          # this key's ceilings and this month
+```
+
+The key is read from the environment and never from a flag (a flag lands in the shell's
+history and in `/proc`); `EZPUG_IRON_CLI_URL` or `--url` points it somewhere other than
+this box. `pnpm --silent iron … --json | jq` when you mean to pipe it. The long version,
+including the exit codes a script branches on, is `docs/operations.md`.
+
 ## Releasing `@ezpug/match-api`
 
 The package is the contract, so a schema change is a release with a changelog line, never

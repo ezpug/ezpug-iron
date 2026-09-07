@@ -90,6 +90,49 @@ importers:
         specifier: ^2.10.11
         version: 2.10.12
 
+  apps/cli:
+    dependencies:
+      '@ezpug/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@ezpug/match-api':
+        specifier: workspace:*
+        version: link:../../packages/match-api
+      ws:
+        specifier: 'catalog:'
+        version: 8.21.3
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@ezpug/gamemodes':
+        specifier: workspace:*
+        version: link:../../gamemodes
+      '@ezpug/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
+      '@hono/node-server':
+        specifier: 'catalog:'
+        version: 2.1.1(hono@4.13.7)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.14(@arethetypeswrong/core@0.18.5)(@volar/typescript@2.4.28)(publint@0.3.24)(tsx@4.23.13)(typescript@5.9.3)(vue-tsc@3.3.11(typescript@5.9.3))
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.13
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@22.20.1)(happy-dom@20.14.0)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(tsx@4.23.13))
+
   apps/node:
     dependencies:
       '@ezpug/core':

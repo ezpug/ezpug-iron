@@ -19,7 +19,9 @@ with its provisioning walk and deadlines, the **reaper**, the **webhook worker**
 **stream hub** — "The match machine" below. Beside it, `apps/node` is **`ezpug-node`**, the
 agent a venue box runs to become capacity: it enrols once, dials the orchestrator on the
 node link and starts server containers from the CS2 image on request — `docs/nodes.md` is
-its runbook, and the orchestrator's `nodes` provider that drives it is T12's.
+its runbook, and the orchestrator's `nodes` provider that drives it is T12's. And
+`apps/cli` is **`ezpug-iron`** (`pnpm iron`), the operator's terminal over the same Match
+API the platform speaks — the section "`ezpug-iron`, the command" below.
 
 Ports and every setting are decided in `.env.example` and nowhere else. Every name is
 `EZPUG_IRON_*`, because the platform runs on the same box with `EZPUG_*` names of its own:
@@ -38,6 +40,8 @@ Ports and every setting are decided in `.env.example` and nowhere else. Every na
 | `EZPUG_IRON_MIGRATE_ON_BOOT` | `false` | apply pending migrations before the port opens; the image sets it |
 | `EZPUG_IRON_MIGRATIONS_DIR` | beside the code | where the migration SQL is, when it is not (`/app/drizzle` in the image) |
 | `EZPUG_IRON_BOOTSTRAP_API_KEY` | — | **dev only**: adopt an API key with this exact secret at boot (below); refused under `NODE_ENV=production` |
+| `EZPUG_IRON_API_KEY` | — | read by the **CLI**, not by the orchestrator: the key `ezpug-iron` authenticates with, environment only (below) |
+| `EZPUG_IRON_CLI_URL` | `EZPUG_IRON_BASE_URL` | read by the **CLI**: which orchestrator to talk to; `--url` beats it |
 | `NODE_ENV` | — | `production` refuses every dev-only door; **the image sets it**, so a dev world that pulls the image overrides it with `NODE_ENV=development` |
 
 A missing or malformed variable fails the boot with its name in the message; the process
@@ -1112,6 +1116,69 @@ the match reached `ended`, MatchZy went live, rounds were played, `series_end` a
 ledger row is closed with no server left running**. It is opt-in twice over — nothing
 happens unless `EZPUG_CS2_TESTS` is set, and `EZPUG_CS2_TESTS=required` turns "there is no
 dev node" from a printed skip into a failure. It is never part of `pnpm verify`.
+
+## `ezpug-iron`, the command (`pnpm iron`)
+
+Every lever the orchestrator has, from a terminal (PRD-02 T33). `apps/cli` is one call on
+the typed client generated from `@ezpug/match-api`'s route table per verb — so a lever
+here is a route the platform can also pull, and a capability that is not a route does not
+exist here either. There is no admin surface that skips the API.
+
+```sh
+pnpm iron --help                       # the map
+pnpm iron keys create --name platform --scopes matches,fleet
+pnpm iron gamemodes list               # what this orchestrator will play
+pnpm iron matches create --file req.json
+pnpm iron matches watch <matchId>      # the live stream until it closes
+pnpm iron servers list --all --since 2026-09-07T18:00:00Z   # what tonight cost
+pnpm iron nodes enrol-token --id saarlan-1 --region eu-central
+pnpm iron budget
+pnpm iron dathost image --check
+```
+
+| Group | Verbs |
+| ----- | ----- |
+| `keys` | `create`, `list`, `revoke` — the `admin` scope's own. The mint's flags and defaults are `keys:mint`'s, so the two doors agree. |
+| `gamemodes` | `list` — the catalog, titles in DE and EN (`--locale` narrows to one). |
+| `matches` | `create`, `list`, `get`, `watch`, `cancel`, `command` |
+| `servers` | `list` (`--all` reads the ledger, closed rows included), `kill`, `console` |
+| `nodes` | `enrol-token`, `list`, `drain` (`--undrain`) |
+| `budget` | the calling key's three ceilings and this month against them |
+| `dathost` | `image --check` and `image --build` — a thin wrapper over `scripts/dathost-image.mjs` |
+
+**Configuration is two variables**, both in `.env.example`. `EZPUG_IRON_API_KEY` is the
+key, read from the environment and **never** from a flag: a flag lands in the shell's
+history file and in `/proc/<pid>/cmdline` while the command runs.
+`EZPUG_IRON_CLI_URL` points it at an orchestrator (falling back to `EZPUG_IRON_BASE_URL`,
+then to `http://127.0.0.1:3430`); `--url` beats both, which is how one terminal talks to
+the dev world and to `gs.ezpug.com` in the same minute.
+
+**`--json` on everything.** The human channel is a table or a paragraph; the machine
+channel is one JSON document — one per *line* for `matches watch`, which is a stream, and
+under `--json` that pipe carries stream frames and nothing else, so `| jq` never meets a
+line that is not a frame. Note `pnpm --silent iron … --json` when piping: without
+`--silent`, pnpm's own banner is on stdout too.
+
+```sh
+pnpm --silent iron servers list --json | jq '.servers[] | .provider'
+pnpm --silent iron matches watch <id> --json | jq -c 'select(.type == "event") | .envelope.payload.type'
+```
+
+**Secrets leave by one door, once.** `keys create` and `nodes enrol-token` mint; both
+print the secret at the mint and nowhere else, and every other line the command writes is
+run through a redactor first, so an `ezi*_` token that reaches a line by accident comes
+out as its prefix and an ellipsis. No route serves a secret again — lose one and rotate.
+
+**Exit codes** an operator can branch on: `0` it worked, `1` the orchestrator said no (an
+error code from the Match API's closed set, or a command the server *rejected* — the call
+was a 200 and the command still did not happen), `64` the line was wrong, `69` nothing
+answered. A refusal is never a `69`: "budget exceeded" is an answer, and a script that
+retried it would only waste the ceiling that just refused it.
+
+`dathost image` is the one verb that is not an HTTP call: it wraps the T18 script, which
+reads `docker/cs2/Dockerfile` for its pins and extracts artifacts out of the CS2 image, so
+it only means anything inside a checkout. Run from anywhere else it says so and exits
+`69`; every other verb works from anywhere.
 
 ## Keys, scopes, rate limits, logs
 

@@ -1,0 +1,36 @@
+{
+  "name": "@ezpug/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ezpug-iron, the operator's command line over the Match API (PRD-02 T33): keys, gamemodes, matches, the fleet's servers and nodes, the budget and the Dathost template — every lever an orchestrator has, typed from `@ezpug/match-api/client` and `--json` on every one of them.",
+  "type": "module",
+  "bin": {
+    "ezpug-iron": "./bin/ezpug-iron.mjs"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ezpug/core": "workspace:*",
+    "@ezpug/match-api": "workspace:*",
+    "ws": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@ezpug/gamemodes": "workspace:*",
+    "@ezpug/sim": "workspace:*",
+    "@hono/node-server": "catalog:",
+    "@types/node": "catalog:",
+    "@types/ws": "catalog:",
+    "tsdown": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

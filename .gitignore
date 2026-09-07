@@ -6,6 +6,10 @@ dist/
 test-results/
 bin/
 obj/
+# `bin/` above is .NET's build output. An app's one-line `bin/` wrapper is
+# source — the name its package.json's `bin` field points at — and a clone
+# without it is a clone whose manifest names a file that is not there.
+!apps/*/bin/
 # The vendored community plugins build where their own csproj says
 plugins/vendor/cs2-retakes/build-output/
 TestResults/

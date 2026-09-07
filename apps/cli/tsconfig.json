@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // A command-line program: it reads argv and the environment, writes two
+    // streams, opens HTTP and one WebSocket. Node types and nothing else.
+    "types": ["node"]
+  },
+  "include": ["src", "tsdown.config.ts", "vitest.config.ts"]
+}

@@ -772,7 +772,7 @@ every offline proof here.
   > that had nowhere to go is still owed. `rig.node.instances()` is now asserted empty at
   > the end of T32's night — three containers before the fix, none after.
 
-- [ ] **T33: `ezpug-iron`, the CLI.** `apps/cli` (published later as a bin in the
+- [x] **T33: `ezpug-iron`, the CLI.** `apps/cli` (published later as a bin in the
   orchestrator image and runnable with `pnpm iron`): `keys create|list|revoke`,
   `gamemodes list`, `matches create|get|watch|cancel|command`, `servers list|kill|console
   <id>`, `nodes enrol-token|list|drain`, `budget`, `dathost image --check|--build`
