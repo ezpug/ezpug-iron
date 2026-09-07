@@ -779,12 +779,24 @@ every offline proof here.
   (wrapping T18). Typed from `@ezpug/match-api/client`; `--json` on everything; secrets
   shown once and never echoed back.
 
-- [ ] **T34: CI and the release pipeline.** GitHub Actions: `verify` on every push and PR
+- [x] **T34: CI and the release pipeline.** GitHub Actions: `verify` on every push and PR
   (TS + C#, no CS2, no Dathost); on a tag `orchestrator@x.y.z` / `node@x.y.z` /
   `cs2@x.y.z` build and push `ghcr.io/ezpug/ezpug-iron/{orchestrator,node,cs2}` (multi-arch
   where cheap, the cs2 image linux/amd64 only), on `plugins@x.y.z` attach the plugin zip;
   `match-api@x.y.z` publishes to npm with provenance. Image tags recorded in
   `docs/pins.md`; the platform's compose pins one.
+  > note: **the tag is the version, and `verify.yml` is what every tag runs first.** An
+  > image has no manifest in the tree carrying a number, so nothing was invented to
+  > disagree with it: `scripts/release-image.mjs` is the table a tag is read against
+  > (Dockerfile, platforms, registry tags), the commit rides as
+  > `org.opencontainers.image.revision`, and the workflow attests build provenance against
+  > the manifest list. `verify.yml` grew a `workflow_call` trigger so `images.yml` and
+  > `plugins.yml` gate on the *same* green a pull request gets. Multi-arch is two **native**
+  > runners (`ubuntu-24.04-arm`, free on a public repo) pushed by digest and stitched into
+  > one manifest list, so a half-published tag cannot exist; cs2 is amd64 alone because
+  > Valve ships no other. A version already in the registry is refused rather than
+  > overwritten, and `plugins@x.y.z` is held against `EZPug.Core`'s `<Version>` read out of
+  > the `build.json` in the tree that was just built.
 
 - [ ] **T35: Deploy.** `compose.prod.yaml` (orchestrator published on `172.17.0.1:3431`
   only, its own Postgres and Redis on named volumes, no CS2 on this box in production —

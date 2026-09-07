@@ -2,12 +2,17 @@
 # the lint guards, Vitest, `turbo boundaries`, and `dotnet build -warnaserror`
 # plus `dotnet test` over plugins/EZPug.sln. No CS2, no Dathost, no database —
 # those lanes are opt-in and local (CLAUDE.md "Verify").
+#
+# It is also the gate every release workflow calls before it publishes
+# anything: `images.yml` and `plugins.yml` name it with `uses:`, so there is one
+# definition of green and a tag runs exactly what a pull request ran.
 name: verify
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 concurrency:
   group: verify-${{ github.ref }}

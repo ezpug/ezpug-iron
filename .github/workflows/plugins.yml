@@ -1,0 +1,120 @@
+# **The plugin zip** (PRD-02 T34) — what a server that is not ours installs by
+# hand. One trigger:
+#
+#   git tag plugins@0.1.0 && git push origin plugins@0.1.0
+#
+# `plugins/publish.sh` is the build (the same one the CS2 image and the Dathost
+# template script run, decision 16: one build, three destinations); this file
+# zips its tree and attaches it to the GitHub release for the tag. The zip
+# unpacks into a server's `game/csgo/`, because that is where `addons/` belongs.
+#
+# The tag has to name the version `EZPug.Core`'s csproj carries — that number is
+# the home, the tag is the copy, and `build.json` inside the freshly built tree
+# is what the check reads, so the artifact itself is the witness.
+name: plugins
+
+on:
+  push:
+    tags: ['plugins@*']
+  # A dry run against any ref: build, zip, check, attach nothing.
+  workflow_dispatch:
+
+concurrency:
+  group: plugins-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+
+jobs:
+  # Nothing is released that has not passed `pnpm verify` — for this artifact
+  # that is `dotnet build -warnaserror` and `dotnet test` over EZPug.sln.
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # `gh release` writes the release and uploads the asset.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: plugins/global.json
+
+      # `.git` is in the context here (unlike the image builds), but the sha is
+      # passed anyway so `build.json` records the same short form everywhere.
+      - name: build the plugin tree
+        run: EZPUG_GIT_SHA="$(git rev-parse --short HEAD)" ./plugins/publish.sh dist
+
+      - id: zip
+        name: zip it, and hold the tag against the version it carries
+        run: |
+          build="plugins/dist/addons/counterstrikesharp/plugins/EZPug.Core/build.json"
+          core="$(node -p "require('./$build').core")"
+          css="$(node -p "require('./$build').counterStrikeSharp")"
+          if [ "$GITHUB_EVENT_NAME" = 'push' ]; then
+            version="${GITHUB_REF_NAME#plugins@}"
+            if [ "$version" != "$core" ]; then
+              echo "::error::the tag is plugins@$version but EZPug.Core is $core" \
+                   "— bump <Version> in plugins/EZPug.Core/EZPug.Core.csproj first"
+              exit 1
+            fi
+          else
+            version="$core"
+          fi
+          zip="ezpug-plugins-$version.zip"
+          (cd plugins/dist && zip -qr "../../$zip" addons)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$zip" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "counterStrikeSharp=$css" >> "$GITHUB_OUTPUT"
+          unzip -l "$zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.zip.outputs.zip }}
+          path: ${{ steps.zip.outputs.zip }}
+          if-no-files-found: error
+
+      # The release is created if the tag has none yet, and the asset replaces
+      # itself on a re-run — the zip is reproducible from the same commit, so a
+      # second upload is a repair, never a different artifact under an old name.
+      - name: attach it to the release
+        if: github.event_name == 'push'
+        run: |
+          notes="$(printf '%s\n' \
+            "The EZPug plugins for a CounterStrikeSharp server: \`EZPug.Core\`, one copy of" \
+            "\`EZPug.Sdk\` in \`shared/\`, and the SDK gamemodes under \`plugins/disabled/\`." \
+            "" \
+            "Unzip into the server's \`game/csgo/\`; it is already an \`addons/\` tree." \
+            "Built against CounterStrikeSharp \`$CSS\` (docs/pins.md)." \
+            "" \
+            "\`\`\`" \
+            "sha256  $SHA256  $ZIP" \
+            "\`\`\`")"
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --title "EZPug plugins $VERSION" --notes "$notes"
+          gh release upload "$GITHUB_REF_NAME" "$ZIP" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.zip.outputs.version }}
+          ZIP: ${{ steps.zip.outputs.zip }}
+          SHA256: ${{ steps.zip.outputs.sha256 }}
+          CSS: ${{ steps.zip.outputs.counterStrikeSharp }}
+
+      - name: summary
+        run: |
+          {
+            echo "### \`$ZIP\`"
+            echo
+            echo "\`sha256  $SHA256\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          ZIP: ${{ steps.zip.outputs.zip }}
+          SHA256: ${{ steps.zip.outputs.sha256 }}

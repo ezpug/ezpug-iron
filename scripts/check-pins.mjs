@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { IMAGES, REGISTRY } from './release-image.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = name => readFileSync(join(repo, name), 'utf8')
@@ -128,6 +129,22 @@ if (compiledAgainst !== shippedInTheImage)
       `(plugins/Directory.Build.props) but the server image ships ${shippedInTheImage} ` +
       '(docker/cs2/Dockerfile COUNTER_STRIKE_SHARP_VERSION)',
   )
+
+// The images a release tag publishes (PRD-02 T34): the table a release reads is
+// `scripts/release-image.mjs`, and the section in the doc is the copy for
+// people — a fourth image, or a renamed one, has to appear in both.
+for (const [name, image] of Object.entries(IMAGES)) {
+  const repository = `${REGISTRY}/${name}`
+  if (!pins.includes(`\`${repository}\``))
+    problems.push(`docs/pins.md does not carry the image ${repository} (scripts/release-image.mjs)`)
+  for (const platform of image.platforms) {
+    if (!pins.includes(`\`${platform}\``))
+      problems.push(
+        `docs/pins.md does not carry the platform \`${platform}\` ${repository} is built for ` +
+          '(scripts/release-image.mjs)',
+      )
+  }
+}
 
 // A vendored tree's commit is not in its own source, so the table is the only
 // place it is written down twice — here and in `vendored.json`.

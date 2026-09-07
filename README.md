@@ -149,7 +149,9 @@ history and in `/proc`); `EZPUG_IRON_CLI_URL` or `--url` points it somewhere oth
 this box. `pnpm --silent iron … --json | jq` when you mean to pipe it. The long version,
 including the exit codes a script branches on, is `docs/operations.md`.
 
-## Releasing `@ezpug/match-api`
+## Releasing
+
+### `@ezpug/match-api`
 
 The package is the contract, so a schema change is a release with a changelog line, never
 a silent edit (`docs/decisions.md` 24). `scripts/release.mjs` is the whole path:
@@ -169,3 +171,22 @@ who is `npm login`ed, and `pnpm release check` is the audit alone — it also ru
 release. Packing goes through pnpm on purpose: `npm pack` resolves neither the workspace's
 `catalog:` versions nor `publishConfig.exports`. The reference for what is in the package is
 `docs/match-api.md`.
+
+### The images, and the plugin zip
+
+The other artifacts are tags too, and each one runs `pnpm verify` on the tagged commit
+before it publishes anything:
+
+```sh
+git tag orchestrator@0.1.0 && git push origin orchestrator@0.1.0  # ghcr.io/ezpug/ezpug-iron/…
+git tag node@0.1.0         && git push origin node@0.1.0
+git tag cs2@0.1.0          && git push origin cs2@0.1.0
+git tag plugins@0.1.0      && git push origin plugins@0.1.0       # the zip on the release
+```
+
+`pnpm release:image plan <tag>` prints what a tag would publish — the Dockerfile, the
+platforms (amd64 and arm64 for the two JavaScript images, amd64 only for the CS2 one), the
+registry tags — and `.github/workflows/images.yml` publishes nothing the script did not
+say. The plugin zip is `plugins/publish.sh`'s tree, for a server whose image this repo
+does not build; the version in the tag has to be the one `plugins/EZPug.Core` carries. `docs/pins.md` records which image tags exist and who pins
+them, and `docs/operations.md` ("Releasing: CI and the tags") is the long version.

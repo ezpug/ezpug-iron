@@ -1,0 +1,237 @@
+# **The images** (PRD-02 T34) — `ghcr.io/ezpug/ezpug-iron/{orchestrator,node,cs2}`.
+# One trigger, three tags:
+#
+#   git tag orchestrator@0.1.0 && git push origin orchestrator@0.1.0
+#   git tag node@0.1.0         && git push origin node@0.1.0
+#   git tag cs2@0.1.0          && git push origin cs2@0.1.0
+#
+# `scripts/release-image.mjs` is the table (which Dockerfile, which platforms,
+# which registry tags); this file is the machinery around it, and nothing here
+# parses a tag by hand. `pnpm verify` runs first on the tagged commit — nothing
+# is published that has not passed it — and a version already in the registry is
+# refused rather than overwritten: a released artifact is a fact.
+#
+# Multi-arch where it is cheap: the orchestrator and the node agent are bundled
+# JavaScript, so each platform is one *native* runner (GitHub's `-arm` labels are
+# free for public repositories) and the manifest list is stitched from the two
+# digests afterwards. The CS2 image is linux/amd64 only, because that is the only
+# platform Valve ships a dedicated server for.
+#
+# A `workflow_dispatch` run is the dry run: the same build on the same
+# platforms, no push, no manifest, no attestation.
+name: images
+
+on:
+  push:
+    tags:
+      - 'orchestrator@*'
+      - 'node@*'
+      - 'cs2@*'
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'Which image to build (a dry run: nothing is pushed)'
+        type: choice
+        options: [orchestrator, node, cs2]
+        default: orchestrator
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # What the tag means, and whether the registry already has it.
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      name: ${{ steps.plan.outputs.name }}
+      image: ${{ steps.plan.outputs.image }}
+      version: ${{ steps.plan.outputs.version }}
+      dockerfile: ${{ steps.plan.outputs.dockerfile }}
+      builds: ${{ steps.plan.outputs.builds }}
+      tags: ${{ steps.plan.outputs.tags }}
+      push: ${{ steps.plan.outputs.push }}
+      sha: ${{ steps.plan.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # A tag name on a push, the chosen image on a dispatch (no version, so the
+      # plan says `push=false` and every later job reads that one flag).
+      - id: plan
+        run: |
+          node scripts/release-image.mjs plan "$REFERENCE" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          REFERENCE: ${{ github.event_name == 'push' && github.ref_name || inputs.image }}
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pushing a tag that exists would silently move it to a different build,
+      # and every deployment pinned to it with no way to tell. Re-releasing is a
+      # new patch version.
+      - name: refuse to overwrite a published version
+        if: steps.plan.outputs.push == 'true'
+        run: |
+          if docker buildx imagetools inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then
+            echo "::error::$IMAGE:$VERSION is already published — release a new version instead"
+            exit 1
+          fi
+          echo "$IMAGE:$VERSION is free"
+        env:
+          IMAGE: ${{ steps.plan.outputs.image }}
+          VERSION: ${{ steps.plan.outputs.version }}
+
+  # The same gate as every push to main: strict typecheck, Biome and its guards,
+  # Vitest, `dotnet build -warnaserror` and `dotnet test`.
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  # One native build per platform, pushed *by digest* — a tag is only written
+  # once, by the manifest list below, so a half-published multi-arch tag cannot
+  # exist even if one architecture fails.
+  build:
+    needs: [plan, verify]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.builds) }}
+    runs-on: ${{ matrix.runner }}
+    # The CS2 image compiles every plugin and downloads Metamod,
+    # CounterStrikeSharp and the vendored releases; the others install the
+    # workspace and build it.
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ needs.plan.outputs.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          # `.git` is not in the build context, so the commit the images label
+          # themselves with arrives as a build argument.
+          build-args: EZPUG_GIT_SHA=${{ needs.plan.outputs.sha }}
+          labels: org.opencontainers.image.version=${{ needs.plan.outputs.version }}
+          # BuildKit's cache, scoped per image *and* platform: two platforms
+          # share no layers and would otherwise evict each other.
+          cache-from: type=gha,scope=${{ needs.plan.outputs.name }}-${{ matrix.slug }}
+          cache-to: type=gha,mode=max,scope=${{ needs.plan.outputs.name }}-${{ matrix.slug }}
+          # Attestations belong on the manifest list, not on the per-platform
+          # images the merge job throws away (`actions/attest-build-provenance`
+          # below); a provenance attestation here would also be an extra
+          # manifest entry for `imagetools create` to trip over.
+          provenance: false
+          outputs: >-
+            ${{ needs.plan.outputs.push == 'true'
+              && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', needs.plan.outputs.image)
+              || 'type=cacheonly' }}
+
+      - name: keep the digest
+        if: needs.plan.outputs.push == 'true'
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+
+      - uses: actions/upload-artifact@v4
+        if: needs.plan.outputs.push == 'true'
+        with:
+          name: digest-${{ matrix.slug }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # The one write of a human-readable tag: a manifest list over the digests, the
+  # provenance attestation on it, and an inspect as the smoke.
+  publish:
+    needs: [plan, build]
+    if: needs.plan.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      # The attestation is signed with this run's OIDC identity, the same way
+      # npm provenance signs `@ezpug/match-api` (`release.yml`).
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: the manifest list
+        working-directory: /tmp/digests
+        run: |
+          args=()
+          IFS=',' read -ra tags <<< "$TAGS"
+          for tag in "${tags[@]}"; do args+=(--tag "$tag"); done
+          for digest in *; do args+=("$IMAGE@sha256:$digest"); done
+          echo "docker buildx imagetools create ${args[*]}"
+          docker buildx imagetools create "${args[@]}"
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          TAGS: ${{ needs.plan.outputs.tags }}
+
+      - id: published
+        name: what the registry now serves
+        run: |
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
+          digest="$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{.Manifest.Digest}}')"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          VERSION: ${{ needs.plan.outputs.version }}
+
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ needs.plan.outputs.image }}
+          subject-digest: ${{ steps.published.outputs.digest }}
+          push-to-registry: true
+
+      - name: summary
+        run: |
+          {
+            echo "### \`$IMAGE\`"
+            echo
+            echo "\`$DIGEST\`"
+            echo
+            for tag in ${TAGS//,/ }; do echo "- \`$tag\`"; done
+            echo
+            echo "Record the tag in \`docs/pins.md\` if a deployment is going to pin it."
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          TAGS: ${{ needs.plan.outputs.tags }}
+          DIGEST: ${{ steps.published.outputs.digest }}

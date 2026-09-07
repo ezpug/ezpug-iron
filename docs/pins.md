@@ -88,6 +88,44 @@ in-memory loadout the core plugin hands it instead of querying MySQL (decision 2
 pinned commit's — `Loadout` in `@ezpug/match-api` is a mapping of those tables, so a plugin
 bump means re-reading upstream's `Utility.cs` and, if a column moved, a Match API release.
 
+## The images we publish
+
+Three images, one GitHub Container Registry repository, one release tag each
+(`.github/workflows/images.yml`, PRD-02 T34). The **tag is the version**: an image has no
+manifest in the tree carrying a number, so there is nothing for a tag to disagree with —
+what ties one to this repo is its `org.opencontainers.image.revision` label (the commit it
+was built from) and the build provenance the workflow attests against the manifest list.
+`scripts/release-image.mjs` is the table a release reads; `pnpm lint` fails if a name below
+stops matching it.
+
+| Image | Released by | Platforms | Built from | Currently deployed |
+| ----- | ----------- | --------- | ---------- | ------------------ |
+| `ghcr.io/ezpug/ezpug-iron/orchestrator` | tag `orchestrator@x.y.z` | `linux/amd64`, `linux/arm64` | `docker/orchestrator/Dockerfile` | — nothing tagged yet; `pnpm image:build` gives the local `:dev` |
+| `ghcr.io/ezpug/ezpug-iron/node` | tag `node@x.y.z` | `linux/amd64`, `linux/arm64` | `docker/node/Dockerfile` | — nothing tagged yet; `pnpm node:build` gives the local `:dev` |
+| `ghcr.io/ezpug/ezpug-iron/cs2` | tag `cs2@x.y.z` | `linux/amd64` | `docker/cs2/Dockerfile` | — nothing tagged yet; `pnpm cs2:build` gives the local `:dev` |
+
+A release publishes `x.y.z`, the moving `x.y`, and `latest`; a prerelease (`0.2.0-rc.1`)
+publishes its exact version and nothing else, because `latest` is a promise about a
+release. A version already in the registry is refused rather than overwritten.
+
+**Multi-arch where it is cheap.** The orchestrator and the node agent are bundled
+JavaScript on the Node base image, so a second architecture is a second *native* runner
+(GitHub's `-arm` labels, free for public repositories) and a manifest list stitched from
+the two digests — no emulation, no hour-long `pnpm install` under qemu. The CS2 image is
+`linux/amd64` only: Valve ships the dedicated server and its steamrt base for that platform
+alone, and an arm64 tag would be an image with no game in it.
+
+**Who pins one.** The platform's compose pulls the orchestrator image and pins it in its
+own `.env` (`EZPUG_IRON_IMAGE`, today `…/orchestrator:dev`); production here pins it in
+`compose.prod.yaml` (PRD-02 T35). A node at a venue pulls the node image and the CS2 image
+it starts servers from — `docs/nodes.md` is that runbook. Bumping a pin is a commit in the
+consumer, not a moving tag: that is why `x.y.z` exists beside `latest`.
+
+The other two release tags are `match-api@x.y.z` (npm, with provenance —
+`.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
+to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
+`plugins/EZPug.Core/EZPug.Core.csproj` carries).
+
 ## Bumping one
 
 1. Edit the **home** — `Directory.Build.props`, `global.json`, the catalog, the image

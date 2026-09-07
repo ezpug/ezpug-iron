@@ -212,6 +212,56 @@ exists for Dathost (T17); without one CS2 accepts LAN connections, which is all 
 a venue node ever need. Bots are allowed — `bot_quota` is a cfg and a request's cvar, not an
 image decision.
 
+## Releasing: CI and the tags
+
+Every push and every pull request runs `pnpm verify` in GitHub Actions
+(`.github/workflows/verify.yml`): strict typecheck, Biome with the lint guards, Vitest,
+`turbo boundaries`, `dotnet build -warnaserror` and `dotnet test`. No CS2, no Dathost, no
+database — those tiers are local and opt-in, and CI is the tier every clone can reproduce.
+That workflow is also *reusable*: the release workflows call it with `uses:`, so there is
+one definition of green and a tag runs exactly what a pull request ran.
+
+Nothing is released by pushing to a branch. Five tag prefixes, one artifact each:
+
+| Tag | What it publishes | Workflow |
+| --- | ----------------- | -------- |
+| `match-api@x.y.z` | `@ezpug/match-api` to npm, with provenance, after `pnpm verify:extended` | `release.yml` |
+| `orchestrator@x.y.z` | `ghcr.io/ezpug/ezpug-iron/orchestrator`, `linux/amd64` + `linux/arm64` | `images.yml` |
+| `node@x.y.z` | `ghcr.io/ezpug/ezpug-iron/node`, `linux/amd64` + `linux/arm64` | `images.yml` |
+| `cs2@x.y.z` | `ghcr.io/ezpug/ezpug-iron/cs2`, `linux/amd64` (the only platform Valve ships a server for) | `images.yml` |
+| `plugins@x.y.z` | `ezpug-plugins-x.y.z.zip` on the tag's GitHub release | `plugins.yml` |
+
+```sh
+node scripts/release.mjs version 0.9.0        # the package: bump + CHANGELOG, then commit
+git tag match-api@0.9.0     && git push origin match-api@0.9.0
+node scripts/release-image.mjs plan cs2@0.1.0 # an image: what that tag would publish
+git tag cs2@0.1.0           && git push origin cs2@0.1.0
+git tag plugins@0.1.0       && git push origin plugins@0.1.0
+```
+
+**The images.** `scripts/release-image.mjs` is the table — which Dockerfile, which
+platforms, which registry tags — and the workflow parses no tag itself. A release publishes
+`x.y.z`, the moving `x.y` and `latest` (a prerelease only its exact version), refuses a
+version the registry already serves rather than overwriting a released artifact, builds
+each platform on its *own native runner* rather than under qemu, writes the human-readable
+tag once as a manifest list over the per-platform digests, and attests build provenance
+against it. Each image carries the commit it was built from as
+`org.opencontainers.image.revision`, which is what a rollback asks an image about. A
+`workflow_dispatch` run is the dry run: the same build, no push.
+
+**The plugin zip** is `plugins/publish.sh`'s tree — `EZPug.Core`, one copy of `EZPug.Sdk`
+in `shared/`, the SDK gamemodes under `plugins/disabled/` — zipped as an `addons/` tree
+that unpacks into a server's `game/csgo/`. It is for a server this repo does not build the
+image for; ours have it baked in. The tag has to name the version
+`plugins/EZPug.Core/EZPug.Core.csproj` carries, and the check reads it out of the
+`build.json` in the tree that was just built, so the artifact itself is the witness.
+
+**What pins what** is `docs/pins.md`: the image names, their platforms, and which tag a
+deployment is on. The platform pins the orchestrator image in its own compose
+(`EZPUG_IRON_IMAGE`); production here pins it in `compose.prod.yaml`; a node pulls the node
+image and the CS2 image it starts servers from (`docs/nodes.md`). A bump is a commit in the
+consumer, never a moving tag.
+
 ## Health
 
 `GET /healthz` needs no key. It answers `200 { ok: true, service: "orchestrator", checks }`
