@@ -9,7 +9,7 @@
 import process from 'node:process'
 import { type DatabaseTarget, readDatabaseConfig, redactUrl } from '../src/config'
 import { createDatabase, errorMessage } from '../src/db/client'
-import { runMigrations } from '../src/db/migrate'
+import { resolveMigrationsFolder, runMigrations } from '../src/db/migrate'
 import { loadRootEnv } from '../src/env'
 
 loadRootEnv()
@@ -21,7 +21,10 @@ const handle = createDatabase(config, { applicationName: 'ezpug-iron-migrate' })
 
 try {
   await handle.ping()
-  await runMigrations(handle)
+  // `EZPUG_IRON_MIGRATIONS_DIR` where the environment names one — in the image
+  // it has to, because this file is a bundle at `/app/dist/` and the SQL is at
+  // `/app/drizzle` (PRD-02 T35).
+  await runMigrations(handle, { migrationsFolder: resolveMigrationsFolder(process.env) })
   console.log(`[orchestrator] migrations applied to ${redactUrl(config.url)}`)
 } catch (error) {
   console.error(`[orchestrator] ${errorMessage(error)}`)

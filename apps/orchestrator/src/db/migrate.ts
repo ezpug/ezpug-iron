@@ -9,15 +9,32 @@
  */
 import { fileURLToPath } from 'node:url'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
-import { redactUrl } from '../config'
+import { type EnvRecord, MIGRATIONS_DIR_VAR, redactUrl } from '../config'
 import { type DatabaseHandle, errorMessage } from './client'
 
 /**
- * Where `drizzle-kit generate` writes, and where `runMigrations` reads. One
- * level below the package root from `src/db/` and from `dist/` alike, so a
- * bundled build (PRD-02 T4) finds the same folder.
+ * Where `drizzle-kit generate` writes, and where `runMigrations` reads in a
+ * checkout: one level below the package root from `src/db/`.
+ *
+ * **It is not where the image put them.** The bundle lands at `/app/dist/`,
+ * two levels below `/`, so walking up from the module resolves `/drizzle` and
+ * finds nothing — which is exactly what the first production migration hit
+ * (PRD-02 T35). The image says where the SQL is with
+ * `EZPUG_IRON_MIGRATIONS_DIR` instead, and {@link resolveMigrationsFolder} is
+ * how both entry points ask.
  */
 export const MIGRATIONS_FOLDER = fileURLToPath(new URL('../../drizzle', import.meta.url))
+
+/**
+ * The folder to apply: what the environment names, else the one beside the
+ * source. This is `scripts/migrate.ts`'s door to it; the service reads the
+ * same variable through `readOrchestratorConfig`'s `migrationsDir` and hands
+ * the result to {@link runMigrations} at boot. Either way the layout the
+ * checkout does not have is configured, never guessed.
+ */
+export function resolveMigrationsFolder(env: EnvRecord): string {
+  return env[MIGRATIONS_DIR_VAR]?.trim() || MIGRATIONS_FOLDER
+}
 
 /**
  * Advisory lock id held for the duration of a migration run, so two deploys

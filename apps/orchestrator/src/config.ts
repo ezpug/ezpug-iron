@@ -22,6 +22,14 @@ export const TEST_DATABASE_URL_VAR = 'EZPUG_IRON_TEST_DATABASE_URL'
 export const REDIS_URL_VAR = 'EZPUG_IRON_REDIS_URL'
 
 /**
+ * Where the migration SQL is, when it is not beside the source. The image
+ * puts it at `/app/drizzle` and says so with this, because a bundle at
+ * `/app/dist/` cannot find the folder by walking up from itself
+ * (`db/migrate.ts`).
+ */
+export const MIGRATIONS_DIR_VAR = 'EZPUG_IRON_MIGRATIONS_DIR'
+
+/**
  * The dev-only bootstrap key (PRD-02 T4): a key with this exact secret is
  * ensured at boot, so another project's compose can hand the orchestrator a
  * key it already knows instead of running a mint step. **Refused under
@@ -383,7 +391,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       bootstrapApiKey: env[BOOTSTRAP_API_KEY_VAR] || null,
       traceFile: env[TRACE_FILE_VAR] || null,
       migrateOnBoot: env.EZPUG_IRON_MIGRATE_ON_BOOT,
-      migrationsDir: env.EZPUG_IRON_MIGRATIONS_DIR || null,
+      migrationsDir: env[MIGRATIONS_DIR_VAR] || null,
       gamemodesDir: env.EZPUG_IRON_GAMEMODES_DIR || null,
       nodeServerImage: env.EZPUG_IRON_NODE_SERVER_IMAGE || DEFAULT_NODE_SERVER_IMAGE,
     })

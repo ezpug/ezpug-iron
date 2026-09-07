@@ -1,11 +1,18 @@
 /**
- * Mint an API key from a terminal on the box — the operator's door until the
- * CLI (T33) and the dev bootstrap key (T4) exist. The secret is printed
- * once, to stdout, and nowhere else.
+ * Mint an API key from a terminal on the box. The secret is printed once, to
+ * stdout, and nowhere else.
  *
  *   pnpm --filter @ezpug/orchestrator keys:mint -- --name platform --scopes matches,fleet
  *   pnpm --filter @ezpug/orchestrator keys:mint -- --name root --scopes admin \
  *     --max-concurrent 4 --max-lifetime-minutes 240 --monthly-cents 0
+ *
+ * **This is the first key of a deployment, and only the first.** Every other
+ * key is `ezpug-iron keys create` over the Match API (T33), which needs an
+ * `admin` key to already exist; the dev bootstrap key (T4) is refused under
+ * `NODE_ENV=production` on purpose. So production needs this script and has
+ * neither a checkout nor a published database port to run it from — which is
+ * why `tsdown.config.ts` bundles it into the image as `dist/mint-key.mjs`
+ * and `./scripts/deploy.sh key` is how an operator reaches it (ralph/DEPLOY.md).
  */
 import process from 'node:process'
 import { systemClock } from '@ezpug/core'

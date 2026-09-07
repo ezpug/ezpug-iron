@@ -1,0 +1,76 @@
+# EZPug Iron — the orchestrator's front door (PRD-02 T35, decision 11).
+#
+# THIS FILE IS THE SOURCE. It is installed onto the box that serves
+# gs.ezpug.com as `/opt/traefik/routes/ezpug-iron.yml`, the one path outside
+# this repo the deploy writes:
+#
+#   ./scripts/deploy.sh routes      # cp docker/traefik/ezpug-iron.yml → there
+#
+# Traefik (container `traefik`, v3.6) runs a file provider over that directory
+# with `--providers.file.watch=true`, so the copy *is* the deploy — no restart
+# and no reload command. The previous contents, if any, are kept beside it as
+# `ezpug-iron.yml.bak-<timestamp>`; restoring that backup is the rollback.
+#
+# One origin, served by `compose.prod.yaml` on this same box and published only
+# to the docker bridge gateway (172.17.0.1), never to the internet:
+#
+#   gs.ezpug.com  →  ezpug-iron-prod-orchestrator  :3430 → 172.17.0.1:3431
+#
+# That address and this file are the *only* way in, which is what decision 5
+# needs: every CS2 server and every `ezpug-node` dials **out** to this
+# hostname, and nothing anywhere listens for them. It is also why the platform
+# — on this very box — still reaches the Match API over public TLS like any
+# other client (decision 11): dev and prod paths are identical and nothing
+# couples through a docker network.
+#
+# The port is `EZPUG_IRON_HOST_PORT` in `.env.production`; `deploy.sh
+# preflight` refuses a deploy where that number and the one below disagree,
+# because the drift is a 404 that reads like an outage.
+#
+# **Web sockets need no middleware here.** The server link (`/link`), the node
+# link (`/node`) and the client stream (`/v1/matches/:id/stream`) are plain
+# `Upgrade` requests on this router, which Traefik proxies as they are. They
+# stay open for the length of a match, and Traefik's default 180 s idle
+# timeout does not end them: every one of the three heartbeats every 10 s
+# (`HEARTBEAT_INTERVAL_MS_DEFAULT`), so the connection is never idle.
+#
+# The certificate comes from the `letsencrypt` certResolver over HTTP-01, the
+# pattern every neighbouring file in that directory uses; `*.ezpug.com` is a
+# wildcard A record, so gs.ezpug.com already resolves to this box and the
+# first request for the router below is what fetches the certificate. The
+# `web` router redirects to https, which does not starve the challenge:
+# Traefik answers `/.well-known/acme-challenge/` on an internal router that
+# outranks ours.
+http:
+  routers:
+    ezpug-iron-https:
+      rule: "Host(`gs.ezpug.com`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: ezpug-iron
+
+    ezpug-iron-http:
+      rule: "Host(`gs.ezpug.com`)"
+      entryPoints:
+        - web
+      middlewares:
+        - ezpug-iron-redirect
+      service: ezpug-iron
+
+  services:
+    ezpug-iron:
+      loadBalancer:
+        servers:
+          - url: "http://172.17.0.1:3431"
+
+  middlewares:
+    # Named per-project rather than reusing a neighbouring file's
+    # `redirect-to-https` (or the platform's `ezpug-redirect`): the file
+    # provider merges every file in the directory into one namespace, so a
+    # shared name is a collision waiting for the next edit.
+    ezpug-iron-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true

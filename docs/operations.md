@@ -2,10 +2,11 @@
 
 The operator's reference for the orchestrator: what runs, what it reads, what it stores,
 how it starts and stops. Written for someone standing at a terminal on the box at eleven
-on a Saturday. Deploying (`scripts/deploy.sh`), budgets, the Dathost template, the GSLT
-pool and the "a provider died" runbook arrive with the tasks that build them (PRD-02
-T5, T18, T19, T31, T35); this file grows a section per task, and T38 adds the test that
-checks every route, command and version it names.
+on a Saturday. The deploy itself has a runbook of its own beside this one —
+**`ralph/DEPLOY.md`**, the first deploy, the backups, the rollback and what to do when
+`gs.ezpug.com` is down; "Deploying" below is the reference around it. Budgets, the Dathost
+template and the GSLT pool have their own sections; T38 adds the test that checks every
+route, command and version this file names.
 
 ## The pieces
 
@@ -258,9 +259,66 @@ image for; ours have it baked in. The tag has to name the version
 
 **What pins what** is `docs/pins.md`: the image names, their platforms, and which tag a
 deployment is on. The platform pins the orchestrator image in its own compose
-(`EZPUG_IRON_IMAGE`); production here pins it in `compose.prod.yaml`; a node pulls the node
-image and the CS2 image it starts servers from (`docs/nodes.md`). A bump is a commit in the
-consumer, never a moving tag.
+(`EZPUG_IRON_IMAGE`); production here pins it with the same variable in
+`.env.production`, which `compose.prod.yaml` reads; a node pulls the node image and the CS2
+image it starts servers from (`docs/nodes.md`). A bump is a commit in the consumer, never a
+moving tag.
+
+## Deploying
+
+`gs.ezpug.com` runs on this box, in its own compose project, behind the Traefik that
+already fronts everything else on it (decision 11). **`./scripts/deploy.sh` is the whole
+deploy**, and its smoke step is what "deployed" means. `ralph/DEPLOY.md` is the runbook —
+the first deploy on a fresh box, the backups, the rollback, the Saturday. What follows is
+the shape of it.
+
+```sh
+pnpm verify && pnpm verify:extended   # the gate; the deploy does not run it for you
+./scripts/deploy.sh                   # preflight → build → migrate → up → routes → smoke
+./scripts/deploy.sh smoke             # …or any one step, alone
+pnpm prod:ps                          # what is running
+pnpm prod:logs                        # follow
+pnpm prod:down                        # stop; the volumes stay
+```
+
+Every step is idempotent — running the whole thing twice in a row is a no-op the second
+time, which is what makes re-running a failed deploy the normal way to finish it.
+
+**The three files.** `compose.prod.yaml` is the stack (its own Postgres and Redis on named
+volumes, the orchestrator published on `172.17.0.1:3431` and nowhere else, no CS2 — nodes
+are elsewhere). `docker/traefik/ezpug-iron.yml` is the front door, installed by the
+`routes` step at `/opt/traefik/routes/ezpug-iron.yml`, the one path outside this repo a
+deploy writes. `.env.production` (gitignored, `.env.production.example` is its template) is
+every production value, read twice: compose interpolates from it and the orchestrator
+container takes it verbatim, so a value is written once and the hostnames in it are compose
+service names.
+
+**Where the image comes from.** By default the deploy builds this checkout into
+`ezpug-iron/orchestrator:latest` and keeps the one it replaced as `:previous`, which is
+what `deploy.sh rollback` puts back. Set `EZPUG_IRON_IMAGE` in `.env.production` to a
+published tag (`ghcr.io/ezpug/ezpug-iron/orchestrator:x.y.z`) and the `build` step *pulls*
+it instead — a released tag can never be quietly overwritten by a local build, and rolling
+back becomes bumping that line.
+
+**Migrations run with a dump in front of them.** `deploy.sh migrate` brings up Postgres and
+Redis, takes a `pg_dump` into `EZPUG_IRON_BACKUP_DIR` on the host, then applies what is
+pending — as its own step, with its own exit code, before any serving container is
+replaced. A failed migration therefore leaves the previous release serving. Migrations are
+additive-safe by rule, so the dump is not a plan for undoing one; it is the answer to the
+failure additivity does not cover, and it is a credential in its own right (see "What this
+database holds in clear, and why").
+
+**The first API key of a deployment** is the one thing production cannot get over the Match
+API: `EZPUG_IRON_BOOTSTRAP_API_KEY` is refused under `NODE_ENV=production`, and
+`ezpug-iron keys create` needs an `admin` key to already exist. So the image carries
+`dist/mint-key.mjs` and `./scripts/deploy.sh key --name operator --scopes admin,matches,fleet`
+runs it: the secret is printed once, goes into `.env.production` as `EZPUG_IRON_API_KEY`,
+and every key after it — the platform's, with its own budget — is minted by the CLI.
+
+**The smoke** is what the deploy calls done: `/healthz` on the bridge (the container,
+past Traefik and past DNS) and over public TLS, `http` redirecting to `https`, and
+`GET /v1/capacity` answering `200` with the operator key and `401` without one. The key
+reaches curl on stdin (`--config -`), never in argv — the same rule the CLI holds itself to.
 
 ## Health
 

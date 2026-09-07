@@ -798,7 +798,7 @@ every offline proof here.
   > overwritten, and `plugins@x.y.z` is held against `EZPug.Core`'s `<Version>` read out of
   > the `build.json` in the tree that was just built.
 
-- [ ] **T35: Deploy.** `compose.prod.yaml` (orchestrator published on `172.17.0.1:3431`
+- [x] **T35: Deploy.** `compose.prod.yaml` (orchestrator published on `172.17.0.1:3431`
   only, its own Postgres and Redis on named volumes, no CS2 on this box in production —
   nodes are elsewhere), `docker/traefik/ezpug-iron.yml` (`gs.ezpug.com`, `letsencrypt`,
   a project-named redirect middleware), `.env.production.example` (Dathost trio,
@@ -809,6 +809,22 @@ every offline proof here.
   Deploy from a clean tree; the owner puts the Dathost credentials in `.env.production`
   before this task runs (a missing trio is `> blocked:` with the exact lines, and the
   deploy still goes out with `sim,nodes`).
+  > blocked: **no Dathost credentials on this box**, so production runs
+  > `EZPUG_IRON_PROVIDERS=sim,nodes` and T36 cannot start until the owner fills these
+  > lines in at `/root/ezpug-iron/.env.production` (the last one is what
+  > `.env.production.example` already ships as its default):
+  >
+  > ```
+  > EZPUG_IRON_DATHOST_EMAIL=<the account>
+  > EZPUG_IRON_DATHOST_PASSWORD=<its password>
+  > EZPUG_IRON_DATHOST_TEMPLATE_SERVER_ID=<what `pnpm iron dathost image --build` printed>
+  > STEAM_WEB_API_KEY=<a Steam Web API key, for the GSLT pool>
+  > EZPUG_IRON_PROVIDERS=dathost,nodes
+  > ```
+  >
+  > `./scripts/deploy.sh` then takes it the rest of the way: preflight refuses a partial
+  > trio by name, and nothing else about the stack changes. Everything else in T35 shipped
+  > and is live.
 
 - [ ] **T36: The first real match through `gs.ezpug.com`.** With T35 deployed and
   credentials in place: `pnpm iron matches create --gamemode pug --lan=false --bots` against

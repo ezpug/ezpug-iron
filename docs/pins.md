@@ -28,8 +28,8 @@ server boots with half its plugins missing.
 | Vite | `^8.2.2` | `pnpm-workspace.yaml` catalog — the kit's library build and its dev harness (`@vitejs/plugin-vue` `^6.0.8` beside it); the platform's version, on purpose |
 | dockerode | `^4.0.12` | `pnpm-workspace.yaml` catalog (`@types/dockerode` `^4.0.1` beside it) — the node agent's docker client (PRD-02 T11); 4.x because 5.x adds a BuildKit client and the gRPC stack behind it for nothing the agent does |
 | Node (the image) | `22.19.0-bookworm-slim` | `docker/orchestrator/Dockerfile` and `docker/node/Dockerfile` (`FROM node:…`) — the runtime the orchestrator and node images ship, the version this repo's `engines` allows |
-| Postgres | `17` | `compose.yaml` (`postgres:17-alpine`); production's own instance is PRD-02 T35's |
-| Redis | `8` | `compose.yaml` (`redis:8-alpine`) |
+| Postgres | `17` | `compose.yaml` and `compose.prod.yaml` (`postgres:17-alpine`) — the dev world's and production's own instance, on the same major so a dump moves between them |
+| Redis | `8` | `compose.yaml` and `compose.prod.yaml` (`redis:8-alpine`) |
 
 The catalog mirrors the platform's on 2026-09-05 on purpose: `@ezpug/match-api` must
 resolve against the same zod the platform installs (`docs/decisions.md` 24), and the
@@ -116,10 +116,12 @@ the two digests — no emulation, no hour-long `pnpm install` under qemu. The CS
 alone, and an arm64 tag would be an image with no game in it.
 
 **Who pins one.** The platform's compose pulls the orchestrator image and pins it in its
-own `.env` (`EZPUG_IRON_IMAGE`, today `…/orchestrator:dev`); production here pins it in
-`compose.prod.yaml` (PRD-02 T35). A node at a venue pulls the node image and the CS2 image
-it starts servers from — `docs/nodes.md` is that runbook. Bumping a pin is a commit in the
-consumer, not a moving tag: that is why `x.y.z` exists beside `latest`.
+own `.env` (`EZPUG_IRON_IMAGE`, today `…/orchestrator:dev`); production here pins it with
+the same variable in `.env.production`, which `compose.prod.yaml` reads (PRD-02 T35) —
+unset, the deploy builds the checkout instead and `docs/operations.md` says what that
+costs. A node at a venue pulls the node image and the CS2 image it starts servers from —
+`docs/nodes.md` is that runbook. Bumping a pin is a commit in the consumer, not a moving
+tag: that is why `x.y.z` exists beside `latest`.
 
 The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached

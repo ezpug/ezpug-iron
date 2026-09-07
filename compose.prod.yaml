@@ -1,0 +1,195 @@
+# EZPug Iron in production — the stack behind gs.ezpug.com (PRD-02 T35,
+# decision 11). The dev world is `compose.yaml`; the two never merge, share a
+# project name, or share a volume.
+#
+#   ./scripts/deploy.sh          preflight → build → backup → migrate → up → routes → smoke
+#   pnpm prod:ps                 what is running
+#   pnpm prod:logs               follow
+#   pnpm prod:down               stop (volumes kept)
+#
+# Every one of those passes `--env-file .env.production` (gitignored — see
+# `.env.production.example`). That file is read twice on purpose: compose
+# interpolates the `${…}` below from it, and the orchestrator takes it verbatim
+# as its container environment. So a production value is written in exactly one
+# place, and the hostnames in it are *compose service names* — `postgres`,
+# `redis` — because that is where these processes actually run.
+#
+# **No CS2 on this box** (CLAUDE.md, "hard don'ts"). Capacity is Dathost and
+# the `ezpug-node` agents at a venue; this stack is one Node process, its
+# ledger and its fan-out, and nothing else.
+#
+# Only the orchestrator is published, and only on the docker bridge gateway
+# (172.17.0.1), where Traefik — on this same box — is the only thing that can
+# reach it: `docker/traefik/ezpug-iron.yml` is the way in. Postgres and Redis
+# have no host binding whatsoever, which matters more here than usual: this
+# database holds the webhook secrets and the GSLT login tokens in clear
+# (docs/operations.md, "What this database holds in clear, and why").
+name: ezpug-iron
+
+services:
+  # The ledger, the keys, the durable log. No `docker/postgres/init` mount:
+  # that is the dev world's second database for Vitest, and production has no
+  # test database.
+  postgres:
+    image: postgres:17-alpine
+    container_name: ezpug-iron-prod-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${EZPUG_IRON_POSTGRES_USER:?set EZPUG_IRON_POSTGRES_USER in .env.production}
+      POSTGRES_PASSWORD: ${EZPUG_IRON_POSTGRES_PASSWORD:?set EZPUG_IRON_POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: ${EZPUG_IRON_POSTGRES_DB:?set EZPUG_IRON_POSTGRES_DB in .env.production}
+      # Same as dev: deterministic ordering, no locale-dependent sort surprises
+      # between this box and a laptop.
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  # The stream hub's fan-out and `/healthz`'s second ping. Append-only, so a
+  # restarted box keeps what it had.
+  redis:
+    image: redis:8-alpine
+    container_name: ezpug-iron-prod-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # ── The one-shots ─────────────────────────────────────────────────────────
+  # Three services that run to completion and exit. `migrate` is a dependency
+  # of the orchestrator and runs on every `up`; the other two are `tools`, so
+  # they start only when a human asks for them by name.
+
+  # The schema, applied before a single reader of it starts. `up` orders this
+  # (`service_completed_successfully`) and `deploy.sh migrate` runs it as its
+  # own loud step — a failed migration leaves the old container serving rather
+  # than replacing it with one that cannot read the database. Idempotent and
+  # advisory-locked (docs/operations.md, "Migrations").
+  migrate:
+    image: ${EZPUG_IRON_IMAGE:-ezpug-iron/orchestrator:latest}
+    build:
+      context: .
+      dockerfile: docker/orchestrator/Dockerfile
+      args:
+        # Stamped into the image as its OCI revision label, so `:previous` can
+        # answer "previous to what?" months later. `scripts/deploy.sh` exports it.
+        EZPUG_GIT_SHA: ${EZPUG_GIT_SHA:-unknown}
+    container_name: ezpug-iron-prod-migrate
+    restart: 'no'
+    env_file:
+      - .env.production
+    command: ['node', 'dist/migrate.mjs']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # **The first API key of this deployment, and only the first**
+  # (`apps/orchestrator/scripts/mint-key.ts`). `EZPUG_IRON_BOOTSTRAP_API_KEY`
+  # is refused under `NODE_ENV=production` by design and `ezpug-iron keys
+  # create` needs an `admin` key to already exist, so this is the door — run
+  # by `./scripts/deploy.sh key`, printing the secret once to stdout.
+  mint-key:
+    image: ${EZPUG_IRON_IMAGE:-ezpug-iron/orchestrator:latest}
+    container_name: ezpug-iron-prod-mint-key
+    restart: 'no'
+    profiles: ['tools']
+    env_file:
+      - .env.production
+    entrypoint: ['node', 'dist/mint-key.mjs']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # `pg_dump` on demand — what `deploy.sh backup` runs, and what `deploy.sh`
+  # runs *before* every migration. The same image as the server it dumps, so
+  # the client tools are never a version behind it.
+  #
+  # The dumps land on the **host**, not in a named volume: `compose down -v` is
+  # the one command that destroys this ledger, and a backup that dies with the
+  # database it protects is not a backup. `EZPUG_IRON_BACKUP_DIR` decides
+  # where, and `deploy.sh preflight` refuses a path inside the checkout.
+  #
+  # A dump of this database is a dump of every webhook secret and every GSLT
+  # login token it holds in clear — the file is written 0600 and belongs in the
+  # same drawer as a credential (docs/operations.md, ralph/DEPLOY.md).
+  backup:
+    image: postgres:17-alpine
+    container_name: ezpug-iron-prod-backup
+    restart: 'no'
+    profiles: ['tools']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${EZPUG_IRON_POSTGRES_USER:?set EZPUG_IRON_POSTGRES_USER in .env.production}
+      PGPASSWORD: ${EZPUG_IRON_POSTGRES_PASSWORD:?set EZPUG_IRON_POSTGRES_PASSWORD in .env.production}
+      PGDATABASE: ${EZPUG_IRON_POSTGRES_DB:?set EZPUG_IRON_POSTGRES_DB in .env.production}
+      EZPUG_IRON_BACKUP_KEEP: ${EZPUG_IRON_BACKUP_KEEP:-14}
+    volumes:
+      - ${EZPUG_IRON_BACKUP_DIR:-/var/backups/ezpug-iron}:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -eu
+        umask 077
+        file="/backups/ezpug-iron-$$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+        pg_dump --no-owner --no-privileges | gzip -9 > "$$file"
+        echo "wrote $$file ($$(du -h "$$file" | cut -f1))"
+        # Keep the newest N and delete the rest. The name is an ISO-8601 UTC
+        # timestamp, so `sort -r` is newest-first and everything past the Nth
+        # line goes. Written for busybox: no `head -n -N` here.
+        ls -1 /backups/ezpug-iron-*.sql.gz \
+          | sort -r \
+          | tail -n "+$$((EZPUG_IRON_BACKUP_KEEP + 1))" \
+          | while read -r old; do rm -f "$$old"; echo "rotated out $$old"; done
+        ls -lh /backups/ezpug-iron-*.sql.gz
+
+  # ── The service ───────────────────────────────────────────────────────────
+  orchestrator:
+    image: ${EZPUG_IRON_IMAGE:-ezpug-iron/orchestrator:latest}
+    build:
+      context: .
+      dockerfile: docker/orchestrator/Dockerfile
+      args:
+        EZPUG_GIT_SHA: ${EZPUG_GIT_SHA:-unknown}
+    container_name: ezpug-iron-prod-orchestrator
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      # Container-internal, pinned here rather than taken from the env file:
+      # what a host reaches is the published port below, so nothing is gained
+      # by making the inside configurable and the image's own health probe
+      # would have to guess it.
+      EZPUG_IRON_HOST: '0.0.0.0'
+      EZPUG_IRON_PORT: '3430'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      # gs.ezpug.com → here, via Traefik on the bridge gateway. The number is
+      # also written in `docker/traefik/ezpug-iron.yml`, and `deploy.sh
+      # preflight` refuses a disagreement between the two.
+      - '172.17.0.1:${EZPUG_IRON_HOST_PORT:-3431}:3430'
+    # The image carries its own HEALTHCHECK (`/healthz` through Node's fetch —
+    # it has no curl); nothing is repeated here.
+
+volumes:
+  postgres-data:
+  redis-data:
