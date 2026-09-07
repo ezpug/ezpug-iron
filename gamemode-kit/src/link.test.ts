@@ -131,7 +131,7 @@ describe('useWidgetLink', () => {
 
     const events: string[] = []
     const off = link.onEvent(envelope => void events.push(envelope.payload.type))
-    const applied = await link.send('powerup', { kind: 'haste' })
+    const applied = await link.send('powerup', { kind: 'speed' })
     expect(applied).toMatchObject({ type: 'command_result', command: 'powerup', status: 'applied' })
     expect(applied.correlationId).toMatch(/^w\d+-[0-9a-z]+:powerup:1$/)
     expect(link.commands.value[0]?.chargesLeft).toBe(0)
@@ -139,12 +139,41 @@ describe('useWidgetLink', () => {
     expect(link.lastEvent.value?.payload.type).toBe('plugin_event')
     off()
 
-    const again = await link.send('powerup', { kind: 'haste' })
+    const again = await link.send('powerup', { kind: 'speed' })
     expect(again).toMatchObject({ status: 'rejected', code: 'no_charges' })
     expect(again.message).toMatch(/Leben|Ladung|Aufladung|keine/i)
 
     const unknown = await link.send('teleport')
     expect(unknown).toMatchObject({ status: 'rejected', code: 'unknown_command' })
+  })
+
+  it('hands a mode’s push to onPush and keeps nothing of it', async () => {
+    const w = await world()
+    const link = open(w)
+    await eventually(() => expect(link.state.value).toBe('open'))
+    const pushes: { name: string; data: Record<string, unknown> }[] = []
+    const off = link.onPush(push => void pushes.push({ name: push.name, data: push.data }))
+
+    const peek = {
+      expiresInMs: 5_000,
+      self: { x: 1, y: 2, z: 3 },
+      contacts: [{ x: 4, y: 5, z: 6 }],
+    }
+    expect(
+      w.fake.widgetPush(w.matchId, PLAYER.steamId64, {
+        type: 'push',
+        name: 'radar_peek',
+        data: peek,
+      }),
+    ).toBe(1)
+    await eventually(() => expect(pushes).toEqual([{ name: 'radar_peek', data: peek }]))
+    // A push is not a durable fact: nothing about it lands in `lastEvent`.
+    expect(link.lastEvent.value).toBeNull()
+
+    off()
+    w.fake.widgetPush(w.matchId, PLAYER.steamId64, { type: 'push', name: 'radar_peek', data: peek })
+    await w.clock.advance(1_000)
+    expect(pushes).toHaveLength(1)
   })
 
   it('answers a tap it cannot send as unavailable, and ends with the match', async () => {

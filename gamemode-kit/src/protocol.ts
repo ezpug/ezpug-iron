@@ -42,6 +42,7 @@ export type {
   WidgetEventFrame,
   WidgetHostMessage,
   WidgetHostMessageOf,
+  WidgetPushFrame,
   WidgetServerFrame,
   WidgetTokens,
   WidgetWelcomeFrame,

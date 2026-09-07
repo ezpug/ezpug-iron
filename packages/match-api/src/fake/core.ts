@@ -81,6 +81,7 @@ import type {
   WidgetCommandFrame,
   WidgetCommandResultFrame,
   WidgetCommandState,
+  WidgetPushFrame,
 } from '../widget/socket'
 import {
   WIDGET_CLOSE_CODES,
@@ -1540,6 +1541,13 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
   }
 
   /**
+   * The open widget listeners by `<matchId>#<steamId64>` — the fake's twin of
+   * the orchestrator's `phones` map, so {@link widgetPush} reaches the one
+   * player it names (PRD-02 T26).
+   */
+  const widgetPhones = new Map<string, Set<FakeWidgetListener>>()
+
+  /**
    * The widget socket, in-process (`GET /v1/widget`, decision 17): the
    * token from the hello resolves to a match and a SteamID64; the answer is
    * the `hello` with the mode's verbs; every durable fact of the match
@@ -1574,6 +1582,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       onClose: () => {
         if (closed) return
         closed = true
+        forgetPhone()
         onClose?.(WIDGET_CLOSE_CODES.matchEnded)
       },
     }
@@ -1582,6 +1591,18 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       return { command: () => Promise.resolve(), close: () => undefined }
     }
     record.subscribers.add(subscriber)
+    const phoneKey = `${record.match.id}#${resolved.steamId64}`
+    let phone = widgetPhones.get(phoneKey)
+    if (!phone) {
+      phone = new Set()
+      widgetPhones.set(phoneKey, phone)
+    }
+    phone.add(listener)
+    const forgetPhone = (): void => {
+      const open = widgetPhones.get(phoneKey)
+      open?.delete(listener)
+      if (open?.size === 0) widgetPhones.delete(phoneKey)
+    }
     return {
       async command(frame) {
         if (closed) return
@@ -1597,6 +1618,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
         if (resolved.expiresAt <= now()) {
           closed = true
           record.subscribers.delete(subscriber)
+          forgetPhone()
           onClose?.(WIDGET_CLOSE_CODES.unauthorized)
           return
         }
@@ -1616,8 +1638,25 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       close() {
         closed = true
         record.subscribers.delete(subscriber)
+        forgetPhone()
       },
     }
+  }
+
+  /**
+   * **A gamemode's push, without a plugin** (PRD-02 T26): what the
+   * orchestrator does when a real server sends a `widget_push` — deliver the
+   * frame to every open widget of that one player of that one match and
+   * forget it. The fake's simulated server has no mode of its own to decide
+   * when a push is due, so this is a door a test (and the `gamemode-kit`
+   * harness) opens by hand to prove the widget half of the round trip.
+   * Returns how many phones got it.
+   */
+  const widgetPush = (matchId: string, steamId64: string, push: WidgetPushFrame): number => {
+    const phone = widgetPhones.get(`${matchId}#${steamId64}`)
+    if (!phone) return 0
+    for (const listener of [...phone]) listener(push)
+    return phone.size
   }
 
   const events = (key: KeyRecord, matchId: string, afterSeq: number, limit: number) => {
@@ -1822,6 +1861,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     mintPlayerToken,
     playerCommand,
     widget,
+    widgetPush,
     events,
     stream,
     server: (matchId: string): SimulatedServer | null => matches.get(matchId)?.server ?? null,

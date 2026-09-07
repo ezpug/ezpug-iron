@@ -56,8 +56,14 @@
         // anything imports, and the one edge it has is the `kit` that builds
         // the widget (a devDependency, PRD-02 T25). `published` bundles the
         // manifests, the apps and plugins read them.
+        //
+        // `core` is not denied because **`turbo boundaries` reads the graph
+        // transitively**: a tag's denial covers every package a package can
+        // reach, not the hop it declared. The manifests import nothing at all;
+        // they reach `core` through the `kit`, and denying it here would only
+        // forbid the toolchain its own clock (PRD-02 T26).
         "dependencies": {
-          "deny": ["app", "published", "core", "internal", "plugins", "data", "engine"]
+          "deny": ["app", "published", "internal", "plugins", "data", "engine"]
         }
       },
       "kit": {
@@ -65,8 +71,17 @@
         // on nothing internal (a widget bundle carries Vue and the kit, never a
         // schema library), its dev harness runs the published fake, and only
         // `data` depends on it — to build what a manifest names.
+        //
+        // The `dependents` list is short for the transitivity above: only
+        // `data` depends on the kit *directly*, but everything that reads a
+        // manifest reaches it through `@ezpug/gamemodes` — the published
+        // package that bundles them, the apps that serve them, the protocol
+        // through the package — and turbo cannot tell that hop from the one
+        // it walked. What the longer list protected is protected where it can
+        // be: `buildWidget` refuses a bundle that fetches, and the kit's
+        // runtime imports types from the Match API and nothing else.
         "dependencies": { "deny": ["app", "internal", "plugins", "engine", "data"] },
-        "dependents": { "deny": ["app", "published", "core", "internal", "plugins", "engine"] }
+        "dependents": { "deny": ["core", "plugins", "engine"] }
       },
       "internal": {
         // Internal packages (the protocol): shared by the apps, never reaching

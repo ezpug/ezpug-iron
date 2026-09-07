@@ -82,6 +82,12 @@ select {
   border-radius: 999px;
   padding: 0.25rem 0.75rem;
 }
+/* The push buttons a mode's `widget/harness-pushes.json` produces (PRD-02 T26). */
+.pushes {
+  display: inline-flex;
+  gap: 0.375rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   iframe {
     transition: none;

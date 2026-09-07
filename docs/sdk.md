@@ -28,7 +28,9 @@ reaching around it.
 
 `plugins/EZPug.Sdk.Tests/Modes/PowerupDemo.cs`, the mode the harness test plays. It
 implements the shipped `powerup-dm` manifest: deathmatch by cfg, one power-up per life,
-claimed from the phone or with `!powerup` in chat.
+claimed from the phone or with `!powerup speed` in chat. **The mode that ships is
+`plugins/EZPug.PowerupDm/`** (PRD-02 T26) — the same shape with the peek's timer, the HUD
+countdown and its own resx pair; this is the fifty lines, not the product.
 
 ```csharp
 public sealed class PowerupDemo : Gamemode
@@ -54,12 +56,12 @@ public sealed class PowerupDemo : Gamemode
     public override PlayerCommandOutcome OnPlayerCommand(IGamePlayer player, string command, JsonObject? args)
     {
         if (!player.IsAlive) return new PlayerCommandOutcome.NotAlive();
-        var kind = args?["kind"]?.GetValue<string>() ?? "haste";
+        var kind = args?["kind"]?.GetValue<string>() ?? "speed";
         switch (kind)
         {
-            case "haste": World.SetSpeed(player, 1.4f); break;
             case "armor": World.SetArmor(player, 100); break;
-            default: World.SetHealth(player, 100); break;
+            case "radar_peek": PushWidget(player, "radar_peek", new { expiresInMs = 5_000 }); break;
+            default: World.SetSpeed(player, 1.4f); break;
         }
         _lives![player].Powerup = kind;
         Say(player, "powerup.landed", Lines(player)[$"powerup.kind.{kind}"]);
@@ -107,7 +109,7 @@ own test for its lines, and a mode should assert the same for its pair.
 | `OnPlayerDied(PlayerDeath)` | a death | `player_death` is emitted by the runtime |
 | `OnRoundStart(long)` / `OnRoundEnd(RoundEnd)` | the engine's round events | the round number is 1-based and in `Match.RoundNumber`; `round` charges refill on start |
 | `OnChat(ChatLine)` | a line that was not a declared verb | `chat_message` / `chat_command` are emitted by the runtime when the manifest's `chat` capability is on |
-| `OnPlayerCommand(player, command, args)` | a declared verb, after the SDK's checks | return `Ok` to spend the charge and start the cooldown; `Refused(message)` or `NotAlive` cost nothing |
+| `OnPlayerCommand(player, command, args)` | a declared verb, after the SDK's checks; from the phone, or from chat — where the words after `!verb` become the args schema's first declared property (`ArgsValidator.FromChat`), so both doors hand the mode the same object | return `Ok` to spend the charge and start the cooldown; `Refused(message)` or `NotAlive` cost nothing |
 | `OnProfile(RosterEntry)` | a profile pushed (open join, a refreshed rating) | already in `Assignment.Profiles` |
 | `OnCommand(LinkCommand)` | a Match API command the runtime does not answer itself | `announce`, `kick`, `rcon`, `profile` are the runtime's; `pause`, `unpause`, `restart_round`, `force_end`, `restore`, `reroll` are the mode's or the host's (`CommandHook`). Return `CommandAnswer.Deferred` and call `Link.AnswerCommand` later for work that waits on the engine; the orchestrator's deadline is fifteen seconds |
 | `OnTick()` | every engine frame while assigned | |
@@ -115,8 +117,23 @@ own test for its lines, and a mode should assert the same for its pair.
 | `OnEnd(reason)` | `release` | after it returns, the mode's timers are cancelled and its `PlayerState`s cleared |
 
 Helpers on the base: `World`, `Link`, `Clock`, `Localizer`, `Facts`, `Match`,
-`Assignment`, `Commands`; `Emit`, `EmitPluginEvent`; `Lines(player)`, `Say`, `SayAll`,
-`PrintCenter` (all localized per player); `PlayerState<T>(factory)`; `After`, `Every`.
+`Assignment`, `Commands`; `Emit`, `EmitPluginEvent`, `PushWidget`; `Lines(player)`, `Say`,
+`SayAll`, `PrintCenter` (all localized per player); `PlayerState<T>(factory)`; `After`,
+`Every`.
+
+### `PushWidget` — a picture for one phone
+
+`PushWidget(player, name, data)` sends a **push**: a named, mode-shaped payload that
+reaches that one player's open widget and nobody else's, and is then forgotten — never
+sequenced, never acked, never stored in the match's log, never replayed to a widget that
+reconnects (`@ezpug/match-api`'s `WidgetPushFrame`, 0.7.0; the link's `widget_push`
+frame). It is the door for the facts a match must *not* keep: `powerup-dm`'s `radar_peek`
+pushes everybody's coordinates ten times over five seconds, and no position is ever
+written down (CLAUDE.md). A fact that has to survive is an event, not a push; a push with
+no widget listening is dropped, which is the normal case.
+
+The widget's half is `link.onPush(handler)` in `@ezpug/gamemode-kit`. Both halves ship
+together in `gamemodes/<id>/`, which is why the contract does not read `data`.
 
 ## The event model
 

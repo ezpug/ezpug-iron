@@ -47,13 +47,13 @@ describe('a simulated server and a player command', () => {
     const answer = await server.playerCommand({
       steamId64: tk,
       command: 'powerup',
-      args: { kind: 'haste' },
+      args: { kind: 'speed' },
     })
     expect(answer.result).toEqual({ status: 'applied', chargesLeft: 0 })
     expect(answer.event).toMatchObject({
       type: 'plugin_event',
       name: SIM_PLAYER_COMMAND_EVENT,
-      data: { command: 'powerup', steamId64: tk, name: 'hunzR', args: { kind: 'haste' } },
+      data: { command: 'powerup', steamId64: tk, name: 'hunzR', args: { kind: 'speed' } },
     })
     // Dealt through the same door as every beat: seq-stamped, delivered, last.
     expect(delivered.at(-1)).toEqual(answer.event)

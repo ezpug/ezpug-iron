@@ -8,7 +8,7 @@ namespace EZPug.Sdk.Testing;
 /// <b>The link without a socket.</b> Records every event a mode emitted (stamped, as the
 /// wire would carry it) in <see cref="Events"/> — position ticks apart, which are
 /// ephemeral on the wire and land in <see cref="Ticks"/> so a story's event list stays
-/// exact — and every state, backup and console frame; a test pushes the
+/// exact — and every state, backup, console and widget-push frame; a test pushes the
 /// orchestrator's side in — <see cref="Assign"/>, <see cref="Release"/>, <see cref="Command"/>,
 /// <see cref="PlayerCommand"/>, <see cref="PushProfile"/> — and reads the answer back.
 /// Delivery is synchronous: a pushed frame reaches the handler before the call returns,
@@ -33,6 +33,8 @@ public sealed class FakePlatformLink : IPlatformLink
     public List<ConsoleServerFrame> Consoles { get; } = [];
     public List<CommandResultServerFrame> CommandResults { get; } = [];
     public List<PlayerCommandResultServerFrame> PlayerCommandResults { get; } = [];
+    /// <summary>The pushes a mode aimed at one phone, in order (PRD-02 T26). Ephemeral on the wire; here so a test can look at them.</summary>
+    public List<WidgetPushServerFrame> Pushes { get; } = [];
 
     /// <summary>The events of one type, in order.</summary>
     public IReadOnlyList<T> EventsOf<T>() where T : GameserverEvent => Events.OfType<T>().ToList();
@@ -60,6 +62,9 @@ public sealed class FakePlatformLink : IPlatformLink
 
     public void SendConsole(IReadOnlyList<ConsoleLine> lines, string? correlationId = null) =>
         Consoles.Add(new ConsoleServerFrame { CorrelationId = correlationId, UptimeMs = 0, Lines = lines });
+
+    public void PushWidget(string matchId, ulong steamId64, WidgetPushServerFramePush push) =>
+        Pushes.Add(new WidgetPushServerFrame { MatchId = matchId, SteamId64 = steamId64.ToString(), Push = push });
 
     public void AnswerCommand(string correlationId, CommandAnswer answer) =>
         CommandResults.Add(new CommandResultServerFrame

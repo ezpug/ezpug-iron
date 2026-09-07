@@ -484,6 +484,30 @@
       "message": "Noch 4 Sekunden.",
       "cooldownMs": 4000,
       "chargesLeft": 0
+    },
+    {
+      "type": "widget_push",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "steamId64": "76561198279375306",
+      "push": {
+        "type": "push",
+        "name": "radar_peek",
+        "data": {
+          "expiresInMs": 5000,
+          "self": {
+            "x": -1024.5,
+            "y": 512,
+            "z": -167.97
+          },
+          "contacts": [
+            {
+              "x": 220.25,
+              "y": 1880,
+              "z": -167.97
+            }
+          ]
+        }
+      }
     }
   ]
 }

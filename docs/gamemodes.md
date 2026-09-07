@@ -96,7 +96,7 @@ is answered on the socket, an accepted one becomes whatever the mode does (usual
 | `title`, `description` | what the button says and what it does, `{ de, en }`. The description is optional; the title is not |
 | `cooldownMs` | the least time between two uses by one player; `0` (the default) is none |
 | `charges` | `{ count, per }` or `null` (the default) for unlimited. `per` is `life`, `round`, `map` or `match` — the window the count refills in. `powerup-dm`'s button is one per `life` |
-| `args` | optional. A JSON Schema (draft 2020-12) with `type: object` describing the tap's arguments. The widget validates before it sends and the plugin before it acts, from the one document. Absent means the verb takes none |
+| `args` | optional. A JSON Schema (draft 2020-12) with `type: object` describing the tap's arguments. The widget validates before it sends and the plugin before it acts, from the one document. Absent means the verb takes none. **In chat**, the words after the verb are the value of the schema's *first declared property*, whole (`!powerup radar_peek` is the phone's `{ "kind": "radar_peek" }`), so a verb whose arguments need more than one field can only be tapped |
 
 Names are unique within a manifest; at most 32 verbs.
 
@@ -392,6 +392,12 @@ the element and runs the host handshake itself. Inside the component:
   orchestrator decided, `4000` being the match's end), the **locale** (the host's, else the
   roster's from `hello`, else German), **`t()`**, the match id, the token or `null` for a
   viewer, and a ticking `now` for countdowns.
+- `link.onPush(handler)` gives every **push** the gamemode aimed at *this* phone: a
+  `{ name, data }` frame the plugin sent through the orchestrator, mode-shaped, ephemeral —
+  never stored, never replayed to a widget that reconnects, so a widget that wants one on
+  screen holds it itself. `powerup-dm`'s `radar_peek` is one every 500 ms for five seconds,
+  each carrying everybody's coordinates and nothing that names them; the plugin's half is
+  `PushWidget` in `docs/sdk.md`. A push whose `name` you do not know is ignored.
 - Copy is `{ de, en }` where it is used — `t({ de: '…', en: '…' }, { n: 2 })` — the
   manifest's rule; the kit's own states (`KIT_COPY`: connecting, watching only, ended,
   refused) come both ways too.
@@ -414,6 +420,13 @@ running in the same process on the wall clock, with a simulated `powerup-dm` mat
 player token minted for a rostered player. No CS2, no Postgres, no platform; the socket the
 widget opens is a real one to the fake's `/v1/widget`. `--time-scale 20` plays the match
 faster.
+
+A mode that draws a push has nothing to draw there — the simulated server runs a stand-in
+mode with no opinion about when a push is due — so the harness fires them by hand: put a
+`widget/harness-pushes.json` beside the entry (a list of `{ label, name, data }`) and the
+page grows a button per entry that hands the frame to the fake exactly as a real
+orchestrator relays a plugin's `widget_push`. `gamemodes/powerup-dm/widget/harness-pushes.json`
+is one radar peek with four contacts.
 
 **Tests**: the kit's own (`gamemode-kit/src/*.test.ts`) run the link against the fake over
 a real socket, the handshake and the element under `happy-dom`, and the preset over a

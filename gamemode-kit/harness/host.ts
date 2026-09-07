@@ -11,6 +11,11 @@ import { WIDGET_HOST_PROTOCOL, WIDGET_TOKEN_FALLBACKS } from '../src/index'
  * The frame is sandboxed without `allow-same-origin`, so its origin is
  * opaque and `event.origin` reads `"null"`: the host trusts the frame by
  * `event.source` instead, as any host of a sandboxed widget must.
+ *
+ * The push buttons are the one thing no real host has (PRD-02 T26): a mode's
+ * `widget/harness-pushes.json` becomes a button each, and pressing one asks
+ * the dev server to hand the fake orchestrator a push for this session's
+ * player — the frame the plugin would have sent.
  */
 
 interface Session {
@@ -21,6 +26,7 @@ interface Session {
   playerToken: string
   expiresAt: string
   state: string
+  pushes: { label: string; name: string }[]
 }
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -32,6 +38,7 @@ const fresh = $<HTMLButtonElement>('fresh')
 const log = $<HTMLPreElement>('log')
 const sessionLine = $<HTMLSpanElement>('session')
 const gamemodeLine = $<HTMLSpanElement>('gamemode')
+const pushBar = $<HTMLSpanElement>('pushes')
 
 let session: Session | null = null
 let ready = false
@@ -75,12 +82,37 @@ async function loadSession(freshMatch: boolean): Promise<void> {
   }
   session = (await response.json()) as Session
   gamemodeLine.textContent = session.gamemode
+  drawPushes(session.pushes ?? [])
   sessionLine.textContent = `match ${session.matchId} · ${session.state} · orchestrator ${session.orchestratorUrl} · token bis ${session.expiresAt}`
   if (ready) init()
   else {
     reloads += 1
     frame.src = `/frame.html?reload=${reloads}`
   }
+}
+
+/** One button per sample push the mode ships; none is no bar at all. */
+function drawPushes(pushes: { label: string; name: string }[]): void {
+  pushBar.replaceChildren()
+  pushes.forEach((push, index) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.textContent = `push ${push.label}`
+    button.addEventListener('click', () => {
+      void fetch(`/__harness/push?i=${index}`, { method: 'POST' }).then(
+        async response => {
+          const body = (await response.json()) as { name?: string; phones?: number; error?: string }
+          say(
+            body.error
+              ? `push failed: ${body.error}`
+              : `→ push ${body.name} to ${body.phones} phone(s)`,
+          )
+        },
+        error => say(`push failed: ${String(error)}`),
+      )
+    })
+    pushBar.append(button)
+  })
 }
 
 window.addEventListener('message', event => {

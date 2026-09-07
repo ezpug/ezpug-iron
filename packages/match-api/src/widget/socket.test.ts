@@ -27,7 +27,7 @@ describe('the widget socket frames', () => {
       type: 'command',
       correlationId: 'tap-1',
       command: 'powerup',
-      args: { kind: 'haste' },
+      args: { kind: 'speed' },
     })
     expect(tap.type).toBe('command')
     expect(WIDGET_CLIENT_FRAME_TYPES).toEqual(['hello', 'command'])
@@ -79,7 +79,21 @@ describe('the widget socket frames', () => {
       chargesLeft: 0,
     })
     expect(result.type).toBe('command_result')
-    expect(WIDGET_SERVER_FRAME_TYPES).toEqual(['hello', 'event', 'command_result'])
+    // The push: a mode's own name and its own shape, which this contract does
+    // not read (PRD-02 T26).
+    const push = widgetServerFrameSchema.parse({
+      type: 'push',
+      name: 'radar_peek',
+      data: { expiresInMs: 5_000, self: { x: 1, y: 2, z: 3 }, contacts: [{ x: 4, y: 5, z: 6 }] },
+    })
+    expect(push.type).toBe('push')
+    expect(
+      widgetServerFrameSchema.safeParse({ type: 'push', name: 'Radar Peek', data: {} }).success,
+    ).toBe(false)
+    expect(widgetServerFrameSchema.safeParse({ type: 'push', name: 'radar_peek' }).success).toBe(
+      false,
+    )
+    expect(WIDGET_SERVER_FRAME_TYPES).toEqual(['hello', 'event', 'command_result', 'push'])
   })
 
   it('never carries a position tick — a phone has no radar', () => {

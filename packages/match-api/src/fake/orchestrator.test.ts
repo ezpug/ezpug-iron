@@ -852,12 +852,12 @@ describe('the stream and the player door', () => {
     const answered = await h.fake.playerCommand({
       token: dmToken.token,
       command: 'powerup',
-      args: { kind: 'haste' },
+      args: { kind: 'speed' },
     })
     expect(answered.payload).toMatchObject({
       type: 'plugin_event',
       name: FAKE_PLAYER_COMMAND_EVENT,
-      data: { command: 'powerup', steamId64: '76561198999999999', args: { kind: 'haste' } },
+      data: { command: 'powerup', steamId64: '76561198999999999', args: { kind: 'speed' } },
     })
     expect((await allEvents(h, dm.id)).at(-1)).toEqual(answered)
     expect(

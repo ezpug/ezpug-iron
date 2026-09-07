@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Die deutschen Zeilen von powerup-dm — die Vorlage. Jeder Schlüssel steht auch in
+  Lines.en.resx; ein Schlüssel, den nur eine Sprache kennt, lässt EZPug.PowerupDm.Tests
+  rot werden (docs/sdk.md, "Bilingual where a human reads it").
+-->
+<root>
+  <data name="powerup.welcome" xml:space="preserve"><value>Ein Power-up pro Leben: tipp auf dem Handy oder schreib !powerup speed, !powerup armor, !powerup radar_peek.</value></data>
+  <data name="powerup.start" xml:space="preserve"><value>Jeder gegen jeden. Ein Power-up pro Leben – viel Erfolg!</value></data>
+  <data name="powerup.landed" xml:space="preserve"><value>Power-up aktiv: {0}.</value></data>
+  <data name="powerup.kind.speed" xml:space="preserve"><value>Tempo</value></data>
+  <data name="powerup.kind.armor" xml:space="preserve"><value>Rüstung</value></data>
+  <data name="powerup.kind.radar_peek" xml:space="preserve"><value>Radarblick</value></data>
+  <data name="powerup.center.speed" xml:space="preserve"><value>TEMPO</value></data>
+  <data name="powerup.center.armor" xml:space="preserve"><value>RÜSTUNG</value></data>
+  <data name="powerup.center.radar_peek" xml:space="preserve"><value>RADARBLICK · schau aufs Handy</value></data>
+  <data name="powerup.peek.hud" xml:space="preserve"><value>Radarblick: noch {0} s</value></data>
+  <data name="powerup.bye" xml:space="preserve"><value>Danke fürs Spielen!</value></data>
+</root>

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <data name="powerup.welcome" xml:space="preserve"><value>One power-up per life – tap on your phone or type !powerup.</value></data>
+  <data name="powerup.welcome" xml:space="preserve"><value>One power-up per life – tap on your phone or type !powerup speed.</value></data>
   <data name="powerup.landed" xml:space="preserve"><value>Power-up on: {0}.</value></data>
-  <data name="powerup.kind.haste" xml:space="preserve"><value>haste</value></data>
+  <data name="powerup.kind.speed" xml:space="preserve"><value>speed</value></data>
   <data name="powerup.kind.armor" xml:space="preserve"><value>armor</value></data>
-  <data name="powerup.kind.heal" xml:space="preserve"><value>heal</value></data>
+  <data name="powerup.kind.radar_peek" xml:space="preserve"><value>radar peek</value></data>
   <data name="powerup.bye" xml:space="preserve"><value>Thanks for playing!</value></data>
 </root>

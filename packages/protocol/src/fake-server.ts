@@ -1,4 +1,4 @@
-import type { GameserverEvent, RosterEntry } from '@ezpug/match-api'
+import type { GameserverEvent, RosterEntry, WidgetPushFrame } from '@ezpug/match-api'
 import { EVENTS_BATCH_MAX, LINK_CLOSE_CODES, PROTOCOL_VERSION } from './constants'
 import {
   type LinkAckStatus,
@@ -163,6 +163,8 @@ export interface FakeServer {
   heartbeat: (overrides?: Partial<Omit<ServerFrameOf<'heartbeat'>, 'type'>>) => void
   state: (state: LinkServerState, detail?: string) => void
   backup: (backup: RoundBackup, matchId?: string) => void
+  /** A gamemode's push at one player's phone (PRD-02 T26) — ephemeral, unacked, relayed by the orchestrator to that player's widget sockets. */
+  widgetPush: (steamId64: string, push: WidgetPushFrame, matchId?: string) => void
   /** Send a console tail, unsolicited or as the answer to `correlationId`. */
   console: (lines: LinkConsoleLine[], correlationId?: string) => void
   /** The next orchestrator frame of `type` not yet taken by a previous `next`. */
@@ -471,6 +473,11 @@ export function createFakeServer(options: FakeServerOptions): FakeServer {
       const target = forMatch ?? matchId
       if (target === undefined) throw new Error('no match to back up')
       write({ type: 'backup', matchId: target, backup })
+    },
+    widgetPush: (steamId64, push, forMatch) => {
+      const target = forMatch ?? matchId
+      if (target === undefined) throw new Error('no match to push to')
+      write({ type: 'widget_push', matchId: target, steamId64, push })
     },
     console: (lines, correlationId) =>
       write({

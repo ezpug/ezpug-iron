@@ -195,10 +195,13 @@ public sealed class Facts
             _ => null,
         };
 
-    private static JsonObject ToObject(object data) =>
+    private static JsonObject ToObject(object data) => ToJsonObject(data);
+
+    /// <summary>An anonymous object, a record or a <see cref="JsonObject"/> as the wire's JSON object — what a <c>plugin_event</c>'s <c>data</c> and a widget push's payload are both built from.</summary>
+    public static JsonObject ToJsonObject(object data) =>
         data as JsonObject
         ?? JsonSerializer.SerializeToNode(data, ProtocolJson.Options) as JsonObject
-        ?? throw new ArgumentException("plugin event data must serialize to a JSON object", nameof(data));
+        ?? throw new ArgumentException("data must serialize to a JSON object", nameof(data));
 }
 
 /// <summary>

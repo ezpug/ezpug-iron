@@ -12,6 +12,7 @@ import type {
   WebhookEnvelope,
   WidgetCloseCode,
   WidgetCommandFrame,
+  WidgetPushFrame,
   WidgetServerFrame,
 } from '../index'
 import type { ApiClient, FlatRoute } from '../rpc'
@@ -235,6 +236,16 @@ export interface FakeOrchestrator {
    * `details.code` carries the socket's own refusal code).
    */
   playerCommand: (command: FakePlayerCommand) => Promise<WebhookEnvelope>
+  /**
+   * **A gamemode's push at one phone** (PRD-02 T26), the way a real
+   * orchestrator relays a plugin's `widget_push`: the frame reaches every
+   * open widget of that player of that match and is then forgotten — never
+   * stored, never replayed. The fake's simulated server runs a stand-in
+   * mode with no opinion about when a push is due, so this is the door a
+   * test or a widget harness opens by hand. Returns how many phones got it;
+   * zero is an answer, not a failure.
+   */
+  widgetPush: (matchId: string, steamId64: string, push: WidgetPushFrame) => number
   /** The widget socket in-process: the token from the widget's `hello`, the frames it would receive, the close it would get. Throws `ApiError` when refused. */
   widget: (
     token: string,

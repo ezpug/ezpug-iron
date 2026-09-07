@@ -23,9 +23,9 @@
 # reads these lines back (`pnpm lint` fails on a disagreement).
 
 # ── The EZPug plugins ──────────────────────────────────────────────────────
-# The same tree `plugins/publish.sh` writes for a hand install: the core plugin
-# and one copy of the SDK in CounterStrikeSharp's `shared/`, and nothing the
-# runtime already ships. The .NET SDK tag is exactly `plugins/global.json`'s,
+# The same tree `plugins/publish.sh` writes for a hand install: the core plugin,
+# the SDK gamemodes under `plugins/disabled/`, one copy of the SDK in
+# CounterStrikeSharp's `shared/`, and nothing the runtime already ships. The .NET SDK tag is exactly `plugins/global.json`'s,
 # so the image is built by the compiler the tests ran on.
 FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS plugins
 WORKDIR /src
@@ -36,8 +36,11 @@ COPY plugins/EZPug.Sdk.Testing/EZPug.Sdk.Testing.csproj EZPug.Sdk.Testing/
 COPY plugins/EZPug.Sdk.Tests/EZPug.Sdk.Tests.csproj EZPug.Sdk.Tests/
 COPY plugins/EZPug.Core/EZPug.Core.csproj EZPug.Core/
 COPY plugins/EZPug.Core.Tests/EZPug.Core.Tests.csproj EZPug.Core.Tests/
+COPY plugins/EZPug.PowerupDm/EZPug.PowerupDm.csproj EZPug.PowerupDm/
+COPY plugins/EZPug.PowerupDm.Tests/EZPug.PowerupDm.Tests.csproj EZPug.PowerupDm.Tests/
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet restore EZPug.Core/EZPug.Core.csproj
+    dotnet restore EZPug.Core/EZPug.Core.csproj \
+    && dotnet restore EZPug.PowerupDm/EZPug.PowerupDm.csproj
 COPY plugins/ ./
 # `.git` is not in the build context (`.dockerignore`), so the commit arrives
 # as a build argument — `pnpm cs2:build` passes it and `build.json` records it.

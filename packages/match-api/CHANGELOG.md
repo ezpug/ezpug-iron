@@ -6,6 +6,35 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.7.0 — 2026-09-07
+
+The push: a gamemode may put one moment on one player's phone (decision 17). Serves
+PRD-02 T26, `powerup-dm`'s `radar_peek` — five seconds of the enemy positions on the
+phone that asked for them, and nowhere else. Additive; a client that pinned `0.6.0` sees
+every shape it knew unchanged. Only a **widget** parses the frames this adds, and a
+widget is served by the orchestrator that sends them, so the two never disagree about the
+union.
+
+- **`WidgetPushFrame`** (`{ type: 'push', name, data }`), a fourth member of
+  `WidgetServerFrame` and a fourth entry in `WIDGET_SERVER_FRAME_TYPES`: something the
+  gamemode wants *this* phone to see now. `name` is the mode's own snake_case word for
+  it, `data` its own shape — this contract does not read it, because the plugin that
+  sends it and the widget that draws it ship together in `gamemodes/<id>/`. A widget that
+  does not recognise a `name` ignores the frame.
+- **`WIDGET_PUSH_DATA_MAX`** (16 KiB of serialized JSON): the ceiling the orchestrator
+  enforces where a push enters it. A mode that wants to send more than that wants an event.
+- **A push is ephemeral by contract**: relayed to the open widgets of the one SteamID64
+  it names, never logged, never written to the match's event log, never replayed to a
+  widget that reconnects. The position-tick firehose still never crosses the socket — a
+  push is a picture a mode chose to give one player, not a feed.
+- **`FakeOrchestrator.widgetPush(matchId, steamId64, push)`**: the door a test or a widget
+  harness opens by hand, since the fake's simulated server runs a stand-in mode with no
+  opinion about when a push is due. Returns how many phones got it.
+- **The shipped `powerup-dm` manifest is `0.2.0`**: the `powerup` verb's `kind` enum is
+  now `speed`, `armor`, `radar_peek` (was `haste`, `armor`, `heal`), and its description
+  says so in both languages. The verb, its one charge per life and its cooldown are
+  unchanged.
+
 ## 0.6.0 — 2026-09-07
 
 The widget's address: the catalog names where a gamemode's widget is served (decision 17).

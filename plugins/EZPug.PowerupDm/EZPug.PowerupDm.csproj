@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    EZPug.PowerupDm: the shipped SDK gamemode (PRD-02 T26) — `gamemodes/powerup-dm/`'s
+    other half. A class over EZPug.Sdk, a CounterStrikeSharp shell of thirty lines, and
+    two resx files of its own lines; no CounterStrikeSharp type reaches the mode and no
+    part of it needs CS2 to be tested (EZPug.PowerupDm.Tests plays it under the SDK's
+    harness).
+
+    Installed as plugins/disabled/EZPug.PowerupDm/ — disabled until a manifest names it
+    (decision 16) — with EZPug.Sdk.dll *not* beside it: the SDK is the shared contract
+    every EZPug plugin resolves from shared/EZPug.Sdk/ (plugins/README.md), and two
+    copies of it would be two host capabilities and no runtime. `Private=false` on the
+    reference is what keeps the build output honest about that.
+  -->
+  <PropertyGroup>
+    <RootNamespace>EZPug.PowerupDm</RootNamespace>
+    <AssemblyName>EZPug.PowerupDm</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CounterStrikeSharp.API" Version="$(CounterStrikeSharpApiVersion)" />
+    <ProjectReference Include="../EZPug.Sdk/EZPug.Sdk.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The mode's lines, embedded as raw XML the way docs/sdk.md tells a gamemode to:
+      `Type="Non-Resx"` keeps MSBuild's resgen off them, so the SDK parses the resx itself
+      and no satellite assembly has to be found in a culture folder beside a hot-loaded
+      plugin. German is the master file.
+    -->
+    <EmbeddedResource Remove="Lines.*.resx" />
+    <EmbeddedResource Include="Lines.*.resx" Type="Non-Resx" WithCulture="false" LogicalName="EZPug.PowerupDm.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

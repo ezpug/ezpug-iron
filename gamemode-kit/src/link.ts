@@ -8,6 +8,7 @@ import {
   WIDGET_SOCKET_PROTOCOL,
   type WidgetCommandResultFrame,
   type WidgetCommandState,
+  type WidgetPushFrame,
   type WidgetServerFrame,
   type WidgetWelcomeFrame,
 } from './protocol'
@@ -87,6 +88,13 @@ export interface WidgetLink {
   closeCode: Readonly<Ref<number | null>>
   /** Every `event` frame, in order; returns the unsubscribe. */
   onEvent: (handler: (envelope: WebhookEnvelope) => void) => () => void
+  /**
+   * Every `push` frame — a moment the gamemode aimed at this phone and
+   * nothing else (`powerup-dm`'s `radar_peek`). Ephemeral: nothing here
+   * keeps one, so a widget that wants a push on screen holds it itself.
+   * Returns the unsubscribe.
+   */
+  onPush: (handler: (push: WidgetPushFrame) => void) => () => void
   /** A tap. Resolves with the orchestrator's `command_result`; a local refusal is a rejected result too, never a throw. */
   send: (command: string, args?: Record<string, unknown>) => Promise<WidgetCommandResultFrame>
   /** Hang up and stop reconnecting. */
@@ -123,6 +131,7 @@ export function useWidgetLink(options: WidgetLinkOptions): WidgetLink {
   const lastEvent = ref<WebhookEnvelope | null>(null)
   const closeCode = ref<number | null>(null)
   const listeners = new Set<(envelope: WebhookEnvelope) => void>()
+  const pushListeners = new Set<(push: WidgetPushFrame) => void>()
 
   sessionCounter += 1
   const session = `w${sessionCounter}-${clock.now().toString(36)}`
@@ -194,6 +203,10 @@ export function useWidgetLink(options: WidgetLinkOptions): WidgetLink {
       case 'event': {
         lastEvent.value = frame.envelope
         for (const listener of listeners) listener(frame.envelope)
+        return
+      }
+      case 'push': {
+        for (const listener of pushListeners) listener(frame)
         return
       }
       case 'command_result': {
@@ -350,6 +363,10 @@ export function useWidgetLink(options: WidgetLinkOptions): WidgetLink {
     onEvent(handler) {
       listeners.add(handler)
       return () => listeners.delete(handler)
+    },
+    onPush(handler) {
+      pushListeners.add(handler)
+      return () => pushListeners.delete(handler)
     },
     send,
     close,

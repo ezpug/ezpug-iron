@@ -12,7 +12,8 @@ how to install them by hand. `docs/decisions.md` 5, 16 and 19 are the why.
 | `EZPug.Sdk` | the seams (`IGameWorld`, `IPlatformLink`, `IClock`), the `Gamemode` base and runtime, the event model, player commands, i18n, the link client, and `EZPug.Sdk.Hosting` — the door a gamemode plugin uses to reach the runtime |
 | `EZPug.Sdk.Testing` | `FakeClock`, `FakeGameWorld`, `FakePlatformLink`, `GamemodeTestHost`: a mode under xunit without CS2 |
 | `EZPug.Core` | the CounterStrikeSharp shell: the world and the game-thread clock over the engine, the sidecar, the link, the gamemode loader, the console commands |
-| `EZPug.Sdk.Tests`, `EZPug.Core.Tests` | xunit; run by `pnpm verify` (`dotnet build -warnaserror` + `dotnet test` over `EZPug.sln`) |
+| `EZPug.PowerupDm` | the shipped SDK gamemode (PRD-02 T26): `powerup-dm`'s class, its CounterStrikeSharp shell and its resx pair. Installed under `plugins/disabled/`, hot-loaded for the match whose manifest names it |
+| `EZPug.Sdk.Tests`, `EZPug.Core.Tests`, `EZPug.PowerupDm.Tests` | xunit; run by `pnpm verify` (`dotnet build -warnaserror` + `dotnet test` over `EZPug.sln`) |
 
 Everything builds against the CounterStrikeSharp.API version pinned in
 `Directory.Build.props` (`docs/pins.md` has the row); the .NET SDK is `global.json`'s.
@@ -41,7 +42,7 @@ game/csgo/
             ├── RetakesPlugin/…                  ← + its lang/ and map_config/ spawn set
             ├── RetakesAllocator/…               ← the weapon allocator that runs beside it
             ├── WeaponPaints/…                  ← the data-layer fork (T28)
-            └── EZPug.PowerupDm/…               ← an SDK mode (T26): its dll, no EZPug.Sdk.dll beside it
+            └── EZPug.PowerupDm/…               ← the SDK mode (T26): its dll, deps.json and pdb, no EZPug.Sdk.dll beside it
 ```
 
 `plugins/publish.sh` (`pnpm plugins:publish`) builds the tree above under `plugins/dist/`
@@ -213,7 +214,8 @@ engine off the game thread.
 
 ## Writing a gamemode plugin
 
-The mode is a `Gamemode` (`docs/sdk.md`); its plugin is five lines:
+The mode is a `Gamemode` (`docs/sdk.md`); its plugin is five lines. `EZPug.PowerupDm` is
+the one that ships and the one to copy:
 
 ```csharp
 public sealed class PowerupDmPlugin : GamemodePlugin
@@ -224,9 +226,12 @@ public sealed class PowerupDmPlugin : GamemodePlugin
 }
 ```
 
-Build it against `EZPug.Sdk` (a project reference), ship the plugin's dll, `deps.json`
-and `pdb` under `plugins/disabled/EZPug.PowerupDm/` — and not `EZPug.Sdk.dll`, which the
-host resolves from `shared/`. Name the folder what the manifest's `plugins` says.
+Build it against `EZPug.Sdk` (a project reference with `Private="false"`, so no copy of
+the SDK lands in its `bin/`), ship the plugin's dll, `deps.json` and `pdb` under
+`plugins/disabled/<Name>/` — and not `EZPug.Sdk.dll`, which the host resolves from
+`shared/`. Name the folder what the manifest's `plugins` says, add the project to
+`EZPug.sln`, to the `for mode in …` line of `publish.sh` and to the csproj list in
+`docker/cs2/Dockerfile`, and the image carries it.
 
 ## What is not here yet
 

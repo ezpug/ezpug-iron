@@ -615,8 +615,9 @@ Down, from the orchestrator:
 | Frame            | Fields | Meaning |
 | ---------------- | ------ | ------- |
 | `hello`          | `protocol: 1, matchId, steamId64, gamemode, state, locale?, commands` | the answer to the widget's: who the token is for, where the match is, the player's locale when the roster knows it, and every declared verb as `WidgetCommandState` — the manifest's spec plus `chargesLeft` (`null` for a verb without charges) and `readyInMs` as last learned from the plugin; a hint for the button, never the truth |
-| `event`          | `envelope: WebhookEnvelope` | every durable fact of the match from then on, as the webhook carries it, so a widget follows a death or a round without a second socket. Position ticks never cross it |
+| `event`          | `envelope: WebhookEnvelope` | every durable fact of the match from then on, as the webhook carries it, so a widget follows a death or a round without a second socket. The position-tick firehose never crosses it |
 | `command_result` | `correlationId, command, status, code?, message?, cooldownMs?, chargesLeft?` | the answer to a tap: `applied`, or `rejected` with a code from `WIDGET_COMMAND_REFUSALS` and a `message` in the player's language the widget may show as it is |
+| `push`           | `name, data` | **a moment the gamemode gave this one phone** (0.7.0): mode-defined, addressed to the SteamID64 the token was minted for, relayed from the server's link without being read, and gone — never logged, never in `match_events`, never replayed to a widget that reconnects. `name` is the mode's own snake_case word, `data` its own shape, up to `WIDGET_PUSH_DATA_MAX` (16 KiB) of JSON; a widget that does not know a `name` ignores the frame. `powerup-dm`'s `radar_peek` is how five seconds of enemy positions reach a phone without a position ever being stored |
 
 **Refusals.** `cooldown` (with `cooldownMs`), `no_charges`, `unknown_command`,
 `invalid_args`, `not_in_match`, `not_alive`, `refused` are the plugin's — the SDK enforces
@@ -632,6 +633,13 @@ relay deadline is `unavailable` — try again.
 `player_command` with `data: { command, steamId64, name?, args? }`. That is how the
 platform proves a tap without a socket and how a widget sees its own tap land: the same
 envelope arrives as an `event` frame and as a webhook.
+
+**A push is not an event.** A durable fact is an `event` and survives in the log; a push is
+a picture with a shelf life, delivered to whoever is looking and dropped when nobody is. A
+mode's plugin sends one with the SDK's `PushWidget` (`docs/sdk.md`), a widget reads it with
+`link.onPush` (`@ezpug/gamemode-kit`), and the fake's `widgetPush(matchId, steamId64, push)`
+is the door a test opens — the simulated server has no mode of its own to decide when a
+push is due.
 
 **Close codes** (`WIDGET_CLOSE_CODES`): `4000` the match ended (the `event` frame with
 `match.ended` or `match.failed` came first), `4001` no token, one that does not verify,

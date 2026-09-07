@@ -47,21 +47,21 @@
       "name": "powerup",
       "title": { "de": "Power-up", "en": "Power-up" },
       "description": {
-        "de": "Ein Power-up für dieses Leben – zufällig, oder das gewünschte.",
-        "en": "A power-up for this life – random, or the one you ask for."
+        "de": "Ein Power-up für dieses Leben: Tempo, Rüstung oder ein Blick auf die Gegner.",
+        "en": "One power-up for this life: speed, armor, or a look at the enemy."
       },
       "cooldownMs": 0,
       "charges": { "count": 1, "per": "life" },
       "args": {
         "type": "object",
         "properties": {
-          "kind": { "type": "string", "enum": ["haste", "armor", "heal"] }
+          "kind": { "type": "string", "enum": ["speed", "armor", "radar_peek"] }
         },
         "additionalProperties": false
       }
     }
   ],
   "widget": { "entry": "dist/widget.js", "needs": ["tokens", "locale", "playerToken"] },
-  "version": "0.1.1",
+  "version": "0.2.0",
   "sdkVersion": "0.1.0"
 }

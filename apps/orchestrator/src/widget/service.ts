@@ -5,6 +5,7 @@ import type {
   WidgetCommandFrame,
   WidgetCommandRefusal,
   WidgetCommandState,
+  WidgetPushFrame,
   WidgetServerFrame,
 } from '@ezpug/match-api'
 import {
@@ -26,8 +27,10 @@ import { hashToken, looksLikeToken } from '../tokens'
  * T24): a session opens with the player token from the widget's `hello`,
  * answers with the mode's verbs and their state, forwards every durable
  * fact of the match as an `event` frame, and relays each tap to the plugin
- * through the machine, answering with a `command_result`. `widget/upgrade.ts`
- * is the socket around this; the conformance target uses it in-process.
+ * through the machine, answering with a `command_result`; and it hands a
+ * mode's `push` frames to the one player they name (PRD-02 T26).
+ * `widget/upgrade.ts` is the socket around this; the conformance target uses
+ * it in-process.
  *
  * What is decided here: a token must look like ours, hash to a row, be
  * unexpired and unrevoked; its match must exist and — for a browser — allow
@@ -74,6 +77,13 @@ export interface WidgetServiceOptions {
 export interface WidgetService {
   /** Open a session for a token; the `hello` is sent before this resolves. */
   open: (request: WidgetOpenRequest, subscriber: WidgetSubscriber) => Promise<WidgetOpenResult>
+  /**
+   * Deliver a mode's push to every open widget of one player of one match
+   * (PRD-02 T26). Returns how many sockets got it — zero when that player
+   * has no phone open, which is not a failure: a push is ephemeral and
+   * nobody is waiting for it.
+   */
+  push: (matchId: string, steamId64: string, frame: WidgetPushFrame) => number
   /** Sessions open in this process, in all or for one match. */
   size: (matchId?: string) => number
   /** End every session with the code — the drain. */
@@ -120,6 +130,11 @@ export function createWidgetService(options: WidgetServiceOptions): WidgetServic
   const { clock, log, store, matches, hub } = options
   /** Open sessions by match, each with the way to end it and tell its socket why. */
   const sessions = new Map<string, Set<(code: WidgetCloseCode, reason: string) => void>>()
+  /**
+   * The same sessions by `<matchId>#<steamId64>` — whose phone is open — so a
+   * mode's push reaches the one player it was addressed to and nobody else.
+   */
+  const phones = new Map<string, Set<(frame: WidgetServerFrame) => void>>()
   /** `<matchId>#<steamId64>#<verb>` → what the last relayed result said. */
   const memory = new Map<string, VerbMemory>()
   /** One bucket per token hash — the token itself is never a map key. */
@@ -159,18 +174,30 @@ export function createWidgetService(options: WidgetServiceOptions): WidgetServic
 
   const track = (
     matchId: string,
+    steamId64: string,
     end: (code: WidgetCloseCode, reason: string) => void,
+    send: (frame: WidgetServerFrame) => void,
   ): (() => void) => {
+    const phoneKey = `${matchId}#${steamId64}`
     let set = sessions.get(matchId)
     if (!set) {
       set = new Set()
       sessions.set(matchId, set)
     }
     set.add(end)
+    let phone = phones.get(phoneKey)
+    if (!phone) {
+      phone = new Set()
+      phones.set(phoneKey, phone)
+    }
+    phone.add(send)
     return () => {
       const current = sessions.get(matchId)
       current?.delete(end)
       if (current?.size === 0) sessions.delete(matchId)
+      const openPhones = phones.get(phoneKey)
+      openPhones?.delete(send)
+      if (openPhones?.size === 0) phones.delete(phoneKey)
     }
   }
 
@@ -309,13 +336,19 @@ export function createWidgetService(options: WidgetServiceOptions): WidgetServic
         untrack?.()
       },
     }
-    untrack = track(matchId, end)
+    untrack = track(matchId, steamId64, end, send)
     log.info(`widget ${matchId} ${steamId64} joined`)
     return { ok: true, session }
   }
 
   return {
     open,
+    push: (matchId, steamId64, frame) => {
+      const phone = phones.get(`${matchId}#${steamId64}`)
+      if (!phone) return 0
+      for (const send of [...phone]) send(frame)
+      return phone.size
+    },
     size: matchId => {
       if (matchId !== undefined) return sessions.get(matchId)?.size ?? 0
       let total = 0

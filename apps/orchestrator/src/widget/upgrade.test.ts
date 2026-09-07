@@ -153,6 +153,7 @@ async function createRig(): Promise<Rig> {
     store: app.store,
     matches: app.matches,
     links: app.links,
+    widgets: app.widgets,
     heartbeatIntervalMs: 1_800_000,
     isDraining: () => app.draining.value,
   })
@@ -281,7 +282,7 @@ describe('the widget socket', () => {
     const relayed: OrchestratorFrameOf<'player_command'>[] = []
     const { matchId, server, serverId } = await rig.liveMatch({}, frame => {
       relayed.push(frame)
-      return frame.args?.kind === 'haste'
+      return frame.args?.kind === 'speed'
         ? { status: 'applied', chargesLeft: 0 }
         : { status: 'rejected', code: 'no_charges', message: 'Keine Ladung mehr.', chargesLeft: 0 }
     })
@@ -301,7 +302,7 @@ describe('the widget socket', () => {
       commands: [{ name: 'powerup', chargesLeft: 1, readyInMs: 0 }],
     })
 
-    widget.tap('tap-1', 'powerup', { kind: 'haste' })
+    widget.tap('tap-1', 'powerup', { kind: 'speed' })
     const frames = await widget.until(2)
     const first = frames.find(f => f.type === 'command_result')
     expect(first).toEqual({
@@ -319,7 +320,7 @@ describe('the widget socket', () => {
         correlationId: 'tap-1',
         steamId64: tk.steamId64,
         command: 'powerup',
-        args: { kind: 'haste' },
+        args: { kind: 'speed' },
       },
     ])
 
@@ -330,7 +331,7 @@ describe('the widget socket', () => {
       matchId,
       source: { provider: PROVIDER, serverId },
       name: 'powerup_claimed',
-      data: { steamId64: tk.steamId64, kind: 'haste' },
+      data: { steamId64: tk.steamId64, kind: 'speed' },
     })
     await eventually(() =>
       expect(
@@ -369,6 +370,53 @@ describe('the widget socket', () => {
     widget.close()
     second.close()
     await eventually(() => expect(rig.app.widgets.size()).toBe(0))
+  })
+
+  /**
+   * The push (PRD-02 T26): a mode's frame for one phone, over the link, out
+   * the widget socket of the player it names and nobody else's — and gone.
+   * Nothing about it reaches the match log or the stream.
+   */
+  it('relays a mode’s push to that one player’s widget and to no other', async () => {
+    const rig = await createRig()
+    const { matchId, server } = await rig.liveMatch()
+    const mine = rig.widget({ origin: 'https://ezpug.com' })
+    await mine.open
+    mine.hello((await mint(rig, matchId, tk.steamId64)).token)
+    await mine.until(1)
+    const theirs = rig.widget({ origin: 'https://ezpug.com' })
+    await theirs.open
+    theirs.hello((await mint(rig, matchId, maex.steamId64)).token)
+    await theirs.until(1)
+
+    const peek = {
+      type: 'push',
+      name: 'radar_peek',
+      data: { expiresInMs: 5_000, self: { x: 1, y: 2, z: 3 }, contacts: [{ x: 4, y: 5, z: 6 }] },
+    } as const
+    server.widgetPush(tk.steamId64, peek)
+    await eventually(() => expect(mine.frames.some(f => f.type === 'push')).toBe(true))
+    expect(mine.frames.filter(f => f.type === 'push')).toEqual([peek])
+    expect(theirs.frames.some(f => f.type === 'push')).toBe(false)
+
+    // Never a durable fact: the match's log and its `seq` are untouched.
+    const before = await rig.app.store.findMatch(matchId)
+    await rig.app.settle()
+    expect((await rig.app.store.findMatch(matchId))?.seq).toBe(before?.seq)
+
+    // A push for a match this server does not hold is dropped, not relayed.
+    server.widgetPush(tk.steamId64, peek, '6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b')
+    await rig.app.settle()
+    expect(mine.frames.filter(f => f.type === 'push')).toHaveLength(1)
+
+    // And one nobody is listening for is simply dropped: the link stays up.
+    theirs.close()
+    await eventually(() => expect(rig.app.widgets.size(matchId)).toBe(1))
+    server.widgetPush(maex.steamId64, peek)
+    await rig.app.settle()
+    expect(server.connected()).toBe(true)
+    expect(mine.frames.filter(f => f.type === 'push')).toHaveLength(1)
+    mine.close()
   })
 
   it('refuses at the door in the player’s language: an undeclared verb, the rate limit, a server that does not answer', async () => {

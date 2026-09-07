@@ -231,6 +231,22 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Link.Emit(stamped);
     }
 
+    /// <summary>
+    /// A push for one player's widget (PRD-02 T26): named, mode-shaped and addressed,
+    /// straight at the link with no seq and no buffer. Dropped with a word between
+    /// matches, the way an event is — a push belongs to a match or to nothing.
+    /// </summary>
+    public void PushWidget(IGamePlayer player, string name, object data)
+    {
+        if (Match.MatchId is not { } matchId)
+        {
+            _log.Warn($"widget push {name} with no match assigned; dropped");
+            return;
+        }
+
+        Link.PushWidget(matchId, player.SteamId64, new WidgetPushServerFramePush { Name = name, Data = Facts.ToJsonObject(data) });
+    }
+
     internal PlayerState<T> RegisterState<T>(PlayerState<T> state)
     {
         _stateClearers.Add(state.Clear);
@@ -643,7 +659,11 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
                 if (Commands?.Declares(command.Name) == true)
                 {
-                    var verdict = RunPlayerCommand(line.Player, command.Name, null);
+                    // `!powerup radar_peek` is the phone's `{ "kind": "radar_peek" }`
+                    // (ArgsValidator.FromChat): the chat door and the widget door reach
+                    // the mode holding the same object, so a verb behaves the same
+                    // whichever one a player used.
+                    var verdict = RunPlayerCommand(line.Player, command.Name, ArgsValidator.FromChat(Commands.SchemaOf(command.Name), command.Args));
                     if (verdict.Message is { } message)
                     {
                         World.Say(line.Player, message);

@@ -34,6 +34,8 @@ public sealed class UnlinkedPlatformLink : IPlatformLink
 
     public void SendConsole(IReadOnlyList<ConsoleLine> lines, string? correlationId = null) { }
 
+    public void PushWidget(string matchId, ulong steamId64, WidgetPushServerFramePush push) { }
+
     public void AnswerCommand(string correlationId, CommandAnswer answer) { }
 
     public void Pump() { }

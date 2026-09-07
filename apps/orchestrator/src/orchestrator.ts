@@ -370,6 +370,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     store,
     matches,
     links,
+    widgets,
     trace,
     isDraining: () => shutdown?.draining === true,
   })

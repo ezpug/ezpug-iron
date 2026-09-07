@@ -74,6 +74,18 @@ public interface IPlatformLink
     /// <summary>A console tail, unsolicited (<paramref name="correlationId"/> null) or as the answer to a <c>console</c> command.</summary>
     void SendConsole(IReadOnlyList<ConsoleLine> lines, string? correlationId = null);
 
+    /// <summary>
+    /// <b>A picture for one phone</b> (PRD-02 T26): the mode has something this one
+    /// player's widget should see right now — <c>powerup-dm</c>'s five seconds of enemy
+    /// positions, say. Relayed by the orchestrator to that player's open widget sockets
+    /// and to nobody else, then forgotten: a push is never sequenced, never acked, never
+    /// stored and never replayed, which is what lets a mode put a position on a phone
+    /// without a position ever being written down (CLAUDE.md). Dropped on the floor when
+    /// the link is down or no widget of that player is open — a mode that needs the fact
+    /// to survive emits an event instead.
+    /// </summary>
+    void PushWidget(string matchId, ulong steamId64, WidgetPushServerFramePush push);
+
     /// <summary>The late answer to a command the handler <see cref="CommandAnswer.Deferred"/>.</summary>
     void AnswerCommand(string correlationId, CommandAnswer answer);
 

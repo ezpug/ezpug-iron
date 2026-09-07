@@ -176,6 +176,20 @@ public sealed class LinkClient : IPlatformLink, IAsyncDisposable
     public void SendConsole(IReadOnlyList<ConsoleLine> lines, string? correlationId = null) =>
         Send(new ConsoleServerFrame { CorrelationId = correlationId, UptimeMs = UptimeMs, Lines = lines });
 
+    /// <summary>
+    /// A push for one player's widget. Sent on the open session or dropped —
+    /// deliberately not buffered like an event, because the point of a push is that it
+    /// was true a moment ago; one that arrives after a reconnect would be a lie drawn on
+    /// a phone.
+    /// </summary>
+    public void PushWidget(string matchId, ulong steamId64, WidgetPushServerFramePush push) =>
+        Send(new WidgetPushServerFrame
+        {
+            MatchId = matchId,
+            SteamId64 = steamId64.ToString(),
+            Push = push,
+        });
+
     public void AnswerCommand(string correlationId, CommandAnswer answer) =>
         Send(new CommandResultServerFrame
         {

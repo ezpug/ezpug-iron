@@ -2445,6 +2445,48 @@ public sealed record PlayerCommandResultServerFrame : ServerFrame
     public long? ChargesLeft { get; init; }
 }
 
+/// <summary><c>widget_push</c> — one branch of <see cref="ServerFrame"/>.</summary>
+public sealed record WidgetPushServerFrame : ServerFrame
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "widget_push";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(0)]
+    public string Type => TypeName;
+
+    [JsonPropertyName("matchId")]
+    [JsonPropertyOrder(1)]
+    public required string MatchId { get; init; }
+
+    [JsonPropertyName("steamId64")]
+    [JsonPropertyOrder(2)]
+    public required string SteamId64 { get; init; }
+
+    [JsonPropertyName("push")]
+    [JsonPropertyOrder(3)]
+    public required WidgetPushServerFramePush Push { get; init; }
+}
+
+/// <summary>The <c>push</c> block of <see cref="WidgetPushServerFrame"/>.</summary>
+public sealed record WidgetPushServerFramePush
+{
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(0)]
+    public string Type => "push";
+
+    [JsonPropertyName("name")]
+    [JsonPropertyOrder(1)]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("data")]
+    [JsonPropertyOrder(2)]
+    public required JsonObject Data { get; init; }
+}
+
 /// <summary>What the orchestrator sends a server.</summary>
 public abstract record OrchestratorFrame
 {
@@ -2943,6 +2985,7 @@ internal sealed class ServerFrameConverter : DiscriminatedUnionConverter<ServerF
             "backup" => typeof(BackupServerFrame),
             "console" => typeof(ConsoleServerFrame),
             "player_command_result" => typeof(PlayerCommandResultServerFrame),
+            "widget_push" => typeof(WidgetPushServerFrame),
             _ => null,
         };
 }

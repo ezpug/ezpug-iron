@@ -49,6 +49,7 @@ export function createFakeOrchestrator(options: FakeOrchestratorOptions): FakeOr
     stream: (subscription, listener, onClose) => core.stream(subscription, listener, onClose),
     playerCommand: command => core.playerCommand(command),
     widget: (token, listener, onClose) => core.widget(token, listener, onClose),
+    widgetPush: (matchId, steamId64, push) => core.widgetPush(matchId, steamId64, push),
     deliveries: matchId => core.deliveries(matchId),
     get faults() {
       return core.faults

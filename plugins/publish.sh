@@ -13,6 +13,10 @@
 #       deps.json and pdb — nothing else: CounterStrikeSharp.API and its
 #       Microsoft.Extensions.* come from the runtime the server already runs, and a copy
 #       beside a plugin would shadow the host's
+#   addons/counterstrikesharp/plugins/disabled/EZPug.PowerupDm/  the shipped SDK gamemode
+#       (PRD-02 T26), under `disabled/` because CounterStrikeSharp auto-loads what is not
+#       there and a gamemode plugin is loaded by the core's loader, for the match whose
+#       manifest names it (decision 16)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -26,6 +30,16 @@ bin="EZPug.Core/bin/Release/net10.0"
 
 cp "$bin/EZPug.Core.dll" "$bin/EZPug.Core.deps.json" "$bin/EZPug.Core.pdb" "$css/plugins/EZPug.Core/"
 cp "$bin/EZPug.Sdk.dll" "$bin/EZPug.Sdk.pdb" "$css/shared/EZPug.Sdk/"
+
+# The SDK gamemodes. `Private=false` on their reference to EZPug.Sdk means no
+# EZPug.Sdk.dll lands in their bin/ to copy by accident — the one in shared/ is the
+# contract both sides of the host capability must see (plugins/README.md).
+for mode in EZPug.PowerupDm; do
+  dotnet build "$mode/$mode.csproj" -c Release --nologo -v quiet
+  mode_bin="$mode/bin/Release/net10.0"
+  mkdir -p "$css/plugins/disabled/$mode"
+  cp "$mode_bin/$mode.dll" "$mode_bin/$mode.deps.json" "$mode_bin/$mode.pdb" "$css/plugins/disabled/$mode/"
+done
 
 # A marker so an operator (and T18's --check) can read what was built without a dll.
 # EZPUG_GIT_SHA wins over `git`, because inside the CS2 image's build there is no

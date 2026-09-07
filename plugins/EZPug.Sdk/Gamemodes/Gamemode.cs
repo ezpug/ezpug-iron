@@ -111,6 +111,17 @@ public abstract class Gamemode
     /// <summary>A <c>plugin_event</c> with a snake_case name and any JSON-shaped data.</summary>
     protected void EmitPluginEvent(string name, object data) => Runtime.Emit(Facts.Plugin(name, data));
 
+    /// <summary>
+    /// <b>Draw something on one player's phone, now</b> (PRD-02 T26): a named,
+    /// mode-defined payload relayed to that player's open widget and to nobody else.
+    /// Ephemeral — never sequenced, acked, stored or replayed — so it is the door for the
+    /// facts a match must not keep: <c>powerup-dm</c>'s <c>radar_peek</c> pushes enemy
+    /// positions this way, and a position is never written down. A fact that has to
+    /// survive is an event, not a push. No-op between matches.
+    /// </summary>
+    protected void PushWidget(IGamePlayer player, string name, object data) =>
+        Runtime.PushWidget(player, name, data);
+
     protected Locale LocaleOf(IGamePlayer player) => Assignment?.LocaleOf(player.SteamId64) ?? Localizer.DefaultLocale;
 
     /// <summary>The lines in this player's language: <c>Lines(player)["powerup.landed", kind]</c>.</summary>

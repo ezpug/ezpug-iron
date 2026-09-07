@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -27,6 +27,16 @@ import { type WidgetPaths, widgetVuePlugin } from './vite'
  * the token — read by the harness page over the dev server, never put in a
  * URL. `POST /__harness/session` starts a fresh match once the last one
  * ended.
+ *
+ * **Pushes** (PRD-02 T26): a mode whose widget draws something the plugin
+ * pushes at one phone has nothing to draw here — the fake's simulated server
+ * runs a stand-in mode with no opinion about when a push is due. So the
+ * harness fires them by hand: a mode may ship a
+ * `widget/harness-pushes.json` (a list of `{ label, name, data }`), the page
+ * puts a button behind each one, and `POST /__harness/push` hands it to
+ * `fake.widgetPush` exactly as a real orchestrator relays a plugin's
+ * `widget_push`. The socket, the frame and the drawing are the real ones;
+ * only the reason it arrived is made up.
  */
 
 const HARNESS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'harness')
@@ -45,6 +55,17 @@ export interface HarnessSession {
   playerToken: string
   expiresAt: string
   state: Match['state']
+  /** The sample pushes this mode ships, as buttons for the page. */
+  pushes: HarnessPush[]
+}
+
+/** One entry of a mode's `widget/harness-pushes.json`. */
+export interface HarnessPush {
+  /** What the button says. */
+  label: string
+  /** The push's name, the mode's own word for it (`radar_peek`). */
+  name: string
+  data: Record<string, unknown>
 }
 
 export interface HarnessOptions {
@@ -66,11 +87,33 @@ function manifestOf(paths: WidgetPaths): { id: string; maps: unknown; slots: { t
   return JSON.parse(readFileSync(join(paths.dir, 'manifest.json'), 'utf8'))
 }
 
+/** A mode's sample pushes, or none. A file that does not parse is a warning, not a dead harness. */
+function pushesOf(paths: WidgetPaths): HarnessPush[] {
+  const file = join(paths.dir, 'widget', 'harness-pushes.json')
+  if (!existsSync(file)) return []
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (entry): entry is HarnessPush =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof (entry as HarnessPush).label === 'string' &&
+        typeof (entry as HarnessPush).name === 'string' &&
+        typeof (entry as HarnessPush).data === 'object',
+    )
+  } catch (error) {
+    console.warn(`[harness] ${file} does not parse; no push buttons`, error)
+    return []
+  }
+}
+
 export async function startHarness(
   paths: WidgetPaths,
   options: HarnessOptions = {},
 ): Promise<Harness> {
   const manifest = manifestOf(paths)
+  const pushes = pushesOf(paths)
   const fake = createFakeOrchestrator({
     clock: systemClock,
     // The fake would POST every durable fact to the request's webhook URL; the
@@ -142,6 +185,7 @@ export async function startHarness(
       playerToken: token.token,
       expiresAt: token.expiresAt,
       state: match.state,
+      pushes,
     }
     return current
   }
@@ -162,6 +206,26 @@ export async function startHarness(
   const harnessPlugin: Plugin = {
     name: 'ezpug-widget-harness',
     configureServer(server) {
+      server.middlewares.use('/__harness/push', (req: IncomingMessage, res: ServerResponse) => {
+        const answer = (status: number, body: unknown): void => {
+          res.statusCode = status
+          res.setHeader('content-type', 'application/json; charset=utf-8')
+          res.setHeader('cache-control', 'no-store')
+          res.end(JSON.stringify(body))
+        }
+        const index = Number(new URL(req.url ?? '/', 'http://harness').searchParams.get('i') ?? '0')
+        const push = pushes[index]
+        if (!current || !push) {
+          answer(404, { error: current ? `no push ${index}` : 'no session yet' })
+          return
+        }
+        const phones = fake.widgetPush(current.matchId, current.steamId64, {
+          type: 'push',
+          name: push.name,
+          data: push.data,
+        })
+        answer(200, { name: push.name, phones })
+      })
       server.middlewares.use('/__harness/session', (req: IncomingMessage, res: ServerResponse) => {
         const fresh = req.method === 'POST'
         session(fresh).then(

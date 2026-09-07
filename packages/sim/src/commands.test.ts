@@ -76,7 +76,7 @@ describe('the simulated command table', () => {
 
   it('spends a charge only on an applied tap and refills it when its period turns', () => {
     const { commands } = table()
-    expect(commands.run({ steamId64: TK, command: 'powerup', args: { kind: 'haste' } })).toEqual({
+    expect(commands.run({ steamId64: TK, command: 'powerup', args: { kind: 'speed' } })).toEqual({
       status: 'applied',
       chargesLeft: 0,
     })

@@ -11,13 +11,13 @@ the map.
 | Where | What |
 | ----- | ---- |
 | `src/index.ts` | the runtime a widget imports: `defineWidget`, `useWidget()` / `useT()`, `useWidgetLink()`, the tokens with fallbacks, `createT` and `KIT_COPY` |
-| `src/link.ts` | the socket to `GET /v1/widget` as a composable: hello, verbs, taps, events, reconnect |
+| `src/link.ts` | the socket to `GET /v1/widget` as a composable: hello, verbs, taps, events, `onPush` for a mode's own ephemeral frames (PRD-02 T26), reconnect |
 | `src/host.ts`, `src/mount.ts` | the `postMessage` handshake with the platform's host, and the shell that mounts the element inside the served document |
 | `src/element.ts` | `<ezpug-widget>`: props in, context out, the kit's base `:host` rules |
 | `src/tokens.ts` | the platform's token names, their fallbacks, `applyWidgetTokens` |
 | `src/protocol.ts` | the socket and host constants, mirrored from `@ezpug/match-api` and pinned equal by a test |
 | `src/vite.ts`, `src/build.ts` | the library preset and the build with its "no way out but the socket" check |
-| `src/dev.ts`, `harness/` | `ezpug-widget dev`: Vite, the fake orchestrator, the host page |
+| `src/dev.ts`, `harness/` | `ezpug-widget dev`: Vite, the fake orchestrator, the host page, and a button per entry of a mode's `widget/harness-pushes.json` |
 | `src/cli.ts` | `ezpug-widget build [id …]` and `ezpug-widget dev <id>` |
 
 ```

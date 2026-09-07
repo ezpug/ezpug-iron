@@ -496,6 +496,15 @@ mode (`@ezpug/sim`'s command table) enforces the manifest and deals a `player_co
 `plugin_event`, so the platform proves the round trip without CS2. What the orchestrator
 refuses itself it says in DE or EN from the roster profile, German by default.
 
+**A push goes the other way** (T26): a plugin's `widget_push` frame on the link names a
+match and one SteamID64, and `server-link.ts` hands it to `widgets.push` — which delivers
+it to that player's open widget sockets and to nobody else's, then forgets it. Nothing is
+stored, logged or replayed; a push for a match the server does not hold is warned about
+and dropped, one over `WIDGET_PUSH_DATA_MAX` (16 KiB of JSON) is dropped, and one nobody
+is listening for is simply gone — the normal case for a player with no phone open.
+`powerup-dm`'s `radar_peek` is ten of them over five seconds and is why no position is
+ever written down.
+
 **Refusals are close codes** (`WIDGET_CLOSE_CODES`): `4001` for no token, one that does
 not verify, one that expired (also on the next tap of an open session), or a match that
 does not exist; `4005` for a browser origin not in `streamAllowedOrigins`; `4002` for a

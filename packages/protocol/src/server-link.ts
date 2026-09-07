@@ -22,6 +22,7 @@ import {
   SERVER_CHAT_TEXT_MAX,
   type SIM_COMMAND_TYPES,
   steamId64Schema,
+  widgetPushFrameSchema,
 } from '@ezpug/match-api'
 import { z } from 'zod'
 import {
@@ -46,7 +47,7 @@ import {
  *
  * - {@link serverFrameSchema} — what a server sends: `hello`, `heartbeat`,
  *   `state`, `events`, `command_result`, `backup`, `console`,
- *   `player_command_result`.
+ *   `player_command_result`, `widget_push`.
  * - {@link orchestratorFrameSchema} — what the orchestrator sends a server:
  *   `welcome`, `assign`, `command`, `player_command`, `profile`, `release`,
  *   `drain`, `ack`.
@@ -385,6 +386,27 @@ export const playerCommandResultServerFrameSchema = z.object({
   chargesLeft: z.number().int().nonnegative().optional(),
 })
 
+/**
+ * **A gamemode's picture for one phone** (PRD-02 T26): the Match API's
+ * `WidgetPushFrame` addressed to one player of one match, relayed to that
+ * player's open widget sockets and to nobody else. Ephemeral by
+ * construction — never acked, never sequenced, never written to
+ * `match_events`, dropped when no widget of that player is open — which is
+ * what lets `powerup-dm`'s `radar_peek` put enemy positions on a phone
+ * without a position ever being stored (CLAUDE.md).
+ *
+ * `data` is the mode's own shape and the orchestrator does not read it; it
+ * only checks that the serialized frame stays under
+ * {@link WIDGET_PUSH_DATA_MAX}.
+ */
+export const widgetPushServerFrameSchema = z.object({
+  type: z.literal('widget_push'),
+  matchId: matchIdSchema,
+  /** Whose phone. A push for somebody who has no widget open is simply dropped. */
+  steamId64: steamId64Schema,
+  push: widgetPushFrameSchema,
+})
+
 export const serverFrameSchema = z.discriminatedUnion('type', [
   helloServerFrameSchema,
   heartbeatServerFrameSchema,
@@ -394,6 +416,7 @@ export const serverFrameSchema = z.discriminatedUnion('type', [
   backupServerFrameSchema,
   consoleServerFrameSchema,
   playerCommandResultServerFrameSchema,
+  widgetPushServerFrameSchema,
 ])
 export type ServerFrame = z.infer<typeof serverFrameSchema>
 export type ServerFrameInput = z.input<typeof serverFrameSchema>
@@ -408,6 +431,7 @@ export const SERVER_FRAME_TYPES = [
   'backup',
   'console',
   'player_command_result',
+  'widget_push',
 ] as const
 export type ServerFrameType = (typeof SERVER_FRAME_TYPES)[number]
 export type ServerFrameOf<T extends ServerFrameType> = Extract<ServerFrame, { type: T }>

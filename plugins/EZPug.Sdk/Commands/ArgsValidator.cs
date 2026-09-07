@@ -15,6 +15,45 @@ namespace EZPug.Sdk;
 /// </summary>
 public static class ArgsValidator
 {
+    /// <summary>
+    /// <b>The chat form of a tap.</b> A phone sends <c>{ "kind": "radar_peek" }</c>;
+    /// somebody typing <c>!powerup radar_peek</c> means the same thing, and this is where
+    /// the one becomes the other: the words after the verb are the value of the schema's
+    /// <b>first declared property</b>, whole, converted to that property's declared scalar
+    /// type. One argument, however many words — so <c>!say hello world</c> is one string
+    /// and not two — and a verb whose args need more than one field simply cannot be typed,
+    /// which is fine: the widget is that verb's door and the SDK refuses what does not fit
+    /// either way (<see cref="Validate"/>, in the player's language).
+    ///
+    /// <c>null</c> when there is nothing to say: no schema, no properties, or no words.
+    /// </summary>
+    public static JsonObject? FromChat(JsonObject? schema, string? rest)
+    {
+        var text = rest?.Trim();
+        if (schema is null || string.IsNullOrEmpty(text) || schema["properties"] is not JsonObject properties)
+        {
+            return null;
+        }
+
+        var first = properties.FirstOrDefault();
+        if (first.Key is null)
+        {
+            return null;
+        }
+
+        return new JsonObject { [first.Key] = Scalar(first.Value as JsonObject, text) };
+    }
+
+    /// <summary>The typed word: a number where the property says number, a boolean where it says boolean, the text otherwise. A word that does not parse stays text and is refused by <see cref="Validate"/> with the property's own message.</summary>
+    private static JsonNode Scalar(JsonObject? schema, string text) =>
+        schema?["type"]?.GetValue<string>() switch
+        {
+            "integer" when long.TryParse(text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var whole) => JsonValue.Create(whole),
+            "number" when double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var real) => JsonValue.Create(real),
+            "boolean" when bool.TryParse(text, out var flag) => JsonValue.Create(flag),
+            _ => JsonValue.Create(text),
+        };
+
     /// <summary>The first problem found, or <c>null</c> when <paramref name="args"/> fits.</summary>
     public static string? Validate(JsonObject? schema, JsonObject? args)
     {

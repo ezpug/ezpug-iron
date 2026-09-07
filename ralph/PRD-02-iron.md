@@ -658,7 +658,7 @@ every offline proof here.
   tiny `t()`. References: decision 17, `/root/ezpug/packages/ui/app/assets/css/signal.css`,
   `packages/ui/src/tokens.ts`.
 
-- [ ] **T26: `powerup-dm`.** The original mode on the SDK: deathmatch by cfg, every life a
+- [x] **T26: `powerup-dm`.** The original mode on the SDK: deathmatch by cfg, every life a
   player may claim **one** power-up from the phone (`speed`, `armor`, `radar_peek` — five
   seconds of the enemy positions pushed as a widget frame — decided in the manifest's
   `commands`), per-player state, charges reset on spawn, a chat/HUD line in the player's
@@ -698,6 +698,15 @@ every offline proof here.
   chat; `warmupLines` from the assignment are printed one every few seconds during warmup
   in the roster's majority locale (the platform renders them, the plugin prints); the
   sim prints the same. References: the platform's `server-chat.ts` and Match.md §4.
+
+- [ ] **T26a: The extended suites clean up after a run that was killed.**
+  `deployments.extended.test.ts` (and any suite that commits rows and undoes them in
+  `afterAll`) sweeps only the ids it minted *this* run, so a run Turbo cancelled — the
+  ordinary shape of a red `pnpm verify` — leaves its API keys behind and the next run
+  fails `conflict: an API key named … already exists` on a change that had nothing to do
+  with it (found in T26; the rows were deleted by hand). Sweep by the suite's
+  `testNamespace` prefix in `beforeAll` instead, and let the same helper serve every
+  suite that needs one.
 
 - [ ] **T31: Fleet facts and provider health.** Probes on the clock (Dathost `account`,
   node heartbeats, sim always up) → `GET /v1/fleet/providers` health with last error;

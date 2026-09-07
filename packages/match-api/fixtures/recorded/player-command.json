@@ -29,7 +29,7 @@
         "flow": "plugin",
         "records": "events",
         "ranked": false,
-        "version": "0.1.1",
+        "version": "0.2.0",
         "maps": {
           "catalog": [
             "de_ancient",
@@ -73,8 +73,8 @@
               "en": "Power-up"
             },
             "description": {
-              "de": "Ein Power-up für dieses Leben – zufällig, oder das gewünschte.",
-              "en": "A power-up for this life – random, or the one you ask for."
+              "de": "Ein Power-up für dieses Leben: Tempo, Rüstung oder ein Blick auf die Gegner.",
+              "en": "One power-up for this life: speed, armor, or a look at the enemy."
             },
             "cooldownMs": 0,
             "charges": {
@@ -87,9 +87,9 @@
                 "kind": {
                   "type": "string",
                   "enum": [
-                    "haste",
+                    "speed",
                     "armor",
-                    "heal"
+                    "radar_peek"
                   ]
                 }
               },
@@ -744,7 +744,7 @@
           "command": "powerup",
           "steamId64": "76561198000009999",
           "args": {
-            "kind": "haste"
+            "kind": "speed"
           }
         }
       }

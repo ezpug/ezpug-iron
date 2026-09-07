@@ -168,6 +168,20 @@ export const SERVER_FRAME_FIXTURES: {
     cooldownMs: 4000,
     chargesLeft: 0,
   },
+  widget_push: {
+    type: 'widget_push',
+    matchId: FIXTURE_MATCH_ID,
+    steamId64: '76561198279375306',
+    push: {
+      type: 'push',
+      name: 'radar_peek',
+      data: {
+        expiresInMs: 5000,
+        self: { x: -1024.5, y: 512, z: -167.97 },
+        contacts: [{ x: 220.25, y: 1880, z: -167.97 }],
+      },
+    },
+  },
 }
 
 /** One valid command per link command type, for the `command` frame and the C# union. */

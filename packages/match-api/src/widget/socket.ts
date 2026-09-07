@@ -4,6 +4,7 @@ import { matchIdSchema } from '../resources/common'
 import { playerCommandNameSchema, playerCommandSpecSchema } from '../resources/gamemode'
 import { matchStateSchema } from '../resources/match'
 import { localeSchema } from '../vocabulary/locale'
+import { snakeNameSchema } from '../vocabulary/naming'
 import { steamId64Schema } from '../vocabulary/steam-id'
 import { webhookEnvelopeSchema } from '../webhooks/envelope'
 
@@ -24,8 +25,12 @@ import { webhookEnvelopeSchema } from '../webhooks/envelope'
  * with what the orchestrator last learned about their cooldown and charges
  * for this player, and after it every durable fact of the match arrives as
  * an `event` frame — the same envelope the webhook carries — so a widget can
- * follow a death or a round without a second socket. Position ticks never
- * cross it: a phone has no radar.
+ * follow a death or a round without a second socket. The position-tick
+ * firehose never crosses it: a phone is not a spectator client. What can
+ * cross is a {@link widgetPushFrameSchema} — one moment a mode chose to give
+ * one player, ephemeral, never stored, never replayed — which is how
+ * `powerup-dm`'s `radar_peek` puts five seconds of enemy positions on the
+ * phone that asked for them (PRD-02 T26).
  *
  * Rate limits are per token ({@link WIDGET_COMMAND_RATE_LIMIT}); a token
  * dies with the match (close `4000`, the way the stream ends) or at its
@@ -178,14 +183,45 @@ export const widgetCommandResultFrameSchema = z.object({
 })
 export type WidgetCommandResultFrame = z.infer<typeof widgetCommandResultFrameSchema>
 
+/**
+ * **A push**: something the gamemode wants *this* phone to see right now.
+ * Mode-defined, addressed to the one SteamID64 the token was minted for,
+ * relayed by the orchestrator from the server's link without being read,
+ * and gone the moment it is delivered — never logged, never stored in
+ * `match_events`, never replayed to a widget that reconnects. A durable
+ * fact of the match is an `event`; a push is a picture with a shelf life.
+ *
+ * `name` is the mode's word for the picture, the same snake_case grammar a
+ * `plugin_event` uses (`radar_peek`), so a widget switches on it the way it
+ * switches on an event type. `data` is whatever that mode's widget expects —
+ * this contract does not know, on purpose, because the plugin that sends it
+ * and the widget that draws it ship together in `gamemodes/<id>/`. A widget
+ * that does not recognise a `name` ignores the frame.
+ *
+ * The ceiling is {@link WIDGET_PUSH_DATA_MAX} serialized characters,
+ * enforced where a push enters the orchestrator (the server link): a phone
+ * on venue wifi is the consumer, and a mode that wants to send more than
+ * that wants an event.
+ */
+export const widgetPushFrameSchema = z.object({
+  type: z.literal('push'),
+  name: snakeNameSchema,
+  data: z.record(z.string(), z.unknown()),
+})
+export type WidgetPushFrame = z.infer<typeof widgetPushFrameSchema>
+
+/** How much serialized JSON one {@link widgetPushFrameSchema}'s `data` may carry. */
+export const WIDGET_PUSH_DATA_MAX = 16 * 1024
+
 export const widgetServerFrameSchema = z.discriminatedUnion('type', [
   widgetWelcomeFrameSchema,
   widgetEventFrameSchema,
   widgetCommandResultFrameSchema,
+  widgetPushFrameSchema,
 ])
 export type WidgetServerFrame = z.infer<typeof widgetServerFrameSchema>
 
-export const WIDGET_SERVER_FRAME_TYPES = ['hello', 'event', 'command_result'] as const
+export const WIDGET_SERVER_FRAME_TYPES = ['hello', 'event', 'command_result', 'push'] as const
 export type WidgetServerFrameType = (typeof WIDGET_SERVER_FRAME_TYPES)[number]
 
 /** The frame for one `type` — `WidgetServerFrameOf<'command_result'>` etc. */

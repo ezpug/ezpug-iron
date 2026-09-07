@@ -45,19 +45,19 @@ public class GamemodeHarnessTests
         world.Connect(1, "Bot Cliff", PlayerTeam.Terrorist, bot: true);
         Assert.Equal(["server_ready", "player_connected", "player_connected"], link.EventTypes);
         Assert.All(link.EventsOf<PlayerConnectedEvent>(), connected => Assert.Equal(ServerSlot.TeamA, connected.Player.Team));
-        Assert.Contains("Ein Power-up pro Leben – tipp auf dem Handy oder schreib !powerup.", world.Said[Tk]);
-        Assert.Contains("One power-up per life – tap on your phone or type !powerup.", world.Said[Maex]);
+        Assert.Contains("Ein Power-up pro Leben – tipp auf dem Handy oder schreib !powerup speed.", world.Said[Tk]);
+        Assert.Contains("One power-up per life – tap on your phone or type !powerup speed.", world.Said[Maex]);
 
         // A tap that lands: the SDK checked the args, the charge; the mode did the thing in German.
         world.Spawn(tk);
-        var landed = link.PlayerCommand(Tk, "powerup", Args("""{"kind":"haste"}"""));
+        var landed = link.PlayerCommand(Tk, "powerup", Args("""{"kind":"speed"}"""));
         Assert.Equal(LinkCommandStatus.Applied, landed.Status);
         Assert.Equal(0, landed.ChargesLeft);
         Assert.Contains(new WorldAction("speed", Tk, "1.4"), world.Actions);
         Assert.Contains("Power-up aktiv: Tempo.", world.Said[Tk]);
         var claimed = Assert.Single(link.EventsOf<PluginEvent>());
         Assert.Equal("powerup_claimed", claimed.Name);
-        Assert.Equal("haste", claimed.Data["kind"]!.GetValue<string>());
+        Assert.Equal("speed", claimed.Data["kind"]!.GetValue<string>());
 
         // No charge left this life; the phone hears it in the player's language.
         var spent = link.PlayerCommand(Tk, "powerup", Args("""{"kind":"armor"}"""));
@@ -70,14 +70,18 @@ public class GamemodeHarnessTests
         Assert.Equal(1, dead.ChargesLeft);
 
         // Bad args and unknown verbs never reach the mode.
-        Assert.Equal(PlayerCommandRefusal.InvalidArgs, link.PlayerCommand(Tk, "powerup", Args("""{"kind":"speed"}""")).Code);
+        Assert.Equal(PlayerCommandRefusal.InvalidArgs, link.PlayerCommand(Tk, "powerup", Args("""{"kind":"invisibility"}""")).Code);
         Assert.Equal(PlayerCommandRefusal.UnknownCommand, link.PlayerCommand(Tk, "teleport").Code);
         Assert.Equal(PlayerCommandRefusal.NotInMatch, link.PlayerCommand(42, "powerup").Code);
 
         // The chat door: `!powerup` is the same verb, answered in chat; conversation is relayed as it is.
         world.Spawn(maex);
-        world.SayAs(maex, "!powerup");
-        Assert.Contains("Power-up on: haste.", world.Said[Maex]);
+        world.SayAs(maex, "!powerup radar_peek");
+        Assert.Contains("Power-up on: radar peek.", world.Said[Maex]);
+        // The chat door built the phone's `{ "kind": "radar_peek" }` from the words after
+        // the verb (`ArgsValidator.FromChat`), so the mode pushed the peek at maex's phone.
+        var peek = Assert.Single(link.Pushes);
+        Assert.Equal((Maex.ToString(), "radar_peek", 5_000L), (peek.SteamId64, peek.Push.Name, peek.Push.Data["expiresInMs"]!.GetValue<long>()));
         var command = Assert.Single(link.EventsOf<ChatCommandEvent>());
         Assert.Equal(("powerup", Maex.ToString()), (command.Command, command.Player.SteamId64));
         world.SayAs(tk, "gg wp", teamOnly: true);
@@ -94,8 +98,8 @@ public class GamemodeHarnessTests
         Assert.False(tk.IsAlive);
         world.Elapse(1);
         Assert.True(tk.IsAlive);
-        Assert.Equal(LinkCommandStatus.Applied, link.PlayerCommand(Tk, "powerup", Args("""{"kind":"heal"}""")).Status);
-        Assert.Contains(new WorldAction("health", Tk, "100"), world.Actions);
+        Assert.Equal(LinkCommandStatus.Applied, link.PlayerCommand(Tk, "powerup", Args("""{"kind":"armor"}""")).Status);
+        Assert.Contains(new WorldAction("armor", Tk, "100"), world.Actions);
 
         // Commands from the platform: the runtime answers what it can, the mode the rest.
         Assert.Equal(LinkCommandStatus.Applied, link.Command(new AnnounceCommand { CorrelationId = "c1", Text = "GLHF" })!.Status);

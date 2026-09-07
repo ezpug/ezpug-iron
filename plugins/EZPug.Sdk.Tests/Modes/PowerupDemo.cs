@@ -5,9 +5,16 @@ namespace EZPug.Sdk.Tests.Modes;
 
 /// <summary>
 /// The mode <c>docs/sdk.md</c> shows: deathmatch by cfg, one power-up per life from the
-/// phone or <c>!powerup</c> in chat. Everything the manifest declares — the verb, its one
-/// charge per life, its args — is enforced by the SDK before <see cref="OnPlayerCommand"/>
-/// runs; the mode only does the thing and says so in the player's language.
+/// phone or <c>!powerup speed</c> in chat. Everything the manifest declares — the verb,
+/// its one charge per life, its args — is enforced by the SDK before
+/// <see cref="OnPlayerCommand"/> runs; the mode only does the thing and says so in the
+/// player's language.
+///
+/// It plays the shipped <c>gamemodes/powerup-dm/manifest.json</c>, which is what keeps
+/// this file honest about the SDK: it is the fifty lines the doc quotes, not the mode
+/// that ships. <b>The real one is <c>plugins/EZPug.PowerupDm/</c></b> (PRD-02 T26), with
+/// the peek's timer, the HUD countdown and its own resx pair; this one shows the shape
+/// and stops there.
 /// </summary>
 public sealed class PowerupDemo : Gamemode
 {
@@ -39,17 +46,17 @@ public sealed class PowerupDemo : Gamemode
             return new PlayerCommandOutcome.NotAlive();
         }
 
-        var kind = args?["kind"]?.GetValue<string>() ?? "haste";
+        var kind = args?["kind"]?.GetValue<string>() ?? "speed";
         switch (kind)
         {
-            case "haste":
-                World.SetSpeed(player, 1.4f);
-                break;
             case "armor":
                 World.SetArmor(player, 100);
                 break;
+            case "radar_peek":
+                PushWidget(player, "radar_peek", new { expiresInMs = 5_000, contacts = World.Players.Count - 1 });
+                break;
             default:
-                World.SetHealth(player, 100);
+                World.SetSpeed(player, 1.4f);
                 break;
         }
 

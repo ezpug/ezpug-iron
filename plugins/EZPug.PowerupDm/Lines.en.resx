@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The English lines of powerup-dm. Same keys as Lines.de.resx, which is the master;
+  EZPug.PowerupDm.Tests asserts the two sets are equal.
+-->
+<root>
+  <data name="powerup.welcome" xml:space="preserve"><value>One power-up per life: tap on your phone, or type !powerup speed, !powerup armor, !powerup radar_peek.</value></data>
+  <data name="powerup.start" xml:space="preserve"><value>Free for all. One power-up per life — good luck!</value></data>
+  <data name="powerup.landed" xml:space="preserve"><value>Power-up on: {0}.</value></data>
+  <data name="powerup.kind.speed" xml:space="preserve"><value>speed</value></data>
+  <data name="powerup.kind.armor" xml:space="preserve"><value>armor</value></data>
+  <data name="powerup.kind.radar_peek" xml:space="preserve"><value>radar peek</value></data>
+  <data name="powerup.center.speed" xml:space="preserve"><value>SPEED</value></data>
+  <data name="powerup.center.armor" xml:space="preserve"><value>ARMOR</value></data>
+  <data name="powerup.center.radar_peek" xml:space="preserve"><value>RADAR PEEK · look at your phone</value></data>
+  <data name="powerup.peek.hud" xml:space="preserve"><value>Radar peek: {0} s left</value></data>
+  <data name="powerup.bye" xml:space="preserve"><value>Thanks for playing!</value></data>
+</root>

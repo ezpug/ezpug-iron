@@ -1,4 +1,6 @@
 import type { Clock, Timer } from '@ezpug/core'
+import type { WidgetPushFrame } from '@ezpug/match-api'
+import { WIDGET_PUSH_DATA_MAX } from '@ezpug/match-api'
 import type {
   LinkAckStatus,
   OrchestratorFrame,
@@ -69,6 +71,9 @@ import { serverKey } from './channels'
  *   once every few seconds.
  * - **`backup` frames are persisted**, the newest few per match; a `console`
  *   tail is cached on the session for the fleet console route (T20).
+ * - **`widget_push` frames are relayed and forgotten** (T26): a mode's
+ *   picture for one player's phone, handed to that player's open widget
+ *   sockets, never logged, never stored, dropped when nobody is looking.
  */
 
 /** How long a relayed command may go unanswered before the machine hears `provider_unavailable`. */
@@ -76,6 +81,11 @@ export const COMMAND_TIMEOUT_MS_DEFAULT = 15_000
 
 /** `last_seen_at` is a heartbeat's fact, not a write per frame. */
 const LAST_SEEN_WRITE_INTERVAL_MS = 5_000
+
+/** Where a mode's push for one phone lands — `widget/service.ts`'s own door, named narrowly so the link owns no more of it than this. */
+export interface WidgetPushSink {
+  push: (matchId: string, steamId64: string, frame: WidgetPushFrame) => number
+}
 
 /** What the link needs of the machine: the sink, and three doors the `hello`, the heartbeat and the silence use. */
 export interface LinkMachine extends ServerEventSink {
@@ -101,6 +111,8 @@ export interface ServerLinkOptions {
   heartbeatIntervalMs?: number
   helloTimeoutMs?: number
   commandTimeoutMs?: number
+  /** Where a `widget_push` goes (T26). Absent means the pushes are dropped with a warning once per session. */
+  widgets?: WidgetPushSink
   /** Once true, new sockets are refused with a 503 before the upgrade. */
   isDraining?: () => boolean
   /** The dev recorder (T13). Off by default; every frame both ways when on. */
@@ -221,6 +233,8 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
     let silence: Timer | undefined
     let gone = false
     let correlation = 0
+    /** A pushless orchestrator says so once per socket, not once per frame. */
+    let pushWarned = false
 
     const write = (frame: OrchestratorFrame): void => {
       if (ws.readyState !== ws.OPEN) return
@@ -358,6 +372,36 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
       return consoleTail
     }
 
+    /**
+     * A mode's push for one phone (T26). Checked for two things only — that
+     * it names the match this socket holds, and that its payload fits
+     * {@link WIDGET_PUSH_DATA_MAX} — and then handed on without being read:
+     * `data` is the gamemode's shape, and the widget that draws it ships
+     * beside the plugin that sent it. Nothing here is stored or logged; a
+     * push nobody is listening for is silently dropped, which is the normal
+     * case for a player with no phone open.
+     */
+    const relayPush = (frame: Extract<ServerFrame, { type: 'widget_push' }>): void => {
+      if (frame.matchId !== matchId) {
+        log.warn(`link ${key}: a widget push for ${frame.matchId}, which this server does not hold`)
+        return
+      }
+      if (JSON.stringify(frame.push.data).length > WIDGET_PUSH_DATA_MAX) {
+        log.warn(
+          `link ${key}: a widget push (${frame.push.name}) over ${WIDGET_PUSH_DATA_MAX} characters; dropped`,
+        )
+        return
+      }
+      if (!options.widgets) {
+        if (!pushWarned) {
+          pushWarned = true
+          log.warn(`link ${key}: widget pushes have nowhere to go on this orchestrator; dropped`)
+        }
+        return
+      }
+      options.widgets.push(frame.matchId, frame.steamId64, frame.push)
+    }
+
     const answer = (frame: ServerFrame): boolean => {
       if (!isAnswer(frame) || frame.correlationId === undefined) return false
       if (frame.type === 'console') cacheTail(frame)
@@ -435,6 +479,9 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
           return
         case 'console':
           cacheTail(frame)
+          return
+        case 'widget_push':
+          relayPush(frame)
           return
         case 'command_result':
         case 'player_command_result':

@@ -12,11 +12,11 @@ describe('validatePlayerCommandArgs', () => {
   const powerup = shippedGamemode('powerup-dm').commands[0]?.args
 
   it('accepts what the powerup-dm manifest declares and refuses what it does not', () => {
-    expect(validatePlayerCommandArgs(powerup, { kind: 'haste' })).toBeNull()
+    expect(validatePlayerCommandArgs(powerup, { kind: 'speed' })).toBeNull()
     expect(validatePlayerCommandArgs(powerup, {})).toBeNull()
     expect(validatePlayerCommandArgs(powerup, undefined)).toBeNull()
     expect(validatePlayerCommandArgs(powerup, { kind: 'wings' })).toBe(
-      'args.kind must be one of ["haste","armor","heal"]',
+      'args.kind must be one of ["speed","armor","radar_peek"]',
     )
     expect(validatePlayerCommandArgs(powerup, { size: 3 })).toBe('args.size is not allowed')
   })

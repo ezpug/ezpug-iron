@@ -449,7 +449,7 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
 
       const answer = await (
         ctx.target.playerCommand as NonNullable<typeof ctx.target.playerCommand>
-      )({ token: minted.token, command: verb, args: { kind: 'haste' } })
+      )({ token: minted.token, command: verb, args: { kind: 'speed' } })
       ctx.check(
         'a player command answers as a plugin_event',
         answer.payload.type === 'plugin_event',

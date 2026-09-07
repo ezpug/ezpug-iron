@@ -74,6 +74,9 @@ public sealed class CommandTable
 
     public bool Declares(string command) => _specs.ContainsKey(command);
 
+    /// <summary>The args schema a verb declares, or <c>null</c> for an unknown verb or one that takes none. What the chat door builds its arguments against (<see cref="ArgsValidator.FromChat"/>).</summary>
+    public JsonObject? SchemaOf(string command) => _specs.GetValueOrDefault(command)?.Args;
+
     /// <summary>The checks before the mode sees the tap. <c>null</c> means "ask the mode".</summary>
     public CommandVerdict? Precheck(ulong steamId64, Locale locale, string command, JsonObject? args)
     {
