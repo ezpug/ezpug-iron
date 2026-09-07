@@ -62,6 +62,8 @@ interface NodeRig {
   link: ServerLink
   nodeLink: NodeLink
   url: string
+  /** The game port of this rig's first instance; `+ 1` is its GOTV ({@link RIG_PORT_BASE}). */
+  portBase: number
   key: AuthenticatedKey
   secret: string
   /** Enrol a node through the route and dial it in; resolves once it is welcomed. */
@@ -81,7 +83,47 @@ interface NodeRig {
 const rigs: NodeRig[] = []
 const fakes: { close: () => unknown }[] = []
 
+/**
+ * **The rig's own ports** (T22b). The provider's real default is
+ * {@link NODE_PORT_BASE} — 27415, which is also the port `pnpm cs2:up`
+ * publishes on this box (`.env.example`, README) — and the honest-503 test
+ * below opens a *real* socket to the game port it was handed. Sharing the
+ * number made `pnpm verify` red for anyone whose dev CS2 container was up:
+ * the dial reached a server that answers and the audit read
+ * `<failed: auth_failed>` instead of `<failed: unreachable>`. So every rig in
+ * this file gets a window this file proved free instead, based above both
+ * documented lanes and below the kernel's ephemeral range
+ * (`/proc/sys/net/ipv4/ip_local_port_range`, 32768 up) — so nothing can be
+ * handed the number between the probe and the dial.
+ */
+const RIG_PORT_BASE = 27_600
+/** Game + GOTV for as many instances as any test here enrols capacity for. */
+const RIG_PORT_WINDOW = 8
+
+/** True when this process can bind the port right now — i.e. nobody holds it. */
+function isPortFree(port: number): Promise<boolean> {
+  return new Promise(resolve => {
+    const probe = createServer()
+    probe.once('error', () => resolve(false))
+    probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)))
+  })
+}
+
+/** The first free window at or above {@link RIG_PORT_BASE}; probed once per file. */
+async function findRigPortBase(): Promise<number> {
+  for (let base = RIG_PORT_BASE; base < RIG_PORT_BASE + 256; base += RIG_PORT_WINDOW) {
+    const window = Array.from({ length: RIG_PORT_WINDOW }, (_unused, index) => base + index)
+    const free = await Promise.all(window.map(isPortFree))
+    if (free.every(Boolean)) return base
+  }
+  throw new Error(`nodes: no free port window above ${RIG_PORT_BASE} for the rig`)
+}
+
+let rigPortBase: Promise<number> | undefined
+const rigPorts = (): Promise<number> => (rigPortBase ??= findRigPortBase())
+
 async function createNodeRig(options: { portBase?: number } = {}): Promise<NodeRig> {
+  const portBase = options.portBase ?? (await rigPorts())
   const holder: { link?: NodeLink } = {}
   const app = createTestApp({
     noProviders: true,
@@ -115,7 +157,7 @@ async function createNodeRig(options: { portBase?: number } = {}): Promise<NodeR
     baseUrl: 'http://localhost:3430',
     link: () => link,
     facts: { emit: (matchId, fact) => app.matches.emit(matchId, fact) },
-    ...(options.portBase !== undefined && { portBase: options.portBase }),
+    portBase,
   })
   app.providers.register(provider)
   const port = await new Promise<number>(resolve =>
@@ -152,6 +194,7 @@ async function createNodeRig(options: { portBase?: number } = {}): Promise<NodeR
     link,
     nodeLink,
     url: `ws://127.0.0.1:${port}${NODE_LINK_PATH}`,
+    portBase,
     key,
     secret: minted.secret,
     enrolmentToken: async (id = 'devbox', region = 'saarland') => {
@@ -345,7 +388,7 @@ describe('a cold match', () => {
     expect(Object.keys(spec.env).sort()).toEqual([CS2_RCON_PASSWORD_VAR, 'EZPUG_IRON_URL'])
     expect(spec.env.EZPUG_IRON_URL).toBe('http://localhost:3430')
     expect(spec.env[CS2_RCON_PASSWORD_VAR]).toMatch(/^[\w-]{16}$/)
-    expect(spec.ports).toEqual({ game: 27_415, tv: 27_416 })
+    expect(spec.ports).toEqual({ game: rig.portBase, tv: rig.portBase + 1 })
 
     // The row the walk opened points at the container, on the node, for free.
     const row = openRows(rig).find(candidate => candidate.matchId === match.id)
@@ -359,7 +402,7 @@ describe('a cold match', () => {
     })
     // No `address` label in the hello, so the peer address the socket came
     // from is what players are told — which on this box is loopback.
-    expect(row?.address).toEqual({ host: '127.0.0.1', port: 27_415 })
+    expect(row?.address).toEqual({ host: '127.0.0.1', port: rig.portBase })
 
     // And the container's plugin dials in with exactly that token.
     const server = rig.dial(spec.serverToken)
@@ -387,7 +430,7 @@ describe('a cold match', () => {
     await rig.settle()
     await node.next('start')
     const row = openRows(rig).find(candidate => candidate.matchId === match.id)
-    expect(row?.address).toEqual({ host: 'saarlan-1.ezpug.invalid', port: 27_415 })
+    expect(row?.address).toEqual({ host: 'saarlan-1.ezpug.invalid', port: rig.portBase })
   })
 })
 
@@ -788,7 +831,8 @@ describe('rcon on a venue box', () => {
   })
 
   it('is an honest 503 with an audit line when the container is not listening', async () => {
-    // The provider dials 27415 on the node; nothing in this test is there.
+    // The provider dials the rig's own game port; nothing is ever there
+    // ({@link RIG_PORT_BASE} — the dev CS2 lane's 27415 is not this rig's).
     const rig = await createNodeRig()
     const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
     await rig.app.matches.create(rig.key, request())

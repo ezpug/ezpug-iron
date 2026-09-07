@@ -591,7 +591,7 @@ every offline proof here.
   `iron-match.mjs`'s `rules.cvars` for every flow, and re-prove **both** lanes with
   `EZPUG_CS2_TESTS=required`.
 
-- [ ] **T22b (P1): `pnpm verify` is red while `pnpm cs2:up` is running.** Found in T22,
+- [x] **T22b (P1): `pnpm verify` is red while `pnpm cs2:up` is running.** Found in T22,
   pre-existing, not caused by it: `apps/orchestrator/src/nodes/nodes.test.ts`'s `is an
   honest 503 with an audit line when the container is not listening` says in its own
   comment "the provider dials 27415 on the node; nothing in this test is there" — and
