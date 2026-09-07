@@ -567,7 +567,7 @@ every offline proof here.
   `records: events`, `openJoin: true`, no plugin at all — proven on the dev node with
   bots, recorded into the fixtures.
 
-- [ ] **T22a (P1): the loader's flat cvars land in the same console frame as the mode's
+- [x] **T22a (P1): the loader's flat cvars land in the same console frame as the mode's
   cfg, so the two net out.** Found in T22, pre-existing, not caused by it:
   `GamemodeLoader.OnMapLoaded` execs the manifest's cfg files and then sets the
   assignment's flat cvars, all through `Server.ExecuteCommand`, so the whole lot reaches

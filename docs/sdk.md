@@ -275,10 +275,21 @@ hangs off three host events on the runtime, in the order a match goes through th
 | Hook | When | What the core does there |
 | ---- | ---- | ------------------------ |
 | `Assigned(Assignment)` | `assign` arrived, before the mode's `OnAssigned` | hostname, `css_plugins load` for each plugin the assignment names, `changelevel` / `host_workshop_map` to the first map — or to the backup's map when `Assignment.Restore` is set (the runtime's `Match.MapNumber` / `RoundNumber` then start where the lost server left off) |
-| `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow (once per assignment; a later map is the series' next), point MatchZy's remote log at the orchestrator, and for a restore write the backup where MatchZy looks and `matchzy_loadbackup` it (`backup_restored` is emitted as a `plugin_event`) |
+| `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, then — a beat later, in a console frame of its own (`Runtime.SettleThen`, below) — set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow (once per assignment; a later map is the series' next), point MatchZy's remote log at the orchestrator, and for a restore write the backup where MatchZy looks and `matchzy_loadbackup` it (`backup_restored` is emitted as a `plugin_event`) |
 | `Released(reason)` | after the mode's `OnEnd`, its timers and state cleared | `css_plugins unload` in reverse, the lobby map, then the runtime says `idle` |
 
 A mode never needs these; a second host (the harness is one) hooks the same three.
+
+**A host may ask for a beat.** From inside `MapLoaded`, `Runtime.SettleThen(delayMs, rest)`
+runs `rest` that much clock time later and holds `server_ready` — and the mode's `OnStart`
+— until it has, so "the map is up" still means "and configured". The core plugin uses it
+for the one reason it exists: the engine reconciles a cvar's *effects* once at the end of
+the console frame it was set in, against the value it held before that frame, so a value
+the mode's cfg sets and the request sets back is not two changes but none — a `bot_quota`
+beside a `bot_kick` leaves an empty server (PRD-02 T22a, measured on the dev node). The cfg
+therefore gets the first frame and everything the assignment asks for the next. A release,
+a reassignment or the next map start drops a beat still pending, and nothing is said for a
+match the server no longer holds.
 
 **Demos** (`DemoFlow`, PRD-02 T21) hang off the same runtime and off one world hook,
 `MapEnded` — the engine's match win panel, the one end-of-map signal every flow shares.

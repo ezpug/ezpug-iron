@@ -9,7 +9,9 @@ namespace EZPug.Core;
 /// <b>The gamemode loader</b> (decision 16): on <c>assign</c>, enable exactly the plugin
 /// folders the assignment names, set the hostname and go to the first map; when that map
 /// is up (the runtime's <c>MapLoaded</c>, before <c>server_ready</c>), exec the mode's cfg,
-/// set the flat cvars, and for a <c>matchzy</c> flow write the match config (the
+/// and then — a beat later, in a console frame of its own, because the engine reconciles a
+/// cvar once per frame and two writes in one net out (<see cref="CvarSettleMs"/>) — set the
+/// flat cvars, and for a <c>matchzy</c> flow write the match config (the
 /// hostname format added, so MatchZy keeps the hostname the loader set), <c>matchzy_loadmatch</c>
 /// it, once per assignment — MatchZy carries a series across its own map changes — and
 /// point its remote log at the orchestrator (<see cref="MatchZyRemoteLog"/>); on
@@ -38,6 +40,20 @@ public sealed class GamemodeLoader
 {
     /// <summary>Where the MatchZy config is written, relative to <c>game/csgo</c> — what <c>matchzy_loadmatch</c> reads.</summary>
     public const string MatchConfigFile = "cfg/ezpug/match.json";
+
+    /// <summary>
+    /// <b>The beat between the mode's cfg and everything the assignment asks for.</b> The
+    /// engine reconciles a cvar's <i>effects</i> once at the end of the console frame it
+    /// was set in, against the value it held before that frame — so a value the cfg sets
+    /// and the request then sets back is not two changes but none. Measured on the dev
+    /// node with <c>flying-scoutsman</c> (CS2 1.41.7.8): the cfg's <c>bot_kick; bot_quota
+    /// 0</c> and the request's <c>bot_quota 10</c> in one frame produced an empty server
+    /// for a whole match, and the same <c>bot_quota 10</c> a frame later filled it inside
+    /// a second (PRD-02 T22a). A second is what the map already waits for once over
+    /// (<c>CounterStrikeWorld.MapReadyDelayMs</c>, MatchZy's own settle) and is many frames
+    /// at any tickrate, so the cfg's own eviction pass is long done when this one lands.
+    /// </summary>
+    public const long CvarSettleMs = 1_000;
 
     private static readonly Regex WorkshopId = new("^[0-9]{6,20}$", RegexOptions.CultureInvariant);
 
@@ -120,6 +136,20 @@ public sealed class GamemodeLoader
             _world.ExecCfg(cfg);
         }
 
+        // Everything else in a console frame of its own — see CvarSettleMs. The runtime
+        // holds server_ready (and the mode's OnStart) until Configure has run, so "the map
+        // is up" still means "and configured" for anybody downstream.
+        _runtime?.SettleThen(CvarSettleMs, () => Configure(assignment, map));
+    }
+
+    /// <summary>
+    /// The second console frame: the assignment's flat cvars, then — for a <c>matchzy</c>
+    /// flow — the match config, <c>matchzy_loadmatch</c>, the remote log and any backup.
+    /// The order inside it is the one the pug lane proved and is not what T22a moved; what
+    /// moved is that none of it shares a frame with the mode's cfg any more.
+    /// </summary>
+    private void Configure(Assignment assignment, string map)
+    {
         foreach (var (name, value) in assignment.Cvars)
         {
             _world.SetCvar(name, value);

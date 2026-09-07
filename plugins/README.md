@@ -100,8 +100,11 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   names, in order; `changelevel` (or `host_workshop_map` for a workshop id) to the first
   map. When the map is up — one second after the engine's `OnMapStart`, because the engine
   execs its own gamemode cfgs right after that listener and a cfg exec'd earlier is undone
-  — the mode's cfg files are exec'd in order, the flat cvars set, and for a `matchzy` flow
-  the match config is written to `cfg/ezpug/match.json` (the orchestrator's document plus
+  — the mode's cfg files are exec'd in order. A second after *that*, in a console frame of
+  its own — because the engine reconciles a cvar's effects once at the end of a frame, so a
+  value the cfg sets and the request sets back is not two changes but none
+  (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a) — the flat cvars are set, and for a
+  `matchzy` flow the match config is written to `cfg/ezpug/match.json` (the orchestrator's document plus
   `matchzy_hostname_format`, so MatchZy keeps the hostname), `matchzy_loadmatch`'d once
   per assignment, and MatchZy's remote log is pointed at the orchestrator's
   `POST /matchzy/log` with this server's token in the `x-ezpug-server-token` header — as

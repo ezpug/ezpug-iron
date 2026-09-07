@@ -56,7 +56,7 @@ same data.
 | `ranked` | always `false`. The manifest states what the server records, never what counts |
 | `maps` | `"any"` — the request plans whatever it likes, workshop maps included; the platform's map pool decides. Or an allow-list `{ catalog: [engine names], workshop: [published-file ids] }`; a request planning a map outside it is refused `map_not_allowed` at the door. A plugin that ships spawn files per map lists them; a mode built for one map lists one |
 | `plugins` | folder names under `addons/counterstrikesharp/plugins/`, enabled in this order. Empty for a config mode, non-empty otherwise |
-| `cfg` | files under the server's `cfg/`, exec'd in this order after the map loads and before the match's own rules are applied. A config mode's whole truth is its cfg |
+| `cfg` | files under the server's `cfg/`, exec'd in this order after the map loads and — a second later, in a console frame of their own, because the engine reconciles a cvar once per frame and two writes in one net out (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a) — before the flat cvars and the match's own rules. A config mode's whole truth is its cfg |
 | `cvars` | at most 64 name → string pairs the mode sets after its cfg. Applied over a request's `rules.cvars` and under what the rules derive (`mp_maxrounds`, overtime, warmup): neither side can undo what the other needs. Twelve are protected and refused at parse time, below |
 | `capabilities` | six booleans, below |
 | `commands` | the player-scoped verbs an `sdk` mode accepts, below. Empty otherwise |

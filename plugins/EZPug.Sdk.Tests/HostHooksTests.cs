@@ -36,6 +36,57 @@ public class HostHooksTests
     }
 
     [Fact]
+    public void AHostThatAsksForABeatGetsOneAndServerReadyWaitsForIt()
+    {
+        using var host = new GamemodeTestHost(new PowerupDemo());
+        var said = new List<string>();
+        host.Runtime.MapLoaded += (_, _) =>
+        {
+            said.Add("cfg");
+            // What the core plugin's loader does: the rest of the console lines belong in
+            // a frame of their own, because the engine reconciles a cvar once per frame
+            // (PRD-02 T22a).
+            host.Runtime.SettleThen(1_000, () => said.Add("cvars"));
+        };
+        host.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("powerup-dm")));
+        host.World.StartMap("de_mirage");
+
+        // The map is up, the cfg is said, and nobody has been told the server is ready.
+        Assert.Equal(["cfg"], said);
+        Assert.Empty(host.Link.Events);
+
+        host.World.Elapse(999);
+        Assert.Empty(host.Link.Events);
+
+        // The beat lands: the rest first, then server_ready — so "the map is up" still
+        // means "and configured".
+        host.World.Elapse(1);
+        Assert.Equal(["cfg", "cvars"], said);
+        Assert.Equal(["server_ready"], host.Link.EventTypes);
+
+        // One beat, one server_ready: the timer is spent.
+        host.World.Elapse(5_000);
+        Assert.Equal(["cfg", "cvars"], said);
+        Assert.Equal(["server_ready"], host.Link.EventTypes);
+    }
+
+    [Fact]
+    public void AReleaseInsideTheBeatDropsItAndTheServerIsNeverCalledReady()
+    {
+        using var host = new GamemodeTestHost(new PowerupDemo());
+        var said = new List<string>();
+        host.Runtime.MapLoaded += (_, _) => host.Runtime.SettleThen(1_000, () => said.Add("cvars"));
+        host.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("powerup-dm")));
+        host.World.StartMap("de_mirage");
+        host.Link.Release("ended: cancelled");
+        host.World.Elapse(5_000);
+
+        Assert.Empty(said);
+        Assert.Empty(host.Link.EventTypes);
+        Assert.Equal(LinkServerState.Idle, host.Runtime.State);
+    }
+
+    [Fact]
     public void PositionsStreamEveryHundredMillisecondsForAliveHumansAndBots()
     {
         using var host = new GamemodeTestHost(new PowerupDemo());

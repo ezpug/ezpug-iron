@@ -43,6 +43,19 @@ public class GamemodeLoaderTests
 
         public string MatchConfigPath => Path.Combine(Image.CsgoDirectory, GamemodeLoader.MatchConfigFile);
 
+        /// <summary>
+        /// The map comes up <b>and the loader's second console frame lands</b>: the cfg is
+        /// exec'd on the map hook, everything the assignment asks for
+        /// <see cref="GamemodeLoader.CvarSettleMs"/> later, and <c>server_ready</c> after
+        /// that (T22a). A test that wants to stand between the two calls
+        /// <c>World.StartMap</c> itself.
+        /// </summary>
+        public void StartMap(string? map = null)
+        {
+            World.StartMap(map);
+            World.Elapse(GamemodeLoader.CvarSettleMs);
+        }
+
         public IReadOnlyList<string> Actions => World.Actions.Select(action => action.ToString()).ToList();
 
         public void Dispose()
@@ -84,7 +97,8 @@ public class GamemodeLoaderTests
         Assert.Empty(rig.Link.Events);
         Assert.False(File.Exists(rig.MatchConfigPath));
 
-        // The map hook runs before server_ready: at that moment nothing has been emitted and the cfg is already exec'd.
+        // The map hook runs before server_ready: at that moment nothing has been emitted
+        // and the mode's cfg — and only the mode's cfg — has been said to the console.
         var seenAtMapLoaded = new List<string>();
         rig.Runtime.MapLoaded += (_, _) =>
         {
@@ -93,9 +107,20 @@ public class GamemodeLoaderTests
         };
         rig.World.StartMap();
 
+        // **The first console frame is the cfg's alone** (T22a): the engine reconciles a
+        // cvar's effects once at the end of a frame, so nothing that could undo what the
+        // cfg just did shares one with it — and the server is not ready until the rest
+        // has been said.
+        Assert.Equal(["events=0", "exec ezpug/pug.cfg"], seenAtMapLoaded);
+        Assert.Equal(["exec ezpug/pug.cfg"], rig.Actions.Skip(3));
+        Assert.Empty(rig.Link.Events);
+        Assert.False(File.Exists(rig.MatchConfigPath));
+
+        // The second, a beat later: everything the assignment asks for, in the order the
+        // pug lane proved, and then server_ready.
+        rig.World.Elapse(GamemodeLoader.CvarSettleMs);
         Assert.Equal(
             [
-                "exec ezpug/pug.cfg",
                 "cvar matchzy_kick_when_no_match_loaded false",
                 "cvar matchzy_demo_recording_enabled true",
                 // `1`, not `true`: MatchZy declares this one as a FakeConVar<bool> and the
@@ -110,9 +135,7 @@ public class GamemodeLoaderTests
                 "command matchzy_remote_log_header_key \"x-ezpug-server-token\"",
                 "command matchzy_remote_log_header_value \"ezs_not-a-secret_0000000000000000000\"",
             ],
-            rig.Actions.Skip(3));
-        Assert.Equal("events=0", seenAtMapLoaded[0]);
-        Assert.Equal(10, seenAtMapLoaded.Count - 1);
+            rig.Actions.Skip(4));
         Assert.Equal(["server_ready"], rig.Link.EventTypes);
         // The file is the orchestrator's config plus the hostname format MatchZy rewrites the hostname from; no token in it.
         var written = JsonNode.Parse(File.ReadAllText(rig.MatchConfigPath))!.AsObject();
@@ -143,7 +166,7 @@ public class GamemodeLoaderTests
         rig.Link.Assign(assignment);
         Assert.Equal(["MatchZy", "WeaponPaints"], rig.Loader.Enabled);
         Assert.Contains("warn: the assignment names plugin Ghost, which is not installed; skipped", rig.Log.Lines);
-        rig.World.StartMap();
+        rig.StartMap();
         rig.Link.Release();
         Assert.Equal(
             [
@@ -155,15 +178,50 @@ public class GamemodeLoaderTests
     }
 
     [Fact]
-    public void AConfigModeLoadsNothingAndExecsItsCfgOnTheMap()
+    public void AConfigModeLoadsNothingAndExecsItsCfgOnTheMapABeatBeforeTheRequestsCvars()
     {
         using var rig = new Rig();
-        rig.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), map: "de_inferno"));
+        var assignment = GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), map: "de_inferno") with
+        {
+            // What the merge hands the server: the request's `bot_quota` under the mode's,
+            // and `ezpug/flying-scoutsman.cfg` is the file that switches `bot_quota_mode`
+            // out from under whoever is standing (T22a).
+            Cvars = new Dictionary<string, string> { ["bot_quota"] = "10", ["mp_maxrounds"] = "4" },
+        };
+        rig.Link.Assign(assignment);
         Assert.Equal(["cvar hostname EZPug · flying-scoutsman · Inferno", "changelevel de_inferno"], rig.Actions);
+
+        // The cfg's frame, alone: a `bot_quota` beside it would be reconciled against the
+        // value the frame started with and change nothing at all.
         rig.World.StartMap();
         Assert.Equal(["exec ezpug/flying-scoutsman.cfg"], rig.Actions.Skip(2));
+        Assert.Empty(rig.Link.Events);
+
+        // A beat later the request's cvars land — and only then is the server ready.
+        rig.World.Elapse(GamemodeLoader.CvarSettleMs);
+        Assert.Equal(["cvar bot_quota 10", "cvar mp_maxrounds 4"], rig.Actions.Skip(3));
+        Assert.Equal(["server_ready"], rig.Link.EventTypes);
         Assert.False(File.Exists(rig.MatchConfigPath));
         Assert.DoesNotContain(rig.Log.Lines, line => line.StartsWith("warn"));
+    }
+
+    [Fact]
+    public void AReleaseInsideTheBeatDropsWhatWasStillToBeSaid()
+    {
+        using var rig = new Rig("MatchZy");
+        var config = JsonNode.Parse("""{"matchid":"6f1a2b3c","num_maps":1,"maplist":["de_mirage"],"cvars":{}}""")!.AsObject();
+        rig.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("pug"), map: "de_mirage") with { MatchzyConfig = config });
+        rig.World.StartMap();
+
+        // The match is over before the second frame came due: a server released inside the
+        // beat says nothing more to the console for a match it no longer holds, and never
+        // claims it was ready.
+        rig.Link.Release("ended: completed");
+        rig.World.Elapse(GamemodeLoader.CvarSettleMs * 4);
+        Assert.DoesNotContain(rig.Actions, action => action.StartsWith("cvar matchzy_"));
+        Assert.DoesNotContain(rig.Actions, action => action.Contains("matchzy_loadmatch"));
+        Assert.Empty(rig.Link.EventTypes);
+        Assert.Equal(LinkServerState.Idle, rig.Link.States[^1].State);
     }
 
     [Fact]
@@ -192,7 +250,7 @@ public class GamemodeLoaderTests
             Restore = new RoundBackup { MapNumber = 1, RoundNumber = 7, Filename = "matchzy_1_0_round06.json", Content = "{}" },
         };
         rig.Link.Assign(assignment);
-        rig.World.StartMap();
+        rig.StartMap();
         Assert.Contains(rig.Log.Lines, line => line.StartsWith("warn: a matchzy flow with no matchzyConfig"));
         Assert.DoesNotContain(rig.Actions, action => action.Contains("matchzy_loadmatch"));
         Assert.DoesNotContain(rig.Actions, action => action.Contains("matchzy_loadbackup"));
@@ -233,7 +291,7 @@ public class GamemodeLoaderTests
         Assert.Equal("changelevel de_inferno", rig.Actions[^1]);
         Assert.Equal((2L, 6L), (rig.Runtime.Match.MapNumber, rig.Runtime.Match.RoundNumber));
 
-        rig.World.StartMap("de_inferno");
+        rig.StartMap("de_inferno");
         var afterCvars = rig.Actions.SkipWhile(action => !action.StartsWith("command matchzy_loadmatch")).ToList();
         Assert.Equal(
             [
@@ -281,7 +339,7 @@ public class GamemodeLoaderTests
             Restore = new RoundBackup { MapNumber = 1, RoundNumber = 3, Filename = "../cfg/server.json", Content = "{}" },
         };
         rig.Link.Assign(unsafeName);
-        rig.World.StartMap();
+        rig.StartMap();
         Assert.DoesNotContain(rig.Actions, action => action.Contains("matchzy_loadbackup"));
         Assert.Contains(rig.Log.Lines, line => line.StartsWith("warn: the backup for round 3 is named ../cfg/server.json"));
         Assert.False(File.Exists(Path.Combine(rig.Image.CsgoDirectory, "cfg", "server.json")));

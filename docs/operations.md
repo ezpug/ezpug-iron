@@ -908,7 +908,11 @@ script and the plugin now encode:
   no `series_end` ever comes. `gamemodes/pug/cfg/ezpug/pug.cfg` therefore puts the server
   in `normal` while the quota is zero (behind a `bot_kick`, because a cfg is one frame and
   the eviction pass runs at the end of it), and the match's own `bot_quota` only ever goes
-  up. The measurement is in that file; PRD-02 T21a is where it was made.
+  up. The measurement is in that file; PRD-02 T21a is where it was made. The request's own
+  `bot_quota` arrives a beat after that cfg and not inside its frame, which is what makes
+  it a change at all (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a) — so for every flow but
+  `matchzy` the bots are simply standing when the map is up, and the script asks for
+  nothing.
 - **The bots have to be standing when warmup ends, and MatchZy's `live.cfg` opens with a
   `bot_quota 0`.** Those two are in tension — the drop is exactly the one that takes GOTV
   — so the script empties the server *before* `css_start`, which makes that drop a

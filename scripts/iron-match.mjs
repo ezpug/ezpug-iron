@@ -631,18 +631,21 @@ async function run() {
         ...(BOTS > 0 && {
           bot_difficulty: '2',
           bot_join_after_player: '0',
-          // **`bot_quota` travels here only for MatchZy, and the reason is a frame.** The
-          // loader execs the mode's cfg and sets these cvars into the *same* console
-          // frame, and the engine reconciles the bot population once at the end of it —
-          // so a `bot_quota_mode` switch in a mode's cfg evicts whoever is standing and a
-          // `bot_quota` beside it cannot bring them back. Measured on the dev node with
+          // **`bot_quota` travels here for every flow, which is the point of a request's
+          // `rules.cvars`.** It did not always: the loader used to exec the mode's cfg and
+          // set these cvars into the *same* console frame, and the engine reconciles the
+          // bot population once at the end of one — so a `bot_kick` or a `bot_quota_mode`
+          // switch in a mode's cfg evicted whoever was standing and a `bot_quota` beside
+          // it could not bring them back. Measured on the dev node with
           // `flying-scoutsman`: bots kicked at 1.2 s, `going_live` at 21 s, an empty
           // server for twenty minutes — then one `bot_quota 10` over RCON and ten bots
-          // inside a second. A `matchzy` flow does not care (MatchZy's `live.cfg` moves
-          // the quota itself, which is what the dance in the poll loop is about); every
-          // other flow asks for its bots there instead, in a frame of their own. The
-          // loader's own ordering is PRD-02 T22a.
-          ...(FLOW === 'matchzy' && { bot_quota: String(BOTS) }),
+          // inside a second. This script asked over RCON for a while because it could; a
+          // client cannot, and must not have to. The loader gives the cfg a frame of its
+          // own now and everything the assignment asks for the next
+          // (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a), so the quota simply arrives with
+          // the map. A `matchzy` flow still dances in the poll loop below, for a different
+          // reason: MatchZy's own `warmup.cfg` and `live.cfg` move the quota themselves.
+          bot_quota: String(BOTS),
         }),
       },
     },
@@ -762,20 +765,14 @@ async function run() {
     // bots are in. A `mp_warmup_end` outside warmup does nothing, which is what
     // makes it safe to send unconditionally.
     if (now.state === 'ready') {
-      // A mode whose flow is nobody's plugin starts itself: the SDK's generic
-      // emitter ends the warmup twenty seconds after the map is up and the round
-      // after that is `going_live` (PRD-02 T22). Nothing to force and nothing to
-      // empty — `live.cfg` is MatchZy's file and no other flow has one — so the
-      // only thing to do here is ask for the bots, in a frame of their own and
-      // inside those twenty seconds, so they are standing when the match starts.
-      if (FLOW !== 'matchzy') {
-        if (BOTS > 0 && !filled) {
-          filled = true
-          say(`filling the server with ${BOTS} bots`)
-          await rcon(`bot_quota ${BOTS}`, 'bots')
-        }
-        continue
-      }
+      // A mode whose flow is nobody's plugin starts itself and fills itself: the
+      // loader set the request's `bot_quota` a beat after the mode's cfg (T22a),
+      // so the bots are already standing, and the SDK's generic emitter ends the
+      // warmup twenty seconds after the map is up with `going_live` the round
+      // after (PRD-02 T22). Nothing to force and nothing to empty — `live.cfg` is
+      // MatchZy's file and no other flow has one — so there is nothing to do here
+      // at all, which is the shape a client should have.
+      if (FLOW !== 'matchzy') continue
       if (BOTS > 0 && !emptied) {
         emptied = true
         say('emptying the server before the start, so `live.cfg` cannot take GOTV with it')

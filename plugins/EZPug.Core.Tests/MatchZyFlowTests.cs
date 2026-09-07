@@ -54,13 +54,20 @@ public class MatchZyFlowTests
                 Maps = [new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Ct }],
             };
             Link.Assign(assignment);
-            World.StartMap("de_mirage");
+            StartMap("de_mirage");
             Link.Events.Clear();
             return Runtime.Assignment!;
         }
 
         public void Rules(bool paused = false, bool tTimeout = false, bool ctTimeout = false, bool technical = false, bool swapping = false, bool warmup = false, int played = 0) =>
             World.Rules = new GameRules(warmup, played, paused, tTimeout, ctTimeout, technical, swapping);
+
+        /// <summary>The map comes up and the loader's second console frame lands a beat later (T22a).</summary>
+        public void StartMap(string map)
+        {
+            World.StartMap(map);
+            World.Elapse(GamemodeLoader.CvarSettleMs);
+        }
 
         public void Poll() => World.Elapse(MatchZyFlow.PollIntervalMs);
 
@@ -255,7 +262,7 @@ public class MatchZyFlowTests
         using var rig = new Rig();
         var manifest = GamemodeTestHost.ManifestFrom(File.ReadAllText(Repo.Path("gamemodes", "retakes", "manifest.json")));
         rig.Link.Assign(GamemodeTestHost.AssignmentFor(manifest, map: "de_mirage"));
-        rig.World.StartMap("de_mirage");
+        rig.StartMap("de_mirage");
         rig.Link.Events.Clear();
         Assert.False(rig.Flow.Active);
 
@@ -291,7 +298,7 @@ public class MatchZyFlowTests
         Assert.Equal(1, loads);
         Assert.Equal(1, rig.Runtime.Match.MapNumber);
 
-        rig.World.StartMap("de_nuke");
+        rig.StartMap("de_nuke");
         Assert.Equal(1, rig.World.Actions.Count(action => action.ToString().StartsWith("command matchzy_loadmatch")));
         Assert.Equal(2, rig.Runtime.Match.MapNumber);
         Assert.Equal(0, rig.Runtime.Match.RoundNumber);

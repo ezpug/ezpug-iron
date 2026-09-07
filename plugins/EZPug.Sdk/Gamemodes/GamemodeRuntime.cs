@@ -16,7 +16,8 @@ namespace EZPug.Sdk;
 /// <c>bomb_*</c>, <c>chat_*</c>, <c>server_ready</c>) emitted once here, and the mode's
 /// hooks; match-flow events are the flow owner's and never emitted here. The map coming
 /// up runs the host's <see cref="MapLoaded"/> (cfg, cvars, the match config) <i>before</i>
-/// <c>server_ready</c> is emitted, so a mode's <c>OnStart</c> sees the server configured.</item>
+/// <c>server_ready</c> is emitted, so a mode's <c>OnStart</c> sees the server configured —
+/// including the beat that hook may ask for (<see cref="SettleThen"/>).</item>
 /// <item>position ticks every <see cref="PositionTickIntervalMs"/> while a match is assigned,
 /// the manifest asks for <c>positions</c> and the link is up — ephemeral, unsequenced,
 /// never buffered for a link that is down.</item>
@@ -38,7 +39,10 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     private Gamemode? _mode;
     private LinkServerState _state = LinkServerState.Booting;
     private bool _mapReady;
+    private bool _ready;
     private IClockTimer? _positionTicker;
+    private IClockTimer? _settling;
+    private (long DelayMs, Action Then)? _asked;
 
     /// <summary>How often positions are streamed while a match is assigned and the mode asks for them.</summary>
     public const long PositionTickIntervalMs = 100;
@@ -93,8 +97,22 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     /// <summary>The host's loader: enable the plugins, change the map, set the hostname. Runs before the mode's <c>OnAssigned</c>.</summary>
     public event Action<Assignment>? Assigned;
 
-    /// <summary>The host's map hook: the assigned match's map is up — exec the cfg, set the cvars, load the match config. Runs before <c>server_ready</c> is emitted and before the mode's <c>OnStart</c>.</summary>
+    /// <summary>The host's map hook: the assigned match's map is up — exec the cfg, set the cvars, load the match config. Runs before <c>server_ready</c> is emitted and before the mode's <c>OnStart</c>, and may take more than one console frame over it (<see cref="SettleThen"/>).</summary>
     public event Action<Assignment, string>? MapLoaded;
+
+    /// <summary>
+    /// <b>From inside a <see cref="MapLoaded"/> handler only:</b> the host has more to say
+    /// to the console, but not in this frame. The engine reconciles a cvar's <i>effects</i>
+    /// once at the end of the frame it was set in, against the value it had before — so a
+    /// value the mode's cfg sets and the assignment sets back is not two changes but none,
+    /// and a <c>bot_quota</c> beside a <c>bot_kick</c> leaves an empty server (PRD-02 T22a).
+    /// <paramref name="rest"/> therefore runs <paramref name="delayMs"/> of clock time
+    /// later, in a frame of its own, and <c>server_ready</c> — with the mode's
+    /// <c>OnStart</c> — waits for it, so "the map is up" still means "and configured".
+    /// The runtime has one host: the last ask of a map's hook wins, and a release, a
+    /// reassignment or the next map start drops one still pending.
+    /// </summary>
+    public void SettleThen(long delayMs, Action rest) => _asked = (delayMs, rest);
 
     /// <summary>The host's unloader, after the mode's <c>OnEnd</c>.</summary>
     public event Action<string?>? Released;
@@ -124,7 +142,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         if (Assignment is { } assignment && mode.Id == assignment.Gamemode.Id)
         {
             mode.OnAssigned(assignment);
-            if (_mapReady)
+            if (_ready)
             {
                 mode.OnStart();
             }
@@ -241,7 +259,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         }
 
         Commands = new CommandTable(frame.Gamemode.Commands, World.Clock, Localizer);
+        CancelSettle();
         _mapReady = false;
+        _ready = false;
         Flow.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
@@ -299,6 +319,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         finally
         {
             ClearModeState();
+            CancelSettle();
             _positionTicker?.Cancel();
             _positionTicker = null;
             Commands = null;
@@ -307,6 +328,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Assignment = null;
             Match.Clear();
             _mapReady = false;
+            _ready = false;
             Released?.Invoke(released);
             SetState(LinkServerState.Idle, reason);
         }
@@ -414,12 +436,45 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Match.RoundNumber = 0;
         }
 
+        CancelSettle();
         _mapReady = true;
+        _ready = false;
         Commands?.Reset(PlayerCommandChargePeriod.Map);
         Flow.OnMapStarted();
         MapLoaded?.Invoke(Assignment, map);
+        if (_asked is not { } settle)
+        {
+            Ready(map);
+            return;
+        }
+
+        _asked = null;
+        _settling = World.Clock.After(settle.DelayMs, () =>
+        {
+            _settling = null;
+            if (Assignment is null)
+            {
+                return;
+            }
+
+            settle.Then();
+            Ready(map);
+        });
+    }
+
+    /// <summary>The server is up and configured: the one <c>server_ready</c> for this map, then the mode's start.</summary>
+    private void Ready(string map)
+    {
+        _ready = true;
         Emit(Facts.ServerReady(map));
         Active?.OnStart();
+    }
+
+    private void CancelSettle()
+    {
+        _settling?.Cancel();
+        _settling = null;
+        _asked = null;
     }
 
     private void OnPlayerConnected(IGamePlayer player)
@@ -609,6 +664,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     public void Dispose()
     {
         Detach();
+        CancelSettle();
         _positionTicker?.Cancel();
         _positionTicker = null;
         _stateClearers.Clear();
