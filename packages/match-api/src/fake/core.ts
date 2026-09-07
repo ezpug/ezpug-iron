@@ -905,6 +905,9 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       // The engine's stand-in mode enforces the manifest's verbs (T24).
       commands: record.manifest.commands,
       openJoin: record.manifest.slots.openJoin,
+      // Said out loud while the simulated server waits, exactly as a plugin
+      // would print them (T30).
+      ...(request.warmupLines && { warmupLines: request.warmupLines }),
     })
 
     matches.set(matchId, record)

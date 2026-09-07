@@ -437,7 +437,9 @@ request, the manifest and every profile pushed since, composed once in
 manifest's, plus `WeaponPaints` when a roster entry carries a loadout and the image has
 the plugin), the cfg files, the cvars merged flat (a request's `rules.cvars` under the
 mode's under what the rules derive: `mp_maxrounds`, the overtime cvars), the map plan,
-the rules, the roster, the warmup lines, the branding and the demo upload URL.
+the rules, the roster, the warmup lines (printed one every eight seconds while the
+server waits, cycling — `docs/sdk.md`, "Warmup lines"), the branding and the demo upload
+URL.
 For a `matchzy` flow `matchzyConfig` is the match file MatchZy loads, built from the same
 request (`match-config/matchzy.ts`, "The MatchZy door" below); `restore` is the backup the
 match resumes from when this server is the replacement (*The match machine*, "Recovery").

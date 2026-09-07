@@ -708,11 +708,16 @@ every offline proof here.
   > **not** proved on a screen — a bot reads neither chat nor the card, so the pixels
   > wait for a human client under T36.
 
-- [ ] **T30: The chat bridge and the warmup lines.** `chat_message` and `chat_command`
+- [x] **T30: The chat bridge and the warmup lines.** `chat_message` and `chat_command`
   flow up (the platform's play room is the other window); `announce` commands print in
   chat; `warmupLines` from the assignment are printed one every few seconds during warmup
   in the roster's majority locale (the platform renders them, the plugin prints); the
   sim prints the same. References: the platform's `server-chat.ts` and Match.md §4.
+  > note: the bridge itself was already standing (T22's `chat_message`/`chat_command` off
+  > the world's hooks, T29's unbranded `announce`), so this task is the warmup printer,
+  > one sanitizer across every line from outside, and the simulator saying the same
+  > lines. Proved against the world seam and the fake, not on a screen: a bot reads no
+  > chat, and the dev CS2 container was down (`EZPUG_CS2_TESTS` skipped with its reason).
 
 - [ ] **T26a: The extended suites clean up after a run that was killed.**
   `deployments.extended.test.ts` (and any suite that commits rows and undoes them in

@@ -210,7 +210,14 @@ public sealed class CorePlugin : BasePlugin
             return;
         }
 
-        var text = info.ArgString.Trim().Trim('"');
+        // The same sanitizer the link's `announce` goes through (PRD-02 T30): the
+        // operator's door and the client's door print the same line.
+        if (SaidLine.Sanitize(info.ArgString.Trim().Trim('"')) is not { } text)
+        {
+            info.ReplyToCommand("nothing of that line survives being said in chat");
+            return;
+        }
+
         _world.Say(text);
         _runtime?.Console($"[announce] {text}");
     }

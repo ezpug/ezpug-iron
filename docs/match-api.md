@@ -97,7 +97,7 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `rules?`       | `{ regulationRounds, overtime, warmup, cvars }`        | absent = the gamemode's defaults |
 | `requirements` | `{ region?, lan?, simulated?, provider? }`             | every field narrows; default `{}` |
 | `callbacks`    | `{ webhookUrl, webhookSecretId, demoUploadUrl?, streamAllowedOrigins? }` | `webhookSecretId` names a secret registered on the key; `demoUploadUrl` is a presigned PUT |
-| `warmupLines?` | string[] ≤20                                           | printed in warmup, in order |
+| `warmupLines?` | string[] ≤20                                           | printed in warmup, one every eight seconds, in order and cycling; rendered by the client (one line everybody reads cannot be four languages), relayed unbranded, sanitized to one chat line |
 | `branding?`    | `{ hostname?, eventName? }`                            | decision 22 |
 | `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos? }`      | honoured on the `sim` provider only |
 | `ttlMinutes`   | int, 1…1440                                            | the reaper's deadline; never above the key's ceiling |
@@ -140,7 +140,7 @@ id; a retried command with the same id is not applied twice):
 | `restart_round` | | |
 | `force_end`     | `reason?` | the match ends `force_ended` |
 | `kick`          | `steamId64, reason?` | |
-| `announce`      | `text` ≤512 | the plugin prints it; a sim echoes it as a `plugin_event` |
+| `announce`      | `text` ≤512 | the plugin prints it, as the client wrote it and behind no prefix of ours; a sim echoes it as a `plugin_event`. Sanitized into one chat line first — control characters, `;`, `"` and `\` out, 127 code points — and `validation_failed` when nothing is left |
 | `rcon`          | `command` | needs `admin`; `command_unsupported` on a sim |
 | `restore`       | `roundNumber?` | latest backup when unsaid; `no_backup` when none |
 | `reroll`        | | the match over on the same server, rosters kept |
@@ -773,7 +773,8 @@ work until the world is quiet, `fake.settle()` waits for in-flight work alone. S
 seed and options: same envelopes, same deliveries — the recorded fixtures rely on it.
 
 **Commands on a simulated server.** `announce` is echoed as a `plugin_event`
-`chat_announced`; `pause` parks the story (and the loss detector) and emits `match_paused`,
+`chat_announced` — as are the request's `warmupLines`, one every eight seconds between
+`server_ready` and `going_live`, which is what a real plugin prints in the same window; `pause` parks the story (and the loss detector) and emits `match_paused`,
 `unpause` resumes with `match_unpaused`; `force_end` ends `force_ended`; `kick` removes a
 present player (`player_disconnected`, `player.left`); `profile` teaches the server a
 player; `restore` works while `recovering`; `restart_round`, `reroll` and `rcon` are

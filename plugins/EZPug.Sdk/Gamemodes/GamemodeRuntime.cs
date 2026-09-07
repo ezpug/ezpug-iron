@@ -58,6 +58,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Flow = new GenericFlow(world, this, _log);
         Brand = new Branding(world, () => Localizer, Match);
         Ratings = new RatingBoard(world, () => Localizer, Brand);
+        Warmup = new WarmupChat(world, Match);
         link.Handler = this;
         world.MapStarted += OnMapStarted;
         world.PlayerConnected += OnPlayerConnected;
@@ -88,6 +89,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>The hostname, the chat prefix, the team colours and the connect card (decision 22, PRD-02 T29). Every line the SDK says goes through it.</summary>
     public Branding Brand { get; }
+
+    /// <summary>The assignment's warmup lines, printed one every few seconds while the server waits (PRD-02 T30).</summary>
+    public WarmupChat Warmup { get; }
 
     public Assignment? Assignment { get; private set; }
     public CommandTable? Commands { get; private set; }
@@ -315,6 +319,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         // carries this match's prefix, not the last one's.
         Brand.OnAssigned(assignment);
         Ratings.OnAssigned(assignment);
+        Warmup.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
         {
@@ -378,6 +383,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             var released = reason;
             Flow.OnReleased();
             Ratings.OnReleased();
+            Warmup.OnReleased();
             Brand.OnReleased();
             Assignment = null;
             Match.Clear();
@@ -418,7 +424,16 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         switch (command)
         {
             case AnnounceCommand announce:
-                World.Say(announce.Text);
+                // The client's words, relayed as they were written — no prefix, because
+                // the platform brands its own chat (PRD-02 T29) — but never as a console
+                // line: a line from outside goes through `SaidLine` on every box, the
+                // simulator's included, so both print the same thing (T30).
+                if (SaidLine.Sanitize(announce.Text) is not { } said)
+                {
+                    return CommandAnswer.Rejected(MatchApiErrorCode.ValidationFailed, "nothing of that line survives being said in chat");
+                }
+
+                World.Say(said);
                 return CommandAnswer.Applied;
             case KickCommand kick:
                 if (!ulong.TryParse(kick.SteamId64, out var steamId64) || World.Find(steamId64) is not { } player)
@@ -539,6 +554,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     {
         _ready = true;
         Ratings.DrawAll();
+        Warmup.OnMapReady();
         Emit(Facts.ServerReady(map));
         Active?.OnStart();
     }
@@ -750,6 +766,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     {
         Detach();
         CancelSettle();
+        Warmup.Stop();
         _positionTicker?.Cancel();
         _positionTicker = null;
         _stateClearers.Clear();

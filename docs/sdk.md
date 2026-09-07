@@ -144,7 +144,33 @@ arrives — and a bot is told nothing at all.
 
 Two things deliberately do **not** carry the prefix: a client's `announce` command and
 `ezpug_announce` on the console. Those are the platform's own words relayed to the server,
-and the platform brands them itself.
+and the platform brands them itself. The assignment's **warmup lines** are the third, for
+the same reason.
+
+### Warmup lines: what the server says while it waits
+
+A mode writes nothing for this either. The request's `warmupLines` arrive on the `assign`
+frame as text — the platform rendered them, in the roster's majority locale
+(`Assignment.MajorityLocale()`), because one line everybody reads at once cannot be four
+languages — and the runtime's `WarmupChat` (`Runtime.Warmup`) prints them:
+
+- one every `WarmupChat.IntervalMs` (eight seconds), in the order the client wrote them,
+  **cycling**, so a player who connects two minutes late reads the whole set;
+- only **in warmup**, which is the engine's word (`IGameWorld.Rules.Warmup`) where there
+  are gamerules to read and "the match has not gone live yet" where there are none — a
+  knife round and a live round are quiet, and the next map's warmup speaks again;
+- starting when the map is up and configured (the `server_ready` beat), not at `assign`,
+  and stopping at `release`.
+
+Every line from outside — a warmup line, an `announce`, `ezpug_announce` — goes through
+`SaidLine.Sanitize` first: control characters (the engine's colour palette lives in that
+range), `;`, `"` and `\` become spaces, runs of whitespace collapse, and the line is
+clamped to 127 code points, which is what one CS2 chat line shows. A line with nothing
+left is dropped rather than printed blank: the command is refused
+(`validation_failed`) and a warmup line is left out at assignment. It is the C# twin of
+the simulator's `sanitizeChatLine`, and a simulated server prints the same warmup lines,
+at the same pace, as a `chat_announced` `plugin_event` — so a client renders a rehearsal
+and a match the same way.
 
 A name that arrives from outside — an event, a team, a hostname — is passed through
 `ChatColor.Strip` before it is pasted into one of ours, and the card's markup is escaped,

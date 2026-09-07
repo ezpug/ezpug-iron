@@ -63,7 +63,8 @@ public sealed class GamemodeTestHost : IDisposable
         IReadOnlyList<RosterEntry>? teamA = null,
         IReadOnlyList<RosterEntry>? teamB = null,
         IReadOnlyList<MapPlan>? maps = null,
-        MatchBranding? branding = null) =>
+        MatchBranding? branding = null,
+        IReadOnlyList<string>? warmupLines = null) =>
         new()
         {
             MatchId = matchId,
@@ -79,6 +80,7 @@ public sealed class GamemodeTestHost : IDisposable
                 TeamB = new Roster { Name = "Team B", Players = teamB ?? [] },
             },
             Branding = branding ?? new MatchBranding(),
+            WarmupLines = warmupLines ?? [],
         };
 
     /// <summary>Read a shipped <c>gamemodes/&lt;id&gt;/manifest.json</c> as the server would receive it (maps and widget dropped).</summary>

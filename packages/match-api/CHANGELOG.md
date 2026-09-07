@@ -6,6 +6,18 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.7.1 — 2026-09-07
+
+The fake says what a server says while it waits. No schema moved: `warmupLines` has been
+on the request since `0.1.0`, and this is the fake finally honouring it. Serves PRD-02 T30.
+
+- **The fake's simulated server prints a request's `warmupLines`** one every eight seconds
+  from `server_ready` until the map goes live, cycling in order — as a
+  `plugin_event` named `chat_announced` with `{ line }`, the same event an `announce`
+  already deals, and the same rule, pace and sanitizing the core plugin's own printer
+  follows on a real server. A request without warmup lines plays exactly the match it
+  played before, down to the seed.
+
 ## 0.7.0 — 2026-09-07
 
 The push: a gamemode may put one moment on one player's phone (decision 17). Serves

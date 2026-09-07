@@ -29,6 +29,7 @@ import type {
 } from '@ezpug/match-api'
 import { isEphemeralGameserverEvent, radarToWorld } from '@ezpug/match-api'
 import type { MatchAssignment, SimulatedPlayer } from './assignment'
+import { SIM_CHAT_EVENT, sanitizeChatLine } from './chat'
 import type { SimulatedChatMoment } from './chatter'
 import { planSimulatedChatter } from './chatter'
 import type { SimulatedRecording } from './record'
@@ -88,6 +89,14 @@ export interface StoryOptions {
 
 // Game-time rhythm (milliseconds). Compressed or stretched only by playback's
 // time scale — the story itself always speaks real match time.
+/**
+ * How long between two of the assignment's warmup lines — the plugin's own
+ * `WarmupChat.IntervalMs` (`plugins/EZPug.Sdk/Branding/WarmupChat.cs`), because
+ * a simulated warmup that filled chat at a different pace than a real one would
+ * be a rehearsal for a different match (PRD-02 T30).
+ */
+const WARMUP_LINE_INTERVAL_MS = 8_000
+
 const FREEZE_MS = 7_000
 const HALFTIME_MS = 15_000
 const MAP_GAP_MS = 25_000
@@ -255,10 +264,52 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     })
   }
 
+  /**
+   * **The lines the server itself says while it waits** (PRD-02 T30): the
+   * assignment's warmup lines, one every {@link WARMUP_LINE_INTERVAL_MS} from
+   * the moment the server is ready until the wait ends, cycling in order — the
+   * same rule, the same pace and the same `plugin_event` a real plugin's
+   * `WarmupChat` prints, so a client that renders them off a simulated match
+   * renders them off a real one.
+   *
+   * Merged into the beats by time rather than appended: the connects and the
+   * players' own chatter happen inside this window, and playback walks the
+   * list in order. No dice are rolled here, so a seeded match plays exactly
+   * the match it played before whether or not anybody wrote a warmup line.
+   */
+  const fillWarmup = (fromMs: number, untilMs: number): void => {
+    const lines = (assignment.warmupLines ?? [])
+      .map(line => {
+        try {
+          return sanitizeChatLine(line)
+        } catch {
+          // A line that is nothing once it is safe to say is dropped, exactly
+          // as the plugin drops it at assignment.
+          return null
+        }
+      })
+      .filter((line): line is string => line !== null)
+    if (lines.length === 0) return
+    let spoken = 0
+    for (let at = fromMs + WARMUP_LINE_INTERVAL_MS; at <= untilMs; at += WARMUP_LINE_INTERVAL_MS) {
+      const line = lines[spoken % lines.length] as string
+      spoken += 1
+      emit(at, {
+        type: 'plugin_event',
+        matchId,
+        source,
+        name: SIM_CHAT_EVENT,
+        data: { line },
+      })
+    }
+    beats.sort((a, b) => a.atMs - b.atMs)
+  }
+
   // --- boot & connects ------------------------------------------------------
 
   const firstMap = assignment.maps[0] as (typeof assignment.maps)[number]
   t += options.bootDelayMs
+  const readyAtMs = t
   emit(t, { type: 'server_ready', matchId, source, map: firstMap.map })
 
   const absentCount = Math.min(scenario.absentPlayers ?? 0, players.length - 1)
@@ -272,15 +323,21 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
   }
 
   // A no-show never goes live: the server heartbeats in warmup until the
-  // orchestrator's join deadline decides — the story just runs dry.
-  if (absentCount > 0) return { beats, outcome: 'idle', demos }
-
+  // orchestrator's join deadline decides — the story just runs dry. The lines
+  // are said for as long as there is a story, which for this one is until the
+  // last player who *did* come arrived.
   const lastArrival = arrivals[arrivals.length - 1]
+  if (absentCount > 0) {
+    fillWarmup(readyAtMs, lastArrival?.atMs ?? t)
+    return { beats, outcome: 'idle', demos }
+  }
+
   t = (lastArrival?.atMs ?? t) + prng.int(10_000, 20_001)
 
   // Warmup: somebody says something before anything has happened, so a pane
   // opened on a live match is never a blank rectangle.
   say(t, 'warmup')
+  fillWarmup(readyAtMs, t)
 
   // --- the series -----------------------------------------------------------
 

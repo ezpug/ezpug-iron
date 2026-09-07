@@ -3,6 +3,7 @@ import type { GameserverEventOf, GameserverEventType, MapRadar } from '@ezpug/ma
 import { gameserverEventSchema, worldToRadar } from '@ezpug/match-api'
 import { describe, expect, it } from 'vitest'
 import type { MatchAssignment } from './assignment'
+import { SIM_CHAT_EVENT } from './chat'
 import { planSimulatedChatter, SIMULATED_CHAT_LINES } from './chatter'
 import { SIMULATOR_SCENARIOS, type SimulatorScenario } from './scenario'
 import {
@@ -12,6 +13,7 @@ import {
   planMapRounds,
   resumeStory,
   SimulatorRestoreError,
+  type StoryBeat,
   teamASideAt,
 } from './story'
 import { fixtureAssignment } from './testing'
@@ -238,6 +240,64 @@ describe('buildMatchStory', () => {
     )
     // A no-show never gets that far and says nothing.
     expect(ofType(storyFor(SIMULATOR_SCENARIOS['no-show']), 'chat_message')).toHaveLength(0)
+  })
+
+  it("prints the assignment's warmup lines while it waits, one every few seconds, in order", () => {
+    const lines = ['Willkommen bei EZPug.', 'Dein Match steht auf ezpug.com.']
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'story-test', {
+      warmupLines: lines,
+    })
+    const said = ofType(story, 'plugin_event').filter(event => event.name === SIM_CHAT_EVENT)
+    expect(said.length).toBeGreaterThan(1)
+    // In order, cycling — the plugin's own rule (`WarmupChat`).
+    expect(said.map(event => (event.data as { line: string }).line)).toEqual(
+      said.map((_, index) => lines[index % lines.length]),
+    )
+
+    // Only while the server waits: the first is a beat after `server_ready`,
+    // the last before the map goes live, and the times are one interval apart.
+    const beats = story.beats.filter(
+      beat => beat.event.type === 'plugin_event' && beat.event.name === SIM_CHAT_EVENT,
+    )
+    const ready = story.beats.find(beat => beat.event.type === 'server_ready') as StoryBeat
+    const live = story.beats.find(beat => beat.event.type === 'going_live') as StoryBeat
+    expect(beats[0]?.atMs).toBe(ready.atMs + 8_000)
+    expect((beats.at(-1) as StoryBeat).atMs).toBeLessThan(live.atMs)
+    expect(beats.map(beat => beat.atMs - ready.atMs)).toEqual(
+      beats.map((_, index) => (index + 1) * 8_000),
+    )
+
+    // Merged into the story by time, not appended: playback walks the list in
+    // order and never has to sort it.
+    expect(story.beats.map(beat => beat.atMs)).toEqual(
+      [...story.beats.map(beat => beat.atMs)].sort((a, b) => a - b),
+    )
+
+    // A line that is nothing once it is safe to say is dropped, and a match
+    // nobody wrote a line for says nothing at all.
+    expect(
+      ofType(
+        storyFor(SIMULATOR_SCENARIOS['happy-path'], 'story-test', { warmupLines: [';'] }),
+        'plugin_event',
+      ).filter(event => event.name === SIM_CHAT_EVENT),
+    ).toHaveLength(0)
+    expect(
+      ofType(storyFor(SIMULATOR_SCENARIOS['happy-path']), 'plugin_event').filter(
+        event => event.name === SIM_CHAT_EVENT,
+      ),
+    ).toHaveLength(0)
+  })
+
+  it("says its warmup lines on nobody's dice: a seeded match plays the same match with them", () => {
+    const plain = storyFor(SIMULATOR_SCENARIOS['happy-path'])
+    const spoken = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'story-test', {
+      warmupLines: ['Willkommen bei EZPug.'],
+    })
+    const without = (story: MatchStory) =>
+      story.beats.filter(
+        beat => !(beat.event.type === 'plugin_event' && beat.event.name === SIM_CHAT_EVENT),
+      )
+    expect(without(spoken)).toEqual(without(plain))
   })
 
   it('draws its chat on a stream of its own — which is why no seeded match moved', () => {

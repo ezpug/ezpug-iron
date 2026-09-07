@@ -79,6 +79,13 @@ export interface MatchAssignment {
   commands?: readonly PlayerCommandSpec[]
   /** The manifest's `slots.openJoin`: a tap from a SteamID64 not on the roster is a joined player's, not a stranger's. */
   openJoin?: boolean
+  /**
+   * The lines the client wrote for warmup, already rendered in the roster's
+   * majority locale — what a real server prints one every few seconds while it
+   * waits, and what this one says out loud in exactly the same window (PRD-02
+   * T30). Absent for a server nobody gave any: the wait is quiet.
+   */
+  warmupLines?: readonly string[]
 }
 
 /**
@@ -197,6 +204,8 @@ export interface MatchRequestHandoff {
   commands?: readonly PlayerCommandSpec[]
   /** The manifest's `slots.openJoin`. */
   openJoin?: boolean
+  /** The request's `warmupLines`, verbatim — the platform rendered them, the server prints them. */
+  warmupLines?: readonly string[]
 }
 
 /**
@@ -225,5 +234,6 @@ export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchA
       : { enabled: true, maxRounds: DEFAULT_OVERTIME_ROUNDS },
     ...(handoff.commands !== undefined && { commands: handoff.commands }),
     ...(handoff.openJoin !== undefined && { openJoin: handoff.openJoin }),
+    ...(handoff.warmupLines !== undefined && { warmupLines: [...handoff.warmupLines] }),
   })
 }

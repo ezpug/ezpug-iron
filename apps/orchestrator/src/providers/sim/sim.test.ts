@@ -251,10 +251,14 @@ describe('the sim provider', () => {
       },
     }
     const sim = createSimProvider({ clock, sink, links: createLinkRegistry() })
-    const configuration = (serverId: string, matchId: string): ServerConfiguration => ({
+    const configuration = (
+      serverId: string,
+      matchId: string,
+      overrides: Partial<MatchRequestInput> = {},
+    ): ServerConfiguration => ({
       matchId,
       game: 'cs2',
-      request: request(),
+      request: request(overrides),
       gamemode: PUG,
       joinPassword: 'not-a-secret',
       link: { url: `ws://localhost:3430/link#${serverId}`, serverToken: 'ezis_not-a-secret' },
@@ -279,12 +283,12 @@ describe('the sim provider', () => {
     ttlMinutes: 60,
   })
 
-  async function play(matchId: string) {
+  async function play(matchId: string, overrides: Partial<MatchRequestInput> = {}) {
     const world = rig()
     const [offering] = await world.sim.offerings()
     if (!offering) throw new Error('the sim offered nothing')
     const { serverId } = await world.sim.allocate(allocation(matchId, offering))
-    await world.sim.configure(serverId, world.configuration(serverId, matchId))
+    await world.sim.configure(serverId, world.configuration(serverId, matchId, overrides))
     await world.sim.start(serverId)
     await world.playOut(serverId)
     return { ...world, serverId, offering }
@@ -299,6 +303,33 @@ describe('the sim provider', () => {
     )
     const other = await play(MATCH_TWO)
     expect(other.sim.engine(other.serverId)?.status().sim?.seed).toBe(`sim#${MATCH_TWO}`)
+  })
+
+  it("says the request's warmup lines while it waits, as a real server prints them", async () => {
+    const warmupLines = ['Willkommen bei EZPug.', 'Dein Match steht auf ezpug.com.']
+    const world = await play(MATCH_ONE, { warmupLines })
+    const spoken = world.events
+      .map(({ event }) => event)
+      .filter(event => event.type === 'plugin_event' && event.name === 'chat_announced')
+    expect(spoken.length).toBeGreaterThan(1)
+    const lineOf = (event: GameserverEvent): unknown =>
+      event.type === 'plugin_event' ? event.data.line : undefined
+    expect(spoken.map(lineOf)).toEqual(
+      spoken.map((_, index) => warmupLines[index % warmupLines.length]),
+    )
+    // Warmup only: every one of them is spoken before the map goes live.
+    const types = world.events.map(({ event }) => event.type)
+    const live = types.indexOf('going_live')
+    expect(live).toBeGreaterThan(-1)
+    for (const event of spoken) expect(types.indexOf(event.type)).toBeLessThan(live)
+
+    // And a request that named none says nothing at all.
+    const quiet = await play(MATCH_TWO)
+    expect(
+      quiet.events.filter(
+        ({ event }) => event.type === 'plugin_event' && event.name === 'chat_announced',
+      ),
+    ).toHaveLength(0)
   })
 
   it('keeps an event it spoke in sight until the machine has taken it (T10a)', async () => {

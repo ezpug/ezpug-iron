@@ -11,8 +11,21 @@
  * whatever does not fit into one chat line, and a line that is cut at a
  * different place on every provider is a line no test can pin.
  *
- * The platform's `chat.ts` on 2026-09-05, verbatim.
+ * The platform's `chat.ts` on 2026-09-05, verbatim, plus {@link SIM_CHAT_EVENT}:
+ * the name a simulated server says a line under, which lives here rather than
+ * beside the playback so the story builder can reach it too.
  */
+
+/**
+ * **What a simulated server says out loud** — the `plugin_event` it deals for
+ * every line it was told to say: a client's `announce`, and each of the
+ * assignment's warmup lines while the match waits (PRD-02 T30). A real plugin
+ * prints the line and says nothing back; the simulator publishes it through
+ * the same delivery path as every other beat, so the line is *ordered* against
+ * the match's own events and a test can prove an announcement landed after the
+ * round that triggered it.
+ */
+export const SIM_CHAT_EVENT = 'chat_announced'
 
 /** One chat line's budget, in characters — CS2's own, and what a test can pin. */
 export const CHAT_LINE_MAX_LENGTH = 127

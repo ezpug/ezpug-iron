@@ -486,6 +486,44 @@ describe('cancel and commands', () => {
     expect(chat).toBeDefined()
   })
 
+  it("prints the request's warmup lines while the simulated server waits", async () => {
+    const warmupLines = ['Willkommen bei EZPug.', 'Dein Match steht auf ezpug.com.']
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    const match = await client.matches.create({ body: pugRequest({ warmupLines }) })
+    await h.clock.advance(600_000)
+
+    const envelopes = await allEvents(h, match.id)
+    const said = envelopes.filter(
+      e => e.payload.type === 'plugin_event' && e.payload.name === 'chat_announced',
+    )
+    expect(said.length).toBeGreaterThan(1)
+    // In order, cycling, exactly as the plugin's `WarmupChat` prints them.
+    const lineOf = (envelope: WebhookEnvelope): unknown =>
+      envelope.payload.type === 'plugin_event' ? envelope.payload.data?.line : undefined
+    expect(said.map(lineOf)).toEqual(
+      said.map((_, index) => warmupLines[index % warmupLines.length]),
+    )
+
+    // And only while the server waits: every one of them is before the map went live.
+    const order = types(envelopes)
+    const live = order.indexOf('going_live')
+    expect(live).toBeGreaterThan(-1)
+    for (const line of said) expect(envelopes.indexOf(line)).toBeLessThan(live)
+
+    // A request that named no lines still says nothing at all.
+    const quiet = setup()
+    const other = await quiet.fake
+      .client(quiet.platform.secret)
+      .matches.create({ body: pugRequest() })
+    await quiet.clock.advance(600_000)
+    expect(
+      (await allEvents(quiet, other.id)).filter(
+        e => e.payload.type === 'plugin_event' && e.payload.name === 'chat_announced',
+      ),
+    ).toHaveLength(0)
+  })
+
   it('drives the engine with the sim.* family', async () => {
     const h = setup()
     const client = h.fake.client(h.platform.secret)

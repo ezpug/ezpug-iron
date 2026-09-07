@@ -31,7 +31,7 @@ import type {
 } from '@ezpug/match-api'
 import { gameserverEventSchema } from '@ezpug/match-api'
 import type { MatchAssignment } from './assignment'
-import { sanitizeChatLine } from './chat'
+import { SIM_CHAT_EVENT, sanitizeChatLine } from './chat'
 import {
   createSimCommandTable,
   type SimCommandTable,
@@ -48,16 +48,6 @@ import { buildMatchStory, resumeStory } from './story'
 
 /** The provider badge every event of a simulated server carries (`source.provider`). */
 export const SIM_PROVIDER_ID = 'sim'
-
-/**
- * **What a simulated server says out loud** — the `plugin_event` it echoes
- * back for every line it was told to announce. A real plugin prints the line
- * and says nothing back; the simulator publishes it through the same delivery
- * path as every other beat, so the line is *ordered* against the match's own
- * events and a test can prove an announcement landed after the round that
- * triggered it.
- */
-export const SIM_CHAT_EVENT = 'chat_announced'
 
 /**
  * **What a simulated server says when a tap is applied** — the `plugin_event`
