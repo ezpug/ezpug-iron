@@ -1,4 +1,4 @@
-import type { ApiKeyCreated, WebhookEnvelope } from '@ezpug/match-api'
+import type { ApiKeyCreated, WebhookEnvelope, WidgetServerFrame } from '@ezpug/match-api'
 import { createMatchApiClient } from '@ezpug/match-api/client'
 import {
   type ConformanceTarget,
@@ -10,6 +10,8 @@ import { describeMatchApiConformance } from '@ezpug/match-api/fixtures/vitest'
 import { verifyWebhook } from '@ezpug/match-api/webhooks'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createTestApp, type TestApp } from './http/testing'
+import { hashToken } from './tokens'
+import { tapThroughWidget } from './widget/testing'
 
 /**
  * **The conformance suite against the orchestrator, in process** (PRD-02
@@ -19,11 +21,12 @@ import { createTestApp, type TestApp } from './http/testing'
  * the tier that runs in plain `pnpm verify`; `conformance.extended.test.ts`
  * runs the same flows over a real socket, Postgres and Redis.
  *
- * What this target cannot offer, the runner skips with a reason: the
- * widget's tap (T24). The demo lands in the test's own bucket
- * (`app.uploads`), which is a client's storage and not a door of ours. The
- * fault knobs are the sim provider's (`setFaults`, T14): a crash after a
- * round, with or without the backups to come back from.
+ * Every capability is offered: the widget's tap (T24) goes through the
+ * widget service in-process, the way the socket would drive it. The demo
+ * lands in the test's own bucket (`app.uploads`), which is a client's
+ * storage and not a door of ours. The fault knobs are the sim provider's
+ * (`setFaults`, T14): a crash after a round, with or without the backups to
+ * come back from.
  */
 
 const SECRET_ID = 'whsec-conformance'
@@ -121,16 +124,29 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
       await drainReceived()
     },
     stream: (subscription, onFrame) => {
-      if (subscription.token !== undefined) throw new Error('player tokens arrive with T24')
       const unsubscribe = app.hub.subscribe(subscription.matchId, {
         send: onFrame,
         close: () => undefined,
       })
-      void app.store.findMatch(subscription.matchId).then(row => {
+      // A player token authorises the stream too; in-process the check is
+      // the widget service's, so a bad token is a thrown refusal here.
+      void (async () => {
+        if (subscription.token !== undefined) {
+          const record = await app.store.findPlayerTokenByHash(hashToken(subscription.token))
+          if (!record || record.matchId !== subscription.matchId) {
+            unsubscribe()
+            throw new Error('the player token does not open this match')
+          }
+        }
+        const row = await app.store.findMatch(subscription.matchId)
         if (row) onFrame({ type: 'hello', matchId: row.id, seq: row.seq, state: row.state })
-      })
+      })()
       return unsubscribe
     },
+    // A widget's tap, through the widget service in-process: open a session
+    // with the token, send one command, wait for its result and — when it
+    // was applied — for the `plugin_event` the tap left in the log.
+    playerCommand: command => tapThroughWidget(app.widgets, command),
     budget: { client: budgetClient, maxServerLifetimeMinutes: 60 },
     close,
   }
@@ -138,14 +154,77 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
 
 describeMatchApiConformance('the orchestrator over memory', { target })
 
+describe('the widget door of the orchestrator over memory', () => {
+  it('opens a session with the token and answers a tap through the simulated server', async () => {
+    const t = await target()
+    const request = t.client
+    const created = await request.matches.create({
+      body: {
+        clientMatchId: 'widget-door',
+        game: 'cs2',
+        gamemode: 'powerup-dm',
+        teams: { teamA: { name: 'Alle', players: [] }, teamB: { name: 'Niemand', players: [] } },
+        maps: [{ map: 'de_mirage', sides: 'ct' }],
+        callbacks: t.callbacks,
+        ttlMinutes: 60,
+      },
+    })
+    await t.app.advance(60_000)
+    expect((await request.matches.get({ params: { matchId: created.id } })).state).toBe('live')
+    const minted = await request.matches.mintPlayerToken({
+      params: { matchId: created.id },
+      body: { steamId64: '76561198000009999' },
+    })
+    const frames: WidgetServerFrame[] = []
+    const opened = await t.app.widgets.open(
+      { token: minted.token },
+      { send: frame => frames.push(frame), close: () => undefined },
+    )
+    if (!opened.ok) throw new Error(`refused ${opened.code}: ${opened.reason}`)
+    expect(frames[0]).toMatchObject({
+      type: 'hello',
+      matchId: created.id,
+      steamId64: '76561198000009999',
+      gamemode: 'powerup-dm',
+      state: 'live',
+      commands: [{ name: 'powerup', chargesLeft: 1, readyInMs: 0 }],
+    })
+    await opened.session.command({ type: 'command', correlationId: 'tap-1', command: 'powerup' })
+    await t.app.settle()
+    const result = frames.find(f => f.type === 'command_result')
+    expect(result).toEqual({
+      type: 'command_result',
+      correlationId: 'tap-1',
+      command: 'powerup',
+      status: 'applied',
+      chargesLeft: 0,
+    })
+    expect(
+      frames.some(
+        f =>
+          f.type === 'event' &&
+          f.envelope.payload.type === 'plugin_event' &&
+          f.envelope.payload.name === 'player_command',
+      ),
+    ).toBe(true)
+    await opened.session.command({ type: 'command', correlationId: 'tap-2', command: 'powerup' })
+    expect(frames.filter(f => f.type === 'command_result').at(-1)).toMatchObject({
+      correlationId: 'tap-2',
+      status: 'rejected',
+      code: 'no_charges',
+      message: 'Keine Ladung mehr übrig.',
+    })
+    opened.session.close()
+    expect(t.app.widgets.size()).toBe(0)
+  })
+})
+
 describe('the suite against the orchestrator', () => {
-  it('passes every flow it can run and skips only what a later task builds', async () => {
+  it('passes every flow and skips none — the widget’s tap included since T24', async () => {
     const report = await runMatchApiConformance({ target })
     expect(formatConformanceReport(report)).toContain('0 failed')
     expect(report.ok).toBe(true)
-    expect(report.results.filter(r => r.status === 'skipped').map(r => r.flow)).toEqual([
-      'player-command',
-    ])
-    expect(report.passed + report.skipped).toBe(MATCH_API_CONFORMANCE_FLOWS.length)
+    expect(report.results.filter(r => r.status === 'skipped').map(r => r.flow)).toEqual([])
+    expect(report.passed).toBe(MATCH_API_CONFORMANCE_FLOWS.length)
   })
 })

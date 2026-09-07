@@ -33,6 +33,7 @@ import { streamFrameSchema } from './stream/frames'
 import { gameserverEventSchema } from './vocabulary/gameserver'
 import { mapRadarSchema } from './vocabulary/radar'
 import { orchestrationFactSchema, webhookEnvelopeSchema } from './webhooks/envelope'
+import { widgetClientFrameSchema, widgetServerFrameSchema } from './widget/socket'
 
 /**
  * **Every wire shape, by the name its generated twin carries.** Zod is the
@@ -78,6 +79,8 @@ export const matchApiSchemas = {
   OrchestrationFact: orchestrationFactSchema,
   WebhookEnvelope: webhookEnvelopeSchema,
   StreamFrame: streamFrameSchema,
+  WidgetClientFrame: widgetClientFrameSchema,
+  WidgetServerFrame: widgetServerFrameSchema,
 } as const
 export type MatchApiSchemaName = keyof typeof matchApiSchemas
 

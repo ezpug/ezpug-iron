@@ -1,6 +1,6 @@
 {
   "name": "@ezpug/match-api",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "The Match API of EZPug Iron: the gameserver event vocabulary, the resources and routes a client speaks to the orchestrator, the webhook envelope and verifier, the stream frames, the gamemode manifest, a typed client, conformance fixtures and an in-process fake orchestrator.",
   "license": "MIT",
   "repository": {

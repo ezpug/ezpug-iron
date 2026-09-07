@@ -147,6 +147,9 @@ export function simAssignmentFor(
       teams,
       maps: request.maps,
       ...(request.rules && { rules: request.rules }),
+      // The engine's stand-in mode enforces the manifest's verbs (T24).
+      commands: gamemode.commands,
+      openJoin: gamemode.slots.openJoin,
     }),
     invented,
   }

@@ -48,6 +48,7 @@ export function createFakeOrchestrator(options: FakeOrchestratorOptions): FakeOr
     mintKey: request => core.mintKey(request),
     stream: (subscription, listener, onClose) => core.stream(subscription, listener, onClose),
     playerCommand: command => core.playerCommand(command),
+    widget: (token, listener, onClose) => core.widget(token, listener, onClose),
     deliveries: matchId => core.deliveries(matchId),
     get faults() {
       return core.faults

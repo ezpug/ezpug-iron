@@ -2,6 +2,7 @@ import { ApiError, MATCH_API_ERROR_STATUS } from '../errors'
 import type { MatchApiRoutes } from '../routes'
 import type { RouteDef, RouteHandler, RouteTree } from '../rpc'
 import { parseEventsCursor } from '../webhooks/events'
+import { WIDGET_SOCKET_PATH } from '../widget/socket'
 import type { FakeCore, KeyRecord } from './core'
 
 /**
@@ -77,6 +78,10 @@ export function createFakeHandlers(core: FakeCore): FakeHandlers {
         throw upgradeRequired()
       },
     },
+    // The widget socket is an upgrade too (T24); `listen()` performs it.
+    widget: () => {
+      throw upgradeRequired(WIDGET_SOCKET_PATH)
+    },
     fleet: {
       servers: {
         list: () => ({ servers: core.openServers() }),
@@ -141,10 +146,10 @@ function commandUnsupported(message: string): ApiError {
   return new ApiError(MATCH_API_ERROR_STATUS.command_unsupported, 'command_unsupported', message)
 }
 
-function upgradeRequired(): ApiError {
+function upgradeRequired(path = '/v1/matches/:matchId/stream'): ApiError {
   return new ApiError(
     MATCH_API_ERROR_STATUS.validation_failed,
     'validation_failed',
-    'GET /v1/matches/:matchId/stream is a WebSocket upgrade; connect with a WebSocket client',
+    `GET ${path} is a WebSocket upgrade; connect with a WebSocket client`,
   )
 }

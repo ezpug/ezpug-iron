@@ -384,8 +384,8 @@ mirror the durable log, `presence` is re-sent whole on every join and leave,
 `command_result` follows every command, `tick` batches position ticks per clock tick and
 never stores them. The upgrade (`GET /v1/matches/:id/stream`) is matched on the raw
 server before Hono: an API key with `matches` owning the match, or a player token in
-`?token=` (T24 mints them; the check against `player_tokens` and the request's
-`streamAllowedOrigins` is here). The first frame is `hello`, and a frame published while
+`?token=` (minted by `POST /v1/matches/:id/player-tokens`, checked against `player_tokens`
+and the request's `streamAllowedOrigins` here). The first frame is `hello`, and a frame published while
 the greeting was being read waits behind it — dropped rather than written when it is an
 event at or below the hello's `seq`, because replaying from that cursor already covers
 it; a match that is over gets `4000` right after the hello; a subscriber a megabyte
@@ -467,6 +467,46 @@ sequences, buffers and resends like the C# client must, and the exchanges it had
 the real `/link` are recorded under `packages/protocol/fixtures/link/` — the files the C#
 side round-trips. `link/server-link.test.ts` runs the whole thing over a real socket on a
 fake clock; `EZPUG_IRON_RECORD=1` rewrites the goldens.
+
+## The widget socket
+
+Decision 17, T24: a gamemode's widget opens **its own socket** to the orchestrator, `GET
+/v1/widget` (`widget/upgrade.ts`), with a player token — a `POST
+/v1/matches/:id/player-tokens` mints one for a rostered player, a player the server has
+seen join, or anyone on an open-join mode (`matches.mintPlayerToken`), fifteen minutes by
+default and an hour at most, stored as a hash in `player_tokens` and shown once. The token
+travels in the widget's first frame, `hello`, never in the URL: the request log would have
+it otherwise. Everything after the greeting is `widget/service.ts`, which the conformance
+target drives in-process the way the socket does: the answer is a `hello` with the mode's
+declared verbs and what this process last learned about their charges and cooldown for
+this player (a hint for the buttons; the SDK is the truth), then every durable fact of the
+match as an `event` frame — the widget subscribes to the hub like a stream socket, so it
+sees its own tap land — and a `command_result` per tap.
+
+**A tap is a `player_command` frame over the link.** The service checks the token's
+expiry and a bucket per token (`WIDGET_COMMAND_RATE_LIMIT`: ten taps, two more a second —
+`rate_limited`, with how long to wait), then `matches.playerCommand` refuses what needs no
+server (`not_live` before the match is live or after it ended; `unknown_command` for a
+verb the manifest lacks) and relays the rest to the match's channel with the widget's own
+`correlationId`; the SDK's `player_command_result` comes back as it was said, in the
+player's language, and a server that does not answer inside the relay deadline is
+`unavailable`. The relay never holds the match's chain — a real plugin reports the tap's
+`plugin_event` before it answers the tap. On a simulated server the engine's stand-in
+mode (`@ezpug/sim`'s command table) enforces the manifest and deals a `player_command`
+`plugin_event`, so the platform proves the round trip without CS2. What the orchestrator
+refuses itself it says in DE or EN from the roster profile, German by default.
+
+**Refusals are close codes** (`WIDGET_CLOSE_CODES`): `4001` for no token, one that does
+not verify, one that expired (also on the next tap of an open session), or a match that
+does not exist; `4005` for a browser origin not in `streamAllowedOrigins`; `4002` for a
+`hello` on another protocol; `4003` for a frame that does not parse or a first frame that
+is not `hello`; `4009` for no `hello` within ten seconds on the clock; `4008` for a widget
+a megabyte behind. **A token dies with the match**: the hub's close for the match ends
+every session on it with `4000` after the `match.ended` frame, a `hello` after the end gets
+the terminal state and the `4000` at once, and nothing new is minted for a match that is
+over (`invalid_state`). The drain closes the widget sockets in the stream's step.
+`widget/upgrade.test.ts` runs the whole thing over a real socket against a real link with
+the protocol's fake server as the plugin.
 
 ## The console and RCON
 
@@ -1039,7 +1079,8 @@ requests with no key share one bucket, so a stranger hammering the door is refus
 memory. Per process, in memory: the ceiling stops a runaway client, it does not meter one.
 
 **The request log** is one line per request: method, path *without the query string*
-(the stream route carries a player token there), status, duration, the key's public
+(the stream route carries a player token there; the widget socket never does), status,
+duration, the key's public
 prefix (`key=ezik_abc…`, twelve characters, never more), and a request id. The id is
 echoed as `x-request-id` — yours when you sent a plausible one, minted otherwise — and
 travels in every error envelope's `details.requestId`, so a client's log and this one

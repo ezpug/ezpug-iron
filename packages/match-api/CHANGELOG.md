@@ -6,6 +6,45 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.5.0 — 2026-09-07
+
+The widget socket: a gamemode's widget opens its own socket to the orchestrator with a
+player token and taps the mode's declared commands (decision 17). Serves PRD-02 T24, which
+mints the tokens, relays the taps to the plugin's SDK and teaches the simulated server to
+answer them so the platform can test its host without CS2. Additive; a client that pinned
+`0.4.3` sees every shape it knew unchanged.
+
+- **`GET /v1/widget`**, a second WebSocket upgrade beside the stream (`matchApiRoutes.widget`,
+  `WIDGET_SOCKET_PATH`), and its frames in `widget/socket.ts`: up `hello { protocol: 1,
+  token }` — the token travels in the first frame, never in the URL — and `command {
+  correlationId, command, args? }`; down `hello { matchId, steamId64, gamemode, state,
+  locale?, commands: WidgetCommandState[] }` (the manifest's specs plus `chargesLeft` and
+  `readyInMs` as last learned), `event { envelope }` (every durable fact, the webhook's
+  envelope) and `command_result { correlationId, command, status, code?, message?,
+  cooldownMs?, chargesLeft? }`. `WIDGET_COMMAND_REFUSALS` is the SDK's seven plus
+  `rate_limited`, `not_live`, `unavailable`; `WIDGET_CLOSE_CODES` mirrors the stream's
+  (`4000` the match ended, `4001` unauthorized, `4002` protocol, `4003` malformed, `4005`
+  origin, `4008` slow consumer, `4009` no hello); `WIDGET_COMMAND_RATE_LIMIT` (ten taps,
+  two a second per token) and `WIDGET_HELLO_TIMEOUT_MS` (ten seconds) are published so a
+  widget can say why it was refused. `WidgetClientFrame` and `WidgetServerFrame` join the
+  schema registry.
+- **`validatePlayerCommandArgs(schema, args)`**: the corner of JSON Schema a manifest's
+  `commands[].args` uses, checked in TypeScript with the SDK's `ArgsValidator`'s sentences —
+  one document, the same verdict on the phone, the simulated server and the plugin.
+- **The fake enforces the manifest now.** `fake.playerCommand()` runs the tap through the
+  simulated server's stand-in mode (`@ezpug/sim`'s command table): cooldowns and charges
+  per period, args against the schema, `not_in_match` off the roster unless the mode is
+  open join; a refusal is an `ApiError` (`command_unsupported`, `validation_failed`,
+  `player_not_in_match`, `rate_limited`, `invalid_state`) whose `details.code` is the
+  socket's refusal code. `fake.widget(token, onFrame, onClose)` is the socket in-process
+  and `fake.listen()` performs the `/v1/widget` upgrade. The stand-in mode's
+  `plugin_event` is dealt through the engine, so it carries the server's `seq` like every
+  other event — the recorded `player-command` flow was re-recorded for the shifted `seq`s
+  and nothing else.
+- `POST /v1/matches/:matchId/player-tokens` is documented as the orchestrator serves it: a
+  rostered player, a player the server has seen join, or anyone on an open-join mode;
+  `invalid_state` once the match is over.
+
 ## 0.4.3 — 2026-09-07
 
 Catalog only: `retakes` is a mode a server can actually play. Serves PRD-02 T23, which

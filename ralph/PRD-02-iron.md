@@ -635,7 +635,7 @@ every offline proof here.
   profiles so scoreboard rating and skins work for open join. Proven on the dev node with
   bots; recorded. References: `references/cs2-retakes/`.
 
-- [ ] **T24 (fable): Player commands, player tokens and the widget socket.**
+- [x] **T24 (fable): Player commands, player tokens and the widget socket.**
   `POST /v1/matches/:id/player-tokens` (spine) mints a short-lived token scoped to (match,
   SteamID64) for a rostered or joined player; `/v1/widget` is the upgrade a widget opens
   with it — `hello` (the mode's declared commands with cooldown/charges state), `command`

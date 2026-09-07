@@ -169,8 +169,8 @@ describe('the keys routes', () => {
   })
 })
 
-describe('the routes a later task serves', () => {
-  it('exist, authenticate, gate and validate, then say honestly which task serves them', async () => {
+describe('every route of the table is served', () => {
+  it('authenticates, gates and validates before a handler sees anything', async () => {
     const t = createTestApp()
     const key = (await t.keys.mint(keyRequest('platform', ['matches', 'fleet']))).secret
     const unauthenticated = await t.request(
@@ -180,19 +180,21 @@ describe('the routes a later task serves', () => {
       },
     )
     expect(unauthenticated.status).toBe(401)
-    const unserved = await t.request(
+    // The last route T24 wired: a token for a match this key does not have
+    // is `not_found`, the same answer every match route gives a stranger.
+    const missing = await t.request(
       '/v1/matches/00000000-0000-4000-8000-000000000000/player-tokens',
       { key, method: 'POST', json: { steamId64: '76561198000000000' } },
     )
-    expect(unserved.status).toBe(500)
-    expect(unserved.body.error).toMatchObject({
-      code: 'internal',
-      message: expect.stringContaining('PRD-02 T24'),
-      details: { task: 'T24' },
-    })
+    expect(missing.status).toBe(404)
+    expect(missing.body.error.code).toBe('not_found')
     const invalid = await t.request('/v1/matches/not-a-uuid', { key })
     expect(invalid.status).toBe(400)
     expect(invalid.body.error.code).toBe('validation_failed')
+    // The widget socket is an upgrade; a plain GET gets the explanation.
+    const widget = await t.request('/v1/widget', { key })
+    expect(widget.status).toBe(400)
+    expect(widget.body.error.message).toContain('/v1/widget is a WebSocket upgrade')
   })
 
   it('cover the whole route table — no path is unregistered', async () => {

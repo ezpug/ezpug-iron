@@ -98,7 +98,9 @@ describe('assignmentFromMatchRequest', () => {
         overtime: { enabled: false, maxRounds: 6, startMoney: 10_000 },
       },
     })
-    expect(assignment.teamA.players).toEqual([{ steamId64: '76561198070000101', name: 'hunzR' }])
+    expect(assignment.teamA.players).toEqual([
+      { steamId64: '76561198070000101', name: 'hunzR', locale: 'de' },
+    ])
     expect(assignment.maps).toEqual([{ map: 'de_nuke', teamASide: 't' }])
     expect(assignment.regulationRounds).toBe(16)
     expect(assignment.overtime).toEqual({ enabled: false, maxRounds: 6 })

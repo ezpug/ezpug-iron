@@ -5,7 +5,12 @@ import type {
   RouteHandler,
   RouteTree,
 } from '@ezpug/match-api'
-import { ApiError, MATCH_API_ERROR_STATUS, parseEventsCursor } from '@ezpug/match-api'
+import {
+  ApiError,
+  MATCH_API_ERROR_STATUS,
+  parseEventsCursor,
+  WIDGET_SOCKET_PATH,
+} from '@ezpug/match-api'
 import type { Budgets } from '../budget/service'
 import type { Fleet } from '../fleet/service'
 import type { GsltPool } from '../gslt/pool'
@@ -22,9 +27,9 @@ import type { Nodes } from '../nodes/service'
  * Served: the catalog and the keys (T2), matches, capacity, the fleet's
  * servers, providers and ledger (T3), the budget and the keys' rotation and
  * ceilings (T5), the nodes (T12), the GSLT pool (T17), the console and RCON
- * (T20). Everything else answers {@link notServedYet} until the task that
- * builds it replaces the entry: T24 (player tokens). A route that is not yet
- * served still exists: it authenticates,
+ * (T20), player tokens and the widget socket's plain-GET explanation (T24).
+ * Every route of the table is served; {@link notServedYet} stays for the
+ * next task that adds one — such a route still exists: it authenticates,
  * gates its scope and validates its input like every other, and then says
  * so with `internal` — never a `404` that would lie about the contract.
  */
@@ -73,11 +78,11 @@ function notFound(message: string): ApiError {
   return new ApiError(MATCH_API_ERROR_STATUS.not_found, 'not_found', message)
 }
 
-function upgradeRequired(): ApiError {
+function upgradeRequired(path = '/v1/matches/:matchId/stream'): ApiError {
   return new ApiError(
     MATCH_API_ERROR_STATUS.validation_failed,
     'validation_failed',
-    'GET /v1/matches/:matchId/stream is a WebSocket upgrade; connect with a WebSocket client',
+    `GET ${path} is a WebSocket upgrade; connect with a WebSocket client`,
   )
 }
 
@@ -108,7 +113,8 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
       get: ({ params }, ctx) => matches.get(ctx.key, params.matchId),
       cancel: ({ params }, ctx) => matches.cancel(ctx.key, params.matchId),
       command: ({ params, body }, ctx) => matches.command(ctx.key, params.matchId, body),
-      mintPlayerToken: notServedYet('T24'),
+      mintPlayerToken: ({ params, body }, ctx) =>
+        matches.mintPlayerToken(ctx.key, params.matchId, body),
       events: ({ params, query }, ctx) =>
         matches.events(ctx.key, params.matchId, parseEventsCursor(query.cursor), query.limit),
       // The stream is an upgrade, not a request; a plain GET here gets the
@@ -116,6 +122,10 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
       stream: () => {
         throw upgradeRequired()
       },
+    },
+    // The widget socket is an upgrade too (T24); `widget/upgrade.ts` performs it.
+    widget: () => {
+      throw upgradeRequired(WIDGET_SOCKET_PATH)
     },
     fleet: {
       servers: {

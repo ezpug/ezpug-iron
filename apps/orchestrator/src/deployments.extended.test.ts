@@ -45,6 +45,7 @@ import {
   matchCommands,
   matchEvents,
   matches,
+  playerTokens,
   servers,
   serverTokens,
   webhookDeliveries,
@@ -135,6 +136,8 @@ async function sweep(): Promise<void> {
       await db.delete(matchEvents).where(inArray(matchEvents.matchId, ids))
       await db.delete(matchCommands).where(inArray(matchCommands.matchId, ids))
       await db.delete(backups).where(inArray(backups.matchId, ids))
+      // Player tokens (T24) name a match; the widget flow mints them.
+      await db.delete(playerTokens).where(inArray(playerTokens.matchId, ids))
     }
     const owned = await db
       .select({ id: servers.id })

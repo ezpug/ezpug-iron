@@ -12,9 +12,12 @@ import type {
   MatchListFilter,
   MatchRequest,
   MatchState,
+  PlayerToken,
+  PlayerTokenRequest,
   RosterEntry,
   WebhookEnvelope,
   WebhookPayload,
+  WidgetCommandResultFrame,
 } from '@ezpug/match-api'
 import {
   ApiError,
@@ -35,7 +38,13 @@ import { SIM_PROVIDER_ID } from '@ezpug/sim'
 import type { BudgetGate } from '../budget/service'
 import type { AuthenticatedKey } from '../keys/service'
 import { composeAssign, missingPlugins } from '../link/assign'
-import type { IngestStatus, LinkRegistry, ServerEventSink, ServerRef } from '../link/channels'
+import type {
+  IngestStatus,
+  LinkRegistry,
+  PlayerCommandRelay,
+  ServerEventSink,
+  ServerRef,
+} from '../link/channels'
 import { serverKey } from '../link/channels'
 import type { Log } from '../log'
 import type { ProviderRegistry } from '../providers/registry'
@@ -152,6 +161,17 @@ export interface MatchesOptions {
   onError?: (error: unknown, context: Record<string, unknown>) => void
 }
 
+/** What became of a widget's tap, as the socket answers it (minus the frame's envelope). */
+export type WidgetTapOutcome = Omit<WidgetCommandResultFrame, 'type' | 'correlationId' | 'command'>
+
+/** What the widget socket's `hello` is built from (T24). */
+export interface WidgetFacts {
+  row: MatchRow
+  manifest: GamemodeManifest
+  /** The player's roster profile — pushed or requested — when the match knows them. */
+  profile: RosterEntry | undefined
+}
+
 export interface CreateMatchResult {
   match: Match
   /** True when the same request was seen before and this is its match, not a new one. */
@@ -179,6 +199,30 @@ export interface Matches extends ServerEventSink {
     afterSeq: number,
     limit: number,
   ) => Promise<{ items: WebhookEnvelope[]; nextCursor: string | null }>
+  /**
+   * `POST /v1/matches/:matchId/player-tokens` (T24, decision 17): a widget's
+   * key to this match and one SteamID64 — a rostered player, one the server
+   * has seen join, or anyone on an open-join mode — hashed here, shown once.
+   * Refused `invalid_state` once the match is over.
+   */
+  mintPlayerToken: (
+    key: AuthenticatedKey,
+    matchId: string,
+    body: PlayerTokenRequest,
+  ) => Promise<PlayerToken>
+  /** What a widget socket's `hello` says about its token's match and player; undefined for no such match. */
+  widgetFacts: (matchId: string, steamId64: string) => Promise<WidgetFacts | undefined>
+  /**
+   * A widget's tap (T24): relayed to the match's server as a `player_command`
+   * frame and answered with what the SDK said. Refused here, without a
+   * message — the socket says it in the player's language — when the match
+   * is not `live` or has no reachable server (`not_live`), when the manifest
+   * declares no such verb (`unknown_command`), or when the server did not
+   * answer inside the relay deadline (`unavailable`). Never holds the
+   * match's chain: a real plugin reports the tap's `plugin_event` before it
+   * answers the tap.
+   */
+  playerCommand: (matchId: string, tap: PlayerCommandRelay) => Promise<WidgetTapOutcome>
   /** The row of a match this key may see, or `not_found`. */
   require: (key: AuthenticatedKey, matchId: string) => Promise<MatchRow>
   view: (row: MatchRow) => Match
@@ -1414,6 +1458,81 @@ export function createMatches(options: MatchesOptions): Matches {
     })
   }
 
+  const mintPlayerToken: Matches['mintPlayerToken'] = async (key, matchId, body) => {
+    const row = await require(key, matchId)
+    if (isTerminalMatchState(row.state))
+      throw refuse('invalid_state', `the match is ${row.state}`, { state: row.state })
+    const manifest = manifestOf(row)
+    const runtime = runtimeOf(row)
+    if (
+      !manifest.slots.openJoin &&
+      !runtime.known.has(body.steamId64) &&
+      !runtime.presence.has(body.steamId64)
+    )
+      throw refuse(
+        'player_not_in_match',
+        `${body.steamId64} is neither on the roster nor on the server`,
+        { steamId64: body.steamId64 },
+      )
+    const token = mintToken('player', options.random)
+    const at = now()
+    const expiresAt = new Date(at.getTime() + body.ttlSeconds * 1000)
+    await store.insertPlayerToken({
+      id: randomUUID(),
+      matchId: row.id,
+      keyId: key.key.id,
+      steamId64: body.steamId64,
+      tokenHash: hashToken(token),
+      expiresAt,
+      createdAt: at,
+      revokedAt: null,
+    })
+    return { token, matchId: row.id, steamId64: body.steamId64, expiresAt: expiresAt.toISOString() }
+  }
+
+  /** The player's profile as the match knows it: pushed since, or the request's roster. */
+  const profileOf = (row: MatchRow, steamId64: string): RosterEntry | undefined => {
+    const pushed = runtimes.get(row.id)?.known.get(steamId64)
+    if (pushed) return pushed
+    const { teamA, teamB } = row.requestJson.teams
+    return [...teamA.players, ...teamB.players].find(player => player.steamId64 === steamId64)
+  }
+
+  const widgetFacts: Matches['widgetFacts'] = async (matchId, steamId64) => {
+    const row = await store.findMatch(matchId)
+    if (!row) return undefined
+    return { row, manifest: manifestOf(row), profile: profileOf(row, steamId64) }
+  }
+
+  const playerCommand: Matches['playerCommand'] = async (matchId, tap) => {
+    const rejected = (code: WidgetTapOutcome['code']): WidgetTapOutcome => ({
+      status: 'rejected',
+      code,
+    })
+    const row = await store.findMatch(matchId)
+    if (row?.state !== 'live') return rejected('not_live')
+    if (!manifestOf(row).commands.some(command => command.name === tap.command))
+      return rejected('unknown_command')
+    const channel =
+      row.provider && row.serverId
+        ? links.get({ provider: row.provider, serverId: row.serverId })
+        : undefined
+    if (!channel?.playerCommand) return rejected('not_live')
+    try {
+      const answer = await channel.playerCommand(tap)
+      return {
+        status: answer.status,
+        ...(answer.code !== undefined && { code: answer.code }),
+        ...(answer.message !== undefined && { message: answer.message }),
+        ...(answer.cooldownMs !== undefined && { cooldownMs: answer.cooldownMs }),
+        ...(answer.chargesLeft !== undefined && { chargesLeft: answer.chargesLeft }),
+      }
+    } catch (error) {
+      report(error, { phase: `player_command:${tap.command}`, matchId: row.id })
+      return rejected('unavailable')
+    }
+  }
+
   const events: Matches['events'] = async (key, matchId, afterSeq, limit) => {
     const row = await require(key, matchId)
     const rows = await store.listEvents(matchId, afterSeq, limit)
@@ -1546,6 +1665,9 @@ export function createMatches(options: MatchesOptions): Matches {
     },
     cancel,
     command,
+    mintPlayerToken,
+    widgetFacts,
+    playerCommand,
     events,
     require,
     view,

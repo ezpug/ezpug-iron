@@ -18,7 +18,15 @@
  * side of the plugin↔orchestrator link, and its events reach whoever
  * subscribed (`SimulatedServer.events`). Delivery is the orchestrator's.
  */
-import type { Game, MapPlan, MatchRules, MatchTeams, TeamSide } from '@ezpug/match-api'
+import type {
+  Game,
+  Locale,
+  MapPlan,
+  MatchRules,
+  MatchTeams,
+  PlayerCommandSpec,
+  TeamSide,
+} from '@ezpug/match-api'
 
 /** `mp_maxrounds` per game when nothing says otherwise — the platform's `REGULATION_ROUNDS`. */
 export const REGULATION_ROUNDS: Readonly<Record<Game, number>> = Object.freeze({
@@ -39,6 +47,8 @@ export class SimulatorConfigError extends Error {
 export interface SimulatedPlayer {
   steamId64: string
   name: string
+  /** The player's language from the roster profile — a refusal on the widget socket is said in it. */
+  locale?: Locale
 }
 
 export interface SimulatedTeam {
@@ -61,6 +71,14 @@ export interface MatchAssignment {
   maps: AssignedMap[]
   regulationRounds: number
   overtime: { enabled: boolean; maxRounds: number }
+  /**
+   * The player commands the gamemode's manifest declares (decision 17) —
+   * what the simulated server enforces cooldowns and charges for and
+   * answers a widget's tap with. Absent or empty: the mode has no verbs.
+   */
+  commands?: readonly PlayerCommandSpec[]
+  /** The manifest's `slots.openJoin`: a tap from a SteamID64 not on the roster is a joined player's, not a stranger's. */
+  openJoin?: boolean
 }
 
 /**
@@ -175,6 +193,10 @@ export interface MatchRequestHandoff {
   maps: readonly MapPlan[]
   /** Absent = the platform's ranked defaults: MR12 (MR15 on csgo), MR3 overtime. */
   rules?: Pick<MatchRules, 'regulationRounds' | 'overtime'>
+  /** The manifest's `commands`, for a mode with a widget. */
+  commands?: readonly PlayerCommandSpec[]
+  /** The manifest's `slots.openJoin`. */
+  openJoin?: boolean
 }
 
 /**
@@ -185,7 +207,11 @@ export interface MatchRequestHandoff {
 export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchAssignment {
   const toTeam = (team: MatchTeams['teamA']): SimulatedTeam => ({
     name: team.name,
-    players: team.players.map(({ steamId64, name }) => ({ steamId64, name })),
+    players: team.players.map(({ steamId64, name, locale }) => ({
+      steamId64,
+      name,
+      ...(locale !== undefined && { locale }),
+    })),
   })
   return checkFormat({
     matchId: handoff.matchId,
@@ -197,5 +223,7 @@ export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchA
     overtime: handoff.rules
       ? { enabled: handoff.rules.overtime.enabled, maxRounds: handoff.rules.overtime.maxRounds }
       : { enabled: true, maxRounds: DEFAULT_OVERTIME_ROUNDS },
+    ...(handoff.commands !== undefined && { commands: handoff.commands }),
+    ...(handoff.openJoin !== undefined && { openJoin: handoff.openJoin }),
   })
 }

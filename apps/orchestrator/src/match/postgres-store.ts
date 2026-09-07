@@ -393,6 +393,9 @@ export function createPostgresMatchStore(
           .orderBy(desc(backups.mapNumber), desc(backups.roundNumber))
           .limit(1),
       ),
+    insertPlayerToken: async row => {
+      await executor.insert(playerTokens).values(row)
+    },
     findPlayerTokenByHash: tokenHash =>
       one(executor.select().from(playerTokens).where(eq(playerTokens.tokenHash, tokenHash))),
     reassignServerToken: async (id, fleetServerId) => {

@@ -54,6 +54,22 @@ export function createSimChannel(options: SimChannelOptions): ServerChannel {
 
   return {
     server: options.server,
+    async playerCommand(tap) {
+      // The engine's stand-in mode enforces the manifest (T24); the
+      // `plugin_event` an applied tap leaves is reported through the sink
+      // like every other beat, in order.
+      const { result } = await engine.playerCommand({
+        steamId64: tap.steamId64,
+        command: tap.command,
+        ...(tap.args && { args: tap.args }),
+      })
+      return {
+        correlationId: tap.correlationId,
+        steamId64: tap.steamId64,
+        command: tap.command,
+        ...result,
+      }
+    },
     async send(command: MatchCommand): Promise<ChannelCommandResult> {
       switch (command.type) {
         case 'pause':

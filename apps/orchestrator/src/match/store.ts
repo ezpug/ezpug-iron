@@ -414,6 +414,8 @@ export interface MatchStore {
   /** Every backup of a match, newest round first. */
   listBackups: (matchId: string) => Promise<BackupRow[]>
   latestBackup: (matchId: string) => Promise<BackupRow | undefined>
+  /** A widget's key to one match and one SteamID64 (T24), hashed. */
+  insertPlayerToken: (row: PlayerTokenRow) => Promise<void>
   findPlayerTokenByHash: (tokenHash: string) => Promise<PlayerTokenRow | undefined>
   /**
    * Point a live server token at another ledger row. The one caller is the

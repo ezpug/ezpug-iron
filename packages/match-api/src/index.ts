@@ -18,6 +18,8 @@
  *   the events replay's page, the signature scheme, the retry policy, the
  *   verifier and the delivery deduper.
  * - **The stream** (`stream/`): the frames one socket per match carries.
+ * - **The widget socket** (`widget/`): the frames a gamemode widget's own
+ *   socket carries both ways, its close codes and rate limit.
  * - **The registry** (`schemas.ts`): every wire shape by its generated name,
  *   and the JSON Schema export the C# side reads.
  *
@@ -42,3 +44,4 @@ export * from './webhooks/events'
 export * from './webhooks/retry'
 export * from './webhooks/signature'
 export * from './webhooks/verify'
+export * from './widget/socket'

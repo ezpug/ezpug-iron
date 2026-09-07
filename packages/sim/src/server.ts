@@ -32,6 +32,13 @@ import type {
 import { gameserverEventSchema } from '@ezpug/match-api'
 import type { MatchAssignment } from './assignment'
 import { sanitizeChatLine } from './chat'
+import {
+  createSimCommandTable,
+  type SimCommandTable,
+  type SimPlayerCommand,
+  type SimPlayerCommandResult,
+  simCommandLine,
+} from './commands'
 import { simRadarFor } from './radar'
 import type { SimulatedRecording } from './record'
 import type { SimulatorScenario, SimulatorScenarioName } from './scenario'
@@ -51,6 +58,22 @@ export const SIM_PROVIDER_ID = 'sim'
  * triggered it.
  */
 export const SIM_CHAT_EVENT = 'chat_announced'
+
+/**
+ * **What a simulated server says when a tap is applied** — the `plugin_event`
+ * its stand-in mode emits for every player command that passed the checks
+ * (decision 17): `data: { command, steamId64, name?, args? }`. A real mode
+ * emits whatever it does (`powerup_claimed`); the twin emits this one so the
+ * platform can prove the round trip — a tap, a durable fact in the log —
+ * without CS2.
+ */
+export const SIM_PLAYER_COMMAND_EVENT = 'player_command'
+
+/** What the server answered a tap with, and the `plugin_event` it dealt when the tap was applied. */
+export interface SimPlayerCommandAnswer {
+  result: SimPlayerCommandResult
+  event: GameserverEvent | null
+}
 
 /**
  * A simulated server's lifecycle. `allocated` until it is told a match,
@@ -167,6 +190,22 @@ export interface SimulatedServer {
   announce: (line: string) => Promise<boolean>
   /** Every line this server was told to say, in the order it said them. */
   announced: () => readonly string[]
+  /**
+   * A widget's tap (decision 17), as the orchestrator relays it. The stand-in
+   * mode enforces the manifest's cooldowns and charges (`commands.ts`, the
+   * SDK's table in TypeScript), answers the way a plugin's
+   * `player_command_result` would, and on an applied tap deals a
+   * {@link SIM_PLAYER_COMMAND_EVENT} `plugin_event` in order with the match.
+   * A SteamID64 off the roster is `not_in_match` unless the assignment says
+   * `openJoin` — a simulated server cannot see a human join, so on an
+   * open-join mode a tapper is taken to be one. Refused with `not_in_match`
+   * too when there is no running server to tap on.
+   */
+  playerCommand: (tap: SimPlayerCommand) => Promise<SimPlayerCommandAnswer>
+  /** Charges left and cooldown remaining per declared verb for one player — the widget's `hello`. */
+  commandStates: (
+    steamId64: string,
+  ) => { name: string; chargesLeft: number | null; readyInMs: number }[]
   status: () => SimulatedServerStatus
   /**
    * Subscribe to every event this server speaks, `seq`-stamped, position
@@ -208,6 +247,17 @@ interface Assigned {
   radars: (MapRadar | null)[]
 }
 
+/** The roster entry behind a SteamID64, either team. */
+function playerOf(
+  assignment: MatchAssignment,
+  steamId64: string,
+): MatchAssignment['teamA']['players'][number] | undefined {
+  return (
+    assignment.teamA.players.find(player => player.steamId64 === steamId64) ??
+    assignment.teamB.players.find(player => player.steamId64 === steamId64)
+  )
+}
+
 export function createSimulatedServer(options: SimulatedServerOptions): SimulatedServer {
   const { clock, serverId } = options
   const root = options.seed ?? 'sim'
@@ -233,6 +283,7 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
   let beatTimer: Timer | undefined
   let heartbeatTimer: Timer | undefined
   const announced: string[] = []
+  let commands: SimCommandTable | null = null
   const backups: SimBackup[] = []
   const dealtDemos = new Set<number>()
 
@@ -345,6 +396,12 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
     } else if (event.type === 'demo_available') {
       dealtDemos.add(event.mapNumber)
     }
+    // The periods a charge refills in, as the story deals them (the SDK's
+    // `Reset` on the same events).
+    if (event.type === 'player_death') commands?.reset('life', event.victim.steamId64)
+    else if (event.type === 'round_start') commands?.reset('round')
+    else if (event.type === 'going_live') commands?.reset('map')
+    else if (event.type === 'player_disconnected') commands?.forget(event.player.steamId64)
 
     const done = deliver(event)
 
@@ -420,6 +477,11 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
         radars,
       }
       assigned = { ...current, story: buildStory(current, scenario) }
+      commands = createSimCommandTable({
+        clock,
+        commands: assignment.commands ?? [],
+        localeOf: steamId64 => playerOf(assignment, steamId64)?.locale,
+      })
       lifecycle = 'starting'
     },
 
@@ -519,6 +581,41 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
       }).then(() => true)
     },
     announced: () => [...announced],
+
+    async playerCommand(tap) {
+      const refused = (): SimPlayerCommandAnswer => ({
+        result: {
+          status: 'rejected',
+          code: 'not_in_match',
+          message: simCommandLine(
+            'not_in_match',
+            assigned && playerOf(assigned.assignment, tap.steamId64)?.locale,
+          ),
+        },
+        event: null,
+      })
+      if (!assigned || !commands || crashed || !playing || !readyEmitted) return refused()
+      const player = playerOf(assigned.assignment, tap.steamId64)
+      if (!player && !assigned.assignment.openJoin) return refused()
+      const result = commands.run(tap)
+      if (result.status !== 'applied') return { result, event: null }
+      const event: GameserverEvent = {
+        type: 'plugin_event',
+        matchId: assigned.assignment.matchId,
+        source,
+        seq: ++seq,
+        name: SIM_PLAYER_COMMAND_EVENT,
+        data: {
+          command: tap.command,
+          steamId64: tap.steamId64,
+          ...(player && { name: player.name }),
+          ...(tap.args && { args: tap.args }),
+        },
+      }
+      await deliver(event)
+      return { result, event }
+    },
+    commandStates: steamId64 => commands?.stateOf(steamId64) ?? [],
 
     status: () => ({
       serverId,

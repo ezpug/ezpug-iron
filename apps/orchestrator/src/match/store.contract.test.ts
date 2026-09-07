@@ -257,6 +257,22 @@ async function contract(store: MatchStore, keyId: string): Promise<void> {
   expect(await store.findServerTokenByHash(hashToken(mintToken('server')))).toBeUndefined()
   await store.touchServerToken(tokenId, at(5_000))
   expect((await store.findServerTokenByHash(hashToken(serverToken)))?.lastUsedAt).toEqual(at(5_000))
+  // A player token (T24): hashed, scoped to a match and a SteamID64, with an expiry.
+  const playerToken = mintToken('player')
+  await store.insertPlayerToken({
+    id: randomUUID(),
+    matchId: a.id,
+    keyId,
+    steamId64: '76561198279375306',
+    tokenHash: hashToken(playerToken),
+    expiresAt: at(900_000),
+    createdAt: at(),
+    revokedAt: null,
+  })
+  const found = await store.findPlayerTokenByHash(hashToken(playerToken))
+  expect(found).toMatchObject({ matchId: a.id, steamId64: '76561198279375306' })
+  expect(found?.expiresAt).toEqual(at(900_000))
+  expect(await store.findPlayerTokenByHash(hashToken(mintToken('player')))).toBeUndefined()
   // The budget's one read (T5): open rows always, closed ones only while
   // they belong to the month being counted.
   expect((await store.listKeyLedgerSince(keyId, at(0))).map(s => s.id)).toEqual([s2.id, s1.id])

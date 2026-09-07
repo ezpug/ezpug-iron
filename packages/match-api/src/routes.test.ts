@@ -47,9 +47,10 @@ describe('the Match API route table', () => {
     }
   })
 
-  it('declares exactly one upgrade, the stream, and keeps it off the typed client', () => {
+  it('declares two upgrades, the stream and the widget socket, and keeps them off the typed client', () => {
     const upgrades = routes.filter(({ route }) => route.upgrade).map(({ key }) => key)
-    expect(upgrades).toEqual(['matches.stream'])
+    expect(upgrades).toEqual(['matches.stream', 'widget'])
+    expect(matchApiRoutes.widget.path).toBe('/v1/widget')
     expect(matchApiRoutes.matches.stream.path).toBe('/v1/matches/:matchId/stream')
     expect(matchApiRoutes.matches.events.path).toBe('/v1/matches/:matchId/events')
   })

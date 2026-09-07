@@ -20,6 +20,7 @@ import {
   assignmentFromMatchRequest,
   createSimulatedServer,
   findScenario,
+  SIM_PLAYER_COMMAND_EVENT,
   SIM_PROVIDER_ID,
   SIMULATED_MATCH_RECORD_CONTENT_TYPE,
 } from '@ezpug/sim'
@@ -76,6 +77,16 @@ import {
   WEBHOOK_SIGNATURE_VERSION,
   webhookSignedPayload,
 } from '../webhooks/signature'
+import type {
+  WidgetCommandFrame,
+  WidgetCommandResultFrame,
+  WidgetCommandState,
+} from '../widget/socket'
+import {
+  WIDGET_CLOSE_CODES,
+  WIDGET_COMMAND_RATE_LIMIT,
+  WIDGET_SOCKET_PROTOCOL,
+} from '../widget/socket'
 import { hmacSha256HexSync, sha256Hex } from './sha256'
 import type {
   FakeFaults,
@@ -87,6 +98,9 @@ import type {
   FakeStreamSubscription,
   FakeWebhookAttempt,
   FakeWebhookRequest,
+  FakeWidgetClose,
+  FakeWidgetListener,
+  FakeWidgetSession,
 } from './types'
 
 // ---------------------------------------------------------------------------
@@ -104,8 +118,8 @@ export const FAKE_SECRET_PREFIXES = Object.freeze({
   nodeToken: 'fake-node-token-',
   serverPassword: 'fake-join-',
 })
-/** The `plugin_event` name the fake's plugin answers a widget's command with. */
-export const FAKE_PLAYER_COMMAND_EVENT = 'player_command'
+/** The `plugin_event` name the fake's plugin — the simulated server's stand-in mode — answers an applied tap with. */
+export const FAKE_PLAYER_COMMAND_EVENT: typeof SIM_PLAYER_COMMAND_EVENT = SIM_PLAYER_COMMAND_EVENT
 /** The game port and the GOTV port every simulated server states. */
 export const FAKE_SERVER_PORT = 27_015
 export const FAKE_TV_PORT = 27_020
@@ -887,6 +901,9 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       teams,
       maps: request.maps,
       ...(request.rules && { rules: request.rules }),
+      // The engine's stand-in mode enforces the manifest's verbs (T24).
+      commands: record.manifest.commands,
+      openJoin: record.manifest.slots.openJoin,
     })
 
     matches.set(matchId, record)
@@ -1408,29 +1425,199 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     return record
   }
 
+  /**
+   * The widget's tap, as the socket relays it (decision 17): the manifest's
+   * verbs, cooldowns and charges are enforced by the simulated server's
+   * stand-in mode (`@ezpug/sim`'s command table, the SDK's in TypeScript),
+   * which deals the `plugin_event` an applied tap leaves in the log. Refused
+   * at this door, before the engine: a match that is not `live`, and a
+   * token over its rate limit.
+   */
+  const runPlayerCommand = async (
+    token: PlayerTokenRecord,
+    tap: Pick<WidgetCommandFrame, 'command' | 'args'>,
+  ): Promise<{
+    result: Omit<WidgetCommandResultFrame, 'type' | 'correlationId' | 'command'>
+    envelope: WebhookEnvelope | null
+  }> => {
+    const record = matches.get(token.matchId) as MatchRecord
+    const answer = await enqueue(record, async () => {
+      if (record.match.state !== 'live' || !record.server)
+        return {
+          result: {
+            status: 'rejected' as const,
+            code: 'not_live' as const,
+            message: `the match is ${record.match.state}`,
+          },
+          event: null,
+        }
+      return await record.server.playerCommand({
+        steamId64: token.steamId64,
+        command: tap.command,
+        ...(tap.args && { args: tap.args }),
+      })
+    })
+    if (!answer.event) return { result: answer.result, envelope: null }
+    // The engine dealt the `plugin_event` into this match's queue, right
+    // behind the step above; one more turn of the queue and it is an
+    // envelope in the log.
+    await enqueue(record, () => undefined)
+    const dealt = answer.event
+    const envelope =
+      record.envelopes.find(
+        candidate =>
+          candidate.payload.type === 'plugin_event' &&
+          candidate.payload.seq === dealt.seq &&
+          candidate.payload.source.serverId === dealt.source.serverId,
+      ) ?? null
+    return { result: answer.result, envelope }
+  }
+
   const playerCommand = async (input: FakePlayerCommand): Promise<WebhookEnvelope> => {
     const token = resolvePlayerToken(input.token)
     const record = matches.get(token.matchId) as MatchRecord
     const spec = record.manifest.commands.find(c => c.name === input.command)
     if (!spec)
       throw refuse('command_unsupported', `${record.manifest.id} has no command ${input.command}`)
-    return await enqueue(record, () => {
-      if (record.match.state !== 'live' || !record.server)
-        throw refuse('invalid_state', `the match is ${record.match.state}`)
-      const player = record.known.get(token.steamId64)
-      return emit(record, {
-        type: 'plugin_event',
-        matchId: record.match.id,
-        source: { provider: SIM_PROVIDER_ID, serverId: record.server.serverId },
-        name: FAKE_PLAYER_COMMAND_EVENT,
-        data: {
-          command: input.command,
-          steamId64: token.steamId64,
-          ...(player && { name: player.name }),
-          ...(input.args && { args: input.args }),
-        },
-      })
+    const { result, envelope } = await runPlayerCommand(token, input)
+    if (result.status === 'applied') {
+      if (envelope) return envelope
+      throw refuse('internal', 'the tap was applied but its plugin_event was not logged')
+    }
+    const details = {
+      code: result.code,
+      ...(result.cooldownMs !== undefined && { cooldownMs: result.cooldownMs }),
+      ...(result.chargesLeft !== undefined && { chargesLeft: result.chargesLeft }),
+    }
+    const message = result.message ?? `the command was ${result.code ?? 'refused'}`
+    switch (result.code) {
+      case 'not_live':
+        throw refuse('invalid_state', message, details)
+      case 'invalid_args':
+        throw refuse('validation_failed', message, details)
+      case 'not_in_match':
+        throw refuse('player_not_in_match', message, details)
+      case 'rate_limited':
+        throw refuse('rate_limited', message, details)
+      default:
+        throw refuse('invalid_state', message, details)
+    }
+  }
+
+  /** The bucket behind one token's taps ({@link WIDGET_COMMAND_RATE_LIMIT}). */
+  const widgetBuckets = new Map<string, { tokens: number; updatedAt: number }>()
+  const takeWidgetTap = (token: string): { ok: true } | { ok: false; retryAfterMs: number } => {
+    const { burst, perSecond } = WIDGET_COMMAND_RATE_LIMIT
+    const at = now()
+    let bucket = widgetBuckets.get(token)
+    if (!bucket) {
+      bucket = { tokens: burst, updatedAt: at }
+      widgetBuckets.set(token, bucket)
+    } else {
+      bucket.tokens = Math.min(burst, bucket.tokens + ((at - bucket.updatedAt) / 1000) * perSecond)
+      bucket.updatedAt = at
+    }
+    if (bucket.tokens >= 1) {
+      bucket.tokens -= 1
+      return { ok: true }
+    }
+    return { ok: false, retryAfterMs: Math.ceil(((1 - bucket.tokens) / perSecond) * 1000) }
+  }
+
+  /** The verbs as the widget's `hello` draws them: the manifest's specs with the engine's state for this player. */
+  const widgetCommandsOf = (record: MatchRecord, steamId64: string): WidgetCommandState[] => {
+    const states = new Map(
+      (record.server?.commandStates(steamId64) ?? []).map(state => [state.name, state]),
+    )
+    return record.manifest.commands.map(spec => {
+      const state = states.get(spec.name)
+      return {
+        ...spec,
+        chargesLeft: state ? state.chargesLeft : (spec.charges?.count ?? null),
+        readyInMs: state?.readyInMs ?? 0,
+      }
     })
+  }
+
+  /**
+   * The widget socket, in-process (`GET /v1/widget`, decision 17): the
+   * token from the hello resolves to a match and a SteamID64; the answer is
+   * the `hello` with the mode's verbs; every durable fact of the match
+   * follows as an `event` frame; each `command` is answered with a
+   * `command_result`. A match that is over gets its hello and the
+   * `matchEnded` close at once, like the stream.
+   */
+  const widget = (
+    token: string,
+    listener: FakeWidgetListener,
+    onClose?: FakeWidgetClose,
+  ): FakeWidgetSession => {
+    const resolved = resolvePlayerToken(token)
+    const record = matches.get(resolved.matchId)
+    if (!record) throw refuse('not_found', `no match ${resolved.matchId}`)
+    const profile = record.known.get(resolved.steamId64)
+    listener({
+      type: 'hello',
+      protocol: WIDGET_SOCKET_PROTOCOL,
+      matchId: record.match.id,
+      steamId64: resolved.steamId64,
+      gamemode: record.manifest.id,
+      state: record.match.state,
+      ...(profile && { locale: profile.locale }),
+      commands: widgetCommandsOf(record, resolved.steamId64),
+    })
+    let closed = false
+    const subscriber: StreamSubscriber = {
+      listener: frame => {
+        if (frame.type === 'event') listener({ type: 'event', envelope: frame.envelope })
+      },
+      onClose: () => {
+        if (closed) return
+        closed = true
+        onClose?.(WIDGET_CLOSE_CODES.matchEnded)
+      },
+    }
+    if (isTerminalMatchState(record.match.state)) {
+      subscriber.onClose?.(STREAM_CLOSE_CODES.matchEnded)
+      return { command: () => Promise.resolve(), close: () => undefined }
+    }
+    record.subscribers.add(subscriber)
+    return {
+      async command(frame) {
+        if (closed) return
+        const answer = (
+          result: Omit<WidgetCommandResultFrame, 'type' | 'correlationId' | 'command'>,
+        ): void =>
+          listener({
+            type: 'command_result',
+            correlationId: frame.correlationId,
+            command: frame.command,
+            ...result,
+          })
+        if (resolved.expiresAt <= now()) {
+          closed = true
+          record.subscribers.delete(subscriber)
+          onClose?.(WIDGET_CLOSE_CODES.unauthorized)
+          return
+        }
+        const taken = takeWidgetTap(token)
+        if (!taken.ok) {
+          answer({
+            status: 'rejected',
+            code: 'rate_limited',
+            message: 'too many taps; wait',
+            cooldownMs: taken.retryAfterMs,
+          })
+          return
+        }
+        const { result } = await runPlayerCommand(resolved, frame)
+        if (!closed) answer(result)
+      },
+      close() {
+        closed = true
+        record.subscribers.delete(subscriber)
+      },
+    }
   }
 
   const events = (key: KeyRecord, matchId: string, afterSeq: number, limit: number) => {
@@ -1634,6 +1821,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     command,
     mintPlayerToken,
     playerCommand,
+    widget,
     events,
     stream,
     server: (matchId: string): SimulatedServer | null => matches.get(matchId)?.server ?? null,

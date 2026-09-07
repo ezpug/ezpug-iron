@@ -6,6 +6,7 @@
 export * from './assignment'
 export * from './chat'
 export * from './chatter'
+export * from './commands'
 export * from './radar'
 export * from './record'
 export * from './scenario'

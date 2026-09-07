@@ -31,6 +31,7 @@ import { defineRoute } from './rpc'
 import { streamFrameSchema, streamQuerySchema } from './stream/frames'
 import { kebabNameSchema } from './vocabulary/naming'
 import { eventsPageSchema, eventsQuerySchema } from './webhooks/events'
+import { WIDGET_SOCKET_PATH, widgetServerFrameSchema } from './widget/socket'
 
 /**
  * **The Match API, as a table** (decision 3, CLAUDE.md "The Match API is the
@@ -165,6 +166,21 @@ export const matchApiRoutes = {
       response: streamFrameSchema,
     }),
   },
+  /**
+   * The widget socket (decision 17, PRD-02 T24): a WebSocket upgrade a
+   * gamemode's widget opens with a player token — in its first frame, never
+   * in the URL — to tap the mode's declared commands and follow the match.
+   * The scope is the one the token's minting key needed; no API key is
+   * presented on the socket itself. Every frame the socket sends parses as
+   * `WidgetServerFrame`, the first is a `hello`.
+   */
+  widget: defineRoute({
+    method: 'get',
+    path: WIDGET_SOCKET_PATH,
+    scope: 'matches',
+    upgrade: 'websocket',
+    response: widgetServerFrameSchema,
+  }),
   fleet: {
     servers: {
       /** Open ledger rows — every server the orchestrator believes exists. */

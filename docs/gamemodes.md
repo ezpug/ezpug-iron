@@ -287,8 +287,9 @@ Decision 17: an `sdk` mode ships a built web component (`widget.entry`, produced
 repo's `gamemode-kit` in PRD-02); the orchestrator serves it as an HTML document; the
 platform mounts that document in an `iframe` with `sandbox="allow-scripts"` and no
 same-origin, and injects what `widget.needs` lists. The widget then opens its own socket to
-the orchestrator with the player token; taps become player commands; gameplay traffic never
-touches the platform.
+the orchestrator with the player token — `GET /v1/widget`, the token in its first frame,
+the frames and close codes in `docs/match-api.md` "The widget socket" — taps become player
+commands; gameplay traffic never touches the platform.
 
 The transport is a `postMessage` handshake at protocol `1`, `WidgetHostMessage` in the
 package. A URL fragment would put the player token into browser history and referrers; a

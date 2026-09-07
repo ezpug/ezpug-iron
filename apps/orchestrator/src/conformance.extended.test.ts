@@ -22,6 +22,7 @@ import {
   matchCommands,
   matchEvents,
   matches,
+  playerTokens,
   servers,
   serverTokens,
   webhookDeliveries,
@@ -31,6 +32,7 @@ import { loadRootEnv } from './env'
 import { createMemoryLog } from './log'
 import { createOrchestrator, type Orchestrator } from './orchestrator'
 import type { SimProvider } from './providers/sim/provider'
+import { tapOverWidgetSocket } from './widget/testing'
 
 /**
  * **The conformance suite against the real service** — the round's first
@@ -219,6 +221,8 @@ async function sweepNamespace(): Promise<void> {
       await db.delete(matchCommands).where(inArray(matchCommands.matchId, ids))
       // Round backups hang off a match too (the sim reports them since T14).
       await db.delete(backups).where(inArray(backups.matchId, ids))
+      // Player tokens (T24) name a match; the widget flow mints them.
+      await db.delete(playerTokens).where(inArray(playerTokens.matchId, ids))
     }
     const owned = await db
       .select({ id: servers.id })
@@ -355,6 +359,11 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
       return () => handle.close()
     },
     budget: { client: budgetClient, maxServerLifetimeMinutes: 60 },
+    // The widget's tap over the real `/v1/widget` socket, as a browser would.
+    playerCommand: command =>
+      tapOverWidgetSocket(`${url.replace(/^http/, 'ws')}/v1/widget`, command, {
+        clock: systemClock,
+      }),
   }
 }
 

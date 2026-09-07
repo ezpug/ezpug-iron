@@ -28,6 +28,7 @@ import {
   type WebhookAttemptReport,
   type WebhookWorker,
 } from '../webhooks/worker'
+import { createWidgetService, type WidgetService } from '../widget/service'
 import { createDispatch } from './dispatch'
 import { createHandlers } from './handlers'
 import { createRateLimiter } from './rate-limit'
@@ -62,6 +63,8 @@ export interface TestApp {
   matches: Matches
   fleet: Fleet
   hub: StreamHub
+  /** The widget socket's sessions, in-process (T24). */
+  widgets: WidgetService
   webhooks: WebhookWorker
   reaper: Reaper
   /** The GSLT pool over the fake Steam (T17). */
@@ -228,6 +231,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   else if (!options.noProviders) providers.register(sim)
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
   const fleet = createFleet({ clock, store, registry: providers, matches, links })
+  const widgets = createWidgetService({ clock, log, store, matches, hub })
   // Every test world has a working pool: the fake Steam is in process, so
   // `GET /v1/fleet/gslt` answers real numbers and a Dathost-shaped provider
   // in a test leases a real (fake) token rather than a `null` nobody notices.
@@ -321,6 +325,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     matches,
     fleet,
     hub,
+    widgets,
     webhooks,
     reaper,
     gslt,

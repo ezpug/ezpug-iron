@@ -737,6 +737,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
+        "seq": 18,
         "type": "plugin_event",
         "name": "player_command",
         "data": {
@@ -760,7 +761,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 18,
+        "seq": 19,
         "mapNumber": 1,
         "type": "backup_written",
         "roundNumber": 1,
@@ -779,7 +780,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 19,
+        "seq": 20,
         "mapNumber": 1,
         "roundNumber": 1,
         "type": "round_start",
@@ -801,7 +802,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 20,
+        "seq": 21,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -818,7 +819,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 23,
+        "seq": 24,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -835,7 +836,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 26,
+        "seq": 27,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -852,7 +853,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 29,
+        "seq": 30,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -869,7 +870,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 32,
+        "seq": 33,
         "mapNumber": 1,
         "roundNumber": 1,
         "type": "player_death",
@@ -912,7 +913,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 33,
+        "seq": 34,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -929,7 +930,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 36,
+        "seq": 37,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -946,7 +947,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 38,
+        "seq": 39,
         "mapNumber": 1,
         "roundNumber": 1,
         "type": "player_death",
@@ -978,7 +979,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 40,
+        "seq": 41,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -995,7 +996,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 43,
+        "seq": 44,
         "mapNumber": 1,
         "roundNumber": 1,
         "type": "player_death",
@@ -1037,7 +1038,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 44,
+        "seq": 45,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1054,7 +1055,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 47,
+        "seq": 48,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1071,7 +1072,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 50,
+        "seq": 51,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1088,7 +1089,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 53,
+        "seq": 54,
         "mapNumber": 1,
         "roundNumber": 1,
         "type": "player_death",
@@ -1129,7 +1130,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 54,
+        "seq": 55,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1146,7 +1147,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 57,
+        "seq": 58,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1163,7 +1164,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 58,
+        "seq": 59,
         "mapNumber": 1,
         "roundNumber": 1,
         "type": "round_end",
@@ -1363,7 +1364,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 59,
+        "seq": 60,
         "type": "chat_message",
         "player": {
           "steamId64": "76561190005364105",
@@ -1386,7 +1387,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 60,
+        "seq": 61,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1403,7 +1404,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 61,
+        "seq": 62,
         "mapNumber": 1,
         "type": "side_swap",
         "sides": {
@@ -1424,7 +1425,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 62,
+        "seq": 63,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1441,7 +1442,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 63,
+        "seq": 64,
         "mapNumber": 1,
         "type": "backup_written",
         "roundNumber": 2,
@@ -1460,7 +1461,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 64,
+        "seq": 65,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "round_start",
@@ -1482,7 +1483,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 66,
+        "seq": 67,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1499,7 +1500,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 69,
+        "seq": 70,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1516,7 +1517,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 70,
+        "seq": 71,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "player_death",
@@ -1548,7 +1549,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 72,
+        "seq": 73,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "player_death",
@@ -1589,7 +1590,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 74,
+        "seq": 75,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1606,7 +1607,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 76,
+        "seq": 77,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "player_death",
@@ -1638,7 +1639,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 78,
+        "seq": 79,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1655,7 +1656,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 79,
+        "seq": 80,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "bomb_planted",
@@ -1680,7 +1681,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 82,
+        "seq": 83,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1697,7 +1698,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 85,
+        "seq": 86,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1714,7 +1715,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 87,
+        "seq": 88,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "player_death",
@@ -1746,7 +1747,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 89,
+        "seq": 90,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1763,7 +1764,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 92,
+        "seq": 93,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -1780,7 +1781,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 93,
+        "seq": 94,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "bomb_exploded",
@@ -1800,7 +1801,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 94,
+        "seq": 95,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "round_end",
@@ -2000,7 +2001,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 95,
+        "seq": 96,
         "type": "chat_message",
         "player": {
           "steamId64": "76561190515938941",
@@ -2023,7 +2024,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 96,
+        "seq": 97,
         "mapNumber": 1,
         "type": "map_end",
         "map": "de_mirage",
@@ -2046,7 +2047,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 97,
+        "seq": 98,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -2063,7 +2064,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 98,
+        "seq": 99,
         "mapNumber": 1,
         "type": "demo_available",
         "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_mirage.ezpug-sim.json",
@@ -2082,7 +2083,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 99,
+        "seq": 100,
         "type": "series_end",
         "seriesScore": {
           "teamA": 1,

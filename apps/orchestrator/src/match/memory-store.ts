@@ -311,6 +311,10 @@ export function createMemoryMatchStore(options: { deployment?: string } = {}): M
             .sort((a, b) => b.mapNumber - a.mapNumber || b.roundNumber - a.roundNumber)[0],
         ),
       ),
+    insertPlayerToken: row => {
+      playerTokens.push(copy(row))
+      return Promise.resolve()
+    },
     findPlayerTokenByHash: tokenHash =>
       Promise.resolve(copy(playerTokens.find(row => row.tokenHash === tokenHash))),
     reassignServerToken: (id, fleetServerId) => {

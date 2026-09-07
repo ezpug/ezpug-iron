@@ -10,6 +10,9 @@ import type {
   StreamFrame,
   Timestamp,
   WebhookEnvelope,
+  WidgetCloseCode,
+  WidgetCommandFrame,
+  WidgetServerFrame,
 } from '../index'
 import type { ApiClient, FlatRoute } from '../rpc'
 
@@ -158,10 +161,9 @@ export type FakeStreamListener = (frame: StreamFrame) => void
 export type FakeStreamClose = (code: StreamCloseCode) => void
 
 /**
- * A player-scoped command as a gamemode widget would send it over its own
- * socket (decision 17). PRD-02 builds that socket; until then the fake
- * accepts the same thing in-process so the round trip — a tap, the plugin's
- * `plugin_event` — can be proven.
+ * A player-scoped command as a gamemode widget sends it over its own socket
+ * (decision 17), accepted in-process too so the round trip — a tap, the
+ * plugin's `plugin_event` — can be proven in a test without a socket.
  */
 export interface FakePlayerCommand {
   /** A token from `POST /v1/matches/:matchId/player-tokens`. */
@@ -169,6 +171,20 @@ export interface FakePlayerCommand {
   /** A command the gamemode's manifest declares. */
   command: string
   args?: Record<string, unknown>
+}
+
+export type FakeWidgetListener = (frame: WidgetServerFrame) => void
+export type FakeWidgetClose = (code: WidgetCloseCode) => void
+
+/**
+ * One widget socket, in-process (decision 17, `GET /v1/widget`): what the
+ * kit's `useWidgetLink()` does over a real socket, without one. `command`
+ * resolves once the `command_result` was delivered to the listener; `close`
+ * is the widget hanging up.
+ */
+export interface FakeWidgetSession {
+  command: (frame: WidgetCommandFrame) => Promise<void>
+  close: () => void
 }
 
 /** The typed in-process client: the same surface as the HTTP client, no socket. */
@@ -210,8 +226,21 @@ export interface FakeOrchestrator {
     listener: FakeStreamListener,
     onClose?: FakeStreamClose,
   ) => () => void
-  /** A widget's tap, in-process; resolves to the `plugin_event` envelope the fake's plugin answered with. */
+  /**
+   * A widget's tap, in-process, without a socket: resolves to the
+   * `plugin_event` envelope the simulated server's stand-in mode answered
+   * with, or throws the `ApiError` a refusal maps to (`command_unsupported`
+   * for an undeclared verb, `validation_failed` for bad args,
+   * `player_not_in_match`, `rate_limited`, `invalid_state` for the rest —
+   * `details.code` carries the socket's own refusal code).
+   */
   playerCommand: (command: FakePlayerCommand) => Promise<WebhookEnvelope>
+  /** The widget socket in-process: the token from the widget's `hello`, the frames it would receive, the close it would get. Throws `ApiError` when refused. */
+  widget: (
+    token: string,
+    listener: FakeWidgetListener,
+    onClose?: FakeWidgetClose,
+  ) => FakeWidgetSession
   /** Every webhook attempt so far, in the order they were made; for one match when given. */
   deliveries: (matchId?: string) => readonly FakeWebhookAttempt[]
   readonly faults: Readonly<FakeFaults>

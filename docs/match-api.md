@@ -160,7 +160,10 @@ call worked, the command did not; `code` is from the error table.
 
 `POST` body `{ steamId64, ttlSeconds (default 900, max 3600) }`; response `{ token,
 matchId, steamId64, expiresAt }`. The token is what a gamemode widget opens its own socket
-with (decision 17). Shown once.
+with (decision 17, [The widget socket](#the-widget-socket)) and what a browser subscribes
+to the stream with. Minted for a rostered player, a player the server has seen join, or —
+on an open-join mode — anyone; refused `player_not_in_match` otherwise and
+`invalid_state` once the match is over. Shown once; the orchestrator keeps only its hash.
 
 ### Gamemode (the manifest)
 
@@ -268,7 +271,8 @@ Scope `matches`. Body `MatchCommand`, answers `MatchCommandResult`. Idempotent o
 
 ### `POST /v1/matches/:matchId/player-tokens`
 
-Scope `matches`. Body `{ steamId64, ttlSeconds? }`, answers `201 PlayerToken`.
+Scope `matches`. Body `{ steamId64, ttlSeconds? }`, answers `201 PlayerToken`. The client
+mints it because the client knows who is looking at the page; the widget never does.
 
 ### `GET /v1/matches/:matchId/events`
 
@@ -578,6 +582,60 @@ origin of a browser socket must be in the request's `callbacks.streamAllowedOrig
 token for another match, origin), `4004` no such match, `4008` slow consumer (frames were
 dropped; reconnect and replay). Reconnect on a network close (`1006`), never on these.
 
+### `GET /v1/widget`
+
+A WebSocket upgrade, not a request, and not one the typed client opens: a gamemode's widget
+opens it with the player token the host injected, in its first frame. Declared under the
+`matches` scope because that is what the token's minting key needed; no API key is
+presented on the socket. See [The widget socket](#the-widget-socket).
+
+## The widget socket
+
+Decision 17: a gamemode's widget opens **its own socket** to the orchestrator, `GET
+/v1/widget`, with the player token the platform's host injected (`docs/gamemodes.md` "The
+widget host"); taps become player-scoped commands relayed to the plugin; gameplay traffic
+never touches the platform. Unlike the stream, this socket goes both ways. Every message is
+one JSON frame with a `type`; `WidgetClientFrame` up, `WidgetServerFrame` down.
+
+Up, from the widget:
+
+| Frame     | Fields | Meaning |
+| --------- | ------ | ------- |
+| `hello`   | `protocol: 1, token` | the first frame, and the only place the token ever appears — never in the URL, so it is never in a request log or a browser history |
+| `command` | `correlationId, command, args?` | a tap: a verb the manifest's `commands` declares, `args` validated against the verb's schema before sending (`validatePlayerCommandArgs`, the same check the plugin runs) |
+
+Down, from the orchestrator:
+
+| Frame            | Fields | Meaning |
+| ---------------- | ------ | ------- |
+| `hello`          | `protocol: 1, matchId, steamId64, gamemode, state, locale?, commands` | the answer to the widget's: who the token is for, where the match is, the player's locale when the roster knows it, and every declared verb as `WidgetCommandState` — the manifest's spec plus `chargesLeft` (`null` for a verb without charges) and `readyInMs` as last learned from the plugin; a hint for the button, never the truth |
+| `event`          | `envelope: WebhookEnvelope` | every durable fact of the match from then on, as the webhook carries it, so a widget follows a death or a round without a second socket. Position ticks never cross it |
+| `command_result` | `correlationId, command, status, code?, message?, cooldownMs?, chargesLeft?` | the answer to a tap: `applied`, or `rejected` with a code from `WIDGET_COMMAND_REFUSALS` and a `message` in the player's language the widget may show as it is |
+
+**Refusals.** `cooldown` (with `cooldownMs`), `no_charges`, `unknown_command`,
+`invalid_args`, `not_in_match`, `not_alive`, `refused` are the plugin's — the SDK enforces
+the manifest's cooldowns and charges before the mode sees the tap (`docs/sdk.md` "Player
+commands"), and the mode may still say no. `rate_limited` (with `cooldownMs`), `not_live`
+and `unavailable` are the orchestrator's, refused at the door: a token has a bucket of
+`WIDGET_COMMAND_RATE_LIMIT` (ten taps, two more a second), a tap before the match is `live`
+or after it ended has no server to reach, and a server that does not answer inside the
+relay deadline is `unavailable` — try again.
+
+**A tap that was applied leaves a `plugin_event` in the durable log**: the mode's own
+(`powerup-dm` emits `powerup_claimed`), and on a simulated server the stand-in mode's
+`player_command` with `data: { command, steamId64, name?, args? }`. That is how the
+platform proves a tap without a socket and how a widget sees its own tap land: the same
+envelope arrives as an `event` frame and as a webhook.
+
+**Close codes** (`WIDGET_CLOSE_CODES`): `4000` the match ended (the `event` frame with
+`match.ended` or `match.failed` came first), `4001` no token, one that does not verify,
+expired, or whose match was over before the `hello`, `4002` a protocol this orchestrator
+does not speak, `4003` a frame that does not parse or a first frame that is not `hello`,
+`4005` an origin not in the request's `callbacks.streamAllowedOrigins`, `4008` slow
+consumer, `4009` no `hello` within `WIDGET_HELLO_TIMEOUT_MS` (ten seconds). Reconnect on a
+network close (`1006`), never on these. A token dies with the match: every socket it opened
+is closed `4000`, and it opens nothing afterwards.
+
 ## The client
 
 `@ezpug/match-api/client` is generated from the same route table the orchestrator serves,
@@ -663,7 +721,9 @@ matchApiRoutes>`, interchangeable with `createMatchApiClient`). `fake.handler` i
 with every route, for `handler.request()` in a test or mounting anywhere. `fake.listen()`
 serves it over Node HTTP on a free port and performs the stream upgrade with `ws`; close it
 before the test ends. `fake.stream({ matchId, apiKey | token }, onFrame, onClose)` is the
-stream in-process. `fake.admin` is a root `admin` key minted at creation; `fake.mintKey()`
+stream in-process; `fake.widget(token, onFrame, onClose)` is the widget socket in-process
+(the `hello` arrives at once, `command(frame)` answers with a `command_result`, `close()`
+hangs up). `fake.admin` is a root `admin` key minted at creation; `fake.mintKey()`
 mints without the route. Every refusal is an `ApiError` with the code and status from the
 error table.
 
@@ -719,10 +779,19 @@ unhealthy, every open match hears `fleet.provider_unreachable`; `fake.providerDo
 clears it on the clock). `fake.deliveries(matchId?)` lists every attempt with its status
 and outcome.
 
-**The widget door, until PRD-02 builds the socket.** `fake.playerCommand({ token, command,
-args? })` takes a player token and a command the gamemode's manifest declares and answers
-with the `plugin_event` the fake's plugin emits: `name: "player_command"`, `data: { command,
-steamId64, name?, args? }`. Cooldowns and charges are not enforced here; the SDK does that.
+**The widget door.** `fake.playerCommand({ token, command, args? })` takes a player token
+and a command the gamemode's manifest declares and answers with the `plugin_event` the
+simulated server's stand-in mode emits: `name: "player_command"`, `data: { command,
+steamId64, name?, args? }`. The stand-in mode is the SDK's command table in TypeScript
+(`@ezpug/sim`): cooldowns and charges **are** enforced, per period (`life` refills when the
+player's death is dealt, `round` on `round_start`, `map` on `going_live`), args are
+validated against the verb's schema, a SteamID64 off the roster is `not_in_match` unless
+the mode is open join, and only an applied tap spends a charge. A refusal is an `ApiError`:
+`command_unsupported` for an undeclared verb, `validation_failed` for bad args,
+`player_not_in_match`, `rate_limited`, `invalid_state` for a cooldown, no charges or a
+match that is not live — `details.code` carries the socket's own refusal code. What the
+table cannot check is `not_alive`: a simulated player has no health. `fake.widget()` and
+`fake.listen()`'s `/v1/widget` upgrade speak the socket's frames over the same door.
 
 What is refused at the door, in order: idempotent replay or `conflict` on `clientMatchId`;
 `validation_failed` for a `webhookSecretId` not registered on the key or an unknown

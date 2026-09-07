@@ -39,6 +39,8 @@ import { createStreamHub, type StreamHub } from './stream/hub'
 import { attachStreamUpgrade, attachUpgradeRouter, type UpgradeRouter } from './stream/upgrade'
 import { createFileTrace, nullTrace, type Trace } from './trace'
 import { createWebhookWorker, type WebhookWorker } from './webhooks/worker'
+import { createWidgetService, type WidgetService } from './widget/service'
+import { attachWidgetUpgrade } from './widget/upgrade'
 
 /**
  * **The composition root**, minus the process: open the rails — the pool,
@@ -78,6 +80,8 @@ export interface Orchestrator {
   readonly matches: Matches
   readonly fleet: Fleet
   readonly hub: StreamHub
+  /** The `/v1/widget` sessions (T24). */
+  readonly widgets: WidgetService
   readonly webhooks: WebhookWorker
   readonly reaper: Reaper
   /** The Steam login tokens rented servers need (T17). */
@@ -336,6 +340,14 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     hub,
     isDraining: () => shutdown?.draining === true,
   })
+  const widgets = createWidgetService({ clock, log, store, matches, hub })
+  const widgetUpgrade = attachWidgetUpgrade({
+    router: upgrades,
+    clock,
+    log,
+    widgets,
+    isDraining: () => shutdown?.draining === true,
+  })
   const serverLink = attachServerLink({
     router: upgrades,
     clock,
@@ -369,8 +381,9 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       links: serverLink,
       nodeLinks: nodeLink,
       streams: {
-        close: () => {
+        close: async () => {
           for (const client of wss.clients) client.close(1001, 'draining')
+          await widgetUpgrade.close(1001, 'draining')
         },
       },
       reaper,
@@ -399,6 +412,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     matches,
     fleet,
     hub,
+    widgets,
     webhooks,
     reaper,
     gslt,
