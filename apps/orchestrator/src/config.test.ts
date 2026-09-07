@@ -200,8 +200,31 @@ describe('readDatabaseConfig', () => {
     expect(readDatabaseConfig(env, { target: 'test' })).toMatchObject({
       url: env.EZPUG_IRON_TEST_DATABASE_URL,
       source: TEST_DATABASE_URL_VAR,
-      poolMax: 10,
       statementTimeoutMs: 15_000,
+    })
+  })
+
+  // T37c: the test database is reached by a dozen Vitest workers at once and
+  // the app's by one process, so they cannot share a pool default —
+  // `workers x poolMax` is what meets `max_connections`.
+  it('sizes the test pool for a crowd and the app pool for a server', () => {
+    expect(readDatabaseConfig(env)).toMatchObject({ poolMax: 10, connectTimeoutSeconds: 10 })
+    expect(readDatabaseConfig(env, { target: 'test' })).toMatchObject({
+      poolMax: 5,
+      connectTimeoutSeconds: 5,
+    })
+  })
+
+  it('lets the env override either target', () => {
+    const tuned = {
+      ...env,
+      EZPUG_IRON_DATABASE_POOL_MAX: '3',
+      EZPUG_IRON_DATABASE_CONNECT_TIMEOUT: '20',
+    }
+    expect(readDatabaseConfig(tuned)).toMatchObject({ poolMax: 3, connectTimeoutSeconds: 20 })
+    expect(readDatabaseConfig(tuned, { target: 'test' })).toMatchObject({
+      poolMax: 3,
+      connectTimeoutSeconds: 20,
     })
   })
 })

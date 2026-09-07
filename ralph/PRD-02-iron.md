@@ -889,7 +889,7 @@ every offline proof here.
   `apps/node/src/docker/dockerode.test.ts` leaves its busybox containers behind when a run
   is interrupted (three were found on this box, 35 hours old); sweep the label at start.
 
-- [ ] **T37c (P1): the store contract's Postgres test flakes under a full `pnpm verify`.**
+- [x] **T37c (P1): the store contract's Postgres test flakes under a full `pnpm verify`.**
   `src/match/store.contract.test.ts:368` ("holds over Postgres") failed once during T37b's
   verify and passed on the next two runs of the same command and on every run of the file
   alone. The throw came out of `postgres`'s `Function.begin` under

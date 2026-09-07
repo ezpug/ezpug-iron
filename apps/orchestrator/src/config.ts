@@ -238,21 +238,48 @@ function fail(issues: z.core.$ZodIssue[], names: Record<string, string>): never 
 }
 
 /**
+ * Pool defaults per target. The test database is reached by **many processes
+ * at once** — Vitest gives every test file its own worker, and a cold
+ * `pnpm verify` runs the whole workspace in parallel — so its defaults are
+ * sized for a crowd, not for a server (PRD-02 T37c):
+ *
+ * - `poolMax` **5**: one worker's suite runs its tests one at a time, and
+ *   `workers × poolMax` is what meets Postgres's `max_connections` (100 on
+ *   the compose image). Twelve workers at 10 apiece overruns it and the
+ *   loser gets `53300 sorry, too many clients already` on the connection its
+ *   next transaction opens — measured, this box peaks at 18, so this is
+ *   headroom being kept rather than a ceiling being escaped.
+ * - `connectTimeoutSeconds` **5**: the test database is on the same box, so
+ *   five seconds of silence is already pathological. What survives a loaded
+ *   box is redialling (`withTransientRetry` in `db/testing.ts`), not waiting
+ *   longer — a shorter budget is what leaves room to retry inside a test's.
+ *
+ * Both are still the same env vars: an explicit setting wins for either
+ * target.
+ */
+const DATABASE_DEFAULTS = {
+  app: { poolMax: 10, connectTimeoutSeconds: 10 },
+  test: { poolMax: 5, connectTimeoutSeconds: 5 },
+} as const satisfies Record<DatabaseTarget, { poolMax: number; connectTimeoutSeconds: number }>
+
+/**
  * Read + validate the connection settings for one database. `target: 'test'`
- * reads {@link TEST_DATABASE_URL_VAR} instead of {@link DATABASE_URL_VAR} —
- * the only difference between the two paths.
+ * reads {@link TEST_DATABASE_URL_VAR} instead of {@link DATABASE_URL_VAR},
+ * and takes the crowd-sized pool defaults above.
  */
 export function readDatabaseConfig(
   env: EnvRecord,
   options: { target?: DatabaseTarget } = {},
 ): DatabaseConfig {
-  const source = options.target === 'test' ? TEST_DATABASE_URL_VAR : DATABASE_URL_VAR
+  const target: DatabaseTarget = options.target ?? 'app'
+  const source = target === 'test' ? TEST_DATABASE_URL_VAR : DATABASE_URL_VAR
+  const defaults = DATABASE_DEFAULTS[target]
   const parsed = z
     .object({
       url: postgresUrl,
-      poolMax: numberFromEnv(10),
+      poolMax: numberFromEnv(defaults.poolMax),
       idleTimeoutSeconds: numberFromEnv(30),
-      connectTimeoutSeconds: numberFromEnv(10),
+      connectTimeoutSeconds: numberFromEnv(defaults.connectTimeoutSeconds),
       statementTimeoutMs: numberFromEnv(15_000),
       logQueries: booleanFromEnv(false),
     })

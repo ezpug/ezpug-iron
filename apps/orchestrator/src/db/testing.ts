@@ -16,10 +16,23 @@
  * than failing: `pnpm verify` on a fresh clone stays green, and the warning
  * names the command that fixes it. `EZPUG_IRON_DATABASE_TESTS=required` (the
  * extended tier) turns a missing database into an error.
+ *
+ * And it survives a **busy box** (PRD-02 T37c). Opening a connection is the
+ * one part of a database test that has nothing to do with what the test
+ * asserts and everything to do with what else the box is running: a cold
+ * `pnpm verify` puts a dozen Vitest workers, the orchestrator's own pools and
+ * a `dotnet build` on one machine, and the transaction a test opens can lose
+ * that race — `53300 sorry, too many clients already`, a handshake that
+ * outlasts its budget, a socket the kernel drops. None of those is the store's
+ * fault and none of them is a red build worth reading, so the acquire is
+ * **redialled** ({@link withTransientRetry}) while the crowd is what failed,
+ * and the pool the tests take is sized for the crowd (`DATABASE_DEFAULTS` in
+ * `../config.ts`).
  */
 import { createHash } from 'node:crypto'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { type Clock, systemClock } from '@ezpug/core'
 import { inArray, like, TransactionRollbackError } from 'drizzle-orm'
 import type { Sql } from 'postgres'
 import { afterAll, beforeAll, beforeEach, expect } from 'vitest'
@@ -36,26 +49,139 @@ import { runMigrations } from './migrate'
 import * as schema from './schema'
 
 /**
+ * **What a crowded box does to a connection, and nothing else.** Every code
+ * here means "the connection did not happen"; not one of them can be reached
+ * once a statement of ours is running, so retrying is a redial and never a
+ * replay.
+ *
+ * Postgres's own (`53300` is the one a cold `pnpm verify` reproduces: twelve
+ * workers times a pool of ten against `max_connections`), then postgres.js's
+ * socket-level names. Deliberately **not** here:
+ *
+ * - `ECONNREFUSED` / `ENOTFOUND` — nothing is listening. That is the dev
+ *   world being down, which is the *skip* signal: retrying it would put
+ *   seconds on every fresh clone's verify and change nothing.
+ * - `CONNECTION_ENDED` — the pool was closed. That is a suite using a handle
+ *   after `afterAll`, a bug that must stay visible.
+ * - every `4xxxx` / `2xxxx` — a real answer from a live connection.
+ */
+const TRANSIENT_DATABASE_ERROR_CODES: ReadonlySet<string> = new Set([
+  '53300', // too_many_connections
+  '53400', // configuration_limit_exceeded
+  '57P01', // admin_shutdown
+  '57P02', // crash_shutdown
+  '57P03', // cannot_connect_now — a Postgres still starting up
+  '08000', // connection_exception
+  '08003', // connection_does_not_exist
+  '08006', // connection_failure
+  'CONNECT_TIMEOUT', // postgres.js: the handshake outlasted connect_timeout
+  'CONNECTION_CLOSED', // postgres.js: the socket went away mid-flight
+  'CONNECTION_DESTROYED', // postgres.js: queued behind a socket that then died
+  'ECONNRESET',
+  'EPIPE',
+  'ETIMEDOUT',
+])
+
+/** True when `error` is the box being busy rather than the code being wrong. */
+export function isTransientDatabaseError(error: unknown): boolean {
+  const code: unknown = (error as { code?: unknown } | null)?.code
+  return typeof code === 'string' && TRANSIENT_DATABASE_ERROR_CODES.has(code)
+}
+
+export interface TransientRetryOptions {
+  /** Waits between attempts, in order. Its length is the retry count. */
+  readonly backoffMs?: readonly number[]
+  /**
+   * Give up rather than start another attempt once this much time has passed.
+   * The point is the caller's own deadline: a test has `testTimeout` and a
+   * `beforeAll` has `hookTimeout`, and a retry that blows through one turns a
+   * flake into a *worse* flake.
+   */
+  readonly budgetMs?: number
+  /** Which errors are worth a redial. Defaults to {@link isTransientDatabaseError}. */
+  readonly retryable?: (error: unknown) => boolean
+  /** Injected, so a test of the retry never actually waits (`@ezpug/core`). */
+  readonly clock?: Clock
+  /** Named in the note a retry writes to stderr. */
+  readonly what?: string
+}
+
+/** Waits between redials: ~2.3 s of retrying in total, front-loaded. */
+export const TRANSIENT_BACKOFF_MS: readonly number[] = [200, 600, 1_500]
+
+/**
+ * Run `operation`, redialling while it fails on the box being busy. Loud on
+ * purpose: a retry writes one line to stderr, because a box that needs three
+ * of them is a box someone should look at, and a silent retry is how a real
+ * connection leak hides for a month.
+ */
+export async function withTransientRetry<T>(
+  operation: () => Promise<T>,
+  options: TransientRetryOptions = {},
+): Promise<T> {
+  const clock = options.clock ?? systemClock
+  const backoff = options.backoffMs ?? TRANSIENT_BACKOFF_MS
+  const budgetMs = options.budgetMs ?? Number.POSITIVE_INFINITY
+  const retryable = options.retryable ?? isTransientDatabaseError
+  const what = options.what ?? 'the test database'
+  const started = clock.now()
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      const wait = backoff[attempt]
+      if (wait === undefined || !retryable(error)) throw error
+      if (clock.now() - started >= budgetMs) throw error
+      process.stderr.write(
+        `[33m[orchestrator] ${what}: ${errorMessage(error)} — redialling in ${wait} ms ` +
+          `(attempt ${attempt + 2}/${backoff.length + 1})[0m\n`,
+      )
+      await clock.sleep(wait)
+    }
+  }
+}
+
+/**
  * Run `body` inside a transaction that is rolled back no matter what it does.
  * The only way to touch the test database that leaves nothing behind.
+ *
+ * Opening that transaction is retried while the box is what refused it
+ * (T37c). Retried **only until the body starts**: after that a redial would
+ * be a replay, and a body may count calls, mint tokens or write through a
+ * connection this transaction does not own.
  */
 export async function withRollback<T>(
   db: IronDatabase,
   body: (tx: IronTransaction) => Promise<T>,
+  options: TransientRetryOptions = {},
 ): Promise<T> {
-  let result: T
-  let produced = false
-  try {
-    await db.transaction(async tx => {
-      result = await body(tx)
-      produced = true
-      tx.rollback()
-    })
-  } catch (error) {
-    if (!(error instanceof TransactionRollbackError)) throw error
-  }
-  if (!produced) throw new Error('withRollback: transaction ended without running its body')
-  return result!
+  let entered = false
+  return await withTransientRetry(
+    async () => {
+      entered = false
+      let result: T
+      let produced = false
+      try {
+        await db.transaction(async tx => {
+          entered = true
+          result = await body(tx)
+          produced = true
+          tx.rollback()
+        })
+      } catch (error) {
+        if (!(error instanceof TransactionRollbackError)) throw error
+      }
+      if (!produced) throw new Error('withRollback: transaction ended without running its body')
+      return result!
+    },
+    {
+      what: 'opening a test transaction',
+      // Comfortably inside the 20 s `testTimeout` the suite runs under.
+      budgetMs: 8_000,
+      ...options,
+      retryable: error => !entered && (options.retryable ?? isTransientDatabaseError)(error),
+    },
+  )
 }
 
 /**
@@ -103,15 +229,31 @@ export function useTestDatabase(options: { applicationName?: string } = {}): Tes
     if (!process.env[TEST_DATABASE_URL_VAR]) {
       unavailable = `${TEST_DATABASE_URL_VAR} is not set`
     } else {
-      try {
-        handle = createDatabase(readDatabaseConfig(process.env, { target: 'test' }), {
+      const config = readDatabaseConfig(process.env, { target: 'test' })
+      // One attempt: a fresh pool each time, closed when it does not come up,
+      // so a redial never leaks the connections of the one before it.
+      const open = async (): Promise<DatabaseHandle> => {
+        const candidate = createDatabase(config, {
           applicationName: options.applicationName ?? 'ezpug-iron-test',
         })
-        await handle.ping()
-        await runMigrations(handle)
+        try {
+          await candidate.ping()
+          await runMigrations(candidate)
+          return candidate
+        } catch (error) {
+          await candidate.close().catch(() => {})
+          throw error
+        }
+      }
+      try {
+        handle = await withTransientRetry(open, {
+          what: 'opening the test database',
+          // Inside the 20 s `hookTimeout`: a connect budget of 5 s plus the
+          // backoff still leaves the loud skip room to be printed.
+          budgetMs: 9_000,
+        })
       } catch (error) {
         unavailable = errorMessage(error)
-        await handle?.close().catch(() => {})
         handle = undefined
       }
     }
