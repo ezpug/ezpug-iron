@@ -797,6 +797,88 @@ describe('a node that goes away', () => {
     // Adoption is not a second start.
     expect(node.starts().filter(start => start.purpose === 'match')).toHaveLength(1)
   })
+
+  /**
+   * **T32a.** The other half of the same reconnect: a container whose row was
+   * closed while its agent was away. Nothing above the provider can see it —
+   * `adopt` reads *open* rows, so it is neither adopted nor listed, and the
+   * reaper reconciles the ledger against what this provider holds — so a CS2
+   * server would run on a venue box until a human noticed.
+   */
+  it('stops a container whose ledger row was closed while its agent was away', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    const { match } = await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    const spec = node.starts()[0]
+    if (!spec) throw new Error('the node was never told to start anything')
+    expect(node.instances().map(instance => instance.id)).toEqual([spec.id])
+
+    // The box goes off the wire, and the match ends while it is gone: the
+    // `stop` the release sends has no socket to be written on.
+    await node.close()
+    await rig.settle()
+    await rig.app.matches.cancel(rig.key, match.id)
+    await rig.settle()
+    expect(node.stops()).toEqual([])
+    expect(node.instances().map(instance => instance.id)).toEqual([spec.id])
+    expect(openRows(rig).filter(row => row.serverId === spec.id)).toEqual([])
+
+    // It dials back, and the sweep collects what the ledger already closed.
+    await node.connect()
+    await rig.settle()
+    expect(node.stops()).toEqual([spec.id])
+    expect(node.instances()).toEqual([])
+    expect(await rig.provider.list()).toEqual([])
+    expect(rig.app.log.lines.join('\n')).toContain(`${spec.id} outlived its ledger row`)
+  })
+
+  /**
+   * **T32a, the other verdict.** `nodes` is not deployment-scoped (T21c): a
+   * box re-enrolled from dev to production still runs the old world's
+   * containers, and a restored database is a row that no longer exists. A
+   * container this process cannot account for is one it has no business
+   * killing.
+   */
+  it('leaves a container no ledger row of this deployment accounts for alone', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    node.send({
+      type: 'instances',
+      instances: [
+        {
+          id: 'devbox-someone-else',
+          purpose: 'match',
+          state: 'running',
+          serverId: 'devbox-someone-else',
+          ports: { game: rig.portBase + 4, tv: rig.portBase + 5 },
+        },
+      ],
+    })
+    await rig.settle()
+    expect(node.stops()).toEqual([])
+    expect(rig.app.log.lines.join('\n')).toContain(
+      'devbox-someone-else belongs to no ledger row of this deployment',
+    )
+    // Said once, however many snapshots repeat it.
+    node.send({
+      type: 'instances',
+      instances: [
+        {
+          id: 'devbox-someone-else',
+          purpose: 'match',
+          state: 'running',
+          serverId: 'devbox-someone-else',
+          ports: { game: rig.portBase + 4, tv: rig.portBase + 5 },
+        },
+      ],
+    })
+    await rig.settle()
+    expect(
+      rig.app.log.lines.filter(line => line.includes('belongs to no ledger row')),
+    ).toHaveLength(1)
+    expect(node.stops()).toEqual([])
+  })
 })
 
 describe('rcon on a venue box', () => {

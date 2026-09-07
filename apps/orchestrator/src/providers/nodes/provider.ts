@@ -75,6 +75,12 @@ export const NODE_TV_DELAY_SECONDS = 90
  */
 export const WARM_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
+/**
+ * What the node is told when a container outlived the ledger row that paid
+ * for it (PRD-02 T32a) — it lands in the agent's log beside the container id.
+ */
+export const STRAY_STOP_REASON = 'no open ledger row'
+
 /** How long a node may be off the wire before its servers are reported `gone`. */
 export const NODE_LOST_MS = 60_000
 
@@ -442,6 +448,83 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
     }
   }
 
+  /**
+   * The verdict for a container id this process does not hold — see
+   * {@link sweepStrays}. Cached because it can never change: a closed row is
+   * never reopened, and an id no row of ours names is one no row of ours
+   * will ever name (every id is minted here, against this map).
+   */
+  const strayVerdict = new Map<string, 'ours' | 'foreign'>()
+
+  /**
+   * Containers a `stop` was actually **written** for, against the socket it
+   * went out on. A snapshot that still reports one is a snapshot older than
+   * the frame rather than a stray, so the sweep says nothing about it; a
+   * `stop` the node never got — no socket to write it on, or a socket that
+   * died with it — is not in here, and that is exactly what makes the sweep
+   * owe that container a retry.
+   */
+  const told = new Map<string, string>()
+
+  /**
+   * **What a container the ledger has already closed means** (PRD-02 T32a).
+   *
+   * An agent that goes away mid-match comes back to a world that moved on:
+   * the match failed while it was gone, its ledger row was closed, and the
+   * `stop` that closing sent went nowhere because there was no socket to
+   * write it on. {@link adopt} reads **open** rows, so the container is
+   * neither adopted nor listed — nothing stops it, and the reaper cannot see
+   * it either, because the reaper reconciles the ledger against provider
+   * truth and this provider's truth is what it holds in memory. A CS2 server
+   * keeps running on somebody's venue box until a human notices.
+   *
+   * The ledger is the warrant, and it answers in three ways:
+   *
+   * - **An open row of ours** — {@link adopt}'s case, and left to it.
+   * - **A closed row of ours** — the container is this deployment's and its
+   *   life is over, so it is stopped: now, and again on every later snapshot
+   *   that still reports it. A `stop` is idempotent by contract and a
+   *   re-send is the whole retry policy. No grace window is owed — the
+   *   ambiguity the reaper's grace covers is a row that has not caught up
+   *   with an allocation yet, and a row that has already been *closed*
+   *   cannot be that one.
+   * - **No row of ours at all** — never touched. `nodes` is not
+   *   deployment-scoped (T21c): a box can be re-enrolled from dev to
+   *   production with the old world's containers still on it, and a restored
+   *   database is a row that no longer exists. A container this process
+   *   cannot account for is one it has no business killing, so it is said
+   *   out loud once and left for the operator; it goes on counting against
+   *   the node's capacity, which it really does occupy.
+   *
+   * It runs on every snapshot a node sends, which makes it both the sweep
+   * and its own retry.
+   */
+  const sweepStrays = async (node: ConnectedNode): Promise<void> => {
+    const reportedIds = new Set(node.instances.map(instance => instance.id))
+    for (const [id, nodeId] of told) if (nodeId === node.id && !reportedIds.has(id)) told.delete(id)
+    for (const reported of node.instances) {
+      if (instances.has(reported.id) || told.has(reported.id)) continue
+      let verdict = strayVerdict.get(reported.id)
+      if (verdict === undefined) {
+        const row = await store.findServerByHandle(NODES_PROVIDER_ID, reported.id)
+        // An open row of ours belongs to `adopt`; leave it for the next pass
+        // rather than deciding it here, and cache nothing.
+        if (row && row.deployment === store.deployment && row.releasedAt === null) continue
+        verdict = row && row.deployment === store.deployment ? 'ours' : 'foreign'
+        strayVerdict.set(reported.id, verdict)
+        const what =
+          verdict === 'foreign'
+            ? `belongs to no ledger row of this deployment (${store.deployment}); ` +
+              'leaving it alone — stop it on the box itself if it is nobody’s'
+            : 'outlived its ledger row; stopping it'
+        log.warn(`node ${node.id}: container ${reported.id} ${what}`)
+      }
+      if (verdict === 'foreign') continue
+      if (node.send({ type: 'stop', instanceId: reported.id, reason: STRAY_STOP_REASON }))
+        told.set(reported.id, node.id)
+    }
+  }
+
   const unwatch = registry.watch({
     connected: node => {
       disconnectedAt.delete(node.id)
@@ -458,12 +541,20 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
             log.info(`node ${node.id}: back on the wire and steady`)
           }),
         )
+      // A frame written on the socket that died may never have been applied,
+      // so nothing this process told the old one still counts.
+      for (const [id, nodeId] of told) if (nodeId === node.id) told.delete(id)
       track(`adopt ${node.id}`, async () => {
         await adopt(node)
+        await sweepStrays(node)
         await topUp()
       })
     },
-    instances: () => track('top up', topUp),
+    instances: node =>
+      track('top up', async () => {
+        await sweepStrays(node)
+        await topUp()
+      }),
     disconnected: (nodeId, lastSeenAt) => {
       disconnectedAt.set(nodeId, clock.now())
       cancel(settlingAfter, nodeId)
@@ -712,7 +803,8 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
     deallocate(serverId: string): Promise<void> {
       const instance = instances.get(serverId)
       if (!instance) return Promise.resolve()
-      send(serverId, { type: 'stop', instanceId: serverId, reason: 'deallocated' })
+      if (send(serverId, { type: 'stop', instanceId: serverId, reason: 'deallocated' }))
+        told.set(serverId, instance.nodeId)
       instances.delete(serverId)
       track('top up', topUp)
       return Promise.resolve()

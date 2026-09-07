@@ -135,6 +135,19 @@ these are the parts a venue operator can see:
   that vanishes while the node is fine (a `docker kill`, an OOM) is the same story sooner:
   the plugin's link goes quiet, the orchestrator probes, the node's snapshot no longer
   lists the container, and a replacement is started — on this node when it has room.
+- **A container that outlived its ledger row is stopped when the node dials back.** The
+  other half of the same story: while the agent was away, the match it was holding failed,
+  its row was closed, and the `stop` that closing sent had no socket to go out on. The
+  orchestrator sweeps every snapshot a node sends and the ledger is the warrant — an
+  **open** row of this deployment is adopted, a **closed** one is stopped (again on every
+  later snapshot that still reports the container: a `stop` is idempotent, and re-sending
+  it is the whole retry policy), and a container with **no row of this deployment at all**
+  is never touched. That last one matters on a box that has served two worlds: `nodes` is
+  not deployment-scoped, so a node re-enrolled from a dev orchestrator to production still
+  runs the dev world's containers, and a restored database is a row that no longer exists.
+  The orchestrator says so once in its log, names the deployment it was looking in, and
+  leaves the container to you — it still occupies a slot of the node's capacity, so
+  `docker rm -f ezpug-node-<id>` on the box is how it goes.
 
 ## What the agent does
 
@@ -239,6 +252,11 @@ operator sets:
   that would not pull, a server that exited with a code (`docker logs ezpug-node-<id>` is
   the server's own boot log, `docker attach` its console). The orchestrator clears it with
   a `stop`; by hand, `docker rm -f ezpug-node-<id>` and the next poll notices.
+- **A container the orchestrator says belongs to no ledger row of its deployment.** It is
+  from another world — the box was enrolled elsewhere before, or the orchestrator's
+  database was restored past the row. Nothing will ever stop it and it holds a capacity
+  slot: check `docker inspect` for the `com.ezpug.node.match-id` label, make sure nobody
+  is playing on it, and `docker rm -f ezpug-node-<id>`.
 - **Two nodes on one host.** Each enrols with its own token and its own state directory;
   the containers carry the node's id in a label, so neither adopts the other's. Give them
   different port ranges through the orchestrator (T12).

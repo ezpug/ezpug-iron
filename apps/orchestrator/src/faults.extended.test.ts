@@ -929,12 +929,13 @@ describe('fifty matches with fault injection', () => {
     // The vendor's own truth, under the ledger's: the account holds the
     // template this suite built and not one clone.
     expect(rig.fake.servers().map(server => server.id)).toEqual([rig.template])
-    // Not asserted here, and it is a finding rather than an omission: a
-    // container the agent was holding when it went away is still on the node
-    // when it dials back, because adoption reads *open* rows and that match's
-    // row was closed while the agent was gone — so nothing ever stops it and
-    // nothing lists it either. Written up as **T32a**; this suite gets the
-    // assertion (`rig.node.instances()` is empty) when the task lands.
+    // **The venue's box, under the same rule** (T32a). A provider's `list()`
+    // is what this process holds, so an agent's own snapshot is the only
+    // place a container it was holding when it went away can still be seen:
+    // that match failed while the agent was gone, its row was closed, and
+    // the `stop` had no socket to be written on. The sweep on the next
+    // snapshot is what makes the node as empty as the ledger says it is.
+    expect(rig.node.instances()).toEqual([])
     expect(rig.app.links.size()).toBe(0)
   })
 

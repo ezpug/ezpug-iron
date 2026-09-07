@@ -752,7 +752,7 @@ every offline proof here.
   > webhook endpoint that fails **reorders what a client receives** (the events route is
   > the order, which is why it exists), and T32a below.
 
-- [ ] **T32a: A container the agent was holding when it went away.** A node that
+- [x] **T32a: A container the agent was holding when it went away.** A node that
   disconnects mid-match and comes back finds its container still running: the match failed
   while the agent was gone, so its ledger row is closed, and `adopt()` in the nodes
   provider only reads *open* rows — the container is neither adopted nor listed, so
@@ -761,6 +761,16 @@ every offline proof here.
   an agent's snapshot means when the orchestrator has no open row for a container it
   reports — stop it, adopt it as an orphan so the reaper does, or refuse to touch what
   another deployment may own (T21c's lesson: `nodes` is not deployment-scoped).
+  > note: **the ledger row is the warrant, and it answers in three ways** — an *open* row
+  > of this deployment is adopted (what `adopt()` already did), a *closed* one is stopped
+  > (no grace is owed: the ambiguity the reaper's grace covers is a row that has not caught
+  > up with an allocation, which a closed row cannot be), and a container *no row of this
+  > deployment accounts for* is logged once and never touched, because a venue box can have
+  > served another world before this one. The sweep runs on every snapshot a node sends, so
+  > it is its own retry; a `stop` this process actually wrote is remembered against the
+  > socket it went out on, so a stale snapshot is not mistaken for a stray and a `stop`
+  > that had nowhere to go is still owed. `rig.node.instances()` is now asserted empty at
+  > the end of T32's night — three containers before the fix, none after.
 
 - [ ] **T33: `ezpug-iron`, the CLI.** `apps/cli` (published later as a bin in the
   orchestrator image and runnable with `pnpm iron`): `keys create|list|revoke`,

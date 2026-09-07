@@ -405,6 +405,16 @@ open row the provider no longer lists is *surfaced* to the machine, which probes
 opens the recovery window itself. A provider that cannot answer is reported and retried
 next pass; nothing is reaped on a failed listing.
 
+**What the reaper cannot see, the `nodes` provider sweeps** (T32a). A provider's `list()`
+is what the process holds in memory, so a container the orchestrator forgot is invisible
+to the reconciliation above: an agent that goes away mid-match comes back to a match that
+failed and a row that was closed while it was gone, and the `stop` that closing sent had
+no socket to be written on. So every snapshot a node sends is held against the ledger —
+an open row of this deployment is adopted, a closed one is stopped and stopped again
+until the container is gone, and a container no row of this deployment accounts for is
+logged once and never touched, because `nodes` is not deployment-scoped and a venue box
+can have served another world before this one (`docs/nodes.md`).
+
 **Everything a process does on its own initiative is one deployment's**
 (`EZPUG_IRON_DEPLOYMENT`, T21c). Provider truth is per-deployment — the Dathost
 `user_data` tag says which clones on a shared account are ours, a `sim` server lives in
