@@ -56,6 +56,14 @@ docker exec ezpug-node node dist/main.mjs status
 The venue's firewall has to let UDP in on the game and GOTV ports the orchestrator
 assigns each server (`27415`/`27420` and up on this box); the agent itself opens no port.
 
+**`--restart unless-stopped` is right for a box that reboots and wrong for a node you have
+un-enrolled.** The agent treats a revoked token as a decision — it stops dialling and exits
+`2` — and no docker restart policy can tell that exit from a crash, so docker starts it
+again and the decision is spent once per restart (eight dials in the first minute, measured
+in T37's rehearsal, each refused at the handshake). A node removed at the orchestrator is
+`docker stop ezpug-node` on the box; a box being rebuilt is `ezpug-node forget` and a fresh
+enrolment token.
+
 Two things about that `docker run` line. `--network host` because the server containers
 the agent starts use the host network anyway (a game server's clients read the address
 out of its UDP packets, `compose.cs2.yaml` says why), and because on this box the
@@ -104,9 +112,13 @@ these are the parts a venue operator can see:
 - **Re-enrolling an existing id** (the box is being rebuilt) mints a fresh one-time token
   *and* revokes the node token in force, hanging up on whatever is connected — two agents
   answering for one node would have the pool counting its capacity twice.
-- **`DELETE /v1/fleet/nodes/:id`** revokes the token and closes the socket (`4009`); the
-  agent stops dialling and says to run `forget`. The containers it was running keep
-  running: they belong to the orchestrator's ledger, not to the agent.
+- **`DELETE /v1/fleet/nodes/:id`** revokes the token and closes the socket the agent holds
+  (`4009`); every dial after that is refused `4001`, because the row the token named is
+  gone — both are fatal to the agent, which stops dialling and says to run `forget` (and is
+  restarted by docker anyway unless the container is stopped: see the restart policy above).
+  The containers it was running keep running: they belong to the orchestrator's ledger, not
+  to the agent. There is no `nodes` verb for this in `ezpug-iron` yet — un-enrolling is the
+  route, by hand or from the platform's console.
 - **`POST …/drain`** stops new work landing here and tells the agent so; live matches
   finish. `…/undrain` takes it back.
 - **Capacity.** A connected, undrained node offers what it can still run. One that is not
@@ -135,6 +147,13 @@ these are the parts a venue operator can see:
   that vanishes while the node is fine (a `docker kill`, an OOM) is the same story sooner:
   the plugin's link goes quiet, the orchestrator probes, the node's snapshot no longer
   lists the container, and a replacement is started — on this node when it has room.
+  Measured on hardware in T37's rehearsal: **38 seconds** from the `docker kill` to a
+  replacement whose plugin had already loaded the backup, and **30 seconds** to an honest
+  `failed: server_lost` ("no server to restore onto") when the node was drained and the
+  walk had nowhere to go. What that replacement does not do yet is *finish* the recovery on
+  a `matchzy` flow — MatchZy plays on from the checkpoint without saying `going_live` a
+  second time, so the window can only run out. The whole finding is under "What a rehearsal
+  found" below.
 - **A container that outlived its ledger row is stopped when the node dials back.** The
   other half of the same story: while the agent was away, the match it was holding failed,
   its row was closed, and the `stop` that closing sent had no socket to go out on. The
@@ -264,6 +283,57 @@ operator sets:
   different origin than `EZPUG_NODE_ORCHESTRATOR_URL` rather than silently reusing it:
   `forget`, then enrol again there.
 
+## What a rehearsal found
+
+One venue night, rehearsed on this box against the **production** orchestrator
+(`wss://gs.ezpug.com/node`, real TLS, the `ghcr.io/ezpug/ezpug-iron/{node,cs2}:dev` images
+of the day) with `ezpug-iron` as the only client — PRD-02 T37, 2026-09-07. A node
+`saarlan-rehearsal`, `EZPUG_NODE_MAX_INSTANCES=2`, `EZPUG_NODE_WARM=0`, three `lan` pugs
+with ten bots each. What it changed in this file is above; what it measured is here.
+
+- **A `lan` request lands on the box in twenty seconds and plays.** `pending` →
+  `configuring` → `ready` at +20 s (a cold CS2 boot out of the game volume), `live` at
+  +40 s, `ended` six minutes later on four rounds with a side swap: 49 events on the
+  match's own route, 50 signed webhook deliveries, four `backup_written`, the ledger row
+  `released` at €0.00 and no container left behind. Nothing about the path was simulated
+  except the venue.
+- **A bots-only pug needs four RCON lines a venue never types.** `matchzy` is the one flow
+  that waits for players to ready up, so a run with nobody in it goes
+  `bot_kick; bot_quota 0` → `css_start` at `ready`, then `bot_quota <n>` → `mp_warmup_end`
+  once live (the order is `scripts/iron-match.mjs`'s and its reasons are written there).
+  Every other flow starts and fills itself. A real LAN night types none of this.
+- **Drain does what it says.** `ezpug-iron nodes drain <id>` leaves the live match alone
+  and refuses the next `lan` request `no_capable_server: no LAN node has free capacity`
+  (exit 1); `nodes list` reads `drained yes` and the agent's own `status` agrees;
+  `--undrain` takes work again.
+- **A `docker kill` mid-match is answered in thirty seconds.** The plugin's link goes
+  quiet, the node's snapshot drops the container, and the orchestrator says
+  `match.recovering` ("silent for 30000 ms; nodes reports the server gone") with the newest
+  backup's round. With the node undrained and room for a second instance the walk comes
+  straight back to it: a new ledger row, a container on the next port pair, the plugin's
+  `backup_restored`, and `match.server_ready` with `restored` — 38 seconds from the kill.
+  With the node **drained** there is nowhere to go and the match is `failed: server_lost`
+  ("no server to restore onto: no_capable_server") 30 seconds after the kill, which is the
+  honest answer a venue with one box should get.
+- **…and then the recovery does not finish on a `matchzy` flow.** The replacement loads the
+  round backup and MatchZy resumes from it ("Loaded server checkpoint …, starting match
+  with score 1:1 after round 2"), but it never says `going_live` a second time — that event
+  belongs to the start of the series — and `going_live` is what closes the orchestrator's
+  window. So the match sits in `recovering` while the server is up and playing, the API's
+  `unpause` is refused before it (`invalid_state — unpause only while live`) so only an
+  `rcon` command can reach the pause MatchZy takes after a restore, and twenty minutes later
+  the match is `failed: server_lost` — "no going_live within 1200000 ms of the replacement
+  being ready" — with both ledger rows closed and the container stopped. The ledger and the
+  clean-up are right; the outcome is not. T14 proved this path against the simulator and a
+  fake node, where the replacement's `going_live` is scripted; hardware is where the real
+  MatchZy disagreed. **Until the loop's follow-up task lands, a mid-match server loss on a
+  `pug` ends the match** — the round backups are kept, so the honest venue move is to start
+  the next match from them rather than to wait out the window.
+- **Un-enrolling is two close codes and one docker habit.** `DELETE /v1/fleet/nodes/:id`
+  closes the socket in force with `4009`; every dial after it is `4001`, the row being gone.
+  Both are fatal by design and the agent exits `2` — and `--restart unless-stopped` then
+  starts it again, which is why the runbook now ends a removed node with `docker stop`.
+
 ## What is proven, and where
 
 `apps/node/src/*.test.ts` run the real agent over a scripted `/node` endpoint on a real
@@ -274,5 +344,8 @@ drained refusals, a container that exits and one that vanishes, adoption after a
 the CLI's every verb with no token in its output. `docker/dockerode.test.ts` proves the
 one adapter that touches a daemon against the real one when this box has a socket, with a
 tiny image and nothing left behind, and skips with a printed reason when it does not
-(`EZPUG_NODE_DOCKER_TESTS=required` makes that red). The orchestrator's side of the link
-and the `nodes` provider are T12's, and the first real `lan` match through a node is T13's.
+(`EZPUG_NODE_DOCKER_TESTS=required` makes that red; an interrupted run leaves its busybox
+containers behind, which is a sweep the test does not do yet). The orchestrator's side of
+the link and the `nodes` provider are T12's, the first real `lan` match through a node is
+T13's, and the venue night against production — enrolment, a `lan` match, drain, a kill,
+un-enrolment — is T37's, written up above.

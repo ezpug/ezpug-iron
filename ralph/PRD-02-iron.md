@@ -840,12 +840,54 @@ every offline proof here.
   > note (T29): while that human is connected, read the chat prefix, the line naming
   > their team's colour and the centre card two seconds after they load. Same reason:
   > a bots run proves what the plugin printed and never what a player saw.
+  > blocked: **still no Dathost credentials on this box** — `.env.production` carries the
+  > trio commented out and `EZPUG_IRON_PROVIDERS=sim,nodes`, so production has no provider
+  > that can rent a box in Frankfurt and there is no account to bill, tag or list. Nothing
+  > in this task can be faked: it *is* the live one. The exact lines the owner fills in are
+  > under T35; `./scripts/deploy.sh` takes it from there. Taken out of order by T37, which
+  > needs none of them. Two things T37 built that this task should reuse: the client key
+  > with a webhook secret must be minted through `POST /v1/keys` (`ezpug-iron keys create`
+  > cannot register one), and a webhook this box hosts is reachable from the production
+  > container at `http://172.17.0.1:<port>/…`, not at `127.0.0.1`.
 
-- [ ] **T37: The LAN rehearsal.** `ezpug-node` on this box enrolled against the
+- [x] **T37: The LAN rehearsal.** `ezpug-node` on this box enrolled against the
   **production** orchestrator with the ghcr image; a `requirements.lan` request lands on
   it; drain; a `docker kill` mid-match → recovery to the next candidate (Dathost if
   credentials are present, else `failed: server_lost` honestly); un-enrol. The venue
   runbook in `docs/nodes.md` is corrected by what actually happened.
+
+- [ ] **T37a: A recovery that finishes on a `matchzy` flow.** T37 killed a live pug's
+  container on a node against production and the whole path worked but the last step:
+  30 s to `match.recovering`, 38 s to a replacement whose plugin had loaded the round
+  backup and announced `match.server_ready` with `restored`, MatchZy resuming from the
+  checkpoint by its own log — and then nothing, because **MatchZy says `going_live` once
+  per series and the orchestrator's recovery window closes on nothing else**, so twenty
+  minutes later a match whose server was up and playing ended `failed: server_lost` ("no
+  going_live within 1200000 ms of the replacement being ready"). Close the window on
+  something the real flow emits — the replacement's `backup_restored` plugin event, or its
+  first `round_end` — keeping the deadline for a replacement that truly never came, and
+  emit `match.recovered` (`resumedFromRound`) from it. Two things the same run found and
+  the fix has to answer: the API's `unpause` is refused outside `live`
+  (`invalid_state — unpause only while live`), so an operator whose restored server sits in
+  MatchZy's `matchzy_pause_after_restore` has only `rcon`; and the replacement's plugin
+  logs `the map … started before the assignment asked for a level change; waiting for the
+  match's map` on every restore, which is at best a confusing line on the happy path.
+  Prove it on hardware — the sim and the fake node both script the `going_live` that real
+  MatchZy withholds, which is exactly why they missed this. References: T14's machine
+  (`apps/orchestrator/src/match/machine.ts`), `plugins/EZPug.Core` (the loader's restore),
+  `docs/operations.md` "Recovery", `docs/nodes.md` "What a rehearsal found".
+
+- [ ] **T37b: The three terminal edges the rehearsal hit.** None is the API's fault and all
+  three cost a venue operator time: (1) `ezpug-iron keys create` cannot register a webhook
+  secret, while every match request must name one — so the key that creates a match cannot
+  be minted from the terminal at all (`--webhook-secret <id>`, the secret minted and shown
+  once like every other); (2) there is no `nodes` verb for un-enrolling, though
+  `DELETE /v1/fleet/nodes/:id` is a route and the runbook needs it (`nodes remove <id>`,
+  with the "its containers keep running" warning the doc already carries); (3) `pnpm iron`
+  runs the command in `apps/cli`, so a relative `--file` resolves against the wrong
+  directory — pnpm sets `INIT_CWD`, which is the honest fix for the wrapper. While there:
+  `apps/node/src/docker/dockerode.test.ts` leaves its busybox containers behind when a run
+  is interrupted (three were found on this box, 35 hours old); sweep the label at start.
 
 - [ ] **T38: Docs for strangers.** `README.md` (install, run, first match in ten minutes),
   `docs/sdk.md` (write a gamemode), `docs/gamemodes.md` (manifest, tiers, the widget host

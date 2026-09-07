@@ -472,6 +472,19 @@ window, none at all re-runs the walk). The conformance flows `crash-restore` and
 `crash-lost` run against the orchestrator through the sim provider's `setFaults`, the
 same knobs the published fake takes.
 
+**What hardware said about that last step** (T37, on a node against production): everything
+up to `match.server_ready` is real and fast — 38 seconds from a `docker kill` to a
+replacement container whose plugin had loaded the round backup, and 30 seconds to
+`failed: server_lost` when the walk had no candidate left. But **a `matchzy` flow never
+says `going_live` a second time**: MatchZy resumes from the checkpoint it loaded (its own
+log says so) without repeating the event that belongs to the start of a series, so the
+window closes on the deadline instead of on the recovery, and a match whose server is up
+and playing ends `failed: server_lost` twenty minutes later. The `unpause` command cannot
+help, because it is refused outside `live` — only `rcon` reaches the pause MatchZy takes
+after a restore. Closing the window on something the real flow does emit (the replacement's
+`backup_restored`, or its first round) is the loop's next task; until then a `pug` that
+loses its server ends, with its backups kept.
+
 **Commands** are idempotent on `correlationId` across a restart (`match_commands`):
 `force_end`, `restore` (`no_backup` with nothing to restore from, `invalid_state` while
 the orchestrator's own restore is under way — it always is, unless a restart left the
@@ -1287,6 +1300,15 @@ retried it would only waste the ceiling that just refused it.
 reads `docker/cs2/Dockerfile` for its pins and extracts artifacts out of the CS2 image, so
 it only means anything inside a checkout. Run from anywhere else it says so and exits
 `69`; every other verb works from anywhere.
+
+**Three edges T37's rehearsal hit**, all of them the terminal's rather than the API's.
+`pnpm iron` runs the command with `apps/cli` as its working directory, so a relative
+`--file` is resolved *there* and not where you typed it — pass an absolute path, or use the
+installed `ezpug-iron`. `keys create` cannot register a webhook secret, and a match request
+must name one (`callbacks.webhookSecretId`), so the key that creates matches is minted
+through `POST /v1/keys` (the platform's console, or `curl`) rather than here. And there is
+no verb for un-enrolling a node: `DELETE /v1/fleet/nodes/:id` is the door. All three are
+written down as the loop's follow-up work.
 
 ## Keys, scopes, rate limits, logs
 

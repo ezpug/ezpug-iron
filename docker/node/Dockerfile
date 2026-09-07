@@ -29,7 +29,13 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     && pnpm install --frozen-lockfile
 # `@ezpug/protocol`'s build (a dependency) regenerates the C# wire types
 # beside the JSON Schema; the node's own build is one bundle, `dist/main.mjs`.
-RUN pnpm --filter=@ezpug/node... build
+# Through Turbo rather than `pnpm -r`, for the orchestrator image's reason
+# (PRD-02 T25): `@ezpug/node...` reaches the manifests through `@ezpug/match-api`,
+# and the kit that builds their widgets is a devDependency of the manifests and
+# a *peer* of the published package — an edge pnpm counts as a cycle and refuses
+# to order, so `pnpm -r` starts the widget build before the kit exists and the
+# image cannot be built at all (found by T37's rehearsal, which needed one).
+RUN pnpm exec turbo run build --filter=@ezpug/node...
 
 # ── Runtime tree ───────────────────────────────────────────────────────────
 FROM build AS deploy
