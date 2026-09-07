@@ -535,7 +535,7 @@ every offline proof here.
   into green (working rules); the verify this was found in was re-run for the commit gate
   and the progress line says which runs were which.
 
-- [ ] **T21d (P1): `machine.test.ts`'s ttl deadline loses a race with the sim's own
+- [x] **T21d (P1): `machine.test.ts`'s ttl deadline loses a race with the sim's own
   ending, under a whole-verify load.** Found in T21c, pre-existing, not caused by it:
   `deadlines > ends ttl_expired when the request's lifetime runs out, whatever the server
   says` (`apps/orchestrator/src/match/machine.test.ts:226`) failed once inside
