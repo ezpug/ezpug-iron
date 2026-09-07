@@ -1,8 +1,9 @@
 # Vendored community plugins
 
 Third-party CounterStrikeSharp plugins this repo ships **in the server image** and keeps
-here **as source** at a pinned tag: today [cs2-retakes](https://github.com/B3none/cs2-retakes),
-with the WeaponPaints fork to come (PRD-02 T28).
+here **as source** at a pinned tag: [cs2-retakes](https://github.com/B3none/cs2-retakes)
+stock, and [cs2-WeaponPaints](https://github.com/Nereziel/cs2-WeaponPaints) as the one
+fork this repo carries (PRD-02 T28, decision 20).
 
 Source is the exception, not the rule. A vendor that publishes a release binary is
 downloaded and checksummed in `docker/cs2/Dockerfile` and none of it is in this repo —
@@ -10,19 +11,27 @@ MatchZy and the retakes weapon allocator are pinned that way. cs2-retakes is her
 we need something out of its *tree* rather than out of its build: the per-map spawn
 configs under `RetakesPlugin/map_config/`, which its csproj does not copy to the output.
 
-The folder is upstream's tree **verbatim**, minus `.git`. It is stock, pinned and never
-patched — the one exception in the whole repo is the WeaponPaints data layer (decision 20),
-and it is not here yet. That is why a diff of it against its tag is empty, and why `plugins/vendor/Directory.Build.props` exists: MSBuild stops at
-the first `Directory.Build.props` above a project, so that empty file keeps
-`plugins/Directory.Build.props` — our target framework, our CounterStrikeSharp pin,
-`TreatWarningsAsErrors` — away from somebody else's source.
+A stock folder is upstream's tree **verbatim**, minus `.git`: pinned and never patched,
+so a diff of it against its tag is empty. That is why `plugins/vendor/Directory.Build.props`
+exists: MSBuild stops at the first `Directory.Build.props` above a project, so that empty
+file keeps `plugins/Directory.Build.props` — our target framework, our CounterStrikeSharp
+pin, `TreatWarningsAsErrors` — away from somebody else's source. cs2-retakes is not in
+`plugins/EZPug.sln`, so `pnpm verify` never builds it; `plugins/vendor/build.sh` does, and
+`docker/cs2/Dockerfile` is what calls that.
 
-None of it is in `plugins/EZPug.sln`, so `pnpm verify` never builds it.
-`plugins/vendor/build.sh` does, and `docker/cs2/Dockerfile` is what calls that.
+**The WeaponPaints fork is the one exception in the whole repo.** Its data layer reads a
+player's loadout from the core plugin over the link instead of from MySQL (decision 20);
+`WeaponPaints/PATCHES.md` is the whole diff in words, its csproj imports our properties on
+purpose because it references `EZPug.Sdk`, and `pnpm verify` builds and tests it
+(`plugins/WeaponPaints.Tests`) as part of `EZPug.sln`. `build.sh` lays it out beside
+cs2-retakes. Upstream's `website/` — the PHP site over the same MySQL, 85 MB of item
+catalogue in 28 languages — is not vendored; the five English catalogue files the plugin
+reads at load ride under `WeaponPaints/data/` instead.
 
 | Folder | Upstream | Pin | Licence |
 | ------ | -------- | --- | ------- |
 | `cs2-retakes/` | B3none/cs2-retakes | `3.1.0` | GPL-3.0 (`cs2-retakes/LICENSE`, kept verbatim) |
+| `WeaponPaints/` | Nereziel/cs2-WeaponPaints, **forked** (`WeaponPaints/PATCHES.md`) | commit `fa8936f3` (`build-459`, 3.3a) | GPL-3.0 (`WeaponPaints/LICENSE`, kept verbatim) |
 
 `vendored.json` beside this file is the machine-readable version of that table — repo,
 tag, commit and the line in the source that carries the version — and
@@ -71,6 +80,8 @@ rm -rf plugins/vendor/<dir>/.git
 
 Then `vendored.json`, then the row in `docs/pins.md`, in the same commit (`pnpm lint`
 fails otherwise), then `pnpm cs2:build` and the mode's recorded lane — a vendor bump that
-moves a wire shape is a `@ezpug/match-api` release, not a silent edit (decision 24).
+moves a wire shape is a `@ezpug/match-api` release, not a silent edit (decision 24). For
+the WeaponPaints fork the clone is the start, not the end: re-apply `PATCHES.md` top to
+bottom, then `pnpm verify` proves the data layer against the recorded frames.
 Bumping one of the *binary* vendors is the same walk with the version and its checksum in
 `docker/cs2/Dockerfile` as the home.

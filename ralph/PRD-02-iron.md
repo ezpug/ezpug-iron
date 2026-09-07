@@ -682,7 +682,7 @@ every offline proof here.
   > holds a *bot's* `m_iCompetitiveRanking` at 0 whatever is written to it, and this box
   > has no CS2 client — see the note under T36.
 
-- [ ] **T28 (fable): Skins over the link — the WeaponPaints fork.** Vendor cs2-WeaponPaints
+- [x] **T28 (fable): Skins over the link — the WeaponPaints fork.** Vendor cs2-WeaponPaints
   at its pin as a fork under `plugins/vendor/WeaponPaints/` with `PATCHES.md`; replace the
   data layer (`WeaponSynchronization.cs`'s `Get*FromDatabase`, `Database.cs`) with an
   `ILoadoutSource` the core plugin provides through CounterStrikeSharp's shared plugin
@@ -694,6 +694,10 @@ every offline proof here.
   read back through the world where possible, visual once. References: decision 20,
   `references/cs2-WeaponPaints/WeaponSynchronization.cs`, `Utility.cs`, the platform's
   `specs-and-more/specs/Skins.md` §2/§4.
+  > note: bots keep default items by upstream's own `IsBot` checks on every apply path,
+  > which this repo does not patch — so the dev node proves the hand-off (the core's
+  > `skins:` console lines, the fork re-reading on the same tick) and not the pixels. The
+  > pixel is a human with a client and a loadout on their roster entry, under T36.
 
 - [ ] **T29: Branding and the connect card.** Hostname from `branding.hostname` or a
   default per gamemode (`EZPug · pug · Mirage`), event name where given, coloured chat

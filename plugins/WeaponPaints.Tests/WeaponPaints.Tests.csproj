@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The WeaponPaints fork's data layer under xunit (PRD-02 T28): the mapping from the Match
+    API's `Loadout` — the roster's, a `profile` push's — to the rows the plugin used to read
+    out of MySQL, held against the protocol's recorded assign frame and the fork's own rules
+    (`plugins/vendor/WeaponPaints/PATCHES.md`). Everything else in the fork is a
+    CounterStrikeSharp call and is checked on the dev server.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../vendor/WeaponPaints/WeaponPaints.csproj" />
+    <ProjectReference Include="../EZPug.Sdk/EZPug.Sdk.csproj" />
+  </ItemGroup>
+</Project>

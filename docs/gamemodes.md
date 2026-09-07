@@ -190,9 +190,10 @@ until a whole match's events go missing:
 
 ## A vendored plugin's own config file
 
-MatchZy takes its match as a document. So does cs2-retakes, and so will the WeaponPaints
-fork — a community plugin's settings are usually not cvars but a JSON file
-CounterStrikeSharp hands it while it loads it. The assignment carries one document per
+MatchZy takes its match as a document. So does cs2-retakes, and so would the WeaponPaints
+fork if a mode ever needed to change its defaults (it runs on them today; `!kill` off is
+the one a mode might turn on) — a community plugin's settings are usually not cvars but a
+JSON file CounterStrikeSharp hands it while it loads it. The assignment carries one document per
 plugin folder in `pluginConfigs`, and the loader writes each where that plugin will look:
 
 ```

@@ -102,6 +102,14 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     /// <summary>The host's loader: enable the plugins, change the map, set the hostname. Runs before the mode's <c>OnAssigned</c>.</summary>
     public event Action<Assignment>? Assigned;
 
+    /// <summary>
+    /// A <c>profile</c> frame landed and <see cref="Assignment"/> already holds it, before the
+    /// mode's <c>OnProfile</c>. The host's skins source hangs off it (PRD-02 T28): the roster
+    /// entry is what the skins layer is told to re-read, so what a hook here sees through
+    /// <c>Assignment.ProfileOf</c> is the pushed entry, never the roster's stale copy.
+    /// </summary>
+    public event Action<RosterEntry>? Profiled;
+
     /// <summary>The host's map hook: the assigned match's map is up — exec the cfg, set the cvars, load the match config. Runs before <c>server_ready</c> is emitted and before the mode's <c>OnStart</c>, and may take more than one console frame over it (<see cref="SettleThen"/>).</summary>
     public event Action<Assignment, string>? MapLoaded;
 
@@ -388,6 +396,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Ratings.OnProfile(steamId64);
         }
 
+        Profiled?.Invoke(player);
         Active?.OnProfile(player);
     }
 

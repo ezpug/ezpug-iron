@@ -616,6 +616,39 @@ async function run() {
   // EZ Rating is drawn only where the manifest asks for it, and a bots run can
   // only push a profile into a roster that is open (T27, the step in the loop).
   const RATED = manifest.capabilities.scoreboardRating && manifest.slots.openJoin
+  // **Skins over the link** (PRD-02 T28, decision 20): the orchestrator enables the
+  // WeaponPaints fork only when a roster entry carries a loadout, so an open-join
+  // run rosters one player nobody will be — a loadout on the request is what turns
+  // the folder on — and pushes a loadout with every bot profile. What that proves
+  // is the hand-off, seen as the core plugin's `skins:` console lines (below): a
+  // bot is never dressed, by upstream's own `IsBot` checks, so the pixels are a
+  // human's. Not on a `matchzy` flow: a rostered player MatchZy waits for would
+  // stall a match that `css_start` is meant to start.
+  const SKINNED = manifest.slots.openJoin && FLOW !== 'matchzy'
+  /** The loadout every link fixture carries (`packages/protocol/src/fixtures.ts`): tk's karambit. */
+  const LOADOUT = {
+    t: {
+      weapons: [
+        {
+          defindex: 7,
+          paintId: 490,
+          wear: 0.12,
+          seed: 661,
+          nametag: 'lauwarm',
+          stattrak: true,
+          stattrakCount: 1337,
+          stickers: [{ id: 4, x: 0.5, y: -0.25 }],
+          keychain: { id: 20, seed: 7 },
+        },
+      ],
+      knife: 'weapon_knife_karambit',
+      gloves: 5027,
+      agent: 'customplayer_tm_leet_variantg',
+      music: 3,
+      pin: 874,
+    },
+    ct: { weapons: [{ defindex: 60, paintId: 1231 }] },
+  }
   say(`gamemode ${GAMEMODE} v${manifest.version}: flow ${FLOW}, records ${manifest.records}`)
 
   // 4. The request. Bots, four rounds, no overtime, nobody rostered — MatchZy
@@ -625,7 +658,25 @@ async function run() {
     clientMatchId: RUN_ID,
     game: 'cs2',
     gamemode: GAMEMODE,
-    teams: { teamA: { name: 'EZPug A', players: [] }, teamB: { name: 'EZPug B', players: [] } },
+    teams: {
+      teamA: {
+        name: 'EZPug A',
+        // The one rostered player, with a loadout, so the skins layer is enabled (SKINNED,
+        // above). They never connect: the SteamID is the first bot identity's, which the
+        // profile pushes below carry too, so the core holds exactly one loadout for it.
+        players: SKINNED
+          ? [
+              {
+                steamId64: String(BOT_STEAM_ID_BASE),
+                name: 'EZ Bot 0',
+                locale: 'de',
+                loadout: LOADOUT,
+              },
+            ]
+          : [],
+      },
+      teamB: { name: 'EZPug B', players: [] },
+    },
     maps: [{ map: MAP, sides: 'ct' }],
     rules: {
       regulationRounds: ROUNDS,
@@ -770,12 +821,32 @@ async function run() {
       return `unreadable: ${error.message}`
     }
   }
+  /**
+   * The core plugin's `skins:` console lines (PRD-02 T28): every loadout handed to
+   * the skins layer and every profile it was told to re-read, off the same console
+   * buffer the scoreboard line comes from. Null rather than a failure at every step.
+   */
+  const readSkins = async id => {
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      if (!row) return null
+      const tail = await api('GET', `/v1/fleet/servers/${row.id}/console`)
+      const lines = tail.lines
+        .map(entry => entry.line.trim())
+        .filter(line => line.includes('skins:'))
+      return { lines: lines.length, last: lines.at(-1) ?? null }
+    } catch (error) {
+      return { lines: 0, last: `unreadable: ${error.message}` }
+    }
+  }
   let emptied = false
   let filled = false
   let polls = 0
   let rated = false
   let ratedAt = 0
   let scoreboard = null
+  let skins = null
   let warmupEnded = false
   let started = false
   let liveAt = 0
@@ -828,10 +899,13 @@ async function run() {
             locale: slot % 2 === 0 ? 'de' : 'en',
             rating: 1000 + slot * 111,
             rankName: 'Iron',
+            // The loadout travels with the profile the way it would for a person who
+            // joined open (T28); the core says `skins:` for each one it is handed.
+            ...(SKINNED && { loadout: LOADOUT }),
           },
         })
       }
-      say(`pushed ${Math.max(BOTS, 2)} bot profiles`)
+      say(`pushed ${Math.max(BOTS, 2)} bot profiles${SKINNED ? ' with loadouts' : ''}`)
       continue
     }
 
@@ -844,6 +918,12 @@ async function run() {
     if (rated && scoreboard === null && polls++ > ratedAt + 3) {
       scoreboard = await readScoreboard(matchId)
       say(`scoreboard: ${scoreboard ?? 'not readable'}`)
+      if (SKINNED) {
+        skins = await readSkins(matchId)
+        say(
+          `skins: ${skins ? `${skins.lines} console lines, last: ${skins.last}` : 'not readable'}`,
+        )
+      }
     }
 
     // **The bots arrive after the match goes live, not before it** — and that
@@ -949,6 +1029,7 @@ async function run() {
     startedAt,
     demoTarget: s3 ? `${s3.endpoint}/${s3.bucket}/iron-match/${RUN_ID}.dem` : null,
     scoreboard,
+    skins,
   }
 }
 
@@ -1037,6 +1118,8 @@ function write(result) {
     demo: result.match.endedReason ? (demoOutcome(result.envelopes) ?? null) : null,
     /** `ezpug_status`'s `scoreboard:` line while the match was up, or null when this gamemode does not show a rating (T27). */
     scoreboard: result.scoreboard ?? null,
+    /** The core plugin's `skins:` console lines — how many, and the last — while the match was up, or null when no loadout was on the roster (T28). */
+    skins: result.skins ?? null,
     ledger: {
       rows: rows.length,
       open: rows.filter(row => row.releasedAt === null).length,

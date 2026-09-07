@@ -144,14 +144,14 @@ pnpm cs2:down      # stop it; the game install stays in the volume
 ```
 
 **What is in the image, and what is not.** In: Metamod, CounterStrikeSharp (the release
-that ships its own .NET runtime — the steamrt base has none), MatchZy, `EZPug.Sdk` and
-`EZPug.Core`, and the `gamemodes/*/cfg` set. Every one of them is a pinned version with a
+that ships its own .NET runtime — the steamrt base has none), MatchZy, cs2-retakes with its
+allocator, the WeaponPaints fork, `EZPug.Sdk` and `EZPug.Core`, and the `gamemodes/*/cfg` set. Every one of them is a pinned version with a
 SHA-256 beside it in the Dockerfile and a row in `docs/pins.md`, and `pnpm lint` refuses a
 disagreement between the two — including the one pin that lives twice, the
 CounterStrikeSharp version the plugins compile against and the release that loads them.
-cs2-retakes with its allocator (T23) and the WeaponPaints fork (T28) are the two slots
-still empty; the core plugin's loader warns and skips a plugin that is not there, and the
-orchestrator refuses an assignment naming one before it is ever sent.
+Every plugin folder a manifest can name is there (the retakes pair since T23, the
+WeaponPaints fork since T28); the core plugin's loader still warns and skips a plugin that
+is not, and the orchestrator refuses an assignment naming one before it is ever sent.
 
 Not in: **the game**. App 730 is ~67 GB installed from a ~71 GB download — measured on this
 box in T10, not a guess — so it lives in the `cs2-data` docker volume and is installed once
@@ -197,8 +197,11 @@ server not to alter what a client shows about a player's *Valve* rank, and a ser
 flouts the guidelines can be refused a GSLT — which would cost the Dathost half of the fleet
 its public listing. What EZPug draws is its own number, on a private league's servers, on a
 scoreboard nobody mistakes for matchmaking, and nothing is ever written back to Steam.
-Turning the flag back on is one line here and costs only the rating: the plugin warns once
-and draws nothing (PRD-02 T27).
+**The skins layer needs the same flag** (PRD-02 T28): the WeaponPaints fork writes the
+inventory and attribute fields the guidelines cover, which is what upstream's README asks
+for too, so decision 20 buys no new risk — the one already taken for the rating covers both.
+Turning the flag back on is one line here and costs the rating and the skins: the plugin
+warns once and draws nothing (T27), and every player keeps default items.
 
 **No GSLT.** A Steam Game Server Login Token is leased per running server and the pool
 exists for Dathost (T17); without one CS2 accepts LAN connections, which is all this box and

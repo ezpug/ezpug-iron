@@ -4,8 +4,8 @@
 // and forgets the other goes red in `pnpm lint` (PRD-01 T10).
 //
 // Only the pins with a machine-readable home are checked. This script grows a
-// case per home as one appears; the WeaponPaints fork is prose until PRD-02 T28
-// gives it one.
+// case per home as one appears (the WeaponPaints fork got its `vendored.json`
+// entry in PRD-02 T28, the same home as cs2-retakes).
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'

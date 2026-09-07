@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    EZPug's data-layer fork of cs2-WeaponPaints (PATCHES.md beside this file). Upstream's
+    csproj targeted net8.0 against CounterStrikeSharp.API 1.0.367 with Dapper, MySqlConnector
+    and the MenuManager dll; this one targets what `plugins/Directory.Build.props` pins —
+    imported explicitly, because `plugins/vendor/Directory.Build.props` shields the vendor
+    trees from it — and references EZPug.Sdk for `ILoadoutSource`, which forces net10.0
+    (the SDK's frame). Everything MySQL and every menu is gone.
+
+    `Private=false` on the SDK reference: EZPug.Sdk.dll is installed once under
+    `addons/counterstrikesharp/shared/` and never beside a plugin (plugins/README.md), or the
+    capability the fork looks up would be a different type from the one the core published.
+  -->
+  <Import Project="../../Directory.Build.props" />
+
+  <PropertyGroup>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CounterStrikeSharp.API" Version="$(CounterStrikeSharpApiVersion)" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.5-beta1" />
+    <ProjectReference Include="../../EZPug.Sdk/EZPug.Sdk.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="lang\**\*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="gamedata\*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The item catalogue upstream's release copies out of `website/data/` at publish time
+      (the `legacy_model` flag per paint decides a weapon's body group). The five English
+      files ride with the source instead, because the website is not vendored here.
+    -->
+    <None Update="data\*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -162,6 +162,33 @@ the *server console*, not to whoever ran it, so on a node its RCON reply is empt
 report also goes into the plugin's console buffer — `GET /v1/fleet/servers/:id/console` is
 the door that hands it back from anywhere.
 
+### Skins over the link — `ILoadoutSource`
+
+A mode writes nothing for this either. The platform owns loadouts (decision 20): a roster
+entry carries one (`RosterEntry.Loadout`, the Match API's mirror of cs2-WeaponPaints' six
+tables), a `profile` push refreshes one, and the `Assignment` holds them all. The core
+plugin publishes `EZPug.Sdk.Hosting.ILoadoutSource` — two members, `LoadoutOf(steamId64)`
+and a `LoadoutChanged` event — through the same shared-plugin capability the gamemode host
+uses (`LoadoutSource`, `ezpug:loadouts`), and the data-layer fork of WeaponPaints
+(`plugins/vendor/WeaponPaints/`, its `PATCHES.md`) reads a player's loadout through it on
+connect, on `!wp` and when `LoadoutChanged` names them — where upstream ran six `SELECT`s
+against a MySQL server. There is no database in the image and none on the internet.
+
+What the core hands out is a lookup in the assignment, never a copy: `null` when no match
+is assigned, nobody knows the player, or their profile has no loadout — and `null` means
+default items, never an error, because skins may never touch match flow (the platform's
+Skins.md). The orchestrator enables the `WeaponPaints` folder only when a roster entry
+carries a loadout and the image has the plugin (`link/assign.ts`). Every hand-off is a
+`skins:` line on the core's console, which is the one place it can be seen on a bots run:
+a bot is never dressed — upstream checks `IsBot` on every apply path and this repo does not
+patch what the plugin does with a loadout — so the hardware proof is the seam, and the
+pixels are a human's (T36).
+
+The runtime raises `Profiled` for the host after `Assignment.Push`, so what a hook reads
+back through `Assignment.ProfileOf` is the pushed entry; the fork re-reads the player's
+rows then and forces nothing on them mid-round — the platform's page says "applies on
+your next connect, or type `!wp`", and that stays true.
+
 ### `PushWidget` — a picture for one phone
 
 `PushWidget(player, name, data)` sends a **push**: a named, mode-shaped payload that
@@ -335,8 +362,9 @@ hangs off three host events on the runtime, in the order a match goes through th
 | `Assigned(Assignment)` | `assign` arrived, before the mode's `OnAssigned` | hostname, `css_plugins load` for each plugin the assignment names, `Runtime.ExpectMapChange()` (below) and then `changelevel` / `host_workshop_map` to the first map — or to the backup's map when `Assignment.Restore` is set (the runtime's `Match.MapNumber` / `RoundNumber` then start where the lost server left off) |
 | `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, then — a beat later, in a console frame of its own (`Runtime.SettleThen`, below) — set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow (once per assignment; a later map is the series' next), point MatchZy's remote log at the orchestrator, and for a restore write the backup where MatchZy looks and `matchzy_loadbackup` it (`backup_restored` is emitted as a `plugin_event`) |
 | `Released(reason)` | after the mode's `OnEnd`, its timers and state cleared | `css_plugins unload` in reverse, the lobby map, then the runtime says `idle` |
+| `Profiled(RosterEntry)` | a `profile` frame landed and `Assignment.Profiles` already holds it, before the mode's `OnProfile` | tell the skins layer to re-read that player (below) |
 
-A mode never needs these; a second host (the harness is one) hooks the same three.
+A mode never needs these; a second host (the harness is one) hooks the same ones.
 
 **A host may ask for a beat.** From inside `MapLoaded`, `Runtime.SettleThen(delayMs, rest)`
 runs `rest` that much clock time later and holds `server_ready` — and the mode's `OnStart`

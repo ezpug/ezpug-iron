@@ -13,7 +13,8 @@ how to install them by hand. `docs/decisions.md` 5, 16 and 19 are the why.
 | `EZPug.Sdk.Testing` | `FakeClock`, `FakeGameWorld`, `FakePlatformLink`, `GamemodeTestHost`: a mode under xunit without CS2 |
 | `EZPug.Core` | the CounterStrikeSharp shell: the world and the game-thread clock over the engine, the sidecar, the link, the gamemode loader, the console commands |
 | `EZPug.PowerupDm` | the shipped SDK gamemode (PRD-02 T26): `powerup-dm`'s class, its CounterStrikeSharp shell and its resx pair. Installed under `plugins/disabled/`, hot-loaded for the match whose manifest names it |
-| `EZPug.Sdk.Tests`, `EZPug.Core.Tests`, `EZPug.PowerupDm.Tests` | xunit; run by `pnpm verify` (`dotnet build -warnaserror` + `dotnet test` over `EZPug.sln`) |
+| `vendor/WeaponPaints` | the data-layer fork of cs2-WeaponPaints (PRD-02 T28, decision 20): upstream's plugin with `ILoadoutSource` where MySQL was, every patch in `vendor/WeaponPaints/PATCHES.md`. The one vendored tree in `EZPug.sln` |
+| `EZPug.Sdk.Tests`, `EZPug.Core.Tests`, `EZPug.PowerupDm.Tests`, `WeaponPaints.Tests` | xunit; run by `pnpm verify` (`dotnet build -warnaserror` + `dotnet test` over `EZPug.sln`) |
 
 Everything builds against the CounterStrikeSharp.API version pinned in
 `Directory.Build.props` (`docs/pins.md` has the row); the .NET SDK is `global.json`'s.
@@ -41,7 +42,7 @@ game/csgo/
             ├── MatchZy/MatchZy.dll             ← vendored at docs/pins.md's version, untouched
             ├── RetakesPlugin/…                  ← + its lang/ and map_config/ spawn set
             ├── RetakesAllocator/…               ← the weapon allocator that runs beside it
-            ├── WeaponPaints/…                  ← the data-layer fork (T28)
+            ├── WeaponPaints/…                  ← the data-layer fork (T28): dll, lang/, data/, its own Newtonsoft.Json.dll, no EZPug.Sdk.dll
             └── EZPug.PowerupDm/…               ← the SDK mode (T26): its dll, deps.json and pdb, no EZPug.Sdk.dll beside it
 ```
 
@@ -61,10 +62,11 @@ On a CS2 dedicated server with Metamod and CounterStrikeSharp at the pinned vers
    `plugins/EZPug.Core`).
 2. Put the vendored plugins under `plugins/disabled/<Name>/` — the folder name is what a
    manifest's `plugins` lists (`MatchZy`, `RetakesPlugin`, `RetakesAllocator`,
-   `WeaponPaints`). MatchZy is a release zip; the retakes pair is source under
-   `plugins/vendor/`, and `plugins/vendor/build.sh` writes the same tree for it (its
-   `shared/RetakesPluginShared` goes beside `shared/EZPug.Sdk`, and its
-   `gamedata/panoramamanager.json` beside the plugins folder).
+   `WeaponPaints`). MatchZy and the allocator are release zips; cs2-retakes and the
+   WeaponPaints fork are source under `plugins/vendor/`, and `plugins/vendor/build.sh`
+   writes the same tree for both (retakes' `shared/RetakesPluginShared` goes beside
+   `shared/EZPug.Sdk`; the allocator's `gamedata/panoramamanager.json` and the fork's
+   `gamedata/weaponpaints.json` beside the plugins folder).
 3. Copy each `gamemodes/<id>/cfg/` tree into `game/csgo/cfg/` (the manifests name their
    files as `ezpug/<id>.cfg`, so `gamemodes/pug/cfg/ezpug/pug.cfg` lands at
    `game/csgo/cfg/ezpug/pug.cfg`). The image's entrypoint does exactly this at every boot.
@@ -247,4 +249,5 @@ everything that needs a *link*: no server token exists until a provider allocate
 (T12's node), so `hello`, `assign`, the gamemode loader and the console commands have only
 ever run on the SDK harness. The first linked run, and the first match, are T13's.
 `backup` frames (T9/T14), the scoreboard rating (T27), the skins hand-off (T28) and
-branding beyond the hostname (T29) are the tasks that name them.
+branding beyond the hostname (T29) are the tasks that name them; the first three have since
+run on the dev node.

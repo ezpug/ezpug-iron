@@ -63,6 +63,40 @@ describe('the CS2 server image', () => {
     expect(pug.plugins).toContain('MatchZy')
   })
 
+  it('ships the WeaponPaints fork from the vendored source, with no database anywhere', () => {
+    // PRD-02 T28, decision 20: the one patched vendor. Its loadouts come from the
+    // core plugin over the link, so nothing MySQL-shaped may be left in its tree,
+    // and the image lays it out like every other hot-loaded plugin folder.
+    const build = repo('plugins/vendor/build.sh')
+    expect(dockerfile).toContain('./vendor/build.sh /vendor-out')
+    expect(build).toContain('dotnet build WeaponPaints/WeaponPaints.csproj')
+    expect(build).toContain('$css/plugins/disabled/WeaponPaints')
+    expect(build).toContain('cp WeaponPaints/gamedata/weaponpaints.json "$css/gamedata/"')
+    // Newtonsoft.Json rides beside it (the runtime does not ship it); EZPug.Sdk never does.
+    expect(build).toContain('Newtonsoft.Json.dll')
+    expect(build).toContain('test ! -e "$wp_out/EZPug.Sdk.dll"')
+    const vendored = JSON.parse(repo('plugins/vendor/vendored.json')) as {
+      plugins: { directory: string; patches?: string }[]
+    }
+    const fork = vendored.plugins.find(plugin => plugin.directory === 'WeaponPaints')
+    expect(fork?.patches).toBe('WeaponPaints/PATCHES.md')
+    expect(existsSync(repoUrl(`plugins/vendor/${fork?.patches}`))).toBe(true)
+    const forkDirectory = repoUrl('plugins/vendor/WeaponPaints')
+    for (const file of readdirSync(forkDirectory, { recursive: true, withFileTypes: true })) {
+      if (!file.isFile() || !/\.(cs|csproj)$/.test(file.name)) continue
+      // Code only: PATCHES.md's story is retold in a comment or two, and a comment
+      // naming what was removed is not what was removed.
+      const code = readFileSync(`${file.parentPath}/${file.name}`, 'utf8')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .split('\n')
+        .filter(line => !/^\s*(\/\/|\*)/.test(line))
+        .join('\n')
+      expect(code, `${file.name} still speaks MySQL`).not.toMatch(/MySql|Dapper|MenuManager/)
+    }
+    // The orchestrator only turns the folder on when a loadout is on the roster.
+    expect(repo('apps/orchestrator/src/link/assign.ts')).toContain("SKINS_PLUGIN = 'WeaponPaints'")
+  })
+
   it('never runs as root and opens only the game and GOTV ports', () => {
     expect(dockerfile).toMatch(/^USER steam$/m)
     expect(dockerfile).toMatch(/^HEALTHCHECK /m)

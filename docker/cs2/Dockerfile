@@ -50,10 +50,14 @@ RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     ./publish.sh /out
 
 # ── The vendored community plugins, from their own source ──────────────────
-# cs2-retakes is source under `plugins/vendor/`, at the tag
-# `plugins/vendor/vendored.json` records, built by its own csproj with its own
-# properties (`plugins/vendor/README.md`). It lands in `plugins/disabled/`
-# exactly like MatchZy — installed, never enabled until a manifest names it.
+# cs2-retakes and the WeaponPaints fork are source under `plugins/vendor/`, at
+# the commits `plugins/vendor/vendored.json` records (`plugins/vendor/README.md`):
+# retakes stock, built by its own csproj with its own properties; the fork with
+# its data layer patched to read loadouts from the core plugin over the link
+# (decision 20, `plugins/vendor/WeaponPaints/PATCHES.md`) and built against our
+# pins, which is why this stage follows the one that has EZPug.Sdk. Both land in
+# `plugins/disabled/` exactly like MatchZy — installed, never enabled until a
+# manifest names it (or, for the fork, until a roster entry carries a loadout).
 FROM plugins AS vendorplugins
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     ./vendor/build.sh /vendor-out
@@ -150,12 +154,12 @@ RUN curl -fsSL -o allocator.zip \
     && cp -a allocator/addons/counterstrikesharp/gamedata/. /out/addons/counterstrikesharp/gamedata/ \
     && rm -rf allocator allocator.zip
 
-# cs2-retakes and its shared contract, built from the vendored source by the
-# `vendorplugins` stage. **The slot T28 still fills** is the WeaponPaints
-# data-layer fork, the one plugin this repo patches; until it exists the folder
-# is simply not there and the core plugin's loader warns and skips — an
-# assignment naming a plugin the server does not have is refused by the
-# orchestrator before it is ever sent (T6).
+# cs2-retakes with its shared contract, and the WeaponPaints fork with its
+# `gamedata/weaponpaints.json`, built from the vendored source by the
+# `vendorplugins` stage. No MySQL anywhere in here: the fork's loadouts come
+# over the link (T28). A plugin folder that is not there is still handled — the
+# core plugin's loader warns and skips, and an assignment naming a plugin the
+# server does not have is refused by the orchestrator before it is ever sent (T6).
 COPY --from=vendorplugins /vendor-out/addons/ /out/addons/
 
 # The EZPug tree last, so it wins over anything a vendor put in `shared/`.

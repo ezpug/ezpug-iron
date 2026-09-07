@@ -47,6 +47,7 @@ public sealed class CorePlugin : BasePlugin
     private DemoFlow? _demos;
     private HttpDemoTransport? _demoTransport;
     private RuntimeHost? _host;
+    private RosterLoadouts? _loadouts;
     private IPlatformLink? _link;
     private LinkClient? _client;
     private FileEventBuffer? _buffer;
@@ -108,6 +109,11 @@ public sealed class CorePlugin : BasePlugin
         _world.MapStarted += OnMapStarted;
         _host = new RuntimeHost(_runtime, _log);
         GamemodeHost.Publish(_host);
+        // The skins hand-off (decision 20, T28): the WeaponPaints fork reads a player's
+        // loadout out of this match's profiles through the shared capability, and MySQL
+        // is nowhere in the image.
+        _loadouts = new RosterLoadouts(_runtime, _log);
+        LoadoutSource.Publish(_loadouts);
 
         Logger.LogInformation("EZPug.Core {Version} on EZPug.Sdk {Sdk}; {Paths}; installed plugins: {Plugins}; {Sidecar}",
             HelloFactsBuilder.PluginVersion, SdkInfo.Version, _paths, string.Join(", ", _catalog.Installed), sidecar?.ToString() ?? "unlinked");
@@ -124,6 +130,13 @@ public sealed class CorePlugin : BasePlugin
         if (_host is not null)
         {
             GamemodeHost.Withdraw(_host);
+        }
+
+        if (_loadouts is not null)
+        {
+            LoadoutSource.Withdraw(_loadouts);
+            _loadouts.Dispose();
+            _loadouts = null;
         }
 
         _stopping?.Cancel();

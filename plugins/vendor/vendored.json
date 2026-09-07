@@ -1,5 +1,5 @@
 {
-  "$comment": "The vendored community plugins kept here as **source**, and where each came from (PRD-02 T23, T28). This is the machine-readable home docs/pins.md's 'Vendored at' column copies from, and `scripts/check-pins.mjs` refuses a disagreement. A vendor that publishes a release binary is pinned in `docker/cs2/Dockerfile` instead and is not in this file. Re-vendoring is `rm -rf <dir> && git clone --branch <tag> <repo> <dir> && rm -rf <dir>/.git`, then this file and the table, in one commit.",
+  "$comment": "The vendored community plugins kept here as **source**, and where each came from (PRD-02 T23, T28). This is the machine-readable home docs/pins.md's 'Vendored at' column copies from, and `scripts/check-pins.mjs` refuses a disagreement. A vendor that publishes a release binary is pinned in `docker/cs2/Dockerfile` instead and is not in this file. Re-vendoring is `rm -rf <dir> && git clone --branch <tag> <repo> <dir> && rm -rf <dir>/.git`, then this file and the table, in one commit — and, for the one entry with a `patches` file, re-applying every patch that file lists.",
   "plugins": [
     {
       "directory": "cs2-retakes",
@@ -9,6 +9,16 @@
       "commit": "157d2bbd55a045d09c22258ea2cd337f1b7d5cde",
       "versionHome": "cs2-retakes/RetakesPlugin/RetakesPlugin.cs",
       "versionPattern": "public const string Version = \"3.1.0\";"
+    },
+    {
+      "directory": "WeaponPaints",
+      "repo": "https://github.com/Nereziel/cs2-WeaponPaints",
+      "tag": "build-459",
+      "version": "3.3a",
+      "commit": "fa8936f3959310acf94de410bc5bd0015f34ff24",
+      "versionHome": "WeaponPaints/WeaponPaints.cs",
+      "versionPattern": "public override string ModuleVersion => \"3.3a\";",
+      "patches": "WeaponPaints/PATCHES.md"
     }
   ]
 }

@@ -155,6 +155,57 @@ public class HostHooksTests
     }
 
     [Fact]
+    public void ProfiledFiresOnceTheAssignmentHoldsThePushAndBeforeTheMode()
+    {
+        using var host = new GamemodeTestHost(new PowerupDemo());
+        host.Start(GamemodeTestHost.AssignmentFor(Manifest("powerup-dm"), teamA: [GamemodeTestHost.Player(Tk, "tk", rating: 1000)]));
+        var seen = new List<string>();
+        host.Runtime.Profiled += player =>
+            seen.Add($"{player.Name} rating={host.Runtime.Assignment?.ProfileOf(Tk)?.Rating} loadout={player.Loadout is not null}");
+
+        // A refresh of a rostered player: what the hook reads back through the assignment is
+        // the pushed entry, not the roster's copy (PRD-02 T28: the skins source hangs here).
+        host.Link.PushProfile(GamemodeTestHost.Player(Tk, "tk", rating: 1820) with { Loadout = new Loadout { T = new SideLoadout { Knife = "weapon_knife_karambit" } } });
+        Assert.Equal(["tk rating=1820 loadout=True"], seen);
+
+        // A profile with no match assigned is announced too; there is just nowhere to keep it.
+        host.Link.Release();
+        host.Link.PushProfile(GamemodeTestHost.Player(Tk, "tk"));
+        Assert.Equal(["tk rating=1820 loadout=True", "tk rating= loadout=False"], seen);
+    }
+
+    private sealed class RecordingLoadouts : ILoadoutSource
+    {
+        public Loadout? LoadoutOf(ulong steamId64) => null;
+
+        public event Action<ulong>? LoadoutChanged;
+
+        public void Raise(ulong steamId64) => LoadoutChanged?.Invoke(steamId64);
+    }
+
+    [Fact]
+    public void TheLoadoutCapabilityIsNullSafeAndFollowsThePublisher()
+    {
+        // The skins layer's door (PRD-02 T28), shaped like the gamemode host's: null while
+        // nothing is published, the newest publisher otherwise, and a withdrawn old one is
+        // not first in line.
+        LoadoutSource.Withdraw(LoadoutSource.Current ?? new RecordingLoadouts());
+        Assert.Null(LoadoutSource.Current);
+
+        var first = new RecordingLoadouts();
+        LoadoutSource.Publish(first);
+        Assert.Same(first, LoadoutSource.Find());
+
+        var second = new RecordingLoadouts();
+        LoadoutSource.Publish(second);
+        Assert.Same(second, LoadoutSource.Find());
+        LoadoutSource.Withdraw(first);
+        Assert.Same(second, LoadoutSource.Find());
+        LoadoutSource.Withdraw(second);
+        Assert.Null(LoadoutSource.Current);
+    }
+
+    [Fact]
     public void TheHostCapabilityIsNullSafeAndFollowsThePublisher()
     {
         // Nothing published yet (or withdrawn): the lookup answers null rather than throwing.
