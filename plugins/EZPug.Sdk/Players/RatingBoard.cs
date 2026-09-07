@@ -24,13 +24,15 @@ public sealed class RatingBoard
 {
     private readonly IGameWorld _world;
     private readonly Func<Localizer> _localizer;
+    private readonly Branding _branding;
     private readonly HashSet<ulong> _greeted = [];
     private Assignment? _assignment;
 
-    public RatingBoard(IGameWorld world, Func<Localizer> localizer)
+    public RatingBoard(IGameWorld world, Func<Localizer> localizer, Branding branding)
     {
         _world = world;
         _localizer = localizer;
+        _branding = branding;
     }
 
     /// <summary>Whether this match asked for a rating on its scoreboard.</summary>
@@ -95,7 +97,9 @@ public sealed class RatingBoard
 
         if (greet && _greeted.Add(player.SteamId64) && !player.IsBot)
         {
-            _world.Say(player, Greeting(profile));
+            // Through the branding, like every line the server says: one voice, one
+            // prefix, whoever wrote the words (PRD-02 T29).
+            _branding.Say(player, Greeting(profile));
         }
     }
 

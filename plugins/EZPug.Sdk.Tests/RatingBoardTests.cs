@@ -23,6 +23,12 @@ public class RatingBoardTests
     private const ulong Ada = 76561198000000001;
     private const ulong Ben = 76561198000000002;
 
+    /// <summary>A line as it reaches a player: behind the match's chat prefix, like every line the server says (PRD-02 T29).</summary>
+    private static string Said(string line) => Branding.Prefixed(line);
+
+    /// <summary>The other line a rostered player gets when they arrive — the branding's, in the colour of the side they are on.</summary>
+    private static string TeamLine(string said, string team, char color) => Said($"{said} {ChatColor.Paint(color, team)}.");
+
     [Fact]
     public void ARosteredPlayerArrivesToTheirRatingAndOneLine()
     {
@@ -36,16 +42,20 @@ public class RatingBoardTests
         Assert.Equal(1820, ada.ScoreboardRating);
         // The number is written the way the scoreboard cell writes it — plain, no
         // grouping — so the line and the cell never disagree about the same rating.
-        Assert.Equal(["Willkommen, Ada. Dein EZ Rating: 1820 · Silber III."], host.World.Said[Ada]);
+        Assert.Equal(
+            [Said("Willkommen, Ada. Dein EZ Rating: 1820 · Silber III."), TeamLine("Du spielst für", "Team A", ChatColor.Blue)],
+            host.World.Said[Ada]);
 
         // The other side, in the other language, with no rank to name.
         var ben = host.World.Connect(Ben, "Ben");
         Assert.Equal(2410, ben.ScoreboardRating);
-        Assert.Equal(["Welcome, Ben. Your EZ Rating: 2410."], host.World.Said[Ben]);
+        Assert.Equal(
+            [Said("Welcome, Ben. Your EZ Rating: 2410."), TeamLine("You play for", "Team B", ChatColor.Gold)],
+            host.World.Said[Ben]);
 
-        // One line per connection, however many times the numbers are drawn again.
+        // One greeting per connection, however many times the numbers are drawn again.
         host.World.StartRound();
-        Assert.Single(host.World.Said[Ada]);
+        Assert.Equal(2, host.World.Said[Ada].Count);
         Assert.Equal(1820, ada.ScoreboardRating);
     }
 
@@ -61,7 +71,9 @@ public class RatingBoardTests
 
         var ada = host.World.Connect(Ada, "Ada");
         Assert.Null(ada.ScoreboardRating);
-        Assert.False(host.World.Said.ContainsKey(Ada));
+        // The branding still welcomes them to their team; the rating is what this
+        // manifest did not ask for.
+        Assert.DoesNotContain(host.World.Said[Ada], line => line.Contains("EZ Rating"));
         Assert.DoesNotContain(host.World.Actions, action => action.Verb == "rating");
     }
 
@@ -79,7 +91,7 @@ public class RatingBoardTests
 
         host.Link.PushProfile(Player(Ada, "Ada", Locale.En, rating: 1500, rankName: "Silver III"));
         Assert.Equal(1500, ada.ScoreboardRating);
-        Assert.Equal(["Welcome, Ada. Your EZ Rating: 1500 · Silver III."], host.World.Said[Ada]);
+        Assert.Equal([Said("Welcome, Ada. Your EZ Rating: 1500 · Silver III.")], host.World.Said[Ada]);
 
         // A refreshed rating moves the number and says nothing a second time.
         host.Link.PushProfile(Player(Ada, "Ada", Locale.En, rating: 1560, rankName: "Silver III"));
@@ -97,7 +109,9 @@ public class RatingBoardTests
 
         var ada = host.World.Connect(Ada, "Ada");
         Assert.Null(ada.ScoreboardRating);
-        Assert.Equal(["Welcome, Ada. No EZ Rating yet – this match counts."], host.World.Said[Ada]);
+        Assert.Equal(
+            [Said("Welcome, Ada. No EZ Rating yet – this match counts."), TeamLine("You play for", "Team A", ChatColor.Blue)],
+            host.World.Said[Ada]);
     }
 
     [Fact]
@@ -126,8 +140,9 @@ public class RatingBoardTests
             Manifest("pug"),
             teamA: [Player(Ada, "Ada", rating: 999)]));
         Assert.Equal(999, ada.ScoreboardRating);
-        // Assign is not an arrival: the greeting belongs to a connect or a profile.
-        Assert.False(host.World.Said.ContainsKey(Ada));
+        // Assign is not an arrival: the greeting belongs to a connect or a profile. The
+        // one line an assignment does say is the branding's, which is what it is for.
+        Assert.Equal([TeamLine("Du spielst für", "Team A", ChatColor.Blue)], host.World.Said[Ada]);
     }
 
     [Fact]
@@ -151,8 +166,9 @@ public class RatingBoardTests
             teamA: [Player(Ada, "Ada", rating: 1900)]));
         Assert.Equal(1900, ada.ScoreboardRating);
         host.Link.PushProfile(Player(Ada, "Ada", rating: 1900));
+        var team = TeamLine("Du spielst für", "Team A", ChatColor.Blue);
         Assert.Equal(
-            ["Willkommen, Ada. Dein EZ Rating: 1820.", "Willkommen, Ada. Dein EZ Rating: 1900."],
+            [Said("Willkommen, Ada. Dein EZ Rating: 1820."), team, team, Said("Willkommen, Ada. Dein EZ Rating: 1900.")],
             host.World.Said[Ada]);
     }
 

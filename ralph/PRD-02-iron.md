@@ -699,10 +699,14 @@ every offline proof here.
   > `skins:` console lines, the fork re-reading on the same tick) and not the pixels. The
   > pixel is a human with a client and a loadout on their roster entry, under T36.
 
-- [ ] **T29: Branding and the connect card.** Hostname from `branding.hostname` or a
+- [x] **T29: Branding and the connect card.** Hostname from `branding.hostname` or a
   default per gamemode (`EZPug · pug · Mirage`), event name where given, coloured chat
   prefix and team names through the SDK, a bilingual center card on connect (gamemode,
   what to do, the platform URL). Workshop textures are a later round (decision 22).
+  > note: the chat prefix, the team colours and the card are proved against the world
+  > seam (`FakeGameWorld` records every line and every centre-panel print) and are
+  > **not** proved on a screen — a bot reads neither chat nor the card, so the pixels
+  > wait for a human client under T36.
 
 - [ ] **T30: The chat bridge and the warmup lines.** `chat_message` and `chat_command`
   flow up (the platform's play room is the other window); `announce` commands print in
@@ -775,6 +779,9 @@ every offline proof here.
   > note (T27): while a human is connected to that server, open the scoreboard and look at
   > the EZ Rating cell. It is the one thing T27 could not prove — a bot's ranking is held
   > at 0 by the engine, so the dev node proved the write and not the number.
+  > note (T29): while that human is connected, read the chat prefix, the line naming
+  > their team's colour and the centre card two seconds after they load. Same reason:
+  > a bots run proves what the plugin printed and never what a player saw.
 
 - [ ] **T37: The LAN rehearsal.** `ezpug-node` on this box enrolled against the
   **production** orchestrator with the ghcr image; a `requirements.lan` request lands on

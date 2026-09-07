@@ -120,7 +120,7 @@ naming one does not parse:
 
 | Cvar | Whose |
 | ---- | ----- |
-| `hostname` | the request's `branding.hostname`, or the orchestrator's default |
+| `hostname` | the request's `branding.hostname`, or the SDK's default — `EZPug · <event> · <mode> · <Map>` (`docs/sdk.md`, "Branding") |
 | `sv_password`, `tv_password`, `tv_relaypassword` | the orchestrator's — they are the connect facts it hands the client |
 | `rcon_password` | the orchestrator's, and never leaves it |
 | `sv_setsteamaccount` | the GSLT the orchestrator leases per running server |

@@ -48,8 +48,8 @@ public class PowerupDmTests
         var tk = world.Connect(Tk, "tk", PlayerTeam.Terrorist);
         var maex = world.Connect(Maex, "maex", PlayerTeam.CounterTerrorist);
         var bot = world.Connect(Bot, "Bot Cliff", PlayerTeam.Terrorist, bot: true);
-        Assert.Contains("Ein Power-up pro Leben: tipp auf dem Handy oder schreib !powerup speed, !powerup armor, !powerup radar_peek.", world.Said[Tk]);
-        Assert.Contains("One power-up per life: tap on your phone, or type !powerup speed, !powerup armor, !powerup radar_peek.", world.Said[Maex]);
+        Assert.Contains(Branding.Prefixed("Ein Power-up pro Leben: tipp auf dem Handy oder schreib !powerup speed, !powerup armor, !powerup radar_peek."), world.Said[Tk]);
+        Assert.Contains(Branding.Prefixed("One power-up per life: tap on your phone, or type !powerup speed, !powerup armor, !powerup radar_peek."), world.Said[Maex]);
 
         // Alive is the price of a power-up; a corpse pays nothing for asking.
         var early = link.PlayerCommand(Tk, PowerupDm.Verb, Kind(PowerupDm.SpeedKind));
@@ -62,7 +62,7 @@ public class PowerupDmTests
         var speed = link.PlayerCommand(Tk, PowerupDm.Verb, Kind(PowerupDm.SpeedKind));
         Assert.Equal((LinkCommandStatus.Applied, 0L), (speed.Status, speed.ChargesLeft));
         Assert.Contains(new WorldAction("speed", Tk, "1.35"), world.Actions);
-        Assert.Contains("Power-up aktiv: Tempo.", world.Said[Tk]);
+        Assert.Contains(Branding.Prefixed("Power-up aktiv: Tempo."), world.Said[Tk]);
         Assert.Contains("TEMPO", world.Centered[Tk]);
         var claimed = Assert.Single(link.EventsOf<PluginEvent>());
         Assert.Equal((PowerupDm.ClaimedEvent, Tk.ToString(), PowerupDm.SpeedKind),
@@ -77,7 +77,7 @@ public class PowerupDmTests
 
         // `armor`, from chat, in English — `!powerup armor` is the phone's `{ "kind": "armor" }`.
         world.SayAs(maex, "!powerup armor");
-        Assert.Contains("Power-up on: armor.", world.Said[Maex]);
+        Assert.Contains(Branding.Prefixed("Power-up on: armor."), world.Said[Maex]);
         Assert.Contains(new WorldAction("armor", Maex, "100"), world.Actions);
 
         // A death drops the speed and refills the charge on the next spawn.
@@ -89,8 +89,8 @@ public class PowerupDmTests
 
         // Release: goodbye in each language, nothing left ticking.
         link.Release("ended: completed");
-        Assert.Contains("Danke fürs Spielen!", world.Said[Tk]);
-        Assert.Contains("Thanks for playing!", world.Said[Maex]);
+        Assert.Contains(Branding.Prefixed("Danke fürs Spielen!"), world.Said[Tk]);
+        Assert.Contains(Branding.Prefixed("Thanks for playing!"), world.Said[Maex]);
         Assert.Equal(0, host.Clock.Pending);
     }
 

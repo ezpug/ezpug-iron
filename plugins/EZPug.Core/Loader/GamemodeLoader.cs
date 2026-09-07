@@ -8,9 +8,9 @@ namespace EZPug.Core;
 /// <summary>
 /// <b>The gamemode loader</b> (decision 16): on <c>assign</c>, write each vendored
 /// plugin's own config where CounterStrikeSharp will read it (<see cref="PluginConfigsDirectory"/>),
-/// enable exactly the plugin folders the assignment names, set the hostname and go to the
-/// first map; when that map
-/// is up (the runtime's <c>MapLoaded</c>, before <c>server_ready</c>), exec the mode's cfg,
+/// enable exactly the plugin folders the assignment names, set the hostname the SDK's
+/// <see cref="Branding.HostnameFor(Assignment, string)"/> decided and go to the first map;
+/// when that map is up (the runtime's <c>MapLoaded</c>, before <c>server_ready</c>), exec the mode's cfg,
 /// and then — a beat later, in a console frame of its own, because the engine reconciles a
 /// cvar once per frame and two writes in one net out (<see cref="CvarSettleMs"/>) — set the
 /// flat cvars, and for a <c>matchzy</c> flow write the match config (the
@@ -101,7 +101,7 @@ public sealed class GamemodeLoader
     {
         var map = MapFor(assignment);
         _matchLoaded = false;
-        _world.SetCvar("hostname", HostnameFor(assignment, map));
+        _world.SetCvar("hostname", Branding.HostnameFor(assignment, map));
 
         // Before the first `css_plugins load`, never after: CounterStrikeSharp reads a
         // plugin's config once, while it loads it, and a file that lands a frame later is
@@ -191,7 +191,7 @@ public sealed class GamemodeLoader
 
         var path = Path.Combine(_csgoDirectory, MatchConfigFile);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, WithHostnameFormat(config, HostnameFor(assignment, map)).ToJsonString(ProtocolJson.Options));
+        File.WriteAllText(path, WithHostnameFormat(config, Branding.HostnameFor(assignment, map)).ToJsonString(ProtocolJson.Options));
         _world.ExecCommand($"matchzy_loadmatch {MatchConfigFile}");
         _matchLoaded = true;
 
@@ -364,16 +364,5 @@ public sealed class GamemodeLoader
 
         _writtenConfigs.Clear();
         _world.ChangeLevel(LobbyMap);
-    }
-
-    /// <summary>The request's hostname, or <c>EZPug · &lt;mode&gt; · &lt;Map&gt;</c> (branding proper — event name, chat, the card — is PRD-02 T29).</summary>
-    public static string HostnameFor(Assignment assignment, string map) =>
-        assignment.Branding.Hostname is { Length: > 0 } hostname ? hostname : $"EZPug · {assignment.Gamemode.Id} · {PrettyMap(map)}";
-
-    /// <summary><c>de_mirage</c> → <c>Mirage</c>; a workshop id stays as it is.</summary>
-    public static string PrettyMap(string map)
-    {
-        var name = map.Contains('_') ? map[(map.IndexOf('_') + 1)..] : map;
-        return name.Length == 0 ? map : char.ToUpperInvariant(name[0]) + name[1..];
     }
 }

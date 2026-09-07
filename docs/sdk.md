@@ -121,6 +121,37 @@ Helpers on the base: `World`, `Link`, `Clock`, `Localizer`, `Facts`, `Match`,
 `SayAll`, `PrintCenter` (all localized per player); `PlayerState<T>(factory)`; `After`,
 `Every`.
 
+### Branding: the hostname, the voice, the card
+
+A mode writes nothing for this either. The runtime's `Branding` (`Runtime.Brand`) turns
+the request's `branding` block and the manifest into the four places a player sees the
+match (decision 22; in-world banners need a Workshop addon and are a later round):
+
+| Where | What |
+| ----- | ---- |
+| the server browser | `branding.hostname` when the request named one, else `EZPug · <event> · <mode> · <Map>` — the event only where `branding.eventName` was given. Clamped to 63 characters. The loader sets it on `assign` and writes the same string into `matchzy_hostname_format`, because MatchZy rewrites `hostname` from that cvar every round |
+| every line the server says | `[EZPug] …` — the event's name in place of `EZPug` where there is one, green, in front of the text. `Say`/`SayAll` in a mode, the rating connect line and a refused player command all go through it, so the server has one voice |
+| a team's name in chat | `Brand.TeamName(MatchTeam.TeamA)` — the roster's name in the colour of the side that team is on right now (CT blue, T gold), which a `side_swap` moves with the players |
+| the middle of the screen | a four-line card two seconds after a player is fully connected: the event or `EZPug`, this gamemode's title from its manifest, the one thing to do now, and `ezpug.com` |
+
+The card and the team line are bilingual, per player, German by default, like everything a
+human reads (`branding.team`, `branding.card.ready`, `branding.card.widget`,
+`branding.card.enjoy` in the SDK's catalog). What the card asks of a player follows the
+manifest: `.ready` for a `matchzy` flow, the phone for a mode with player commands or a
+widget, and otherwise nothing but "have fun". A free-for-all (`slots.teams: 1`) is told no
+team, because it has none; somebody who joined open is told none either, until a `profile`
+arrives — and a bot is told nothing at all.
+
+Two things deliberately do **not** carry the prefix: a client's `announce` command and
+`ezpug_announce` on the console. Those are the platform's own words relayed to the server,
+and the platform brands them itself.
+
+A name that arrives from outside — an event, a team, a hostname — is passed through
+`ChatColor.Strip` before it is pasted into one of ours, and the card's markup is escaped,
+so nobody colours the rest of a chat line or breaks the panel by what they called their
+team. `ChatColor` holds the engine's palette as code points; the card is HTML, because
+that is what the centre panel reads.
+
 ### EZ Rating on the scoreboard
 
 A mode writes nothing for this. When the manifest's `scoreboardRating` capability is on,

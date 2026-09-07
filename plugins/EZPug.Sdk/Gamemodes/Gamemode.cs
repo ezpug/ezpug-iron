@@ -42,6 +42,8 @@ public abstract class Gamemode
     protected IClock Clock => Runtime.World.Clock;
     protected Localizer Localizer => Runtime.Localizer;
     protected Facts Facts => Runtime.Facts;
+    /// <summary>The match's branding: the chat prefix every line here carries, and the two team names in their sides' colours (PRD-02 T29).</summary>
+    protected Branding Brand => Runtime.Brand;
     protected MatchContext Match => Runtime.Match;
     /// <summary>The current assignment, or <c>null</c> between matches.</summary>
     protected Assignment? Assignment => Runtime.Assignment;
@@ -127,15 +129,15 @@ public abstract class Gamemode
     /// <summary>The lines in this player's language: <c>Lines(player)["powerup.landed", kind]</c>.</summary>
     protected LocalizedLines Lines(IGamePlayer player) => Localizer.For(LocaleOf(player));
 
-    /// <summary>Say a localized line to one player.</summary>
-    protected void Say(IGamePlayer player, string key, params object[] args) => World.Say(player, Lines(player)[key, args]);
+    /// <summary>Say a localized line to one player, behind the match's chat prefix.</summary>
+    protected void Say(IGamePlayer player, string key, params object[] args) => Brand.Say(player, Lines(player)[key, args]);
 
     /// <summary>Say a localized line to everybody, each in their own language.</summary>
     protected void SayAll(string key, params object[] args)
     {
         foreach (var player in World.Players.Where(player => !player.IsBot))
         {
-            World.Say(player, Lines(player)[key, args]);
+            Brand.Say(player, Lines(player)[key, args]);
         }
     }
 

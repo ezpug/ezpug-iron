@@ -52,4 +52,16 @@
   <data name="rating.connect.unrated" xml:space="preserve">
     <value>Willkommen, {0}. Noch kein EZ Rating – dieses Match zählt.</value>
   </data>
+  <data name="branding.team" xml:space="preserve">
+    <value>Du spielst für {0}.</value>
+  </data>
+  <data name="branding.card.ready" xml:space="preserve">
+    <value>Schreib .ready in den Chat, wenn du bereit bist.</value>
+  </data>
+  <data name="branding.card.widget" xml:space="preserve">
+    <value>Öffne dein Match auf {0} – deine Aktionen laufen über das Handy.</value>
+  </data>
+  <data name="branding.card.enjoy" xml:space="preserve">
+    <value>Viel Spaß.</value>
+  </data>
 </root>

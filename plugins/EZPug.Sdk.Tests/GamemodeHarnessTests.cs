@@ -45,8 +45,8 @@ public class GamemodeHarnessTests
         world.Connect(1, "Bot Cliff", PlayerTeam.Terrorist, bot: true);
         Assert.Equal(["server_ready", "player_connected", "player_connected"], link.EventTypes);
         Assert.All(link.EventsOf<PlayerConnectedEvent>(), connected => Assert.Equal(ServerSlot.TeamA, connected.Player.Team));
-        Assert.Contains("Ein Power-up pro Leben – tipp auf dem Handy oder schreib !powerup speed.", world.Said[Tk]);
-        Assert.Contains("One power-up per life – tap on your phone or type !powerup speed.", world.Said[Maex]);
+        Assert.Contains(Branding.Prefixed("Ein Power-up pro Leben – tipp auf dem Handy oder schreib !powerup speed."), world.Said[Tk]);
+        Assert.Contains(Branding.Prefixed("One power-up per life – tap on your phone or type !powerup speed."), world.Said[Maex]);
 
         // A tap that lands: the SDK checked the args, the charge; the mode did the thing in German.
         world.Spawn(tk);
@@ -54,7 +54,7 @@ public class GamemodeHarnessTests
         Assert.Equal(LinkCommandStatus.Applied, landed.Status);
         Assert.Equal(0, landed.ChargesLeft);
         Assert.Contains(new WorldAction("speed", Tk, "1.4"), world.Actions);
-        Assert.Contains("Power-up aktiv: Tempo.", world.Said[Tk]);
+        Assert.Contains(Branding.Prefixed("Power-up aktiv: Tempo."), world.Said[Tk]);
         var claimed = Assert.Single(link.EventsOf<PluginEvent>());
         Assert.Equal("powerup_claimed", claimed.Name);
         Assert.Equal("speed", claimed.Data["kind"]!.GetValue<string>());
@@ -77,7 +77,7 @@ public class GamemodeHarnessTests
         // The chat door: `!powerup` is the same verb, answered in chat; conversation is relayed as it is.
         world.Spawn(maex);
         world.SayAs(maex, "!powerup radar_peek");
-        Assert.Contains("Power-up on: radar peek.", world.Said[Maex]);
+        Assert.Contains(Branding.Prefixed("Power-up on: radar peek."), world.Said[Maex]);
         // The chat door built the phone's `{ "kind": "radar_peek" }` from the words after
         // the verb (`ArgsValidator.FromChat`), so the mode pushed the peek at maex's phone.
         var peek = Assert.Single(link.Pushes);
@@ -103,6 +103,8 @@ public class GamemodeHarnessTests
 
         // Commands from the platform: the runtime answers what it can, the mode the rest.
         Assert.Equal(LinkCommandStatus.Applied, link.Command(new AnnounceCommand { CorrelationId = "c1", Text = "GLHF" })!.Status);
+        // A client's announce is the client's words, relayed: the branding does not
+        // put its prefix in front of a line the platform wrote (PRD-02 T29).
         Assert.Contains("GLHF", world.Broadcasts);
         Assert.Equal(LinkCommandStatus.Applied, link.Command(new KickCommand { CorrelationId = "c2", SteamId64 = Maex.ToString(), Reason = "afk" })!.Status);
         Assert.Null(world.Find(Maex));
@@ -114,7 +116,7 @@ public class GamemodeHarnessTests
         // Release: the mode says goodbye, timers and state are gone, the server is idle.
         world.Kill(tk, null, weapon: "world");
         link.Release("ended: completed");
-        Assert.Contains("Danke fürs Spielen!", world.Said[Tk]);
+        Assert.Contains(Branding.Prefixed("Danke fürs Spielen!"), world.Said[Tk]);
         Assert.Equal(LinkServerState.Idle, link.States[^1].State);
         Assert.Equal("ended: completed", link.States[^1].Detail);
         Assert.Null(host.Runtime.Assignment);

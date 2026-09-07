@@ -56,7 +56,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Localizer = new Localizer();
         Facts = new Facts(() => Match, () => Link.Source ?? new GameserverSource { Provider = "unknown", ServerId = "unknown" }, () => Assignment);
         Flow = new GenericFlow(world, this, _log);
-        Ratings = new RatingBoard(world, () => Localizer);
+        Brand = new Branding(world, () => Localizer, Match);
+        Ratings = new RatingBoard(world, () => Localizer, Brand);
         link.Handler = this;
         world.MapStarted += OnMapStarted;
         world.PlayerConnected += OnPlayerConnected;
@@ -84,6 +85,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>EZ Rating on the scoreboard and the line that greets a player with it, when the manifest asks for them (PRD-02 T27).</summary>
     public RatingBoard Ratings { get; }
+
+    /// <summary>The hostname, the chat prefix, the team colours and the connect card (decision 22, PRD-02 T29). Every line the SDK says goes through it.</summary>
+    public Branding Brand { get; }
 
     public Assignment? Assignment { get; private set; }
     public CommandTable? Commands { get; private set; }
@@ -307,6 +311,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         _ready = false;
         _mapAskedAtMs = null;
         Flow.OnAssigned(assignment);
+        // The voice before anything speaks with it: the rating greeting a connect fires
+        // carries this match's prefix, not the last one's.
+        Brand.OnAssigned(assignment);
         Ratings.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
@@ -371,6 +378,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             var released = reason;
             Flow.OnReleased();
             Ratings.OnReleased();
+            Brand.OnReleased();
             Assignment = null;
             Match.Clear();
             _mapReady = false;
@@ -555,6 +563,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         }
 
         Ratings.OnPlayerConnected(player);
+        Brand.OnPlayerConnected(player);
         Active?.OnPlayerJoined(player);
     }
 
@@ -571,6 +580,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         }
 
         Ratings.OnPlayerDisconnected(player);
+        Brand.OnPlayerDisconnected(player);
         Active?.OnPlayerLeft(player);
         Commands?.Forget(player.SteamId64);
         foreach (var leave in _playerLeavers)
@@ -693,7 +703,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
                     var verdict = RunPlayerCommand(line.Player, command.Name, ArgsValidator.FromChat(Commands.SchemaOf(command.Name), command.Args));
                     if (verdict.Message is { } message)
                     {
-                        World.Say(line.Player, message);
+                        Brand.Say(line.Player, message);
                     }
                 }
 

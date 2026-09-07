@@ -471,12 +471,4 @@ public class GamemodeLoaderTests
         Assert.Contains(withToml.Log.Lines, line => line.StartsWith("warn: RetakesPlugin has a RetakesPlugin.toml beside its config"));
         Assert.True(File.Exists(withToml.PluginConfigPath("RetakesPlugin")));
     }
-
-    [Theory]
-    [InlineData("de_mirage", "Mirage")]
-    [InlineData("cs_office", "Office")]
-    [InlineData("ar_shoots", "Shoots")]
-    [InlineData("3070923343", "3070923343")]
-    [InlineData("de_", "de_")]
-    public void MapsArePrettiedForTheHostname(string map, string pretty) => Assert.Equal(pretty, GamemodeLoader.PrettyMap(map));
 }

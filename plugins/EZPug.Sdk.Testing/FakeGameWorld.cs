@@ -65,6 +65,8 @@ public sealed class FakeGameWorld : IGameWorld
     public List<string> Broadcasts { get; } = [];
     public Dictionary<ulong, List<string>> Said { get; } = new();
     public Dictionary<ulong, List<string>> Centered { get; } = new();
+    /// <summary>Every centre-panel card printed to a player, as the markup the engine would read.</summary>
+    public Dictionary<ulong, List<string>> Hudded { get; } = new();
 
     /// <summary>
     /// Every action as it is taken, for a test that has to stand <i>between</i> two of
@@ -102,7 +104,11 @@ public sealed class FakeGameWorld : IGameWorld
         Record(new WorldAction("center", player.SteamId64, text));
     }
 
-    public void PrintHud(IGamePlayer player, string text) => Record(new WorldAction("hud", player.SteamId64, text));
+    public void PrintHud(IGamePlayer player, string text)
+    {
+        Hudded.GetOrAdd(player.SteamId64).Add(text);
+        Record(new WorldAction("hud", player.SteamId64, text));
+    }
 
     public void PrintConsole(IGamePlayer player, string text) => Record(new WorldAction("console", player.SteamId64, text));
 
