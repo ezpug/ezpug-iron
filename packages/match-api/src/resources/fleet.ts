@@ -86,6 +86,15 @@ export const ledgerFilterSchema = z.object({
   state: fleetServerStateSchema.optional(),
   provider: kebabNameSchema.optional(),
   matchId: matchIdSchema.optional(),
+  /**
+   * **What tonight cost** (PRD-02 T31): every row that was open at or after
+   * this instant — still open now, or released at or after it. The window a
+   * cost is asked over, not the window a row was born in: a server allocated
+   * before midnight and running past it is part of tonight's bill, and the
+   * month's spend (`GET /v1/fleet/budget`) is this same read with the first
+   * of the month as `since`.
+   */
+  since: timestampSchema.optional(),
 })
 export type LedgerFilter = z.infer<typeof ledgerFilterSchema>
 

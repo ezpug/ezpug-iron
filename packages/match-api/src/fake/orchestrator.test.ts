@@ -19,6 +19,7 @@ import {
   T0,
   WEBHOOK_SECRET,
   WEBHOOK_SECRET_ID,
+  WEBHOOK_URL,
 } from './testing'
 
 let harness: Harness | undefined
@@ -995,6 +996,66 @@ describe('the fleet', () => {
     const matches = await client.matches.list({ query: { state: 'live' } })
     expect(matches.items.map(m => m.clientMatchId)).toEqual(['two', 'one'])
     expect((await client.matches.list({ query: { clientMatchId: 'one' } })).items).toHaveLength(1)
+  })
+
+  it("sends the fleet facts to the key's fleet webhook and reads the ledger by since", async () => {
+    const h = setup({
+      providers: { sim: { hourlyCents: 60 } },
+      budget: { maxConcurrentServers: 1, maxServerLifetimeMinutes: 240, monthlyCents: 100_000 },
+    })
+    const client = h.fake.client(h.platform.secret)
+    const admin = h.fake.client(h.fake.admin.secret)
+
+    // A secret nobody registered cannot sign anything: refuse the endpoint
+    // rather than deliver with a `kid` no verifier knows.
+    expect(
+      (
+        await refusal(
+          admin.keys.setFleetWebhook({
+            params: { keyId: h.platform.key.id },
+            body: { fleetWebhook: { url: 'https://platform.invalid/fleet', secretId: 'nope' } },
+          }),
+        )
+      ).code,
+    ).toBe('validation_failed')
+    const patched = await admin.keys.setFleetWebhook({
+      params: { keyId: h.platform.key.id },
+      body: {
+        fleetWebhook: { url: 'https://platform.invalid/fleet', secretId: WEBHOOK_SECRET_ID },
+      },
+    })
+    expect(patched.fleetWebhook?.url).toBe('https://platform.invalid/fleet')
+
+    const match = await client.matches.create({ body: pugRequest({ clientMatchId: 'fleet' }) })
+    await h.clock.advance(10 * 60_000)
+    await h.fake.settle()
+    const byUrl = (url: string): string[] =>
+      h.fake
+        .deliveries(match.id)
+        .filter(attempt => attempt.url === url)
+        .map(attempt => attempt.envelope.payload.type)
+    expect(byUrl('https://platform.invalid/fleet')).toContain('fleet.budget_threshold')
+    expect(byUrl(WEBHOOK_URL)).not.toContain('fleet.budget_threshold')
+    // Same envelope, same signature scheme — the fleet secret signs it.
+    const attempt = h.fake
+      .deliveries(match.id)
+      .find(a => a.envelope.payload.type === 'fleet.budget_threshold')
+    expect(attempt?.headers[WEBHOOK_SIGNATURE_HEADER]).toContain(`kid=${WEBHOOK_SECRET_ID}`)
+    // The events route still has it, whoever it was POSTed to.
+    expect(types(await allEvents(h, match.id))).toContain('fleet.budget_threshold')
+
+    // `since` is the cost window: the open row is in it however long ago it started.
+    const now = new Date(h.clock.now()).toISOString()
+    expect((await admin.fleet.ledger({ query: { since: now } })).items).toHaveLength(1)
+    await client.matches.command({
+      params: { matchId: match.id },
+      body: { type: 'force_end', correlationId: 'fleet-end', reason: 'the ledger closes' },
+    })
+    await h.fake.settle()
+    await h.clock.advance(60_000)
+    const after = new Date(h.clock.now()).toISOString()
+    expect((await admin.fleet.ledger({ query: { since: after } })).items).toEqual([])
+    expect((await admin.fleet.ledger({ query: { since: now } })).items).toHaveLength(1)
   })
 
   it('serves the catalog and the manifests', async () => {

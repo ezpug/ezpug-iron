@@ -23,17 +23,15 @@ function toRecord(row: KeyRow, secrets: readonly SecretRow[]): KeyRecord {
       monthlyCents: row.budgetMonthlyCents,
     },
     webhookSecretIds: [...webhookSecrets.keys()],
+    fleetWebhook:
+      row.fleetWebhookUrl && row.fleetWebhookSecretId
+        ? { url: row.fleetWebhookUrl, secretId: row.fleetWebhookSecretId }
+        : null,
     createdAt: row.createdAt.toISOString(),
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
   }
-  return {
-    key,
-    secretHash: row.secretHash,
-    webhookSecrets,
-    fleetWebhookUrl: row.fleetWebhookUrl,
-    fleetWebhookSecretId: row.fleetWebhookSecretId,
-  }
+  return { key, secretHash: row.secretHash, webhookSecrets }
 }
 
 /**
@@ -77,6 +75,8 @@ export function createPostgresKeyStore(executor: DatabaseExecutor): KeyStore {
             budgetMaxConcurrentServers: input.budget.maxConcurrentServers,
             budgetMaxServerLifetimeMinutes: input.budget.maxServerLifetimeMinutes,
             budgetMonthlyCents: input.budget.monthlyCents,
+            fleetWebhookUrl: input.fleetWebhook?.url ?? null,
+            fleetWebhookSecretId: input.fleetWebhook?.secretId ?? null,
             createdAt: input.createdAt,
           })
           if (input.webhookSecrets.length > 0)
@@ -138,6 +138,19 @@ export function createPostgresKeyStore(executor: DatabaseExecutor): KeyStore {
           )
       })
       return one(existing)
+    },
+
+    setFleetWebhook: async (id, fleetWebhook) => {
+      const existing = (await executor.select().from(apiKeys).where(eq(apiKeys.id, id)))[0]
+      if (!existing) return undefined
+      await executor
+        .update(apiKeys)
+        .set({
+          fleetWebhookUrl: fleetWebhook?.url ?? null,
+          fleetWebhookSecretId: fleetWebhook?.secretId ?? null,
+        })
+        .where(eq(apiKeys.id, id))
+      return one((await executor.select().from(apiKeys).where(eq(apiKeys.id, id)))[0])
     },
 
     rotateSecret: async (id, secret) => {

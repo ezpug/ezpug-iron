@@ -6,6 +6,7 @@ import {
   type ApiKeyCreated,
   type ApiKeyCreateRequest,
   type BudgetPatchRequest,
+  type FleetWebhookRequest,
   MATCH_API_ERROR_STATUS,
   type WebhookSecretsRequest,
 } from '@ezpug/match-api'
@@ -41,8 +42,6 @@ export interface KeysOptions {
 export interface AuthenticatedKey {
   readonly key: ApiKey
   readonly webhookSecrets: ReadonlyMap<string, string>
-  readonly fleetWebhookUrl: string | null
-  readonly fleetWebhookSecretId: string | null
 }
 
 export interface Keys {
@@ -76,6 +75,12 @@ export interface Keys {
   setBudget: (id: string, patch: BudgetPatchRequest) => Promise<ApiKey>
   /** Replace the registered webhook secrets; `not_found` for an unknown id. */
   setWebhookSecrets: (id: string, request: WebhookSecretsRequest) => Promise<ApiKey>
+  /**
+   * Register (or clear) where the key's `fleet.*` facts go (T31).
+   * `not_found` for an unknown id, `validation_failed` when the `secretId` is
+   * not one the key registered.
+   */
+  setFleetWebhook: (id: string, request: FleetWebhookRequest) => Promise<ApiKey>
   get: (id: string) => Promise<AuthenticatedKey | undefined>
 }
 
@@ -88,12 +93,7 @@ function notFound(id: string): ApiError {
 }
 
 function toAuthenticated(record: KeyRecord): AuthenticatedKey {
-  return {
-    key: record.key,
-    webhookSecrets: record.webhookSecrets,
-    fleetWebhookUrl: record.fleetWebhookUrl,
-    fleetWebhookSecretId: record.fleetWebhookSecretId,
-  }
+  return { key: record.key, webhookSecrets: record.webhookSecrets }
 }
 
 export function createKeys(options: KeysOptions): Keys {
@@ -123,6 +123,7 @@ export function createKeys(options: KeysOptions): Keys {
         scopes: request.scopes,
         budget: request.budget,
         webhookSecrets: request.webhookSecrets,
+        fleetWebhook: request.fleetWebhook ?? null,
         createdAt: clock.date(),
       })
       return { key: record.key, secret }
@@ -197,6 +198,26 @@ export function createKeys(options: KeysOptions): Keys {
 
     async setWebhookSecrets(id, request) {
       const record = await store.replaceWebhookSecrets(id, request.secrets, clock.date())
+      if (!record) throw notFound(id)
+      return record.key
+    },
+
+    /**
+     * The `secretId` has to be one the key registered: an endpoint whose
+     * envelopes are signed with a `kid` no verifier knows fails silently at
+     * three in the morning, and a refusal now is the whole of the cure.
+     */
+    async setFleetWebhook(id, request) {
+      const existing = await store.findById(id)
+      if (!existing) throw notFound(id)
+      const { fleetWebhook } = request
+      if (fleetWebhook && !existing.webhookSecrets.has(fleetWebhook.secretId))
+        throw new ApiError(
+          MATCH_API_ERROR_STATUS.validation_failed,
+          'validation_failed',
+          `no webhook secret ${fleetWebhook.secretId} is registered on API key ${id}`,
+        )
+      const record = await store.setFleetWebhook(id, fleetWebhook, clock.date())
       if (!record) throw notFound(id)
       return record.key
     },

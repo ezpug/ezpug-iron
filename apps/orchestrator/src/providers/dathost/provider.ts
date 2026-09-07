@@ -530,6 +530,18 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
     id: DATHOST_PROVIDER_ID,
 
     /**
+     * **The health probe** (T31): `GET /account`, the cheapest authenticated
+     * read Dathost has. It touches nothing, so a probe loop may run it every
+     * half minute, and it fails exactly when the thing an operator cares
+     * about fails — the credentials, the API, the network between us and it.
+     * Reading the template instead would confuse "Dathost is down" with
+     * "somebody deleted the template", which is a different alarm.
+     */
+    async probe(): Promise<void> {
+      await send('GET', '/account', { idempotent: true })
+    },
+
+    /**
      * One offering: what the template says a clone of it costs and can do.
      * Cloud capacity is unbounded as far as this adapter knows — the wall is
      * the API key's budget (T5), not a number Dathost publishes.

@@ -28,6 +28,7 @@ import { createNodeRegistry, type NodeRegistry } from './nodes/registry'
 import { createNodes, type Nodes } from './nodes/service'
 import { createDathostProvider, DATHOST_PROVIDER_ID } from './providers/dathost/provider'
 import { createNodesProvider, type NodesProvider } from './providers/nodes/provider'
+import { createProbes, type Probes } from './providers/probes'
 import { createReaper, type Reaper } from './providers/reaper'
 import { createProviderRegistry, type ProviderRegistry } from './providers/registry'
 import { createSimProvider } from './providers/sim/provider'
@@ -85,6 +86,8 @@ export interface Orchestrator {
   readonly widgets: WidgetService
   readonly webhooks: WebhookWorker
   readonly reaper: Reaper
+  /** The provider health loop (T31). */
+  readonly probes: Probes
   /** The Steam login tokens rented servers need (T17). */
   readonly gslt: GsltPool
   readonly upgrades: UpgradeRouter
@@ -189,9 +192,14 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     hub,
     webhooks,
     budget: budgets,
+    keys,
     baseUrl: config.baseUrl,
   })
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
+  // The health loop behind `GET /v1/fleet/providers` (T31): it keeps the
+  // registry's `healthy`/`lastError` fresh, so the route is a read and the
+  // first fact of an outage does not wait for a match request to hit it.
+  const probes = createProbes({ clock, log, registry: providers, store, matches })
 
   // **The GSLT pool** (T17): the Steam accounts a rented server logs in
   // with. Always built — `GET /v1/fleet/gslt` is a route whether or not a
@@ -291,11 +299,15 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     clock,
     database: () => database.ping(),
     redis: () => redis.ping(),
+    // The same question the probe loop asks (T31), asked again live: an
+    // orchestrator whose Dathost credentials stopped working is not healthy,
+    // and `offerings()` would answer off its own cache and hide it.
     providers: Object.fromEntries(
       providers.all().map(provider => [
         provider.id,
         async () => {
-          await provider.offerings()
+          if (provider.probe) await provider.probe()
+          else await provider.offerings()
         },
       ]),
     ),
@@ -403,6 +415,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
         },
       },
       reaper,
+      probes,
       budgets,
       gslt,
       webhooks,
@@ -431,6 +444,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     widgets,
     webhooks,
     reaper,
+    probes,
     gslt,
     upgrades,
     app,
@@ -442,6 +456,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       await nodesProvider?.topUp()
       webhooks.start()
       reaper.start()
+      probes.start()
       budgets.start()
       gslt.start()
     },

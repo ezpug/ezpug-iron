@@ -230,7 +230,14 @@ export function createMemoryMatchStore(options: { deployment?: string } = {}): M
           newestFirst(servers)
             .filter(row => filter.state === undefined || row.state === filter.state)
             .filter(row => filter.provider === undefined || row.provider === filter.provider)
-            .filter(row => filter.matchId === undefined || row.matchId === filter.matchId),
+            .filter(row => filter.matchId === undefined || row.matchId === filter.matchId)
+            // The cost window: open now, or closed inside it (`ledgerFilterSchema`).
+            .filter(
+              row =>
+                filter.since === undefined ||
+                row.releasedAt === null ||
+                row.releasedAt.getTime() >= Date.parse(filter.since),
+            ),
           offset,
           limit,
         ),

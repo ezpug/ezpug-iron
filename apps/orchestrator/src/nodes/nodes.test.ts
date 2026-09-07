@@ -370,6 +370,19 @@ describe('capacity', () => {
   })
 })
 
+describe('the health probe (T31)', () => {
+  it('is healthy while a node is on the wire, unreachable when every enrolled one is gone', async () => {
+    const rig = await createNodeRig()
+    // Nothing enrolled: nothing is failing, there is simply no venue.
+    await expect(rig.provider.probe?.()).resolves.toBeUndefined()
+    const node = await rig.enrol('devbox')
+    await expect(rig.provider.probe?.()).resolves.toBeUndefined()
+    await node.close()
+    await rig.settle()
+    await expect(rig.provider.probe?.()).rejects.toThrow(/no node is on the wire: 1 enrolled/)
+  })
+})
+
 describe('a cold match', () => {
   it('starts a container with the walk’s token, and that container is the match’s server', async () => {
     const rig = await createNodeRig()

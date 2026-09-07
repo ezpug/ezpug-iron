@@ -301,6 +301,7 @@ describe('deadlines', () => {
       hub: app.hub,
       webhooks: app.webhooks,
       budget: app.budgets,
+      keys: app.keys,
       baseUrl: 'http://localhost:3430',
     })
     await revived.resume()
@@ -584,6 +585,7 @@ describe('recovery', () => {
       hub: app.hub,
       webhooks: app.webhooks,
       budget: app.budgets,
+      keys: app.keys,
       baseUrl: 'http://localhost:3430',
     })
     app.sink.current = revived
@@ -637,6 +639,7 @@ describe('recovery', () => {
       hub: app.hub,
       webhooks: app.webhooks,
       budget: app.budgets,
+      keys: app.keys,
       baseUrl: 'http://localhost:3430',
     })
     app.sink.current = revived

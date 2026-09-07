@@ -505,6 +505,33 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
     id: NODES_PROVIDER_ID,
 
     /**
+     * **The health probe** (T31): the venue side of the fleet, read through
+     * the heartbeats. This provider has no control plane to call — it *is*
+     * the control plane — so what can be unreachable about it is the nodes:
+     * enrolled boxes that are not on the wire, or on it and silent past
+     * {@link NODE_LOST_MS}.
+     *
+     * It is unhealthy only when **every** enrolled node is gone, because one
+     * venue box being off on a Tuesday is capacity news (`available: 0` in
+     * the offerings, `fleet.node_disconnected` for a match that was on it),
+     * not a provider outage. A deployment with no node enrolled at all is
+     * healthy and empty: nothing is failing, there is simply nothing there.
+     */
+    async probe(): Promise<void> {
+      const rows = await store.listNodes()
+      if (rows.length === 0) return
+      const now = clock.now()
+      const live = rows.filter(row => {
+        const node = registry.get(row.id)
+        return node !== undefined && now - Date.parse(node.lastSeenAt) < nodeLostMs
+      })
+      if (live.length > 0) return
+      throw new Error(
+        `no node is on the wire: ${rows.length} enrolled, none heard from in the last ${Math.round(nodeLostMs / 1000)} s`,
+      )
+    },
+
+    /**
      * One offering per node. A connected, undrained node offers what it can
      * still run; every other enrolled node offers **zero** rather than
      * disappearing, so `GET /v1/capacity` keeps saying a venue exists and is

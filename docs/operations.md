@@ -217,6 +217,50 @@ moment of a shutdown. `checks` has one entry per rail — `database`, `redis`, a
 two seconds is `ok: false` with `no answer within 2000ms`. Compose's healthcheck, the
 deploy smoke and `pnpm dev:status` all read this one route.
 
+### Provider health and the fleet facts
+
+`GET /v1/fleet/providers` answers `{ id, healthy, drained, lastCheckedAt, lastError,
+servers }` per provider, and it is a **read of something a timer keeps fresh**, not a call
+that might hang. Every 30 seconds the probe loop
+(`apps/orchestrator/src/providers/probes.ts`) asks each provider the cheapest question it
+has — Dathost `GET /account`, the node provider how long ago its nodes were heard from,
+the sim in-process and therefore always up — bounded to five seconds, and writes the
+answer into the registry. A provider with no probe of its own is asked for its
+`offerings()`. `/healthz` asks the same question live, so an orchestrator whose Dathost
+credentials stopped working is not healthy even while its offering cache is warm.
+
+The first pass that finds a provider unreachable says **`fleet.provider_unreachable`
+once** — into every open match with a ledger row on it, carrying when the incident began
+and the error that proved it. A pass that finds it still unreachable says nothing more; a
+successful probe closes the incident, and the next outage is a new one worth a new fact.
+The adapters already swallow a blip (Dathost retries a 5xx and a dropped socket three
+times inside one call), so a probe that fails here has failed for long enough to matter.
+
+The node provider is unhealthy only when **every** enrolled node is off the wire: one
+venue box being off on a Tuesday is capacity news (`available: 0`, and
+`fleet.node_disconnected` for a match that was on it), not a provider outage. A deployment
+with no node enrolled is healthy and empty.
+
+The other three fleet facts come from where they happen: `fleet.node_disconnected` from
+the node provider once a node has been silent for its grace window,
+`fleet.orphan_found` from the reaper, `fleet.budget_threshold` from the budget sweep.
+
+**Where they are POSTed.** A key that registered a fleet webhook hears all four there,
+signed with the secret that registration named — one endpoint for the console tile that
+watches the fleet, instead of a subscription to every open match:
+
+```sh
+curl -sS -X PUT https://gs.ezpug.com/v1/keys/$KEY_ID/fleet-webhook \
+  -H "authorization: Bearer $ADMIN_KEY" -H 'content-type: application/json' \
+  -d '{"fleetWebhook": {"url": "https://ezpug.com/hooks/fleet", "secretId": "whsec-2026-09"}}'
+```
+
+The envelope is unchanged — same `matchId`, same `seq`, same signature scheme — and
+`GET /v1/matches/:id/events` still replays it on the match. `{"fleetWebhook": null}`
+clears it and the facts go back to each match's own callback. A `secretId` the key never
+registered is refused: an endpoint whose envelopes carry a `kid` nothing can verify fails
+silently at three in the morning.
+
 ## How it starts and stops
 
 Boot: read the environment → open the pool and the Redis client → register the providers
@@ -238,7 +282,7 @@ Shutdown is an **order**, not a set of `close()` calls (`apps/orchestrator/src/s
    containers they run never stop.
 5. `streams` — every stream socket is closed `1001`; a subscriber replays from the events route when it returns.
 6. `requests` — in-flight requests get five seconds to answer, then every socket is destroyed.
-7. `reaper`, `webhooks`, `matches`, `hub` — the sweeps disarm, attempts in flight finish, every
+7. `reaper`, `probes`, `budgets`, `gslt`, `webhooks`, `matches`, `hub` — the sweeps disarm, attempts in flight finish, every
    match's deadlines disarm and its chain drains, then the hub leaves the fan-out. A match
    mid-flight is *not* ended: its row says where it was, and the next boot re-arms it.
 8. `redis`, then 9. `database` — last, because everything above may still have been writing.
@@ -1107,11 +1151,23 @@ at Dathost by accident stops at the first request instead of at the invoice.
 
 **The month** is the UTC calendar month. `GET /v1/fleet/budget` answers the calling key's
 `{ limits, usage: { concurrentServers, monthCents, monthStartedAt } }` — the query a
-health tile draws; `GET /v1/fleet/ledger?since=` is the same money row by row.
+health tile draws; `GET /v1/fleet/ledger?since=` is the same money row by row. `since` is
+the window a bill is asked over, not the window a row was born in: every row still open,
+plus every row released at or after it. "What did tonight cost" is one query —
+
+```sh
+curl -sS -H "authorization: Bearer $FLEET_KEY" \
+  "https://gs.ezpug.com/v1/fleet/ledger?since=2026-09-06T18:00:00Z&limit=100" \
+  | jq '[.items[].cost.accruedCents] | add'
+```
+
+— and a server that started before the window and is still running is in it, because it
+is still being paid for.
 
 **Warnings.** When a key crosses 80 % or 95 % of a ceiling that has a ratio (the
 concurrent and monthly ones), `fleet.budget_threshold` is appended to each of that key's
-open matches — so it reaches the client on the webhook it already listens to. A crossing
+open matches — so it reaches the client on the webhook it already listens to, or on the
+key's fleet webhook where one is registered. A crossing
 is announced **once per ceiling, fraction and month**: the mark is a row in
 `api_key_budget_notices`, not a set in this process, so a deploy does not re-announce.
 Moving a ceiling clears that key's marks, because a new number is a new crossing. The

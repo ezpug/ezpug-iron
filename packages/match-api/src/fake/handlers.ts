@@ -122,6 +122,14 @@ export function createFakeHandlers(core: FakeCore): FakeHandlers {
           .filter(r => query.state === undefined || r.state === query.state)
           .filter(r => query.provider === undefined || r.provider === query.provider)
           .filter(r => query.matchId === undefined || r.matchId === query.matchId)
+          // `since` is the window a cost is asked over: open now, or closed
+          // inside it (`ledgerFilterSchema`).
+          .filter(
+            r =>
+              query.since === undefined ||
+              r.releasedAt === null ||
+              Date.parse(r.releasedAt) >= Date.parse(query.since),
+          )
         return page(rows, query.cursor, query.limit)
       },
       budget: (_input, ctx) => core.budgetOf(ctx.key),
@@ -134,6 +142,7 @@ export function createFakeHandlers(core: FakeCore): FakeHandlers {
       rotate: ({ params }) => core.rotateKey(params.keyId),
       setBudget: ({ params, body }) => core.setKeyBudget(params.keyId, body),
       setWebhookSecrets: ({ params, body }) => core.setWebhookSecrets(params.keyId, body),
+      setFleetWebhook: ({ params, body }) => core.setFleetWebhook(params.keyId, body),
     },
   }
 }

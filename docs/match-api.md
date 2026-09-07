@@ -351,8 +351,12 @@ Scope `fleet`. Answers the node.
 
 ### `GET /v1/fleet/ledger`
 
-Scope `fleet`. Query `state?`, `provider?`, `matchId?` plus paging. Every row, open and
-closed, newest first.
+Scope `fleet`. Query `state?`, `provider?`, `matchId?`, `since?` plus paging. Every row,
+open and closed, newest first. `since` is **what tonight cost**: every row that was open at
+or after that instant — still open now, or released at or after it — which is the window a
+bill is asked over rather than the window a row was born in. A server allocated before
+midnight and still running is part of tonight's; `GET /v1/fleet/budget` is this same read
+with the first of the month.
 
 ### `GET /v1/fleet/budget`
 
@@ -392,6 +396,12 @@ the `fleet.budget_threshold` warnings for that key start over.
 ### `PUT /v1/keys/:keyId/webhook-secrets`
 
 Scope `admin`. Body `{ secrets: [{ id, secret }] }` replaces the set. Answers the key.
+
+### `PUT /v1/keys/:keyId/fleet-webhook`
+
+Scope `admin`. Body `{ fleetWebhook: { url, secretId } | null }` — where the key's `fleet.*`
+facts are POSTed, or `null` to send them with each match's own. `secretId` names one of the
+key's registered webhook secrets; another one is `validation_failed`. Answers the key.
 
 ## Webhooks
 
@@ -451,6 +461,13 @@ the orchestrator fans each one out to every open match of the key it touches (th
 on the provider or node, the match the orphan was obtained for, every open match for a
 budget threshold), each in that match's own sequence. A key with no open match hears
 nothing and reads the fleet routes instead.
+
+**Where a fleet fact is POSTed.** A key that registered a fleet webhook
+(`PUT /v1/keys/:keyId/fleet-webhook`) hears its four `fleet.*` facts there, signed with the
+secret that registration named — one endpoint for the whole fleet, instead of a
+subscription to every match's callback. The envelope is the same envelope, matchId, `seq`
+and all, and the events route still replays it on the match. A key without one hears them
+on each match's own `callbacks.webhookUrl`, exactly as before.
 
 `going_live` is a gameserver event and is what moves `Match.state` to `live`; no fact
 repeats it.

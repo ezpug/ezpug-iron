@@ -36,7 +36,7 @@ import {
 } from '@ezpug/protocol'
 import { SIM_PROVIDER_ID } from '@ezpug/sim'
 import type { BudgetGate } from '../budget/service'
-import type { AuthenticatedKey } from '../keys/service'
+import type { AuthenticatedKey, Keys } from '../keys/service'
 import { composeAssign, missingPlugins } from '../link/assign'
 import type {
   IngestStatus,
@@ -153,6 +153,8 @@ export interface MatchesOptions {
   webhooks: { kick: () => void }
   /** The budget's door: the three ceilings, checked against the ledger (T5). */
   budget: BudgetGate
+  /** The keys, for the one thing a fact's delivery asks of them: the key's fleet webhook (T31). */
+  keys: Pick<Keys, 'get'>
   /** The orchestrator's own origin — what a server's plugin dials the link at. */
   baseUrl: string
   deadlines?: Partial<MatchDeadlines>
@@ -419,6 +421,39 @@ export function createMatches(options: MatchesOptions): Matches {
   // --- the durable log, the stream, the webhooks ------------------------------------
 
   /**
+   * **Where one envelope is POSTed** (T31). A `fleet.*` fact is about the
+   * key's capacity, not about the match it is numbered in, so a key that
+   * registered a fleet webhook hears its four of them there — one endpoint
+   * for the console tile that watches the fleet, instead of a subscription
+   * to every match's callback — signed with the secret that registration
+   * named. Everything else, and every fact of a key without one, goes to the
+   * match's own `callbacks.webhookUrl` exactly as before.
+   *
+   * A key that vanished (revoked and swept) or lost the secret between the
+   * registration and the fact falls back to the match's callback rather than
+   * to nothing: the events route holds the fact either way, and a delivery
+   * to a known endpoint beats a delivery to none.
+   */
+  const destinationFor = async (
+    row: MatchRow,
+    payload: WebhookPayload,
+  ): Promise<{ url: string; secretId: string }> => {
+    const match = {
+      url: row.requestJson.callbacks.webhookUrl,
+      secretId: row.requestJson.callbacks.webhookSecretId,
+    }
+    if (!payload.type.startsWith('fleet.')) return match
+    try {
+      const key = await options.keys.get(row.keyId)
+      const fleet = key?.key.fleetWebhook
+      return fleet && key?.webhookSecrets.has(fleet.secretId) ? fleet : match
+    } catch (error) {
+      report(error, { phase: 'fleet-webhook', matchId: row.id })
+      return match
+    }
+  }
+
+  /**
    * Write one fact to the durable log, publish it and queue its delivery.
    *
    * `patch` is the state change the fact *announces*, applied to the row in
@@ -446,12 +481,13 @@ export function createMatches(options: MatchesOptions): Matches {
     const envelope = envelopeOf(row, event)
     hub.publish(row.id, { type: 'event', envelope })
     if (!row.webhooksStoppedAt) {
+      const destination = await destinationFor(row, payload)
       await store.insertDelivery({
         deliveryId: event.deliveryId,
         matchId: row.id,
         seq: event.seq,
-        url: row.requestJson.callbacks.webhookUrl,
-        secretId: row.requestJson.callbacks.webhookSecretId,
+        url: destination.url,
+        secretId: destination.secretId,
         status: 'pending',
         attempt: 0,
         nextAttemptAt: at,

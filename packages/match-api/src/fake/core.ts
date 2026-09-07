@@ -36,6 +36,7 @@ import type {
   Capacity,
   ConsoleLine,
   FleetServer,
+  FleetWebhookRequest,
   GamemodeManifest,
   Match,
   MatchCommand,
@@ -336,6 +337,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       scopes: [...request.scopes],
       budget: { ...request.budget },
       webhookSecretIds: request.webhookSecrets.map(s => s.id),
+      fleetWebhook: request.fleetWebhook ?? null,
       createdAt: iso(),
       lastUsedAt: null,
       revokedAt: null,
@@ -395,6 +397,23 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     const record = requireKey(keyId)
     record.webhookSecrets = new Map(body.secrets.map(s => [s.id, s.secret]))
     record.key.webhookSecretIds = body.secrets.map(s => s.id)
+    return { ...record.key }
+  }
+
+  /**
+   * Register where the key's `fleet.*` facts go. The `secretId` has to be one
+   * of the key's own: an endpoint nothing can sign for would be delivered
+   * with a `kid` no verifier knows, which is a silent failure at three in
+   * the morning rather than a `validation_failed` now.
+   */
+  const setFleetWebhook = (keyId: string, body: FleetWebhookRequest): ApiKey => {
+    const record = requireKey(keyId)
+    if (body.fleetWebhook && !record.webhookSecrets.has(body.fleetWebhook.secretId))
+      throw refuse(
+        'validation_failed',
+        `no webhook secret ${body.fleetWebhook.secretId} on this key`,
+      )
+    record.key.fleetWebhook = body.fleetWebhook
     return { ...record.key }
   }
 
@@ -573,8 +592,25 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     void track(step)
   }
 
-  const signatureFor = (record: MatchRecord, body: string): string => {
-    const secretId = record.request.callbacks.webhookSecretId
+  /**
+   * **Where one envelope goes** (PRD-02 T31). A `fleet.*` fact is about the
+   * key's capacity, so a key that registered a fleet webhook hears it there,
+   * signed with the secret that webhook named; everything else — and every
+   * fact of a key without one — goes to the match's own callback.
+   */
+  const destinationFor = (
+    record: MatchRecord,
+    envelope: WebhookEnvelope,
+  ): { url: string; secretId: string } => {
+    const fleet = record.key.key.fleetWebhook
+    if (fleet && envelope.payload.type.startsWith('fleet.')) return fleet
+    return {
+      url: record.request.callbacks.webhookUrl,
+      secretId: record.request.callbacks.webhookSecretId,
+    }
+  }
+
+  const signatureFor = (record: MatchRecord, secretId: string, body: string): string => {
     const secret = record.key.webhookSecrets.get(secretId)
     // The key rotated its secrets under a running match: sign with nothing
     // rather than with a guess. The consumer refuses it and the events route
@@ -626,11 +662,12 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
   ): Promise<void> => {
     if (record.webhooksStopped) return
     const body = JSON.stringify(envelope)
+    const destination = destinationFor(record, envelope)
     const request: FakeWebhookRequest = {
-      url: record.request.callbacks.webhookUrl,
+      url: destination.url,
       headers: {
         'content-type': WEBHOOK_CONTENT_TYPE,
-        [WEBHOOK_SIGNATURE_HEADER]: signatureFor(record, body),
+        [WEBHOOK_SIGNATURE_HEADER]: signatureFor(record, destination.secretId, body),
         [WEBHOOK_DELIVERY_HEADER]: envelope.deliveryId,
         [WEBHOOK_ATTEMPT_HEADER]: String(attempt),
       },
@@ -1853,6 +1890,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     listKeys: (): ApiKey[] => [...keys.values()].map(k => ({ ...k.key })),
     revokeKey,
     setWebhookSecrets,
+    setFleetWebhook,
     // matches
     createMatch,
     listMatches: (key: KeyRecord): MatchRecord[] =>

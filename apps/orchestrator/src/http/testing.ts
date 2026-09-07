@@ -17,6 +17,7 @@ import { createMemoryMatchStore } from '../match/memory-store'
 import { createMatchZyDoor } from '../matchzy/door'
 import { createNodeRegistry, type NodeRegistry } from '../nodes/registry'
 import { createNodes, type Nodes } from '../nodes/service'
+import { createProbes, type Probes } from '../providers/probes'
 import type { GameServerProvider } from '../providers/provider'
 import { createReaper, type Reaper } from '../providers/reaper'
 import { createProviderRegistry, type ProviderRegistry } from '../providers/registry'
@@ -68,6 +69,7 @@ export interface TestApp {
   widgets: WidgetService
   webhooks: WebhookWorker
   reaper: Reaper
+  probes: Probes
   /** The GSLT pool over the fake Steam (T17). */
   gslt: GsltPool
   /** The fake Steam behind it — a test reads its accounts and injects its faults. */
@@ -212,6 +214,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     hub,
     webhooks,
     budget: budgets,
+    keys,
     baseUrl: 'http://localhost:3430',
     deadlines: options.deadlines,
     random: options.random,
@@ -233,6 +236,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   if (options.providers) for (const provider of options.providers) providers.register(provider)
   else if (!options.noProviders) providers.register(sim)
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
+  const probes = createProbes({ clock, log, registry: providers, store, matches })
   const fleet = createFleet({ clock, store, registry: providers, matches, links })
   const widgets = createWidgetService({ clock, log, store, matches, hub })
   // Every test world has a working pool: the fake Steam is in process, so
@@ -333,6 +337,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     widgets,
     webhooks,
     reaper,
+    probes,
     gslt,
     steam,
     posted,
@@ -393,6 +398,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
       await matches.close()
       await webhooks.close()
       await reaper.stop()
+      await probes.stop()
       await budgets.stop()
       await gslt.stop()
       await hub.close()

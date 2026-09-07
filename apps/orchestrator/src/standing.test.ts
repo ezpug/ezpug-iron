@@ -129,6 +129,7 @@ describe('the orchestrator over a real socket', () => {
       'streams',
       'requests',
       'reaper',
+      'probes',
       'budgets',
       'gslt',
       'webhooks',

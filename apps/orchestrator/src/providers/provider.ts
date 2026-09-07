@@ -181,6 +181,18 @@ export interface GameServerProvider {
   status: (serverId: string) => Promise<ServerStatus>
   deallocate: (serverId: string) => Promise<void>
   list: () => Promise<ProvisionedServer[]>
+  /**
+   * **Is the control plane answering?** (T31) A cheap, side-effect-free read
+   * the probe loop (`providers/probes.ts`) runs on the clock: Dathost reads
+   * the account, a node provider looks at how long ago its nodes were heard
+   * from. Throwing is unreachable, and the message becomes the provider's
+   * `lastError` on `GET /v1/fleet/providers` — so it says what an operator
+   * needs and never a credential.
+   *
+   * A provider without one is probed through `offerings()`, which is what
+   * the sim answers in-process and always truthfully.
+   */
+  probe?: () => Promise<void>
   /** One line in the server's chat. `false` = no server to say it on. */
   announce?: (serverId: string, line: string) => Promise<boolean>
   /** The operator fallback (decision 5): an RCON command through the control plane. `null` = no RCON here. */

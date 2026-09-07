@@ -8,8 +8,6 @@ interface MemoryRow {
   key: ApiKey
   secretHash: string
   webhookSecrets: Map<string, string>
-  fleetWebhookUrl: string | null
-  fleetWebhookSecretId: string | null
 }
 
 const iso = (date: Date | null): string | null => (date ? date.toISOString() : null)
@@ -19,8 +17,6 @@ function view(row: MemoryRow): KeyRecord {
     key: { ...row.key, webhookSecretIds: [...row.webhookSecrets.keys()] },
     secretHash: row.secretHash,
     webhookSecrets: new Map(row.webhookSecrets),
-    fleetWebhookUrl: row.fleetWebhookUrl,
-    fleetWebhookSecretId: row.fleetWebhookSecretId,
   }
 }
 
@@ -47,14 +43,13 @@ export function createMemoryKeyStore(): KeyStore {
           scopes: [...input.scopes],
           budget: { ...input.budget },
           webhookSecretIds: input.webhookSecrets.map(s => s.id),
+          fleetWebhook: input.fleetWebhook ?? null,
           createdAt: input.createdAt.toISOString(),
           lastUsedAt: null,
           revokedAt: null,
         },
         secretHash: input.secretHash,
         webhookSecrets: new Map(input.webhookSecrets.map(s => [s.id, s.secret])),
-        fleetWebhookUrl: null,
-        fleetWebhookSecretId: null,
       }
       rows.push(row)
       return Promise.resolve(view(row))
@@ -72,6 +67,12 @@ export function createMemoryKeyStore(): KeyStore {
       const row = byId(id)
       if (!row) return Promise.resolve(undefined)
       row.key.revokedAt ??= iso(at)
+      return Promise.resolve(view(row))
+    },
+    setFleetWebhook: (id, fleetWebhook) => {
+      const row = byId(id)
+      if (!row) return Promise.resolve(undefined)
+      row.key.fleetWebhook = fleetWebhook
       return Promise.resolve(view(row))
     },
     replaceWebhookSecrets: (id, secrets) => {

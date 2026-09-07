@@ -283,6 +283,10 @@ export function createPostgresMatchStore(
             filter.state === undefined ? undefined : eq(servers.state, filter.state),
             filter.provider === undefined ? undefined : eq(servers.provider, filter.provider),
             filter.matchId === undefined ? undefined : eq(servers.matchId, filter.matchId),
+            // The cost window: open now, or closed inside it (`ledgerFilterSchema`).
+            filter.since === undefined
+              ? undefined
+              : or(isNull(servers.releasedAt), gte(servers.releasedAt, new Date(filter.since))),
           ),
         )
         .orderBy(desc(servers.allocatedAt), desc(servers.id))

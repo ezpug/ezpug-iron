@@ -728,7 +728,7 @@ every offline proof here.
   `testNamespace` prefix in `beforeAll` instead, and let the same helper serve every
   suite that needs one.
 
-- [ ] **T31: Fleet facts and provider health.** Probes on the clock (Dathost `account`,
+- [x] **T31: Fleet facts and provider health.** Probes on the clock (Dathost `account`,
   node heartbeats, sim always up) → `GET /v1/fleet/providers` health with last error;
   `fleet.provider_unreachable` (debounced — one per incident), `fleet.orphan_found` (the
   reaper), `fleet.node_disconnected`, `fleet.budget_threshold` delivered to each key's

@@ -27,6 +27,31 @@ export const webhookSecretsRequestSchema = z.object({
 })
 export type WebhookSecretsRequest = z.infer<typeof webhookSecretsRequestSchema>
 
+/**
+ * **Where a key's fleet facts go** (PRD-02 T31). The four `fleet.*` facts —
+ * a provider that stopped answering, a node that dropped, an orphan the
+ * reaper found, a budget threshold crossed — are about the key's *capacity*,
+ * not about the match they happen to be numbered in. A key that registers a
+ * fleet webhook has them POSTed here instead of to the match's own callback,
+ * so the console tile that watches the fleet is one endpoint and not a
+ * subscription to every match.
+ *
+ * `secretId` names one of the key's registered webhook secrets — the same
+ * signature, the same verifier, the same `kid`. A key with no fleet webhook
+ * hears its fleet facts on each match's callback, exactly as before.
+ */
+export const fleetWebhookSchema = z.object({
+  url: z.url().max(2048),
+  secretId: z.string().min(1).max(64),
+})
+export type FleetWebhook = z.infer<typeof fleetWebhookSchema>
+
+/** Body of `PUT /v1/keys/:keyId/fleet-webhook`; `null` unregisters it. */
+export const fleetWebhookRequestSchema = z.object({
+  fleetWebhook: fleetWebhookSchema.nullable(),
+})
+export type FleetWebhookRequest = z.infer<typeof fleetWebhookRequestSchema>
+
 export const apiKeySchema = z.object({
   id: z.uuid(),
   name: z.string().min(1).max(64),
@@ -36,6 +61,8 @@ export const apiKeySchema = z.object({
   budget: budgetLimitsSchema,
   /** The ids of the registered webhook secrets, never the secrets. */
   webhookSecretIds: z.array(z.string().min(1)),
+  /** Where the key's `fleet.*` facts are POSTed, or null for "with the match's". */
+  fleetWebhook: fleetWebhookSchema.nullable(),
   createdAt: timestampSchema,
   lastUsedAt: timestampSchema.nullable(),
   revokedAt: timestampSchema.nullable(),
@@ -47,6 +74,8 @@ export const apiKeyCreateRequestSchema = z.object({
   scopes: matchApiScopesSchema,
   budget: budgetLimitsSchema,
   webhookSecrets: z.array(webhookSecretRegistrationSchema).max(8).default([]),
+  /** Registered at the mint; `PUT /v1/keys/:keyId/fleet-webhook` moves it later. */
+  fleetWebhook: fleetWebhookSchema.nullish(),
 })
 export type ApiKeyCreateRequest = z.infer<typeof apiKeyCreateRequestSchema>
 

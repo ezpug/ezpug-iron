@@ -264,6 +264,28 @@ describe('the offering', () => {
   })
 })
 
+describe('the health probe (T31)', () => {
+  it('reads the account — the cheapest authenticated call, and no template', async () => {
+    const adapter = provider()
+    await drive(adapter.probe?.() ?? Promise.resolve())
+    expect(fake.calls).toContain('GET /api/0.1/account')
+    expect(fake.calls.some(call => call.includes(`game-servers/${templateId}`))).toBe(false)
+  })
+
+  it('throws what the probe loop turns into lastError, with no credential in it', async () => {
+    const adapter = provider()
+    fake.setFaults({ status: { code: 503, times: 5, only: '/account' } })
+    const failure = await drive(
+      (adapter.probe?.() ?? Promise.resolve()).then(
+        () => null,
+        (error: unknown) => error as Error,
+      ),
+    )
+    expect(failure?.message).toContain('503')
+    expect(failure?.message).not.toContain(PASSWORD)
+  })
+})
+
 describe('allocation', () => {
   it('syncs the template, clones it, and plants our identity on the clone', async () => {
     const adapter = provider()

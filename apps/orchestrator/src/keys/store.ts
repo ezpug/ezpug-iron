@@ -1,4 +1,4 @@
-import type { ApiKey, MatchApiScope } from '@ezpug/match-api'
+import type { ApiKey, FleetWebhook, MatchApiScope } from '@ezpug/match-api'
 
 /**
  * **What the key service needs from storage**, and nothing more: rows in,
@@ -17,8 +17,6 @@ export interface KeyRecord {
   readonly secretHash: string
   /** The registered webhook secrets, by id, in clear (they sign). */
   readonly webhookSecrets: ReadonlyMap<string, string>
-  readonly fleetWebhookUrl: string | null
-  readonly fleetWebhookSecretId: string | null
 }
 
 export interface InsertKeyInput {
@@ -29,6 +27,8 @@ export interface InsertKeyInput {
   readonly scopes: readonly MatchApiScope[]
   readonly budget: ApiKey['budget']
   readonly webhookSecrets: readonly { id: string; secret: string }[]
+  /** Registered at the mint; `setFleetWebhook` moves it later. Absent is none. */
+  readonly fleetWebhook?: FleetWebhook | null
   readonly createdAt: Date
 }
 
@@ -41,6 +41,16 @@ export interface KeyStore {
   list: () => Promise<KeyRecord[]>
   /** Idempotent: a second revoke keeps the first `revokedAt`. Undefined for an unknown id. */
   revoke: (id: string, at: Date) => Promise<KeyRecord | undefined>
+  /**
+   * Register (or clear) where the key's `fleet.*` facts are POSTed (T31).
+   * Undefined for an unknown id; the caller has already checked that the
+   * `secretId` is one of the key's own.
+   */
+  setFleetWebhook: (
+    id: string,
+    fleetWebhook: FleetWebhook | null,
+    at: Date,
+  ) => Promise<KeyRecord | undefined>
   /** Replace the whole set of webhook secrets. Undefined for an unknown id. */
   replaceWebhookSecrets: (
     id: string,

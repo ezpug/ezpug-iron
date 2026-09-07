@@ -6,6 +6,30 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.8.0 — 2026-09-07
+
+Fleet facts and provider health (PRD-02 T31): a key can name one endpoint for everything
+that is about its capacity rather than about a match, and the ledger can be asked what a
+night cost. Additive; a client that pinned `0.7.1` sees every shape it knew unchanged.
+
+- **`ledgerFilterSchema.since`** (`GET /v1/fleet/ledger?since=`): every row that was open
+  at or after that instant — still open now, or released at or after it. It is the window
+  a **bill** is asked over, not the window a row was born in, so a server allocated before
+  midnight and still running is part of tonight's; `GET /v1/fleet/budget` is the same read
+  with the first of the month. A request without it pages the whole ledger as before.
+- **`fleetWebhookSchema`** (`{ url, secretId }`) and **`ApiKey.fleetWebhook`**: where the
+  key's four `fleet.*` facts are POSTed. A console tile that watches the fleet is one
+  endpoint now, instead of a subscription to every open match. The envelope does not
+  change — same `matchId`, same `seq`, same signature scheme, same events route — only its
+  destination; `secretId` names one of the key's registered webhook secrets, so the
+  verifier on the other side is the one it already runs. A key with none hears its fleet
+  facts on each match's own callback, exactly as before.
+- **`PUT /v1/keys/:keyId/fleet-webhook`** (`admin`, body `{ fleetWebhook }`, `null` to
+  clear) and **`ApiKeyCreateRequest.fleetWebhook`** to register one at the mint. A
+  `secretId` the key never registered is `validation_failed`: an endpoint whose envelopes
+  carry a `kid` nothing can verify fails silently at three in the morning, which is worse
+  than not having one.
+
 ## 0.7.1 — 2026-09-07
 
 The fake says what a server says while it waits. No schema moved: `warmupLines` has been

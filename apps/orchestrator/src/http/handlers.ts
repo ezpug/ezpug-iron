@@ -164,6 +164,7 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
       rotate: ({ params }) => keys.rotate(params.keyId),
       setBudget: ({ params, body }) => keys.setBudget(params.keyId, body),
       setWebhookSecrets: ({ params, body }) => keys.setWebhookSecrets(params.keyId, body),
+      setFleetWebhook: ({ params, body }) => keys.setFleetWebhook(params.keyId, body),
     },
   }
 }

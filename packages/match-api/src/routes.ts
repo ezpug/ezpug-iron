@@ -22,6 +22,7 @@ import {
   apiKeyCreateRequestSchema,
   apiKeySchema,
   budgetPatchRequestSchema,
+  fleetWebhookRequestSchema,
   webhookSecretsRequestSchema,
 } from './resources/keys'
 import { matchListFilterSchema, matchSchema } from './resources/match'
@@ -353,6 +354,20 @@ export const matchApiRoutes = {
       scope: 'admin',
       params: keyParams,
       body: webhookSecretsRequestSchema,
+      response: apiKeySchema,
+    }),
+    /**
+     * Register (or clear, with `null`) where the key's `fleet.*` facts are
+     * POSTed. `validation_failed` when the `secretId` is not one of the key's
+     * registered webhook secrets — an endpoint nothing can sign for is worse
+     * than none at all.
+     */
+    setFleetWebhook: defineRoute({
+      method: 'put',
+      path: '/v1/keys/:keyId/fleet-webhook',
+      scope: 'admin',
+      params: keyParams,
+      body: fleetWebhookRequestSchema,
       response: apiKeySchema,
     }),
   },
