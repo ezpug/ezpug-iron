@@ -98,9 +98,14 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
 - **`assign` → the loader.** Hostname from `branding.hostname` or `EZPug · <mode> · <Map>`;
   `css_plugins load plugins/disabled/<Name>/<Name>.dll` for each plugin the assignment
   names, in order; `changelevel` (or `host_workshop_map` for a workshop id) to the first
-  map. When the map is up — one second after the engine's `OnMapStart`, because the engine
-  execs its own gamemode cfgs right after that listener and a cfg exec'd earlier is undone
-  — the mode's cfg files are exec'd in order. A second after *that*, in a console frame of
+  map. That second is announced first (`Runtime.ExpectMapChange`, `docs/sdk.md`): on a
+  container that has only just booted the `assign` lands inside the beat the world holds
+  the boot map's news for, and a map the engine started before the loader asked for the
+  change is the server's, not the match's — it is dropped with a log line instead of
+  becoming a `server_ready` nobody asked for (PRD-02 T22c). When the map is up — one second
+  after the engine's `OnMapStart`, because the engine execs its own gamemode cfgs right
+  after that listener and a cfg exec'd earlier is undone — the mode's cfg files are exec'd
+  in order. A second after *that*, in a console frame of
   its own — because the engine reconciles a cvar's effects once at the end of a frame, so a
   value the cfg sets and the request sets back is not two changes but none
   (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a) — the flat cvars are set, and for a

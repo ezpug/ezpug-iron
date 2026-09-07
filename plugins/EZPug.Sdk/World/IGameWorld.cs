@@ -65,6 +65,16 @@ public sealed record RoundEnd(PlayerTeam Winner, RoundEndReason Reason, int Terr
 public sealed record ChatLine(IGamePlayer Player, string Text, bool TeamOnly);
 
 /// <summary>
+/// A map is up: which one, and <b>when the engine started it</b> on the world's clock.
+/// The two are not the same instant — an implementation may hold the news back until the
+/// map is worth talking to (the core plugin waits <c>CounterStrikeWorld.MapReadyDelayMs</c>
+/// after the engine's <c>OnMapStart</c>) — and a listener that asked for a level change in
+/// between needs the earlier number to tell the map it asked for from the one that was
+/// already standing (PRD-02 T22c).
+/// </summary>
+public sealed record MapStart(string Map, long StartedAtMs);
+
+/// <summary>
 /// The engine's match state as <c>cs_gamerules</c> keeps it, read on the game thread:
 /// warmup, the rounds played so far in the match (what the scoreboard counts; reset by
 /// <c>mp_restartgame</c>, so a knife round and warmup never count), whether a pause is
@@ -150,7 +160,8 @@ public interface IGameWorld
     void HostWorkshopMap(string workshopId);
 
     // Hooks
-    event Action<string>? MapStarted;
+    /// <summary>A map is up and worth talking to. Carries the instant the engine started it — see <see cref="MapStart"/>.</summary>
+    event Action<MapStart>? MapStarted;
     event Action<IGamePlayer>? PlayerConnected;
     event Action<IGamePlayer>? PlayerDisconnected;
     event Action<IGamePlayer>? PlayerSpawned;

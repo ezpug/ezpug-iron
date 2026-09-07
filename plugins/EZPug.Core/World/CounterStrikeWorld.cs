@@ -110,7 +110,7 @@ public sealed class CounterStrikePlayer : IGamePlayer
 /// </summary>
 public sealed class CounterStrikeWorld : IGameWorld
 {
-    /// <summary>How long after <c>OnMapStart</c> the map counts as up.</summary>
+    /// <summary>How long after <c>OnMapStart</c> the map counts as up. The <see cref="MapStart"/> raised then still carries the engine's own instant.</summary>
     public const long MapReadyDelayMs = 1_000;
 
     private readonly BasePlugin _plugin;
@@ -166,7 +166,7 @@ public sealed class CounterStrikeWorld : IGameWorld
 
     // ------------------------------------------------------------------ hooks
 
-    public event Action<string>? MapStarted;
+    public event Action<MapStart>? MapStarted;
     public event Action<IGamePlayer>? PlayerConnected;
     public event Action<IGamePlayer>? PlayerDisconnected;
     public event Action<IGamePlayer>? PlayerSpawned;
@@ -192,7 +192,11 @@ public sealed class CounterStrikeWorld : IGameWorld
         _plugin.RegisterListener<Listeners.OnMapStart>(map =>
         {
             Volatile.Write(ref _map, map);
-            _clock.After(MapReadyDelayMs, () => MapStarted?.Invoke(map));
+            // The instant is stamped here, not in the callback: a listener that asked for
+            // a level change during this second has to know the map it hears about was
+            // already standing before it asked (PRD-02 T22c).
+            var startedAt = _clock.NowMs;
+            _clock.After(MapReadyDelayMs, () => MapStarted?.Invoke(new MapStart(map, startedAt)));
         });
 
         _plugin.RegisterEventHandler<EventPlayerConnectFull>((gameEvent, _) =>

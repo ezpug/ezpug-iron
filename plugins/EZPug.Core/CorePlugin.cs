@@ -155,7 +155,7 @@ public sealed class CorePlugin : BasePlugin
     }
 
     /// <summary>The first map the plugin sees is the server standing idle; before that it is booting.</summary>
-    private void OnMapStarted(string map)
+    private void OnMapStarted(MapStart start)
     {
         if (_runtime is { State: LinkServerState.Booting } runtime)
         {

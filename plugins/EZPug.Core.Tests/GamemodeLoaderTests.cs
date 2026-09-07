@@ -353,6 +353,41 @@ public class GamemodeLoaderTests
         Assert.Contains(scoutsman.Log.Lines, line => line.StartsWith("warn: the assignment carries a backup for round 3, but a"));
     }
 
+    [Fact]
+    public void TheBootMapAnnouncedAfterTheAssignmentIsNotTheMatchsMap()
+    {
+        // The race the CS2 lane found (T22c): the container boots on the image's start
+        // map, the world holds that news back a beat (CounterStrikeWorld.MapReadyDelayMs)
+        // and the assign lands inside it. The boot map then arrives with an assignment in
+        // hand, and without the loader saying a change is coming the runtime configures —
+        // and reports server_ready for — a map that was never the match's, a second before
+        // the real one.
+        using var rig = new Rig("MatchZy");
+        rig.World.Elapse(500);
+        rig.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("pug"), map: "de_mirage"));
+        Assert.Contains("changelevel de_mirage", rig.Actions);
+
+        // de_dust2 started before the assignment asked for the change: it is the server's
+        // map, not this match's. Nothing is exec'd on it and nothing is said about it.
+        rig.World.Elapse(500);
+        rig.World.StartMap("de_dust2", startedAtMs: 0);
+        rig.World.Elapse(GamemodeLoader.CvarSettleMs);
+        Assert.Empty(rig.Link.Events);
+        Assert.DoesNotContain("exec ezpug/pug.cfg", rig.Actions);
+        Assert.Contains(rig.Log.Lines, line => line.StartsWith("info: the map de_dust2 started before the assignment"));
+
+        // The map the loader asked for: the one cfg, the one server_ready.
+        rig.StartMap("de_mirage");
+        Assert.Equal(["server_ready"], rig.Link.EventTypes);
+        Assert.Equal("de_mirage", Assert.IsType<ServerReadyEvent>(rig.Link.Events[0]).Map);
+        Assert.Contains("exec ezpug/pug.cfg", rig.Actions);
+
+        // MatchZy's own next map, which no loader asked for, still lands.
+        rig.StartMap("de_nuke");
+        Assert.Equal(["server_ready", "server_ready"], rig.Link.EventTypes);
+        Assert.Equal("de_nuke", Assert.IsType<ServerReadyEvent>(rig.Link.Events[1]).Map);
+    }
+
     [Theory]
     [InlineData("de_mirage", "Mirage")]
     [InlineData("cs_office", "Office")]

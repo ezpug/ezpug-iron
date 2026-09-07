@@ -274,7 +274,7 @@ hangs off three host events on the runtime, in the order a match goes through th
 
 | Hook | When | What the core does there |
 | ---- | ---- | ------------------------ |
-| `Assigned(Assignment)` | `assign` arrived, before the mode's `OnAssigned` | hostname, `css_plugins load` for each plugin the assignment names, `changelevel` / `host_workshop_map` to the first map — or to the backup's map when `Assignment.Restore` is set (the runtime's `Match.MapNumber` / `RoundNumber` then start where the lost server left off) |
+| `Assigned(Assignment)` | `assign` arrived, before the mode's `OnAssigned` | hostname, `css_plugins load` for each plugin the assignment names, `Runtime.ExpectMapChange()` (below) and then `changelevel` / `host_workshop_map` to the first map — or to the backup's map when `Assignment.Restore` is set (the runtime's `Match.MapNumber` / `RoundNumber` then start where the lost server left off) |
 | `MapLoaded(Assignment, map)` | the map is up, before `server_ready` is emitted and before `OnStart` | exec the cfg files in order, then — a beat later, in a console frame of its own (`Runtime.SettleThen`, below) — set the flat cvars, write and `matchzy_loadmatch` the match config for a `matchzy` flow (once per assignment; a later map is the series' next), point MatchZy's remote log at the orchestrator, and for a restore write the backup where MatchZy looks and `matchzy_loadbackup` it (`backup_restored` is emitted as a `plugin_event`) |
 | `Released(reason)` | after the mode's `OnEnd`, its timers and state cleared | `css_plugins unload` in reverse, the lobby map, then the runtime says `idle` |
 
@@ -290,6 +290,20 @@ beside a `bot_kick` leaves an empty server (PRD-02 T22a, measured on the dev nod
 therefore gets the first frame and everything the assignment asks for the next. A release,
 a reassignment or the next map start drops a beat still pending, and nothing is said for a
 match the server no longer holds.
+
+**A host that changes level says so first.** A world does not have to announce a map the
+instant the engine starts it — the core plugin waits `CounterStrikeWorld.MapReadyDelayMs`
+(one second) so the map is worth talking to — and on a container that has only just booted
+the `assign` lands inside that second. The boot map's news then arrives with an assignment
+in hand, and without a word from the host the runtime takes it for the match's map: it
+execs the cfg on it and says `server_ready` for a map that was never the match's, a second
+before the real one (PRD-02 T22c, seen twice on the dev node). So a host that is about to
+ask the engine for a level change calls `Runtime.ExpectMapChange()` first, from inside
+`Assigned`. Every `MapStart` the engine *began* before that call is the old map's and is
+dropped with a log line; the first one that began after it is the match's, and the wait is
+over. That is why `MapStart` carries `StartedAtMs` beside `Map` — the two instants are not
+the same one, and only the earlier can tell the maps apart. A host that never changes level
+never calls it and nothing waits.
 
 **Demos** (`DemoFlow`, PRD-02 T21) hang off the same runtime and off one world hook,
 `MapEnded` — the engine's match win panel, the one end-of-map signal every flow shares.

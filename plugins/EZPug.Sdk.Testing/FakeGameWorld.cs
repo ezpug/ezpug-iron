@@ -160,7 +160,7 @@ public sealed class FakeGameWorld : IGameWorld
 
     // ------------------------------------------------------------------ hooks
 
-    public event Action<string>? MapStarted;
+    public event Action<MapStart>? MapStarted;
     public event Action<IGamePlayer>? PlayerConnected;
     public event Action<IGamePlayer>? PlayerDisconnected;
     public event Action<IGamePlayer>? PlayerSpawned;
@@ -176,15 +176,20 @@ public sealed class FakeGameWorld : IGameWorld
 
     // ------------------------------------------------------------------ the script
 
-    /// <summary>The map finished loading (after a <c>ChangeLevel</c>, or at boot).</summary>
-    public void StartMap(string? map = null)
+    /// <summary>
+    /// The map finished loading (after a <c>ChangeLevel</c>, or at boot). A real world may
+    /// hold the news back a beat, so <paramref name="startedAtMs"/> says when the engine
+    /// started the map if that is not now — which is how a test writes the boot map whose
+    /// news arrives after the assignment already asked for another one (PRD-02 T22c).
+    /// </summary>
+    public void StartMap(string? map = null, long? startedAtMs = null)
     {
         if (map is not null)
         {
             Map = map;
         }
 
-        MapStarted?.Invoke(Map);
+        MapStarted?.Invoke(new MapStart(Map, startedAtMs ?? Clock.NowMs));
     }
 
     public FakePlayer Connect(ulong steamId64, string name, PlayerTeam team = PlayerTeam.None, bool bot = false)

@@ -119,6 +119,12 @@ public sealed class GamemodeLoader
             _log.Warn($"the assignment carries a backup for round {restore.RoundNumber}, but a {assignment.Gamemode.Flow} flow has no round backups to restore; the match starts over");
         }
 
+        // The runtime hears about a map a beat after the engine starts it
+        // (CounterStrikeWorld.MapReadyDelayMs), and on a freshly booted container the
+        // assign lands inside that beat — so say the change is coming before asking for
+        // it, or the boot map arrives holding this assignment and the match reports a
+        // server_ready for a map that was never its own (PRD-02 T22c).
+        _runtime?.ExpectMapChange();
         if (WorkshopId.IsMatch(map))
         {
             _world.HostWorkshopMap(map);

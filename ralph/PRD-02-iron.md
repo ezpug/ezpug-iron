@@ -604,7 +604,7 @@ every offline proof here.
   fake node's instances a port nothing on this box uses, or point the test at a closed
   port it owns, so the two lanes stop sharing a number.
 
-- [ ] **T22c (P1): the runtime says `server_ready` for the map the server was already on,
+- [x] **T22c (P1): the runtime says `server_ready` for the map the server was already on,
   so a match sometimes reports two.** Found in T22's `EZPUG_CS2_TESTS` lane, pre-existing,
   not caused by it: `cs2.extended.test.ts`'s `plays a pug end to end and closes its ledger
   row` failed on `the plugin never said it was ready: expected 2 to be 1`, and **nothing

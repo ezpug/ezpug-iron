@@ -43,6 +43,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     private IClockTimer? _positionTicker;
     private IClockTimer? _settling;
     private (long DelayMs, Action Then)? _asked;
+    private long? _mapAskedAtMs;
 
     /// <summary>How often positions are streamed while a match is assigned and the mode asks for them.</summary>
     public const long PositionTickIntervalMs = 100;
@@ -113,6 +114,20 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     /// reassignment or the next map start drops one still pending.
     /// </summary>
     public void SettleThen(long delayMs, Action rest) => _asked = (delayMs, rest);
+
+    /// <summary>
+    /// <b>From inside an <see cref="Assigned"/> handler:</b> the host has told the engine
+    /// to change level, so the map standing right now is not the match's. A world may
+    /// announce a map some time after the engine started it — the core plugin waits
+    /// <c>CounterStrikeWorld.MapReadyDelayMs</c> — and on a server that has only just
+    /// booted that beat is exactly where an <c>assign</c> lands: without this the boot
+    /// map's news arrives with an assignment in hand, and the match reports a
+    /// <c>server_ready</c> for a map that was never its own before the real one follows a
+    /// second later (PRD-02 T22c). So every <see cref="MapStart"/> the engine began
+    /// before this call is the old map's and is dropped; the first one that began after
+    /// it is the match's map, and the wait is over.
+    /// </summary>
+    public void ExpectMapChange() => _mapAskedAtMs = World.Clock.NowMs;
 
     /// <summary>The host's unloader, after the mode's <c>OnEnd</c>.</summary>
     public event Action<string?>? Released;
@@ -262,6 +277,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         CancelSettle();
         _mapReady = false;
         _ready = false;
+        _mapAskedAtMs = null;
         Flow.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
@@ -329,6 +345,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Match.Clear();
             _mapReady = false;
             _ready = false;
+            _mapAskedAtMs = null;
             Released?.Invoke(released);
             SetState(LinkServerState.Idle, reason);
         }
@@ -419,13 +436,24 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     // ------------------------------------------------------------------ world hooks
 
-    private void OnMapStarted(string map)
+    private void OnMapStarted(MapStart start)
     {
         if (Assignment is null)
         {
             return;
         }
 
+        if (_mapAskedAtMs is { } asked && start.StartedAtMs < asked)
+        {
+            // The map was already standing when the host asked for the change; the world
+            // is only now getting round to announcing it. Not this match's map — the one
+            // the host asked for is still coming. See ExpectMapChange.
+            _log.Info($"the map {start.Map} started before the assignment asked for a level change; waiting for the match's map");
+            return;
+        }
+
+        _mapAskedAtMs = null;
+        var map = start.Map;
         if (_mapReady && Assignment.Gamemode.Flow == GamemodeFlow.Matchzy)
         {
             // A second map while assigned: MatchZy changed level for the next map of its
