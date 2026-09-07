@@ -223,11 +223,36 @@ describe('deadlines', () => {
     await app.close()
   })
 
+  /**
+   * “Whatever the server says” is the whole assertion, so the server has to
+   * still be saying something when the lifetime runs out — which is what this
+   * test used to leave to chance (T21d). The default two-round story at
+   * `timeScale: 0.25` runs roughly 580 s–1 250 s of clock time depending on
+   * the seed, and the seed is `<root>#<matchId>` over a `randomUUID()` match
+   * id: about one match in a thousand reached its own `series_end` inside the
+   * ten minutes and ended `completed` before the ttl could fire, which is a
+   * coin toss nobody can reproduce. Two things fix it and both are stated
+   * rather than hoped: the request pins the story's seed, and it asks for a
+   * 24-round match whose story cannot finish inside the window at all. The
+   * `live` read one millisecond before the deadline is the margin's guard —
+   * if a future story ever gets short enough to end first, that line fails
+   * with the reason on it instead of the last one failing on a coin toss.
+   */
   it('ends ttl_expired when the request’s lifetime runs out, whatever the server says', async () => {
     const app = createTestApp({ sim: { timeScale: 0.25, positionTickIntervalMs: null } })
     const { key } = await platformKey(app)
-    const { match } = await app.matches.create(key, request({ ttlMinutes: 10 }))
-    await app.advance(10 * 60_000)
+    const { match } = await app.matches.create(
+      key,
+      request({
+        rules: { ...request().rules, regulationRounds: 24 },
+        sim: { seed: 'ttl-expired' },
+        ttlMinutes: 10,
+      } as never),
+    )
+    await app.advance(10 * 60_000 - 1)
+    const playing = await app.matches.get(key, match.id)
+    expect(playing.state).toBe('live')
+    await app.advance(2)
     const ended = await app.matches.get(key, match.id)
     expect(ended.state).toBe('ended')
     expect(ended.endedReason?.kind).toBe('ttl_expired')
