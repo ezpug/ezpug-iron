@@ -75,12 +75,16 @@ beforeAll(async () => {
       database: readDatabaseConfig(process.env, { target: 'test' }),
     }
     mine = stand(`${namespace}-a`)
-    neighbour = stand(`${namespace}-b`)
     await mine.database.ping()
     await mine.redis.ping()
     const { runMigrations } = await import('./db/migrate')
     await runMigrations(mine.database)
+    // The sweep opens a pool of its own, so the neighbour is stood up after
+    // it: two orchestrators *and* a sweep would be three pools at once, one
+    // past this worker's share of the test database (`db/connections.ts`,
+    // T39a). Nothing here needs the neighbour any earlier.
     await sweep()
+    neighbour = stand(`${namespace}-b`)
     await mine.start()
     await neighbour.start()
     url = (await mine.listen({ port: 0, host: '127.0.0.1' })).url

@@ -22,6 +22,10 @@ TestResults/
 !.env.production.example
 *.local.txt
 
+# What `pnpm verify:extended` leaves behind: the tier's JSON test reports
+# (scripts/verify-report.mjs reads them), a run's evidence and never source
+.verify/
+
 # The CS2 install is a docker volume, never a checkout; anything a script
 # downloads lands here
 .cache/

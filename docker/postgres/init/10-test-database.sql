@@ -4,4 +4,12 @@
 -- apps/orchestrator/src/db/testing.ts. Re-created by `pnpm dev:reset`
 -- (which drops the volume). The initdb user owns it, which is the
 -- POSTGRES_USER the orchestrator connects as.
-CREATE DATABASE ezpug_iron_test;
+--
+-- The CONNECTION LIMIT is the guard rail of the test tier's connection
+-- budget (PRD-02 T39a): whatever a dozen Vitest workers do, this many
+-- backends is all they can ever hold, and the rest of `max_connections`
+-- stays there for the dev orchestrator, a `pnpm dev` and a psql. The number
+-- is TEST_DATABASE_CONNECTION_LIMIT in apps/orchestrator/src/db/connections.ts
+-- — `pnpm db:migrate --target=test` applies it to a volume that already
+-- exists, and db/connections.test.ts fails if the two ever disagree.
+CREATE DATABASE ezpug_iron_test CONNECTION LIMIT 60;

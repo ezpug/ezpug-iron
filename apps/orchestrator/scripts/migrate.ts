@@ -9,6 +9,11 @@
 import process from 'node:process'
 import { type DatabaseTarget, readDatabaseConfig, redactUrl } from '../src/config'
 import { createDatabase, errorMessage } from '../src/db/client'
+import {
+  databaseNameFromUrl,
+  ensureTestDatabaseConnectionLimit,
+  TEST_DATABASE_CONNECTION_LIMIT,
+} from '../src/db/connections'
 import { resolveMigrationsFolder, runMigrations } from '../src/db/migrate'
 import { loadRootEnv } from '../src/env'
 
@@ -26,6 +31,21 @@ try {
   // `/app/drizzle` (PRD-02 T35).
   await runMigrations(handle, { migrationsFolder: resolveMigrationsFolder(process.env) })
   console.log(`[orchestrator] migrations applied to ${redactUrl(config.url)}`)
+  // The test database's own ceiling (PRD-02 T39a). Here because this is the
+  // one door `pnpm dev:up` and a fresh clone both go through, and because the
+  // app database must never get one: a limit on the ledger is an outage.
+  if (target === 'test') {
+    const name = databaseNameFromUrl(config.url)
+    if (name) {
+      const result = await ensureTestDatabaseConnectionLimit(handle.sql, name)
+      console.log(
+        result.applied
+          ? `[orchestrator] ${name}: connection limit ${TEST_DATABASE_CONNECTION_LIMIT}`
+          : `[orchestrator] ${name}: could not set the connection limit (${result.reason}) — ` +
+              'the suite stays inside its budget either way (db/connections.ts)',
+      )
+    }
+  }
 } catch (error) {
   console.error(`[orchestrator] ${errorMessage(error)}`)
   process.exitCode = 1

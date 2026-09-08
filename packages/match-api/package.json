@@ -61,7 +61,7 @@
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "test:extended": "vitest run src/fixtures/conformance",
+    "test:extended": "vitest run src/fixtures/conformance --reporter=default --reporter=json --outputFile.json=../../.verify/extended/match-api.json",
     "record": "EZPUG_IRON_RECORD=1 vitest run src/fixtures/recorded.test.ts"
   },
   "dependencies": {

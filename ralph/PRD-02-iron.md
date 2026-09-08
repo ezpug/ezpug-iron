@@ -1013,7 +1013,7 @@ every offline proof here.
   > log is the whole path) and **3** (the registry a release actually lands in until an
   > `npm login` exists).
 
-- [ ] **T39a: The extended tier runs out of Postgres, and four tests pay for it (P1).**
+- [x] **T39a: The extended tier runs out of Postgres, and four tests pay for it (P1).**
   The first `verify:extended` of T39's publish went red — `@ezpug/orchestrator:test:extended`,
   one file, four tests — with the test harness printing `sorry, too many clients already`
   (SQLSTATE 53300) and `CONNECT_TIMEOUT` through all four of its redials; the identical
@@ -1027,6 +1027,25 @@ every offline proof here.
   that the tier passes with the box's other orchestrators connected. References: the
   working rules, `scripts/verify-extended.sh`, `apps/orchestrator/src/db/testing.ts`
   (`withTransientRetry`) and `apps/orchestrator/src/config.ts`.
+
+- [ ] **T39b (P1): the extended conformance gate loses a race per hour on a loaded box.**
+  `conformance.extended.test.ts` failed twice in T39a's four verification runs, each time
+  a *different* assertion and each time with the rest of the file green:
+  (1) the aggregate gate reported `14 passed, 1 failed, 0 skipped, 15 flows` on
+  `stream-hello` — *a subscriber that joined at the hello missed nothing after it*
+  (`packages/match-api/src/fixtures/conformance/flows.ts`) — while the **same flow, run on
+  its own in the same file and the same run, passed in eleven seconds**; (2) `happy-bo1`
+  failed `48/49` on *every durable envelope was delivered by webhook — never delivered: 1*
+  after 23.8 s, its slowest of the day. Not T39a's connection budget: Postgres logged no
+  `FATAL` of any kind through any of the four runs, and one whole `verify:extended` was
+  green between the two. This file already owns two P1s of this shape (T10a, T21c), and
+  the third is the one to end the family — the questions are what the hello's cursor
+  promises against a hub that has already served fourteen matches, whether the flow's
+  subscriber is subscribed before the orchestrator answers, and whether the aggregate
+  gate's settle barrier really covers a webhook attempt that was queued but not yet sent.
+  Never retry it into green (working rules); the tier's report is the starting point
+  (`.verify/test/orchestrator.json`, T39a). References: `conformance.extended.test.ts`,
+  `stream/hub.ts`, `stream/upgrade.ts`, `webhooks/`, T10a, T21c.
 
 - [ ] **T40: The sweep.** Everything in "When the PRD is complete", with the closing note.
 

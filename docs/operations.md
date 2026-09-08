@@ -35,7 +35,7 @@ Ports and every setting are decided in `.env.example` and nowhere else. Every na
 | `EZPUG_IRON_PROVIDERS` | `sim` | the providers to register, comma-separated (`sim`, `dathost`, `nodes`; T3/T4/T12/T16) |
 | `EZPUG_IRON_DEPLOYMENT` | `ezpug` | which deployment this process is: the stamp on every ledger row and the Dathost `user_data` tag (below) |
 | `EZPUG_IRON_DATABASE_URL` | — | `postgres://…`; `EZPUG_IRON_TEST_DATABASE_URL` is the Vitest database beside it |
-| `EZPUG_IRON_DATABASE_POOL_MAX`, `…_IDLE_TIMEOUT`, `…_CONNECT_TIMEOUT`, `…_STATEMENT_TIMEOUT`, `…_LOG` | `10`, `30`, `10`, `15000`, `false` | pool tuning; the statement timeout is what keeps a runaway query from wedging the pool. Against the **test** database the pool and connect defaults are `5` and `5` instead — a dozen Vitest workers share one `max_connections` (T37c) — and either target takes an explicit setting |
+| `EZPUG_IRON_DATABASE_POOL_MAX`, `…_IDLE_TIMEOUT`, `…_CONNECT_TIMEOUT`, `…_STATEMENT_TIMEOUT`, `…_LOG` | `10`, `30`, `10`, `15000`, `false` | pool tuning; the statement timeout is what keeps a runaway query from wedging the pool. Against the **test** database the pool and connect defaults are `5` and `5` instead — a dozen Vitest workers share one `max_connections` (T37c, T39a) — and either target takes an explicit setting |
 | `EZPUG_IRON_REDIS_URL` | — | `redis://…` |
 | `EZPUG_IRON_RATE_LIMIT_BURST` / `…_PER_SECOND` | `120` / `10` | the per-key token bucket (below) |
 | `EZPUG_IRON_MIGRATE_ON_BOOT` | `false` | apply pending migrations before the port opens; the image sets it |
@@ -1761,6 +1761,43 @@ transaction that is always rolled back; the suites that must commit stamp their 
 delete them. `pnpm verify:extended` runs `pnpm dev:up` first and sets
 `EZPUG_IRON_DATABASE_TESTS=required`, so a missing world is red there, and the conformance
 run against the real service is the round's first extended-tier gate.
+
+**The suite has a connection budget, and the test database enforces it.** A Postgres is a
+fixed number of backends — the dev one is `max_connections = 100` — and it is shared with
+whatever orchestrator is up on the box. Vitest's default is one worker per core, a worker
+may hold several pools at once (`deployments.extended.test.ts` stands two orchestrators and
+sweeps beside them), and nothing bounded the product: the first `verify:extended` of the round's release
+asked for more connections than the server had and collected `53300 sorry, too many clients
+already` and a `CONNECT_TIMEOUT` through every redial. `withTransientRetry` is a shock
+absorber, not an answer. So `apps/orchestrator/src/db/connections.ts` declares the
+arithmetic and every place it binds:
+
+```
+  TEST_MAX_WORKERS × (TEST_POOL_MAX × TEST_HANDLES_PER_FILE) ≤ TEST_DATABASE_CONNECTION_LIMIT
+         6         × (      5      ×          2           ) = 60 ≤ 60
+```
+
+`maxWorkers` in `vitest.config.ts` is the first number, the `test` target's pool default is
+the second, and the third is enforced where pools are made — a worker that opens one handle
+too many on the test database fails immediately, naming the budget, instead of quietly
+taking someone else's share. The pool is the factor that does *not* give: the extended
+suites stand a real service on this database, and a first cut that shrank it to three
+starved `conformance.extended.test.ts` until a flow ran out its ninety seconds. The limit itself is the test **database's** own `CONNECTION LIMIT`,
+applied by `pnpm db:migrate --target=test` (so `pnpm dev:up` sets it) and by the initdb
+script on a fresh volume: whatever the suite does, the remaining backends stay there for the
+dev orchestrator, a `pnpm dev` and a `psql`. `db/connections.test.ts` proves the inequality,
+reads the three bindings back out of the files that hold them, and asks the live server
+whether it really left the headroom.
+
+**A red tier leaves a report behind.** The orchestrator's suite and every `test:extended`
+write a Vitest JSON report under `.verify/` (gitignored) — `.verify/test/` from the
+`pnpm verify` the tier starts with, `.verify/extended/` from the tier's own suites — and
+`scripts/verify-extended.sh` prints `scripts/verify-report.mjs` over all of them on the way
+out whether the tier ends green or red: counts, then every failed test with its file and the
+first line of its message. The directory is cleared before anything runs, so yesterday's
+report can never be read as today's, and the files stay on disk afterwards for whoever asks
+next. It exists because the connection failure above was diagnosed from a scrollback that no
+longer named the file.
 
 **Waiting is a barrier, never a sleep.** In process the world only moves when the fake
 clock is turned, and `createTestApp`'s `settle()` may return only once nothing is left

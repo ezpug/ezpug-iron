@@ -13,6 +13,7 @@ import {
   STEAM_FAKE_TOKENS_VAR,
   TEST_DATABASE_URL_VAR,
 } from './config'
+import { TEST_POOL_MAX } from './db/connections'
 import { DEFAULT_DEPLOYMENT } from './deployment'
 
 const env = {
@@ -206,11 +207,13 @@ describe('readDatabaseConfig', () => {
 
   // T37c: the test database is reached by a dozen Vitest workers at once and
   // the app's by one process, so they cannot share a pool default —
-  // `workers x poolMax` is what meets `max_connections`.
+  // `workers x poolMax` is what meets `max_connections`. T39a turned that
+  // sentence into arithmetic that has to fit: the test pool is one factor of
+  // the tier's budget, and `db/connections.test.ts` proves the product.
   it('sizes the test pool for a crowd and the app pool for a server', () => {
     expect(readDatabaseConfig(env)).toMatchObject({ poolMax: 10, connectTimeoutSeconds: 10 })
     expect(readDatabaseConfig(env, { target: 'test' })).toMatchObject({
-      poolMax: 5,
+      poolMax: TEST_POOL_MAX,
       connectTimeoutSeconds: 5,
     })
   })

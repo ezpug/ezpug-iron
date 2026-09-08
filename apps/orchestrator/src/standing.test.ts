@@ -33,8 +33,19 @@ beforeAll(async () => {
   try {
     config = {
       // This suite's own deployment (T21c) — its reaper must not judge the
-      // ledger rows another suite is holding open in the same test database.
-      ...readOrchestratorConfig({ ...process.env, EZPUG_IRON_DEPLOYMENT: namespace }),
+      // ledger rows another suite is holding open in the same test database —
+      // and the **sim provider alone** (T39a). Read from the box's `.env` this
+      // suite inherited whatever a developer had enabled, and `nodes` made
+      // `/healthz` answer 503 whenever a neighbouring suite had a node row
+      // committed in the shared test database: the probe finds it enrolled,
+      // this registry has never heard of it, and the provider is unhealthy
+      // through no fault of anything under test. Every other extended suite
+      // already pins its providers; this one was the exception.
+      ...readOrchestratorConfig({
+        ...process.env,
+        EZPUG_IRON_PROVIDERS: 'sim',
+        EZPUG_IRON_DEPLOYMENT: namespace,
+      }),
       database: readDatabaseConfig(process.env, { target: 'test' }),
     }
     orchestrator = createOrchestrator({ config, clock: systemClock, log })
@@ -74,14 +85,26 @@ afterAll(async () => {
 describe('the orchestrator over a real socket', () => {
   it('answers /healthz 200 with the database and Redis green', async () => {
     const response = await fetch(`${url}/healthz`)
-    expect(response.status).toBe(200)
     const body = (await response.json()) as {
       ok: boolean
-      checks: { database: { ok: boolean }; redis: { ok: boolean } }
+      checks: {
+        database: { ok: boolean; error?: string }
+        redis: { ok: boolean; error?: string }
+        providers: Record<string, { ok: boolean; error?: string }>
+      }
     }
+    // The body first, and the whole of it: a bare `expect(status).toBe(200)`
+    // says "expected 503 to be 200" and nothing about which rail was unhappy,
+    // which is a night lost when it happens once in fifty runs (T39a).
+    expect({ status: response.status, checks: body.checks }).toMatchObject({
+      status: 200,
+      checks: {
+        database: { ok: true },
+        redis: { ok: true },
+        providers: { sim: { ok: true } },
+      },
+    })
     expect(body.ok).toBe(true)
-    expect(body.checks.database.ok).toBe(true)
-    expect(body.checks.redis.ok).toBe(true)
   })
 
   it('mints a key through the real store and serves the catalog to it with the published client', async () => {

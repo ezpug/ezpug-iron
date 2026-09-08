@@ -3,7 +3,11 @@
   "compilerOptions": {
     // Server-only: it reads process.env, opens sockets and the migrations
     // folder, so the Node types and nothing from the DOM.
-    "types": ["node"]
+    "types": ["node"],
+    // `vitest.config.ts` imports `src/db/connections.ts` by its real name
+    // (T39a): Vite's coming native config loader refuses an extensionless
+    // import there, and nothing here is emitted by `tsc` anyway.
+    "allowImportingTsExtensions": true
   },
   "include": ["src", "scripts", "drizzle.config.ts", "vitest.config.ts"]
 }

@@ -9,6 +9,25 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# **The report survives the run** (PRD-02 T39a). The first `verify:extended`
+# that went red on a crowded box printed its failure into a terminal that was
+# gone by the time anyone asked which file it was; the suites that cost a night
+# when they go red write a JSON report under `.verify/` instead, and this
+# script prints what failed out of them whether the tier ends green or red.
+# Cleared before anything runs — including `pnpm verify`, which is where the
+# orchestrator's own suite fails — so a stale report from yesterday can never
+# be read as today's.
+REPORT_DIR="$PWD/.verify"
+rm -rf "$REPORT_DIR"
+mkdir -p "$REPORT_DIR"
+
+report() {
+  local status=$?
+  node scripts/verify-report.mjs "$REPORT_DIR" || true
+  return $status
+}
+trap report EXIT
+
 pnpm verify
 
 # The dev world (PRD-02 T2): Postgres and Redis from compose.yaml, migrated.

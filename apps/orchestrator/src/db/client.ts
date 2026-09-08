@@ -10,8 +10,8 @@ import type { PostgresJsDatabase, PostgresJsTransaction } from 'drizzle-orm/post
 import { drizzle } from 'drizzle-orm/postgres-js'
 import type { Sql } from 'postgres'
 import postgres from 'postgres'
-import type { DatabaseConfig } from '../config'
-import { redactUrl } from '../config'
+import { type DatabaseConfig, redactUrl, TEST_DATABASE_URL_VAR } from '../config'
+import { claimTestHandle } from './connections'
 import * as schema from './schema'
 
 export type IronSchema = typeof schema
@@ -47,11 +47,19 @@ export interface CreateDatabaseOptions {
   applicationName?: string
 }
 
-/** Open a pool. The caller owns its lifetime and must `close()` it. */
+/**
+ * Open a pool. The caller owns its lifetime and must `close()` it.
+ *
+ * A pool on the **test** database also takes a slot in the tier's per-worker
+ * budget (`connections.ts`, T39a) and gives it back on `close()`. That is the
+ * only asymmetry between the two targets, and it is deliberate: the suite is
+ * the one caller that runs a dozen copies of itself on one Postgres.
+ */
 export function createDatabase(
   config: DatabaseConfig,
   options: CreateDatabaseOptions = {},
 ): DatabaseHandle {
+  const releaseBudget = config.source === TEST_DATABASE_URL_VAR ? claimTestHandle() : undefined
   const sql = postgres(config.url, {
     max: config.poolMax,
     idle_timeout: config.idleTimeoutSeconds,
@@ -86,7 +94,11 @@ export function createDatabase(
       }
     },
     async close() {
-      await sql.end({ timeout: 5 })
+      try {
+        await sql.end({ timeout: 5 })
+      } finally {
+        releaseBudget?.()
+      }
     },
   }
 }

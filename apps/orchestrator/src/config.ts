@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TEST_POOL_MAX } from './db/connections'
 import { DEFAULT_DEPLOYMENT } from './deployment'
 import { DATHOST_DEFAULT_LOCATION } from './providers/dathost/provider'
 import { looksLikeToken } from './tokens'
@@ -257,9 +258,15 @@ function fail(issues: z.core.$ZodIssue[], names: Record<string, string>): never 
  * Both are still the same env vars: an explicit setting wins for either
  * target.
  */
+/**
+ * The `test` pool is {@link TEST_POOL_MAX} and not a number chosen here: it is
+ * one of the three factors of the tier's connection budget (`db/connections.ts`,
+ * T39a), and changing it without the others is how the suite ran a box out of
+ * backends.
+ */
 const DATABASE_DEFAULTS = {
   app: { poolMax: 10, connectTimeoutSeconds: 10 },
-  test: { poolMax: 5, connectTimeoutSeconds: 5 },
+  test: { poolMax: TEST_POOL_MAX, connectTimeoutSeconds: 5 },
 } as const satisfies Record<DatabaseTarget, { poolMax: number; connectTimeoutSeconds: number }>
 
 /**
