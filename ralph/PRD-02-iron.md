@@ -1013,6 +1013,21 @@ every offline proof here.
   > log is the whole path) and **3** (the registry a release actually lands in until an
   > `npm login` exists).
 
+- [ ] **T39a: The extended tier runs out of Postgres, and four tests pay for it (P1).**
+  The first `verify:extended` of T39's publish went red — `@ezpug/orchestrator:test:extended`,
+  one file, four tests — with the test harness printing `sorry, too many clients already`
+  (SQLSTATE 53300) and `CONNECT_TIMEOUT` through all four of its redials; the identical
+  suite was green on the two runs before and after it, and `pnpm verify` (where the
+  database tests may skip) has never shown it. The dev Postgres is `max_connections=100`
+  and is shared with whatever orchestrator container is up on the box, so the tier's own
+  worker count is the lever: a bounded pool per worker, or `maxWorkers` on the extended
+  project, or a test database whose limit the suite owns. **Retrying into green is not the
+  fix** (working rules) — the failing file was not captured, so the first job is a run that
+  keeps the report (`--reporter=json` into a file the tier archives), and the assertion is
+  that the tier passes with the box's other orchestrators connected. References: the
+  working rules, `scripts/verify-extended.sh`, `apps/orchestrator/src/db/testing.ts`
+  (`withTransientRetry`) and `apps/orchestrator/src/config.ts`.
+
 - [ ] **T40: The sweep.** Everything in "When the PRD is complete", with the closing note.
 
 ## Working rules

@@ -183,7 +183,15 @@ ENV EZPUG_CS2_HOME=/serverdata \
 # steamcmd is 32-bit and the game's own libraries come from the volume, so both
 # multilib and the runtime's loader path are needed. `procps` is there so an
 # operator can see what is running inside the container at all.
-RUN apt-get update \
+#
+# `Check-Valid-Until=false` because the sniper platform is Debian 11, which went
+# to `archive.debian.org` when bullseye left LTS: its `bullseye-security`
+# Release file has a `Valid-Until` in the past and apt refuses the whole update
+# over it (PRD-02 T39 — the first `cs2@` tag failed on exactly that, sixteen
+# hours after the date passed). The packages are still the pinned base's own and
+# every artifact this image downloads is checked against a SHA-256 in
+# `docs/pins.md`, so what this turns off is a clock, not a signature.
+RUN apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends \
         ca-certificates curl locales procps lib32gcc-s1 lib32stdc++6 lib32z1 \
     && echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen \
