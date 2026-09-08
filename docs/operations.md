@@ -233,12 +233,17 @@ Nothing is released by pushing to a branch. Five tag prefixes, one artifact each
 | `plugins@x.y.z` | `ezpug-plugins-x.y.z.zip` on the tag's GitHub release | `plugins.yml` |
 
 ```sh
-node scripts/release.mjs version 0.9.0        # the package: bump + CHANGELOG, then commit
-git tag match-api@0.9.0     && git push origin match-api@0.9.0
-node scripts/release-image.mjs plan cs2@0.1.0 # an image: what that tag would publish
-git tag cs2@0.1.0           && git push origin cs2@0.1.0
-git tag plugins@0.1.0       && git push origin plugins@0.1.0
+node scripts/release.mjs version 0.11.0        # the package: bump + CHANGELOG, then commit
+git tag match-api@0.11.0     && git push origin match-api@0.11.0
+node scripts/release-image.mjs plan cs2@0.1.1  # an image: what that tag would publish
+git tag cs2@0.1.1            && git push origin cs2@0.1.1
+git tag plugins@0.1.1        && git push origin plugins@0.1.1   # after the csproj's <Version>
 ```
+
+The numbers above are the *next* ones on purpose: the first release went out on
+2026-09-08 as `orchestrator@0.1.0`, `node@0.1.0`, `cs2@0.1.0`, `plugins@0.1.0` and
+`@ezpug/match-api` `0.10.0`, and a version the registry already serves is refused rather
+than overwritten. `docs/pins.md` is where what-is-live is written down.
 
 **Another registry.** `publish` and `smoke` take `--registry <url>` (or read
 `npm_config_registry`), because npmjs has no login on this box: the platform's dev world

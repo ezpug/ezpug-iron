@@ -98,11 +98,11 @@ was built from) and the build provenance the workflow attests against the manife
 `scripts/release-image.mjs` is the table a release reads; `pnpm lint` fails if a name below
 stops matching it.
 
-| Image | Released by | Platforms | Built from | Currently deployed |
-| ----- | ----------- | --------- | ---------- | ------------------ |
-| `ghcr.io/ezpug/ezpug-iron/orchestrator` | tag `orchestrator@x.y.z` | `linux/amd64`, `linux/arm64` | `docker/orchestrator/Dockerfile` | — nothing tagged yet; `pnpm image:build` gives the local `:dev` |
-| `ghcr.io/ezpug/ezpug-iron/node` | tag `node@x.y.z` | `linux/amd64`, `linux/arm64` | `docker/node/Dockerfile` | — nothing tagged yet; `pnpm node:build` gives the local `:dev` |
-| `ghcr.io/ezpug/ezpug-iron/cs2` | tag `cs2@x.y.z` | `linux/amd64` | `docker/cs2/Dockerfile` | — nothing tagged yet; `pnpm cs2:build` gives the local `:dev` |
+| Image | Released by | Platforms | Built from | Latest tag, and what runs it |
+| ----- | ----------- | --------- | ---------- | --------------------------- |
+| `ghcr.io/ezpug/ezpug-iron/orchestrator` | tag `orchestrator@x.y.z` | `linux/amd64`, `linux/arm64` | `docker/orchestrator/Dockerfile` | `0.1.0` — the first release, cut 2026-09-08 (PRD-02 T39); production on this box and the platform's dev world both still run a local build (`EZPUG_IRON_IMAGE` unset, `…/orchestrator:dev`), and moving either to `:0.1.0` is a commit in that consumer |
+| `ghcr.io/ezpug/ezpug-iron/node` | tag `node@x.y.z` | `linux/amd64`, `linux/arm64` | `docker/node/Dockerfile` | `0.1.0` — the first release, cut 2026-09-08; the dev node on this box runs `pnpm node:build`'s local `:dev` |
+| `ghcr.io/ezpug/ezpug-iron/cs2` | tag `cs2@x.y.z` | `linux/amd64` | `docker/cs2/Dockerfile` | `0.1.0` — the first release, cut 2026-09-08; the dev CS2 container and the Dathost template are built from the checkout (`pnpm cs2:build`, `pnpm dathost:image`) |
 
 A release publishes `x.y.z`, the moving `x.y`, and `latest`; a prerelease (`0.2.0-rc.1`)
 publishes its exact version and nothing else, because `latest` is a promise about a
@@ -126,7 +126,12 @@ tag: that is why `x.y.z` exists beside `latest`.
 The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
-`plugins/EZPug.Core/EZPug.Core.csproj` carries).
+`plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
+is **`0.10.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+`npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
+only run `release.yml` into a registry nobody here can write to; the plugin zip is
+**`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
+sha-256 in the notes.
 
 ## Bumping one
 

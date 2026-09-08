@@ -6,6 +6,22 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.10.0 — 2026-09-08
+
+The round's last additive change is not a schema: it is a **fourth hardware recording**,
+`fixtures/recorded/dathost-pug-bo1.json` (PRD-02 T36). The three `real-*.json` beside it
+are matches played on the dev node on this box; this one is a match on a box **rented in a
+datacentre** (Dathost, Düsseldorf) driven through the deployed orchestrator at
+`gs.ezpug.com` over the public internet — 117 calls, 48 webhook envelopes and their
+verified deliveries, 53 stream frames, a real demo PUT into the platform's bucket. Same
+shape as every other recording (`flow`, `calls`, `envelopes`, `deliveries`, `frames`),
+same rule: it is never regenerated from code, and **every payload in it must still parse**
+against this package's schemas. That is what makes a recording a contract test rather than
+a souvenir — the day one stops parsing, the vocabulary moved under a server that already
+spoke it.
+
+No schema, no route and no default moved in this release; `0.9.0`'s shapes are `0.10.0`'s.
+
 ## 0.9.0 — 2026-09-08
 
 Four contract gaps the platform's own console found and wrote down instead of editing a

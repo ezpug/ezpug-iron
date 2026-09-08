@@ -21,9 +21,19 @@ there, not this file.
 
 ## Unreleased
 
-**The iron** (`ralph/PRD-02-iron.md`): everything below exists, is verified and runs on
-this box; nothing but `@ezpug/match-api` has been tagged yet. The first image tags are the
-round's release task.
+_Nothing yet._
+
+## 2026-09-08
+
+**The iron** (`ralph/PRD-02-iron.md`), released: `orchestrator@0.1.0`, `node@0.1.0`,
+`cs2@0.1.0` and `plugins@0.1.0` — the first tags any of them has ever carried — beside
+`@ezpug/match-api` **0.10.0**, whose own changelog has the nine versions the round cut.
+Each image tag publishes `0.1.0`, the moving `0.1` and `latest` over per-platform digests,
+with the commit in `org.opencontainers.image.revision` and signed build provenance against
+the manifest list; the plugin zip is on the tag's GitHub release with its sha-256 in the
+notes. `docs/pins.md` is what a deployment pins and the only place that says what runs
+where; the package went to the box's Verdaccio and goes to npmjs the day the owner logs in
+(`docs/decisions.md` 3, as amended).
 
 - **The orchestrator** (`apps/orchestrator`, `ghcr.io/ezpug/ezpug-iron/orchestrator`) —
   Hono over Postgres and Redis serving every route in `@ezpug/match-api`: the match

@@ -995,10 +995,23 @@ every offline proof here.
   > found in the platform's PRD or progress file. Published to the box's Verdaccio; npmjs
   > waits for a login (`--registry` is now a flag on `release.mjs publish|smoke`).
 
-- [ ] **T39: Release.** `@ezpug/match-api` bumped to the round's additive changes (the
+- [x] **T39: Release.** `@ezpug/match-api` bumped to the round's additive changes (the
   changelog says which platform task each serves), images and plugin zip tagged, the
   platform's pin named in the closing note; `docs/decisions.md` amended where a task
   decided differently, and the progress line says so.
+  > note: the round's additive changes went out **as they were made** — T38a was the
+  > ninth cut and the last schema change — so this task's bump is `0.10.0` and its
+  > content is not a schema at all: the published `fixtures/recorded/dathost-pug-bo1.json`
+  > from T36, the first recording of a match on a **rented** box against the deployed
+  > orchestrator. The images and the plugin zip are `0.1.0`, the first tags any of them
+  > has carried. **The `match-api@0.10.0` tag is cut and held, not pushed**: the repo has
+  > no `NPM_TOKEN` secret and npmjs has no login, so pushing it would only run
+  > `release.yml` red against a registry nobody here can write to — the release itself
+  > went to the box's Verdaccio, which is what the platform's pin resolves against
+  > (decision 3, amended here). `docs/decisions.md` carries the two amendments this round
+  > earned: **19** (T9 found MatchZy 0.8.15 has no in-process forwards; the HTTP remote
+  > log is the whole path) and **3** (the registry a release actually lands in until an
+  > `npm login` exists).
 
 - [ ] **T40: The sweep.** Everything in "When the PRD is complete", with the closing note.
 

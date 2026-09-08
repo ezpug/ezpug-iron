@@ -31,7 +31,7 @@ contract; the iron (`ralph/PRD-02-iron.md`) made it true on hardware — the orc
 runs behind `gs.ezpug.com`, `ezpug-node` turns a venue box into capacity, the SDK and the
 core plugin play real CS2 matches on Dathost and on self-hosted nodes, and `ezpug-iron` is
 the terminal over all of it. `CHANGELOG.md` is what has been released and
-`packages/match-api/CHANGELOG.md` is the contract's own history (**0.9.0** today). Two
+`packages/match-api/CHANGELOG.md` is the contract's own history (**0.10.0** today). Two
 things are still waiting on a human rather than on code: publishing the package to npm
 needs an `npm login` (the `> blocked:` note under T9 in the spine's PRD), and the live
 Dathost proof needs credentials on the box (T36 in the iron's).
@@ -234,10 +234,10 @@ The package is the contract, so a schema change is a release with a changelog li
 a silent edit (`docs/decisions.md` 24). `scripts/release.mjs` is the whole path:
 
 ```sh
-pnpm release version 0.2.0   # bump packages/match-api, roll its CHANGELOG, print the tag
-pnpm verify:extended         # the conformance suite is the gate
-git commit -am 'chore(match-api): 0.2.0'
-git tag match-api@0.2.0 && git push origin match-api@0.2.0
+pnpm release version 0.11.0   # bump packages/match-api, roll its CHANGELOG, print the tag
+pnpm verify:extended          # the conformance suite is the gate
+git commit -am 'chore(match-api): 0.11.0'
+git tag match-api@0.11.0 && git push origin match-api@0.11.0
 ```
 
 The tag fires `.github/workflows/release.yml`, which re-verifies, packs, audits the tarball
@@ -255,11 +255,15 @@ The other artifacts are tags too, and each one runs `pnpm verify` on the tagged 
 before it publishes anything:
 
 ```sh
-git tag orchestrator@0.1.0 && git push origin orchestrator@0.1.0  # ghcr.io/ezpug/ezpug-iron/…
-git tag node@0.1.0         && git push origin node@0.1.0
-git tag cs2@0.1.0          && git push origin cs2@0.1.0
-git tag plugins@0.1.0      && git push origin plugins@0.1.0       # the zip on the release
+git tag orchestrator@0.1.1 && git push origin orchestrator@0.1.1  # ghcr.io/ezpug/ezpug-iron/…
+git tag node@0.1.1         && git push origin node@0.1.1
+git tag cs2@0.1.1          && git push origin cs2@0.1.1
+git tag plugins@0.1.1      && git push origin plugins@0.1.1       # the zip on the release
 ```
+
+`0.1.0` of all four went out on 2026-09-08, which is why the lines above say `0.1.1`: a
+version the registry already serves is refused rather than overwritten, and `CHANGELOG.md`
+is what each tag published.
 
 `pnpm release:image plan <tag>` prints what a tag would publish — the Dockerfile, the
 platforms (amd64 and arm64 for the two JavaScript images, amd64 only for the CS2 one), the

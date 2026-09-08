@@ -25,6 +25,12 @@ it here.
    webhook verifier, the conformance fixtures, and an in-process **fake orchestrator**
    the platform's tests and seed run on. A contract change is a semver release both repos
    test against; the platform pins a version.
+   *Amended by PRD-02 T38a, recorded here by T39: public npm is still the destination and
+   `.github/workflows/release.yml` still publishes there off a `match-api@` tag, but no
+   npm login exists on the box the loops run on — so a release goes to the box's own
+   Verdaccio (`http://172.17.0.1:4873/`) the day it is cut, which is what the platform's
+   pin resolves against, and to npmjs the day the owner logs in. The registry is a flag
+   (`release.mjs publish --registry`), never a second package.*
 4. **The gameserver vocabulary lives here now.** Match.md §5's normalized event union
    (`packages/contracts/src/gameserver.ts` in the platform at the time of the split) is
    copied verbatim as v1 of the vocabulary in `@ezpug/match-api`; the platform re-exports
@@ -111,8 +117,16 @@ it here.
     MatchZy owns match flow for `pug` (`going_live`, `round_end`, `map_end`, `series_end`);
     the core plugin owns what MatchZy cannot see (players, deaths, bomb, positions, chat,
     heartbeat, backups, the gamemode loader, the link). Neither double-speaks the other's
-    events. Prefer MatchZy's in-process forwards over its HTTP remote log where they cover
-    an event; where they do not, the remote log points at the orchestrator.
+    events. MatchZy's events reach the orchestrator over its **HTTP remote log**, which
+    points at the orchestrator and is translated into the vocabulary once, at the edge.
+    *Amended by PRD-02 T9, recorded here by T39: the original sentence read "prefer
+    MatchZy's in-process forwards over its HTTP remote log where they cover an event".
+    Reading the pinned MatchZy (0.8.15) settled that there are no in-process forwards to
+    prefer — `events_and_forwards.md` documents the remote log and nothing else, and
+    `PublishEvents.cs` is one POST per event with one custom header, a 15 s timeout, no
+    retry and no dedup. The fallback branch is the whole path: the plugin subscribes to
+    nothing of MatchZy's, and the orchestrator owns the retries and the dedup MatchZy
+    does not have.*
 20. **Skins travel over the link, no exposed MySQL.** The platform owns loadouts; a match
     request's roster entries carry them; a **data-layer fork of cs2-WeaponPaints** takes
     the in-memory loadout the core plugin hands it instead of querying MySQL. No public
