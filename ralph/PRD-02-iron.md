@@ -1028,7 +1028,7 @@ every offline proof here.
   working rules, `scripts/verify-extended.sh`, `apps/orchestrator/src/db/testing.ts`
   (`withTransientRetry`) and `apps/orchestrator/src/config.ts`.
 
-- [ ] **T39b (P1): the extended conformance gate loses a race per hour on a loaded box.**
+- [x] **T39b (P1): the extended conformance gate loses a race per hour on a loaded box.**
   `conformance.extended.test.ts` failed twice in T39a's four verification runs, each time
   a *different* assertion and each time with the rest of the file green:
   (1) the aggregate gate reported `14 passed, 1 failed, 0 skipped, 15 flows` on

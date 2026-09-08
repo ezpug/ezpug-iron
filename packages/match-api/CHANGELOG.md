@@ -6,6 +6,32 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.10.1 — 2026-09-08
+
+Fixtures only: no schema, no route, no default. The `reprovision-before-live` conformance
+flow is the one flow that has to catch a match **in the act** — every other flow waits for
+a state a match keeps, and this one needs the window between the first box being allocated
+and the first round starting, because that is the only time a match can be moved. On a
+target that plays a real story on real timers that window is a second or two wide, and one
+starved poll cycle falls straight through it: the flow then waits out its whole budget on a
+match that is already playing, and reports it as a box that never came (PRD-02 T39b). Three
+changes, all inside the flow:
+
+- The request asks for the story at **`timeScale: 2`** instead of the target's own, which
+  makes the window tens of seconds — a margin that holds rather than one that is lucky —
+  and a `sim.speed` back to 20 once the replacement is standing keeps the play-out at the
+  speed it always ran at. A target with no simulator ignores both, which is the right
+  thing to do with either.
+- The waits are for the **provider's own server id**, not for the transient `ready` state
+  and not for the ledger row: a row is written before the walk asks anyone for a box, so a
+  reprovision keyed on `fleetServerId` would cancel an allocation that had not happened
+  yet.
+- A match that is already `live` or `ended` when the flow looks fails **in one poll**,
+  saying the poll missed the window, instead of after the wait's whole budget saying
+  nothing.
+
+`fixtures/recorded/reprovision-before-live.json` is re-recorded to match.
+
 ## 0.10.0 — 2026-09-08
 
 The round's last additive change is not a schema: it is a **fourth hardware recording**,

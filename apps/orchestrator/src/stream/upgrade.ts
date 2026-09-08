@@ -155,15 +155,28 @@ export function attachStreamUpgrade(options: StreamUpgradeOptions): WebSocketSer
     // the second: a match being allocated right now publishes into that very
     // window, and the client's first frame is an `event`. So a frame that
     // arrives before the greeting is written waits behind it, in order,
-    // rather than overtaking it. And a held *event* whose seq the greeting
+    // rather than overtaking it. And an *event* whose seq the greeting
     // already covers is dropped, not written: the machine appends to the log
     // before it publishes, so a frame that lands in the window can carry the
     // very seq the hello reports — the client replays from that cursor and
     // would see it twice (the conformance suite's stream-hello flow caught
     // this; the T5 fix held the frame but flushed it unfiltered).
+    //
+    // **The cursor outlives the window** (T39b). The frame does not come from
+    // the machine, it comes back off the fan-out — a Redis round trip in
+    // production — so a publish that happened before the hello's read can be
+    // *delivered* after the hello was written, and then there is nothing left
+    // holding it. The window a filter has to cover is therefore not "until
+    // the greeting", it is the whole socket: an event at or below
+    // {@link greetedSeq} is one the client will replay from the cursor it was
+    // given, whenever it arrives.
     let unsubscribe: (() => void) | undefined
     let greeted = false
+    let greetedSeq = -1
     const held: StreamFrame[] = []
+    /** Already covered by the hello's cursor: the client replays it instead. */
+    const covered = (frame: StreamFrame): boolean =>
+      frame.type === 'event' && frame.envelope.seq <= greetedSeq
     const write = (frame: StreamFrame): void => {
       if (ws.readyState !== ws.OPEN) return
       if (ws.bufferedAmount > STREAM_SLOW_CONSUMER_BYTES) {
@@ -178,6 +191,7 @@ export function attachStreamUpgrade(options: StreamUpgradeOptions): WebSocketSer
         held.push(frame)
         return
       }
+      if (covered(frame)) return
       write(frame)
     }
     unsubscribe = hub.subscribe(matchId, {
@@ -191,10 +205,11 @@ export function attachStreamUpgrade(options: StreamUpgradeOptions): WebSocketSer
       ws.close(STREAM_CLOSE_CODES.notFound, 'no such match')
       return
     }
+    greetedSeq = row.seq
     write({ type: 'hello', matchId: row.id, seq: row.seq, state: row.state })
     greeted = true
     for (const frame of held.splice(0)) {
-      if (frame.type === 'event' && frame.envelope.seq <= row.seq) continue
+      if (covered(frame)) continue
       write(frame)
     }
     if (isTerminalMatchState(row.state)) {

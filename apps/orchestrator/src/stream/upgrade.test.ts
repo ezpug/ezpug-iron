@@ -70,6 +70,13 @@ afterEach(async () => {
 
 const MATCH_ID = '6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b'
 
+/** An `event` frame at a seq, as the machine publishes one. */
+const event = (seq: number): Parameters<StreamHub['publish']>[1] =>
+  ({
+    type: 'event',
+    envelope: { deliveryId: `d-${seq}`, matchId: MATCH_ID, seq, type: 'match.allocated' },
+  }) as unknown as Parameters<StreamHub['publish']>[1]
+
 /**
  * A world whose `findMatch` — the read the hello is built from — is held
  * open by the test, so the window between subscribing and greeting is as
@@ -176,11 +183,6 @@ describe('the stream upgrade', () => {
     await eventually(() => expect(w.subscribers()).toBe(1))
     // The machine appends before it publishes: an event with the row's own seq
     // (3) can land in the window, and one past it (4) can too.
-    const event = (seq: number): Parameters<StreamHub['publish']>[1] =>
-      ({
-        type: 'event',
-        envelope: { deliveryId: `d-${seq}`, matchId: MATCH_ID, seq, type: 'match.allocated' },
-      }) as unknown as Parameters<StreamHub['publish']>[1]
     w.hub.publish(MATCH_ID, event(3))
     w.hub.publish(MATCH_ID, event(4))
     w.hub.publish(MATCH_ID, {
@@ -196,6 +198,31 @@ describe('the stream upgrade', () => {
     ).toEqual(['event:4', 'presence'])
     await expect(
       eventually(() => expect(client.frames.length).toBeGreaterThan(3), { timeout: 200 }),
+    ).rejects.toThrow()
+    client.close()
+  })
+
+  it('drops an event the greeting already covers even when it lands after it', async () => {
+    // **T39b.** The frame does not arrive from the machine, it arrives back
+    // off the fan-out — Redis in production — so the round trip can outlast
+    // the read the hello was built from: the same append that set the row's
+    // `seq` to 3 is delivered here *after* the greeting went out, where the
+    // held-frame filter can no longer see it. The conformance suite's
+    // `stream-hello` — *a subscriber that joined at the hello missed nothing
+    // after it* — is what failed on a loaded box.
+    const w = await world()
+    const client = collect(w.url, w.secret)
+    await client.open
+    const [hello] = await client.until(1)
+    expect(hello).toEqual({ type: 'hello', matchId: MATCH_ID, seq: 3, state: 'allocating' })
+    w.hub.publish(MATCH_ID, event(3))
+    w.hub.publish(MATCH_ID, event(4))
+    const frames = await client.until(2)
+    expect(
+      frames.slice(1).map(f => (f.type === 'event' ? `event:${f.envelope.seq}` : f.type)),
+    ).toEqual(['event:4'])
+    await expect(
+      eventually(() => expect(client.frames.length).toBeGreaterThan(2), { timeout: 200 }),
     ).rejects.toThrow()
     client.close()
   })

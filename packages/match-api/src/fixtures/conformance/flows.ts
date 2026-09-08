@@ -57,6 +57,21 @@ export const SHORT_RULES: MatchRules = {
 /** The happy flow plays a little longer, so a side swap has rounds on both sides of it. */
 export const HAPPY_RULES: MatchRules = { ...SHORT_RULES, regulationRounds: 4 }
 
+/**
+ * **The margin `reprovision-before-live` needs**, and the only place a flow
+ * asks a target to play slower than it wants to. A simulated story goes from
+ * the box being ready to the first round in twelve to forty-five *match*
+ * seconds, so at the twenty times real time an extended target plays at, the
+ * window in which a match can still be moved is barely a second wide — narrow
+ * enough that one starved poll cycle falls through it and the flow waits out
+ * its budget on a match that is already playing (PRD-02 T39b). Two is that
+ * window in tens of seconds; {@link PLAY_OUT_TIME_SCALE} is what the match is
+ * put back to once there is nothing left to catch.
+ */
+const PRE_LIVE_TIME_SCALE = 2
+/** Fast enough that the rest of the flow costs what it always did. */
+const PLAY_OUT_TIME_SCALE = 20
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SHA256 = /^[0-9a-f]{64}$/
 
@@ -605,14 +620,42 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
     title: 'reprovision moves a match to another box before it is live and keeps its id',
     needs: [],
     async run(ctx) {
-      const created = await ctx.api.matches.create({ body: ctx.request() })
+      // **The only flow that has to catch a match in the act** — everything
+      // else waits for a state a match keeps. `pending → live` is a window,
+      // and on a target that plays a real story on real timers it is a window
+      // measured in seconds: a poll cycle slower than it falls straight
+      // through, and the flow then waits out its whole budget on a match that
+      // is already playing. So the request asks for the story at
+      // {@link PRE_LIVE_TIME_SCALE} instead of the target's own — the window
+      // becomes tens of seconds and the margin is structural rather than
+      // lucky — and the match is put back on the target's speed once the
+      // replacement is standing, so the play-out costs what it always did.
+      // A target that does not simulate ignores both, which is what it should
+      // do with either.
+      const created = await ctx.api.matches.create({
+        body: ctx.request({ sim: { timeScale: PRE_LIVE_TIME_SCALE } }),
+      })
       const params = { matchId: created.id }
-      const first = await ctx.waitFor('the first server', async () => {
+      /**
+       * A box of this match's own, while the match can still be moved. The
+       * test is the *provider's* id and not the ledger row's: a row is
+       * written before the walk asks anyone for a server, so a flow that
+       * reprovisioned on `fleetServerId` would be cancelling an allocation
+       * that had not happened yet — one `match.allocated` for the whole
+       * match instead of the two this flow is about.
+       */
+      const preLiveServer = (what: string) => async () => {
         const match = await ctx.raw.matches.get({ params })
         if (match.state === 'failed' || match.state === 'cancelled')
-          throw new Error(`the match ended before it was ready — ${terminal(match)}`)
-        return match.state === 'ready' ? match : null
-      })
+          throw new Error(`the match ended ${what} — ${terminal(match)}`)
+        // Said in one poll rather than found in the timeout: a match that is
+        // already playing cannot be moved, and the reason is that the poll
+        // missed the window, not that the box never came.
+        if (match.state === 'live' || match.state === 'ended')
+          throw new Error(`the match was ${match.state} ${what}: the poll missed the window`)
+        return match.serverId === null ? null : match
+      }
+      const first = await ctx.waitFor('the first server', preLiveServer('before it was ready'))
       ctx.require('the first box holds a ledger row', first.fleetServerId !== null)
 
       const moved = await ctx.api.matches.command({
@@ -625,11 +668,21 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         `${moved.status} ${moved.code ?? ''}`,
       )
       const second = await ctx.waitFor('the replacement server', async () => {
-        const match = await ctx.raw.matches.get({ params })
-        if (match.state === 'failed' || match.state === 'cancelled')
-          throw new Error(`the match ended while it moved — ${terminal(match)}`)
-        return match.state === 'ready' && match.fleetServerId !== first.fleetServerId ? match : null
+        const match = await preLiveServer('while it moved')()
+        return match !== null && match.fleetServerId !== first.fleetServerId ? match : null
       })
+      // Back on the target's own clock for the match itself; a target with no
+      // simulator refuses it, and the flow is none the worse.
+      await ctx.api.matches
+        .command({
+          params,
+          body: {
+            type: 'sim.speed',
+            timeScale: PLAY_OUT_TIME_SCALE,
+            correlationId: 'conformance-reprovision-speed',
+          },
+        })
+        .catch(() => undefined)
       ctx.check('the match kept its id', second.id === created.id)
       ctx.check('the client’s own id is untouched', second.clientMatchId === created.clientMatchId)
       ctx.check(

@@ -9,8 +9,8 @@ import {
   runMatchApiConformance,
 } from '@ezpug/match-api/fixtures'
 import { describeMatchApiConformance } from '@ezpug/match-api/fixtures/vitest'
-import { verifyWebhook } from '@ezpug/match-api/webhooks'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { verifyWebhook, WEBHOOK_ATTEMPT_HEADER } from '@ezpug/match-api/webhooks'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
 import { type OrchestratorConfig, readDatabaseConfig, readOrchestratorConfig } from './config'
 import { sweepTestNamespace, testNamespace } from './db/testing'
@@ -64,10 +64,21 @@ const namespace = testNamespace(import.meta.url)
  * margin a client's own latency lives in (see the file's note).
  */
 const SIM_TIME_SCALE = 20
-/** One flow's budget: a whole match at {@link SIM_TIME_SCALE}, with room to spare. */
-const FLOW_TIMEOUT_MS = 90_000
+/** How long the runner waits for any one thing before it says what it waited for. */
+const MAX_WAIT_MS = 120_000
+/**
+ * One flow's budget: a whole match at {@link SIM_TIME_SCALE}, with room to
+ * spare — and **above {@link MAX_WAIT_MS} on purpose** (T39b). It used to sit
+ * below it, so a flow that hung died on Vitest's bare `Test timed out`, which
+ * names nothing; the runner's own `gave up waiting for the replacement server`
+ * is the sentence the next author needs, and it can only be reached if the
+ * wait is allowed to run out first.
+ */
+const FLOW_TIMEOUT_MS = 150_000
 /** {@link quiesce} gives up after this long rather than hang a flow. */
 const QUIESCE_TIMEOUT_MS = 15_000
+/** Every {@link quiesce} that spent its whole budget: a barrier that did not settle. */
+const stalls: string[] = []
 
 let orchestrator: Orchestrator | undefined
 let config: OrchestratorConfig | undefined
@@ -79,8 +90,27 @@ let endpointUrl = ''
 const demos: { url: string; bytes: number; contentType: string }[] = []
 const log = createMemoryLog()
 let mints = 0
-const handlers = new Set<(envelope: WebhookEnvelope) => void>()
+/**
+ * **One inbox per target, addressed by its own path** (T39b). The endpoint
+ * hears every key's deliveries, so a target has to know which are its own —
+ * and it may not learn that from the matches it can *see*, because the
+ * orchestrator POSTs `match.allocated` while the flow is still on the round
+ * trip that would have told it (measured: the flow won by 37–130 ms on this
+ * box, and lost outright on a loaded one, which is how `happy-bo1` came to
+ * report `never delivered: 1`). The request names the URL, so the URL is the
+ * answer: each target draws a path of its own and the endpoint routes by it.
+ */
+const inboxes = new Map<string, Set<(envelope: WebhookEnvelope) => void>>()
 const unverified: string[] = []
+/** A delivery that arrived at a path no target claims — nobody's, and a bug if it happens. */
+const misaddressed: string[] = []
+/** A delivery that needed more than one attempt against an endpoint that always says 200. */
+const retried: string[] = []
+
+/** The inbox a POST was addressed to: the path, without a query string. */
+function hookPath(url: string | undefined): string {
+  return (url ?? '').split('?')[0] as string
+}
 
 function listen(server: Server): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -151,7 +181,24 @@ beforeAll(async () => {
             response.writeHead(result.status).end()
             return
           }
-          for (const handler of handlers) handler(result.envelope)
+          // **Every delivery is a first attempt** (T39b). This endpoint
+          // answers 200 to everything, so a second attempt means the first
+          // one failed against loopback — and `quiesce` deliberately does
+          // not wait on a row in backoff (T10a: a flow that means a
+          // delivery to fail must still get its failure), so a five-second
+          // retry landing after its flow is over is an envelope the flow
+          // reports as never delivered. Named here rather than found there.
+          const attempt = Number(request.headers[WEBHOOK_ATTEMPT_HEADER] ?? '1')
+          if (attempt > 1)
+            retried.push(
+              `${result.envelope.payload.type} seq ${result.envelope.seq} on attempt ${attempt}`,
+            )
+          // The path the request named is the target it belongs to; an
+          // inbox with nobody listening is a flow that has already ended
+          // and is not an error, an unknown one would be.
+          const inbox = inboxes.get(hookPath(request.url))
+          if (inbox) for (const handler of inbox) handler(result.envelope)
+          else misaddressed.push(`${request.url} — ${result.envelope.payload.type}`)
           response.writeHead(200).end()
         })
       })
@@ -171,8 +218,41 @@ beforeAll(async () => {
   }
 }, 60_000)
 
+/** Where the orchestrator's log and the stall list stood when this flow started. */
+let markLines = 0
+let markStalls = 0
+
 beforeEach(ctx => {
   if (unavailable) ctx.skip(`dev world unavailable: ${unavailable}`)
+  markLines = log.lines.length
+  markStalls = stalls.length
+})
+
+/**
+ * **A red flow says what the orchestrator was doing** (T39b, T39a's lesson
+ * carried one step further). The runner reports the check that failed and the
+ * thing it gave up waiting for; the *reason* is in the service's own log and
+ * in the barrier, and both live in this process and were being thrown away.
+ * A flow that ends red prints the log this flow wrote and every barrier that
+ * spent its whole budget while it ran — a green one prints nothing.
+ */
+afterEach(async ctx => {
+  if (ctx.task.result?.state !== 'fail') return
+  const open = await (orchestrator as Orchestrator).store.listOpenMatches()
+  const lines = log.lines
+    .slice(markLines)
+    .filter(line => line.startsWith('error') || line.startsWith('warn'))
+  const stalled = stalls.slice(markStalls)
+  process.stderr.write(
+    `\n[conformance] ${ctx.task.name} went red; what this process saw:\n` +
+      `  matches still open: ${
+        open.length === 0
+          ? 'none'
+          : open.map(row => `${row.id.slice(0, 8)} ${row.state}`).join(', ')
+      }\n` +
+      `  barriers that gave up: ${stalled.length === 0 ? 'none' : `\n    ${stalled.join('\n    ')}`}\n` +
+      `  log: ${lines.length === 0 ? 'nothing above info' : `\n    ${lines.slice(-40).join('\n    ')}`}\n\n`,
+  )
 })
 
 /**
@@ -186,6 +266,10 @@ async function sweepNamespace(): Promise<void> {
 }
 
 afterAll(async () => {
+  if (stalls.length > 0)
+    process.stderr.write(
+      `\n[conformance] ${stalls.length} stalled barriers:\n  ${stalls.join('\n  ')}\n\n`,
+    )
   endpoint?.close()
   if (!orchestrator || !config) return
   if (orchestrator.server.listening) await orchestrator.close('afterAll')
@@ -206,13 +290,22 @@ afterAll(async () => {
  */
 async function quiesce(): Promise<void> {
   const o = orchestrator as Orchestrator
-  const deadline = systemClock.now() + QUIESCE_TIMEOUT_MS
+  const started = systemClock.now()
+  const deadline = started + QUIESCE_TIMEOUT_MS
   for (let pass = 0; pass < 8; pass += 1) {
     await o.matches.settle()
     await o.webhooks.settle()
     const due = await o.store.listDueDeliveries(systemClock.date(), 1)
-    if (due.length === 0 || systemClock.now() >= deadline) return
+    if (due.length === 0) return
+    if (systemClock.now() >= deadline) {
+      // The barrier is the one thing a flow cannot see past, so when it
+      // gives up it says so rather than costing the flow a poll in silence
+      // (T39b: a `Test timed out` names nothing).
+      stalls.push(`quiesce gave up after ${systemClock.now() - started} ms on pass ${pass + 1}`)
+      return
+    }
   }
+  stalls.push(`quiesce ran out of passes after ${systemClock.now() - started} ms`)
 }
 
 /** A fresh pair of keys per flow, on the one standing orchestrator. */
@@ -243,23 +336,20 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
   }
   const client = createMatchApiClient({ ...options, apiKey: platform.secret })
   const budgetClient = createMatchApiClient({ ...options, apiKey: thrifty.secret })
-  // Deliveries for this key only: the endpoint hears every key's.
-  const mine = new Set<string>()
+  // Deliveries for this target only, by the path its own requests name.
+  const path = `/hooks/${flow.id}-${mints}`
+  const inbox = new Set<(envelope: WebhookEnvelope) => void>()
+  inboxes.set(path, inbox)
   return {
     client,
     webhooks: handler => {
-      const filtered = (envelope: WebhookEnvelope): void => {
-        if (mine.has(envelope.matchId)) handler(envelope)
-      }
-      handlers.add(filtered)
-      const seen = client.matches.list
-      void seen
+      inbox.add(handler)
       return () => {
-        handlers.delete(filtered)
+        inbox.delete(handler)
       }
     },
     callbacks: {
-      webhookUrl: `${endpointUrl}/hooks/ezpug`,
+      webhookUrl: `${endpointUrl}${path}`,
       webhookSecretId: SECRET_ID,
       demoUploadUrl: `${endpointUrl}/demos/conformance.dem?signed=1`,
     },
@@ -271,7 +361,7 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
       })),
     clock: systemClock,
     pollIntervalMs: 250,
-    maxWaitMs: 120_000,
+    maxWaitMs: MAX_WAIT_MS,
     // The one sim provider serves every flow, so the knobs are armed for
     // this flow's match and cleared when it is done with the target.
     faults: faults =>
@@ -280,20 +370,12 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
       ),
     close: () => (o.providers.get('sim') as SimProvider).setFaults({}),
     advance: async ms => {
-      // Which matches are ours is learned from the list, so the filter above
-      // never needs the flow to say.
-      const page = await client.matches.list({ query: {} })
-      for (const match of page.items) mine.add(match.id)
       // Real time is what a poll waits for here; the barrier after it is so
       // the next read sees a written world rather than a half-written one.
       await systemClock.sleep(Math.min(ms, 250))
       await quiesce()
     },
-    settle: async () => {
-      const page = await client.matches.list({ query: {} })
-      for (const match of page.items) mine.add(match.id)
-      await quiesce()
-    },
+    settle: quiesce,
     stream: (subscription, onFrame) => {
       const handle = client.subscribeStream({
         matchId: subscription.matchId,
@@ -324,6 +406,8 @@ describe('the extended gate', () => {
     expect(report.ok).toBe(true)
     expect(report.passed + report.skipped).toBe(MATCH_API_CONFORMANCE_FLOWS.length)
     expect(unverified).toEqual([])
+    expect(misaddressed).toEqual([])
+    expect(retried).toEqual([])
     const o = orchestrator as Orchestrator
     expect(await o.fleet.servers()).toEqual([])
     expect(await o.providers.get('sim')?.list()).toEqual([])

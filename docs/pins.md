@@ -127,7 +127,7 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.10.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.10.1`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its

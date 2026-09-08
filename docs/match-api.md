@@ -318,7 +318,9 @@ cursor is not opaque: it is **the `seq` to resume after**, as a decimal string, 
 Scope `matches`. A WebSocket upgrade, not a request: every message the socket sends is a
 `StreamFrame`, the first one a `hello` — always, even when the match is publishing at the
 moment you connect: the subscription is taken before the greeting is built, and anything
-published in between waits behind it. Authenticated by the bearer header, or by a player
+published in between waits behind it. **No `event` frame ever carries a `seq` at or below
+`hello.seq`**, however late it arrives: the greeting's cursor is what you replay from, so a
+frame it already covers would be the same fact twice. Authenticated by the bearer header, or by a player
 token minted for this match in `?token=` for a browser. The typed client has no call for
 it; `subscribeStream(matchId)` opens it. See [The stream](#the-stream).
 
