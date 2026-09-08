@@ -66,6 +66,23 @@ describe('ezpug-iron --help is enough for an operator who never read the code', 
   })
 })
 
+/**
+ * T37d: the sentence that was wrong in three places at once. `--monthly-cents`
+ * defaults to `0` and zero is a ceiling of zero, so a usage block or a runbook
+ * that calls it "no ceiling" is what walks an operator into `budget_exceeded`
+ * on the first paid server.
+ */
+describe('a zero monthly ceiling', () => {
+  it('is never called the absence of one, in any usage block or in the runbook', () => {
+    for (const [group, usage] of Object.entries(USAGES))
+      expect(usage, group).not.toContain('no monthly ceiling')
+    expect(operations).not.toContain('no monthly ceiling')
+    expect(KEYS_USAGE).toContain('ceiling of zero')
+    expect(BUDGET_USAGE).toContain('ceiling of zero')
+    expect(operations).toContain('means no money, not "no ceiling"')
+  })
+})
+
 describe('the runbook', () => {
   it('has a section for the command, and `pnpm iron` is a script', () => {
     expect(operations).toContain('## `ezpug-iron`, the command')

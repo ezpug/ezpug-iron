@@ -159,6 +159,36 @@ describe('keys', () => {
     })
   })
 
+  /**
+   * T37d. `--monthly-cents 0` is the default of both mints and it is a
+   * ceiling of *zero*; this command used to call it "no monthly ceiling",
+   * which is the opposite of what the orchestrator does with it. The default
+   * stays — it is the only one that cannot spend the owner's money by
+   * omission — so what has to carry the truth is the line at the mint.
+   */
+  it('calls a zero monthly ceiling zero, and warns the key it will refuse', async () => {
+    const h = await setup()
+    const broke = await h.run('keys create --name broke --scopes matches')
+    expect(broke.code).toBe(EXIT.ok)
+    expect(broke.out).toContain('€0.00 a month — free providers only')
+    expect(broke.out).not.toContain('no monthly ceiling')
+    expect(broke.err).toContain('monthly ceiling of zero')
+    expect(broke.err).toContain('--monthly-cents')
+
+    // A key that cannot create a match is never refused one: no warning.
+    const watcher = await h.run('keys create --name watcher --scopes fleet')
+    expect(watcher.err).not.toContain('monthly ceiling of zero')
+
+    // A ceiling that is money prints as money and warns about nothing.
+    const payer = await h.run('keys create --name payer --scopes matches --monthly-cents 5000')
+    expect(payer.out).toContain('€50.00 a month')
+    expect(payer.err).not.toContain('monthly ceiling of zero')
+
+    // And the list says €0.00 rather than a dash, which read as "none".
+    const listed = await h.run('keys list')
+    expect(listed.out).toContain('€0.00')
+  })
+
   it('refuses a name it was not given and a scope that is not one', async () => {
     const h = await setup()
     expect((await h.run('keys create --scopes admin')).code).toBe(EXIT.usage)
@@ -443,6 +473,20 @@ describe('budget', () => {
     expect(budget.out).toContain('servers       0 of')
     const json = (await h.run('budget --json')).json<Budget>()
     expect(json.limits.maxServerLifetimeMinutes).toBeGreaterThan(0)
+  })
+
+  /** T37d, the same sentence on the verb an operator reads it from. */
+  it('prints a zero monthly ceiling as the zero it is', async () => {
+    const h = await setup()
+    const minted = (
+      await h.run('keys create --name broke --scopes matches,fleet --json')
+    ).json<ApiKeyCreated>()
+    const line = await h.run('budget', {
+      env: { [API_KEY_VAR]: minted.secret, EZPUG_IRON_CLI_URL: h.listener.url },
+    })
+    expect(line.code, line.err).toBe(EXIT.ok)
+    expect(line.out).toContain('spent of €0.00 — free providers only')
+    expect(line.out).not.toContain('no monthly ceiling')
   })
 })
 

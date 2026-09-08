@@ -1333,7 +1333,9 @@ terminal's rather than the API's, and all three cost a venue operator time.
   drawn from the CSPRNG here (`eziw_` and 43 characters, the same grammar as every other
   secret in this system) and shown once beside the key's own. A client that already owns
   its secret still registers it through `PUT /v1/keys/:keyId/webhook-secrets`, which is
-  the door for rotating one without a gap.
+  the door for rotating one without a gap. `--monthly-cents` is where the money goes: its
+  default of `0` is a ceiling of zero, so a key minted without it can create matches only
+  on free providers (T37d).
 - **`nodes remove <nodeId>`** un-enrols a node (`DELETE /v1/fleet/nodes/:id`): the token is
   revoked, the agent's socket is closed in force and the row is gone. What it does *not*
   do is stop anything that is playing — those containers belong to the ledger, not to the
@@ -1355,10 +1357,15 @@ The first key on a fresh database comes from the box:
 ```sh
 pnpm --filter @ezpug/orchestrator keys:mint -- --name root --scopes admin
 pnpm --filter @ezpug/orchestrator keys:mint -- --name platform --scopes matches,fleet \
-  --max-concurrent 4 --max-lifetime-minutes 240 --monthly-cents 0
+  --max-concurrent 4 --max-lifetime-minutes 240 --monthly-cents 50000
 ```
 
-The secret is the one line on stdout. From there `POST /v1/keys` (an `admin` key) mints
+The secret is the one line on stdout. **Name the month's money.** `--monthly-cents`
+defaults to `0` and zero is a ceiling of zero, not the absence of one (below): a key
+minted with the default runs on free providers forever and is refused the first paid
+server. Both doors — this script and `ezpug-iron keys create` — keep that default,
+because it is the only one that cannot spend the owner's money by accident, and both say
+what it means on the line they print at the mint. From there `POST /v1/keys` (an `admin` key) mints
 the rest; `DELETE /v1/keys/:id` revokes; `POST /v1/keys/:id/rotate` draws a new secret
 and kills the old one on the spot (same key, same id, same budget — what you do when a
 secret leaked, instead of minting a second key and leaving the first alive);
@@ -1385,6 +1392,15 @@ so a refused request costs nothing and leaves nothing.
 free providers (the sim, a node) forever and is refused the first paid allocation. That
 is the safe default and it is why the dev bootstrap key carries it: a dev world pointed
 at Dathost by accident stops at the first request instead of at the invoice.
+
+It is also the default of both mints, which is a trap if a mint calls it something else —
+so neither does (T37d). `keys:mint` prints the ceiling it minted and spells out what a
+zero one buys; `ezpug-iron keys create` prints `€0.00 a month — free providers only` and,
+when the key may create matches, warns on stderr with the flag that lifts it;
+`ezpug-iron keys list` shows `€0.00` in the `monthly` column rather than a dash, and
+`ezpug-iron budget` reads `spent of €0.00 — free providers only, a paid server is
+refused`. The default itself stays zero: a mint that could rent a box by omission is the
+worse trap, and the money is one flag away.
 
 **The month** is the UTC calendar month. `GET /v1/fleet/budget` answers the calling key's
 `{ limits, usage: { concurrentServers, monthCents, monthStartedAt } }` — the query a

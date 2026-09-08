@@ -18,6 +18,16 @@ import { euros, orDash } from '../output'
  * on a box with no CLI does not have to learn a second vocabulary when the
  * CLI arrives, and the two cannot disagree about what an unstated ceiling is.
  *
+ * **`--monthly-cents 0` is a ceiling of zero, not the absence of one**
+ * (PRD-02 T37d). This command used to call it "no monthly ceiling", which is
+ * the opposite of what the orchestrator does with it: a zero ceiling spends
+ * nothing, so the key runs on free providers (the sim, a node) forever and is
+ * refused `budget_exceeded` by the first match that would rent a box. Zero
+ * stays the default — it is the only one that cannot spend the owner's money
+ * by accident, and both doors have to agree — but it is no longer silent: a
+ * key that may create matches under a zero ceiling is minted with a warning
+ * on stderr naming the flag that lifts it.
+ *
  * **`--webhook-secret <id>` names one, it never carries one** (PRD-02 T37b).
  * Every match request must name a registered webhook secret
  * (`callbacks.webhookSecretId`), so a key minted without one cannot create a
@@ -41,6 +51,12 @@ export const KEYS_USAGE = `ezpug-iron keys — API keys and their ceilings (the 
               [--webhook-secret <id>]...
   keys list
   keys revoke <keyId>
+
+--monthly-cents is a ceiling, and its default of 0 is a ceiling of zero — not
+the absence of one. A key with it spends nothing: free providers (the sim, a
+node) forever, and 402 budget_exceeded from the first match that would rent a
+paid server. Name the month's money to let it buy one (--monthly-cents 5000 is
+50 euros); PATCH /v1/keys/:keyId/budget moves it afterwards.
 
 --webhook-secret names a webhook secret to register on the new key (repeat it
 for up to ${MAX_WEBHOOK_SECRETS}); the secret itself is drawn here and shown once, and is what a
@@ -85,8 +101,15 @@ async function create(context: CommandContext): Promise<number> {
   out.say(
     `minted ${created.key.id} — ${created.key.name} (${created.key.scopes.join(',')}), ` +
       `${budget.maxConcurrentServers} server(s) at once, ${budget.maxServerLifetimeMinutes} min each, ` +
-      `${budget.monthlyCents === 0 ? 'no monthly ceiling' : `${euros(budget.monthlyCents)} a month`}`,
+      `${budget.monthlyCents === 0 ? '€0.00 a month — free providers only' : `${euros(budget.monthlyCents)} a month`}`,
   )
+  if (budget.monthlyCents === 0 && scopes.some(scope => scope === 'matches' || scope === 'admin'))
+    out.warn(
+      `warning: ${created.key.id} has a monthly ceiling of zero, so it can only use free ` +
+        `providers (the sim, a node) — the first match on a paid one is refused ` +
+        `budget_exceeded. Mint with --monthly-cents <cents>, or raise it later with ` +
+        `PATCH /v1/keys/${created.key.id}/budget.`,
+    )
   out.reveal(
     'The secret, once:',
     created.secret,
@@ -114,7 +137,7 @@ async function list(context: CommandContext): Promise<number> {
       key.scopes.join(','),
       String(key.budget.maxConcurrentServers),
       String(key.budget.maxServerLifetimeMinutes),
-      key.budget.monthlyCents === 0 ? '—' : euros(key.budget.monthlyCents),
+      euros(key.budget.monthlyCents),
       key.revokedAt ? `revoked ${key.revokedAt}` : `last used ${orDash(key.lastUsedAt)}`,
     ]),
   )

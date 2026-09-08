@@ -48,11 +48,18 @@ container is touched, so the previous release keeps serving. Fix it and re-run.
 
    ```bash
    ./scripts/deploy.sh key --name operator --scopes admin,matches,fleet \
-     --max-concurrent 4 --max-lifetime-minutes 240 --monthly-cents 0
+     --max-concurrent 4 --max-lifetime-minutes 240 --monthly-cents 50000
    ```
 
    The secret is printed once, to stdout, and never again. Paste it into
    `.env.production` as `EZPUG_IRON_API_KEY`.
+
+   **Say what the month may cost.** `--monthly-cents` defaults to `0`, and zero is a
+   ceiling of zero rather than the absence of one: that key would run on the sim and on
+   nodes forever and be refused `402 budget_exceeded` by the first match that rents a
+   Dathost box. The mint prints which one it gave you; `deploy.sh key` is also how you
+   raise it — mint again, or `PATCH /v1/keys/:keyId/budget`
+   (`docs/operations.md`, "Budgets").
 4. `./scripts/deploy.sh smoke` — green.
 
 **Why that step exists at all.** `EZPUG_IRON_BOOTSTRAP_API_KEY` — the environment-adopted

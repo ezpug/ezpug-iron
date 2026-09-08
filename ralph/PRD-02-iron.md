@@ -902,7 +902,7 @@ every offline proof here.
   `pnpm verify` with the orchestrator suite alongside everything else, or by squeezing the
   pool on purpose.
 
-- [ ] **T37d: `keys create` calls a ceiling of zero "no monthly ceiling".** The CLI's mint
+- [x] **T37d: `keys create` calls a ceiling of zero "no monthly ceiling".** The CLI's mint
   prints `no monthly ceiling` for `--monthly-cents 0`, and zero is a ceiling of **zero** —
   the orchestrator's `bootstrap.ts` and `budget/service.ts` say so, and a key minted with
   the CLI's own defaults is refused `budget_exceeded` by the first match that costs
@@ -910,6 +910,25 @@ every offline proof here.
   same word is in the `keys:mint` script and in the runbook's table, so fix the sentence
   in all three, and decide out loud whether the default of `0` is the right one for a
   door an operator types at — a mint whose default cannot rent a box is a trap either way.
+  > note: **the default stays `0`; what changed is that nothing calls it "no ceiling"
+  > any more.** A mint whose default *could* rent a box is the worse trap of the two — it
+  > spends the owner's money by omission, in a terminal, on a production box — and both
+  > doors have to agree about an unstated ceiling (`keys.ts` says why), so moving one
+  > would have meant moving `keys:mint` with it. The money is one flag away and the
+  > refusal it saves you from is a `402`, not an invoice. So the fix is the sentence, in
+  > every place a human meets it: `keys create` prints `€0.00 a month — free providers
+  > only` and, **when the key may actually create matches** (`matches` or `admin`), warns
+  > on stderr with the flag and the `PATCH` that lift it — stderr, so `--json` stays one
+  > document; `keys list` shows `€0.00` in the `monthly` column instead of the `—` that
+  > read as "none"; `budget` says `spent of €0.00 — free providers only, a paid server is
+  > refused`; `keys:mint` now prints the whole budget it minted, with the zero spelled
+  > out, on the stderr line above the secret (every caller of it reads the last line of
+  > *stdout*, so `dev-node.sh`, `iron-match.mjs` and `dathost-smoke.mjs` are untouched).
+  > `docs/operations.md` already had the paragraph right and now says which line each door
+  > prints; `ralph/DEPLOY.md`'s first-key example asked for `--monthly-cents 0` on an
+  > `admin,matches,fleet` operator key, which is exactly the key T36 will use to rent
+  > Frankfurt — it names a real ceiling now. `docs.test.ts` holds the phrase out of every
+  > usage block and out of the runbook, so it cannot come back.
 
 - [ ] **T38: Docs for strangers.** `README.md` (install, run, first match in ten minutes),
   `docs/sdk.md` (write a gamemode), `docs/gamemodes.md` (manifest, tiers, the widget host
