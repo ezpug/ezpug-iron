@@ -36,6 +36,8 @@ export const CONFORMANCE_CAPABILITIES = [
   'budget',
   /** `callbacks.demoUploadUrl` — somewhere for a demo to land. */
   'demoUpload',
+  /** `target.demoUploadUrls` — one presigned url per map of a series (T38a). */
+  'demoUploadPerMap',
 ] as const
 export type ConformanceCapability = (typeof CONFORMANCE_CAPABILITIES)[number]
 
@@ -82,6 +84,13 @@ export interface ConformanceTarget {
     /** Omitted = no demo lands anywhere, and the demo checks are skipped. */
     demoUploadUrl?: string
   }
+  /**
+   * One presigned PUT per map, for the series flow: a target that can draw
+   * `count` of them answers with them, and one that cannot leaves this out
+   * and the flow is skipped. Kept off `callbacks` on purpose — every other
+   * flow's request must stay exactly what it was.
+   */
+  demoUploadUrls?: (count: number) => { mapNumber: number; url: string }[]
   /** Where the suite's own waits happen. Defaults to the system clock. */
   clock?: Clock
   /**

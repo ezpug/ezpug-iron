@@ -948,7 +948,7 @@ every offline proof here.
   every other, and take the curl out of the runbook's step 1 and step 2. `GET /v1/fleet/gslt`
   has the same hole and the same fix, if it fits in the same group.
 
-- [ ] **T38a (fable): What the platform's console found missing — the additive 0.2.0.**
+- [x] **T38a (fable): What the platform's console found missing — the additive 0.2.0.**
   The platform loop (`/root/ezpug/ralph/PRD-09-iron-platform.md`, its `> blocked:` notes
   under T2, T4, T5, T14 and its T34) hit four contract gaps and, per decision 24, wrote
   them down instead of editing a schema. Grow `@ezpug/match-api` **additively** for all
@@ -972,6 +972,20 @@ every offline proof here.
   Before starting, grep the platform's PRD and progress file for "contract gap" once more
   and take anything newer than these four. References: decision 24, the four notes
   named above, `packages/match-api`, `docs/match-api.md`.
+  > note: **the release is `0.9.0`, not the `0.2.0` this task was written around** — the
+  > package has been cut eight times since (T31 was `0.8.0`), and the platform's own notes
+  > were written against `0.1.0`. The four gaps are answered as written with two shapes
+  > decided against the task's own suggestions: **(1)** the per-map demo URL is a *list*
+  > (`callbacks.demoUploadUrls`, `{ mapNumber, url }[]`) and not a `{mapNumber}` template,
+  > because a presigned URL's signature covers the object key it was drawn for, so a
+  > template could never be signed — `demoUploadUrlFor()` is the resolution rule, and the
+  > orchestrator, the fake, the sim provider and the C# plugin all call it; **(2)** the
+  > re-roll verb is a new command, `reprovision`, and not a variant of `reroll`, which
+  > already means "the same server, again". It is the first command the orchestrator
+  > answers by itself and never relays (`ORCHESTRATOR_COMMAND_TYPES`; the protocol's link
+  > union excludes it, and the plugin never learns the word). No newer contract gap was
+  > found in the platform's PRD or progress file. Published to the box's Verdaccio; npmjs
+  > waits for a login (`--registry` is now a flag on `release.mjs publish|smoke`).
 
 - [ ] **T39: Release.** `@ezpug/match-api` bumped to the round's additive changes (the
   changelog says which platform task each serves), images and plugin zip tagged, the

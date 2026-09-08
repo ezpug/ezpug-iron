@@ -49,6 +49,9 @@ export function createFakeHandlers(core: FakeCore): FakeHandlers {
     capacity: {
       get: () => core.capacity(),
     },
+    sim: {
+      scenarios: () => core.simScenarios(),
+    },
     matches: {
       create: ({ body }, ctx) => {
         const { match, replayed } = core.createMatch(ctx.key, body)

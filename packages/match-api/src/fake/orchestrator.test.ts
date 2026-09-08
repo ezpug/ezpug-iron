@@ -713,6 +713,78 @@ describe('losing a server', () => {
   })
 })
 
+describe('reprovision', () => {
+  it('releases the box and walks again for the same match before it is live', async () => {
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    const match = await client.matches.create({ body: pugRequest() })
+    // Far enough for the first box to be up, not far enough to be playing.
+    await h.clock.advance(10_000)
+    const params = { matchId: match.id }
+    const booted = await client.matches.get({ params })
+    expect(booted.state).toBe('ready')
+    expect(booted.serverId).toBe('sim-1')
+
+    const moved = await client.matches.command({
+      params,
+      body: { type: 'reprovision', correlationId: 'rp-1' },
+    })
+    expect(moved.status).toBe('applied')
+    await h.clock.advance(60_000)
+    const next = await client.matches.get({ params })
+    expect(next.id).toBe(match.id)
+    expect(next.serverId).toBe('sim-2')
+
+    await h.fake.playOut()
+    const final = await client.matches.get({ params })
+    expect(final.state).toBe('ended')
+    expect(final.endedReason?.kind).toBe('completed')
+    const order = types(await allEvents(h, match.id))
+    expect(order.filter(t => t === 'match.allocated')).toHaveLength(2)
+    const admin = h.fake.client(h.fake.admin.secret)
+    const rows = (await admin.fleet.ledger({ query: {} })).items
+    expect(rows.map(r => [r.serverId, r.state])).toEqual([
+      ['sim-2', 'released'],
+      ['sim-1', 'released'],
+    ])
+    expect(h.errors).toEqual([])
+  })
+
+  it('is the recovery an operator starts by hand once the match is live', async () => {
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    const match = await client.matches.create({ body: pugRequest() })
+    const params = { matchId: match.id }
+    // Far enough in that the server has played rounds and written backups.
+    for (let i = 0; i < 60 && (await client.matches.get({ params })).state !== 'live'; i += 1)
+      await h.clock.advance(30_000)
+    await h.clock.advance(600_000)
+
+    const moved = await client.matches.command({
+      params,
+      body: { type: 'reprovision', correlationId: 'rp-live' },
+    })
+    expect(moved.status).toBe('applied')
+    expect((await client.matches.get({ params })).state).toBe('recovering')
+    expect(
+      await client.matches.command({
+        params,
+        body: { type: 'reprovision', correlationId: 'rp-again' },
+      }),
+    ).toMatchObject({ status: 'rejected', code: 'invalid_state' })
+
+    await h.fake.playOut()
+    const final = await client.matches.get({ params })
+    expect(final.state).toBe('ended')
+    expect(final.serverId).toBe('sim-2')
+    const envelopes = await allEvents(h, match.id)
+    const recovering = envelopes.find(e => e.payload.type === 'match.recovering')?.payload
+    if (recovering?.type !== 'match.recovering') throw new Error('unreachable')
+    expect(recovering.reason).toContain('asked for a different server')
+    expect(types(envelopes)).toContain('match.recovered')
+  })
+})
+
 describe('webhooks', () => {
   it('retries on the published schedule with the same deliveryId and a rising attempt header', async () => {
     const h = setup()
@@ -1077,6 +1149,88 @@ describe('the fleet', () => {
       lan: false,
       available: 8,
     })
+  })
+
+  it('lists the scenarios its own engine can play, with the default a request gets', async () => {
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    const catalog = await client.sim.scenarios()
+    expect(catalog.scenarios.map(s => s.name)).toContain('happy-path')
+    expect(catalog.scenarios.map(s => s.name)).toContain('server-crash')
+    expect(catalog.default).toBe('happy-path')
+    // Every knob spelled out, so a console renders facts and not a guess.
+    expect(catalog.scenarios.find(s => s.name === 'server-crash')).toEqual({
+      name: 'server-crash',
+      neverReady: false,
+      absentPlayers: 0,
+      crashAfterRound: 9,
+      pauses: 0,
+      overtimes: 0,
+      comeback: false,
+    })
+    // And a name from the catalog is a name the door takes.
+    const match = await client.matches.create({
+      body: pugRequest({ sim: { scenario: catalog.scenarios[0]?.name } }),
+    })
+    expect(match.state).not.toBe('failed')
+    expect(
+      (
+        await refusal(
+          client.matches.create({
+            body: pugRequest({ clientMatchId: 'nope', sim: { scenario: 'no-such-story' } }),
+          }),
+        )
+      ).code,
+    ).toBe('validation_failed')
+  })
+
+  it('takes preferLan where lan is refused, because one ranks and the other narrows', async () => {
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    // No node is enrolled on the fake, and that is the whole point of the field.
+    expect(
+      (await refusal(client.matches.create({ body: pugRequest({ requirements: { lan: true } }) })))
+        .code,
+    ).toBe('no_capable_server')
+    const match = await client.matches.create({
+      body: pugRequest({ clientMatchId: 'prefers-lan', requirements: { preferLan: true } }),
+    })
+    await h.fake.playOut()
+    expect((await client.matches.get({ params: { matchId: match.id } })).state).toBe('ended')
+  })
+
+  it('hands a series every map’s demo when the request drew one url per map', async () => {
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    const match = await client.matches.create({
+      body: pugRequest({
+        maps: [
+          { map: 'de_mirage', sides: 'ct' },
+          { map: 'de_nuke', sides: 't' },
+        ],
+        callbacks: {
+          webhookUrl: WEBHOOK_URL,
+          webhookSecretId: WEBHOOK_SECRET_ID,
+          demoUploadUrls: [
+            { mapNumber: 1, url: 'https://bucket.invalid/demos/m/map-1.dem?signed=1' },
+            { mapNumber: 2, url: 'https://bucket.invalid/demos/m/map-2.dem?signed=2' },
+          ],
+        },
+      }),
+    })
+    await h.fake.playOut()
+    expect(h.uploads.map(u => u.url)).toEqual([
+      'https://bucket.invalid/demos/m/map-1.dem?signed=1',
+      'https://bucket.invalid/demos/m/map-2.dem?signed=2',
+    ])
+    const uploaded = (await allEvents(h, match.id))
+      .map(e => e.payload)
+      .filter(p => p.type === 'demo.uploaded')
+      .map(p => (p.type === 'demo.uploaded' ? [p.mapNumber, p.key] : []))
+    expect(uploaded).toEqual([
+      [1, 'demos/m/map-1.dem'],
+      [2, 'demos/m/map-2.dem'],
+    ])
   })
 
   it('plays the other tiers: a config-only mode and an open-join retakes match', async () => {

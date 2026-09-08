@@ -11,6 +11,7 @@ import {
   parseEventsCursor,
   WIDGET_SOCKET_PATH,
 } from '@ezpug/match-api'
+import { DEFAULT_SCENARIO, listScenarios } from '@ezpug/sim'
 import type { Budgets } from '../budget/service'
 import type { Fleet } from '../fleet/service'
 import type { GsltPool } from '../gslt/pool'
@@ -99,6 +100,13 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
     },
     capacity: {
       get: () => fleet.capacity(),
+    },
+    sim: {
+      // The engine's own table, not a copy of it: a scenario added to
+      // `@ezpug/sim` is listed here the moment it exists (T38a). Served
+      // whether or not the `sim` provider is registered — this is what the
+      // build can play, and `GET /v1/capacity` is what says whether it could.
+      scenarios: () => ({ scenarios: listScenarios(), default: DEFAULT_SCENARIO }),
     },
     matches: {
       create: async ({ body }, ctx) => {

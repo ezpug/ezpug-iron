@@ -61,6 +61,19 @@ export const matchCommandSchema = z.discriminatedUnion('type', [
   /** Start the match over on the same server: fresh warmup, scores cleared, rosters kept. */
   commandBase.extend({ type: z.literal('reroll') }),
   /**
+   * The same match, **a different box**. Before the match is live the current
+   * server is released and the placement walk runs again for the same
+   * `clientMatchId` — the answer to a box that booted badly before kickoff,
+   * where a second create would need a second id and a `release` would only
+   * end the match. From `live` it is the recovery an operator starts by hand:
+   * `match.recovering`, a replacement handed the newest round backup,
+   * `match.recovered` — the path a lost server takes by itself, on purpose.
+   * `no_backup` from `live` when there is nothing to resume from, and
+   * `invalid_state` from `recovering` (one is already running) and from a
+   * terminal match. The ledger and the events replay tell the whole story.
+   */
+  commandBase.extend({ type: z.literal('reprovision') }),
+  /**
    * Push a player's profile: the way an open-join gamemode learns who just
    * connected, and the way a rostered player's rating or loadout is refreshed
    * mid-match. `player_not_in_match` for an unrostered player on a closed mode.
@@ -89,6 +102,7 @@ export const MATCH_COMMAND_TYPES = [
   'rcon',
   'restore',
   'reroll',
+  'reprovision',
   'profile',
   'sim.step',
   'sim.mode',
@@ -112,6 +126,21 @@ export const SIM_COMMAND_TYPES = [
 
 export function isSimCommand(type: MatchCommandType): boolean {
   return (SIM_COMMAND_TYPES as readonly string[]).includes(type)
+}
+
+/**
+ * Commands the **orchestrator** answers by itself and never relays to a
+ * server: they are about *where* the match runs, not about what the box
+ * should do — and the box a `reprovision` replaces is in no position to be
+ * asked. `packages/protocol`'s link command union is every other one.
+ */
+export const ORCHESTRATOR_COMMAND_TYPES = ['reprovision'] as const satisfies readonly [
+  MatchCommandType,
+  ...MatchCommandType[],
+]
+
+export function isOrchestratorCommand(type: MatchCommandType): boolean {
+  return (ORCHESTRATOR_COMMAND_TYPES as readonly string[]).includes(type)
 }
 
 /** Commands the `matches` scope alone may not send. */

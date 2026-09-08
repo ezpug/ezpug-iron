@@ -1,0 +1,174 @@
+{
+  "flow": "sim-scenarios",
+  "calls": [
+    {
+      "route": "sim.scenarios",
+      "ok": true,
+      "response": {
+        "scenarios": [
+          {
+            "name": "happy-path",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "overtimes": 0,
+            "comeback": false
+          },
+          {
+            "name": "overtime",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "overtimes": 1,
+            "comeback": false
+          },
+          {
+            "name": "pauses",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 2,
+            "overtimes": 0,
+            "comeback": false
+          },
+          {
+            "name": "comeback",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "overtimes": 0,
+            "comeback": true
+          },
+          {
+            "name": "no-show",
+            "neverReady": false,
+            "absentPlayers": 2,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "overtimes": 0,
+            "comeback": false
+          },
+          {
+            "name": "server-crash",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": 9,
+            "pauses": 0,
+            "overtimes": 0,
+            "comeback": false
+          },
+          {
+            "name": "never-ready",
+            "neverReady": true,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "overtimes": 0,
+            "comeback": false
+          }
+        ],
+        "default": "happy-path"
+      }
+    },
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-sim-scenarios",
+          "game": "cs2",
+          "gamemode": "pug",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                },
+                {
+                  "steamId64": "76561198000000003",
+                  "name": "flippo"
+                },
+                {
+                  "steamId64": "76561198000000004",
+                  "name": "Kessi"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                },
+                {
+                  "steamId64": "76561198000000103",
+                  "name": "BastiGHG"
+                },
+                {
+                  "steamId64": "76561198000000104",
+                  "name": "moepL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "de_mirage",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120,
+          "sim": {
+            "scenario": "a-scenario-nobody-wrote"
+          }
+        }
+      },
+      "ok": false,
+      "status": 400,
+      "code": "validation_failed",
+      "message": "unknown sim scenario a-scenario-nobody-wrote"
+    }
+  ],
+  "envelopes": [],
+  "deliveries": [],
+  "frames": []
+}

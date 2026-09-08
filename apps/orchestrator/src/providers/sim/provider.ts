@@ -8,6 +8,7 @@ import type {
   RosterEntry,
   SimStatus,
 } from '@ezpug/match-api'
+import { demoUploadUrlFor } from '@ezpug/match-api'
 import type { MatchAssignment, SimPlan, SimulatedServer, SimulatorScenario } from '@ezpug/sim'
 import {
   assignmentFromMatchRequest,
@@ -325,9 +326,10 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
           () => ingesting.delete(next),
         )
       }
-      const demoUploadUrl =
+      /** This map's presigned PUT, by the contract's own rule (T38a). */
+      const demoUploadUrlOf = (mapNumber: number): string | undefined =>
         configuration.gamemode.records === 'demo'
-          ? configuration.request.callbacks.demoUploadUrl
+          ? demoUploadUrlFor(configuration.request.callbacks, mapNumber)
           : undefined
 
       /**
@@ -340,6 +342,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
         event: Extract<GameserverEvent, { type: 'demo_available' }>,
       ): Promise<GameserverEvent> => {
         const recording = server.record(event.mapNumber)
+        const demoUploadUrl = demoUploadUrlOf(event.mapNumber)
         if (!recording || !demoUploadUrl) return event
         try {
           const response = await fetchImpl(demoUploadUrl, {
@@ -367,7 +370,7 @@ export function createSimProvider(options: SimProviderOptions): SimProvider {
         if (event.type === 'player_connected') presence.set(event.player.steamId64, event.player)
         else if (event.type === 'player_disconnected') presence.delete(event.player.steamId64)
         else if (event.type === 'going_live') currentMap = event.mapNumber
-        if (event.type === 'demo_available' && demoUploadUrl)
+        if (event.type === 'demo_available' && demoUploadUrlOf(event.mapNumber))
           feed(async () => sink.ingest(ref(serverId), await uploadRecording(event)))
         else feed(() => sink.ingest(ref(serverId), event))
         // What a plugin does after `backup_written`: the file, up the link.

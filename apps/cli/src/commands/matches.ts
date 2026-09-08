@@ -51,7 +51,7 @@ export const MATCHES_USAGE = `ezpug-iron matches — ask for a match, read it, w
 
 Commands and the fields they take:
   pause [--kind <kind>]            unpause                  restart_round
-  reroll                           force_end [--reason <t>]
+  reroll                           reprovision              force_end [--reason <t>]
   kick --steam-id <id> [--reason <t>]                       announce --text <t>
   rcon --command <line>            (needs the admin scope; refused on a sim)
   restore [--round <n>]            profile --file <path|->   (one roster entry)
@@ -280,6 +280,7 @@ const COMMAND_FIELDS: Readonly<
   unpause: [],
   restart_round: [],
   reroll: [],
+  reprovision: [],
   force_end: [{ flag: 'reason', key: 'reason', kind: 'string' }],
   kick: [
     { flag: 'steam-id', key: 'steamId64', kind: 'string' },

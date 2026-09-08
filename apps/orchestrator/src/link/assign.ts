@@ -110,6 +110,7 @@ export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'>
     warmupLines: request.warmupLines ?? [],
     branding: request.branding ?? {},
     ...(request.callbacks.demoUploadUrl && { demoUploadUrl: request.callbacks.demoUploadUrl }),
+    ...(request.callbacks.demoUploadUrls && { demoUploadUrls: request.callbacks.demoUploadUrls }),
     ...(restore && { restore }),
   })
 }

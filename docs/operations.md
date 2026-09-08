@@ -240,6 +240,16 @@ git tag cs2@0.1.0           && git push origin cs2@0.1.0
 git tag plugins@0.1.0       && git push origin plugins@0.1.0
 ```
 
+**Another registry.** `publish` and `smoke` take `--registry <url>` (or read
+`npm_config_registry`), because npmjs has no login on this box: the platform's dev world
+reads `@ezpug/match-api` from the box's Verdaccio at `http://172.17.0.1:4873/`, so a
+release goes there the day it is cut and to npmjs the day the owner logs in.
+
+```sh
+npm whoami --registry http://172.17.0.1:4873          # ezpug-box
+node scripts/release.mjs publish --registry http://172.17.0.1:4873
+```
+
 **The images.** `scripts/release-image.mjs` is the table — which Dockerfile, which
 platforms, which registry tags — and the workflow parses no tag itself. A release publishes
 `x.y.z`, the moving `x.y` and `latest` (a prerelease only its exact version), refuses a

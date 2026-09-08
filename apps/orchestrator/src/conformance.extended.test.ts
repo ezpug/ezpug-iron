@@ -263,6 +263,12 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
       webhookSecretId: SECRET_ID,
       demoUploadUrl: `${endpointUrl}/demos/conformance.dem?signed=1`,
     },
+    // A series draws one per map (T38a) — the same bucket, one key each.
+    demoUploadUrls: (count: number) =>
+      Array.from({ length: count }, (_unused, index) => ({
+        mapNumber: index + 1,
+        url: `${endpointUrl}/demos/conformance/map-${index + 1}.dem?signed=${index + 1}`,
+      })),
     clock: systemClock,
     pollIntervalMs: 250,
     maxWaitMs: 120_000,

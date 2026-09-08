@@ -2603,10 +2603,27 @@ public sealed record AssignOrchestratorFrame : OrchestratorFrame
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? DemoUploadUrl { get; init; }
 
-    [JsonPropertyName("restore")]
+    [JsonPropertyName("demoUploadUrls")]
     [JsonPropertyOrder(15)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AssignOrchestratorFrameDemoUploadUrl>? DemoUploadUrls { get; init; }
+
+    [JsonPropertyName("restore")]
+    [JsonPropertyOrder(16)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public RoundBackup? Restore { get; init; }
+}
+
+/// <summary>The <c>demoUploadUrl</c> block of <see cref="AssignOrchestratorFrame"/>.</summary>
+public sealed record AssignOrchestratorFrameDemoUploadUrl
+{
+    [JsonPropertyName("mapNumber")]
+    [JsonPropertyOrder(0)]
+    public required long MapNumber { get; init; }
+
+    [JsonPropertyName("url")]
+    [JsonPropertyOrder(1)]
+    public required string Url { get; init; }
 }
 
 /// <summary><c>command</c> — one branch of <see cref="OrchestratorFrame"/>.</summary>

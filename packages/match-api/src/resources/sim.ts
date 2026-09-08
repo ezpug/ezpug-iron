@@ -46,6 +46,38 @@ export const simOutcomeSchema = z.enum(['completed', 'crashed', 'idle'])
 export type SimOutcome = z.infer<typeof simOutcomeSchema>
 
 /**
+ * **One scenario the simulator can play**, with every knob spelled out —
+ * what `GET /v1/sim/scenarios` lists so a console that offers a name knows
+ * this build has it. `MatchRequest.sim.scenario` takes the `name`; a name
+ * nobody defined is `validation_failed` on the match, which is a bad moment
+ * to find out.
+ */
+export const simScenarioSchema = z.object({
+  name: kebabNameSchema,
+  /** The server never finishes booting; the provisioning timeout ends the match. */
+  neverReady: z.boolean(),
+  /** This many rostered players never connect (`no_show`). */
+  absentPlayers: z.number().int().nonnegative(),
+  /** The server goes silent right after this round of map 1; null = it never does. */
+  crashAfterRound: z.number().int().positive().nullable(),
+  /** Tactical pauses sprinkled into map 1. */
+  pauses: z.number().int().nonnegative(),
+  /** Overtimes forced on map 1 — ignored when the request disabled overtime. */
+  overtimes: z.number().int().nonnegative(),
+  /** The winner trails badly at the half, then runs the table. */
+  comeback: z.boolean(),
+})
+export type SimScenario = z.infer<typeof simScenarioSchema>
+
+/** The catalog, and which entry a request that names none is played as. */
+export const simScenarioCatalogSchema = z.object({
+  scenarios: z.array(simScenarioSchema).min(1),
+  /** The `name` of the scenario a `sim` block without one gets. */
+  default: kebabNameSchema,
+})
+export type SimScenarioCatalog = z.infer<typeof simScenarioCatalogSchema>
+
+/**
  * What a simulated server reports about itself — present on a `Match` that
  * runs on the `sim` provider, null on every other.
  */

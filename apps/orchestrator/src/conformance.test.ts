@@ -113,6 +113,12 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
       // there, and the demo checks are on (T21).
       demoUploadUrl: 'https://bucket.invalid/demos/conformance.dem?signed=1',
     },
+    // A series draws one per map (T38a); the same fake bucket, one key each.
+    demoUploadUrls: (count: number) =>
+      Array.from({ length: count }, (_unused, index) => ({
+        mapNumber: index + 1,
+        url: `https://bucket.invalid/demos/conformance/map-${index + 1}.dem?signed=${index + 1}`,
+      })),
     clock: app.clock,
     faults: faults => app.sim.setFaults(faults.crash === undefined ? {} : { crash: faults.crash }),
     advance: async ms => {

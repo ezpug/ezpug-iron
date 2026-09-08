@@ -50,7 +50,32 @@ public sealed class Assignment
     public IReadOnlyList<string> WarmupLines => Frame.WarmupLines;
     public MatchBranding Branding => Frame.Branding;
     public string? DemoUploadUrl => Frame.DemoUploadUrl;
+
+    /// <summary>One presigned PUT per map of a series (PRD-02 T38a); <see cref="DemoUploadUrlFor"/> is how to read it.</summary>
+    public IReadOnlyList<AssignOrchestratorFrameDemoUploadUrl>? DemoUploadUrls => Frame.DemoUploadUrls;
+
     public RoundBackup? Restore => Frame.Restore;
+
+    /// <summary>
+    /// Where map <paramref name="mapNumber"/>'s demo goes: its own presigned PUT when the
+    /// request drew one, else the single <see cref="DemoUploadUrl"/>, else nowhere. The same
+    /// rule the orchestrator and the published fake follow (`demoUploadUrlFor`).
+    /// </summary>
+    public string? DemoUploadUrlFor(int mapNumber)
+    {
+        if (DemoUploadUrls is { } urls)
+        {
+            foreach (var entry in urls)
+            {
+                if (entry.MapNumber == mapNumber)
+                {
+                    return entry.Url;
+                }
+            }
+        }
+
+        return DemoUploadUrl;
+    }
 
     /// <summary>Every profile known — the roster's, plus each one pushed since — by SteamID64.</summary>
     public IReadOnlyDictionary<ulong, RosterEntry> Profiles => _profiles;

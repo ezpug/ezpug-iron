@@ -6,6 +6,50 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.9.0 — 2026-09-08
+
+Four contract gaps the platform's own console found and wrote down instead of editing a
+schema (decision 24). Each entry names the note it answers in
+`ezpug/ralph/PRD-09-iron-platform.md`. Additive throughout; a client that pinned `0.8.0`
+sees every shape it knew unchanged, and every one of these is optional.
+
+- **`MatchRequirements.preferLan`** (answers **T3's note**): "the venue's hardware first,
+  a rented box otherwise". Every other field of `requirements` narrows — `lan: true` means
+  a self-hosted node *or nothing*, so a LAN night held before a node is enrolled refused
+  every match — and this one only **ranks**: nodes first, then cheapest, and nothing
+  filtered out. `lan` and `preferLan` in the same request is `validation_failed`: they are
+  two different sentences about the same wish.
+- **`GET /v1/sim/scenarios`** (answers **T4's note**): `{ scenarios, default }`, the
+  scripted shapes this build's simulator can play, each with its knobs spelled out
+  (`neverReady`, `absentPlayers`, `crashAfterRound`, `pauses`, `overtimes`, `comeback`).
+  A console offering a dropdown reads it here instead of keeping a second list that agrees
+  with the orchestrator's by ancestry alone; an added scenario used to be discovered as a
+  `validation_failed` on a match somebody meant to demo. Served whether or not the `sim`
+  provider is registered — it is what the build knows how to play, and `GET /v1/capacity`
+  is what says whether it could.
+- **`MatchCallbacks.demoUploadUrls`** (answers **T5's note**): one presigned PUT per map,
+  `{ mapNumber, url }[]`, so a Bo3 keeps every map's demo instead of overwriting map 1's
+  bytes with map 2's. **Not** a `{mapNumber}` template: a presigned URL's signature covers
+  the object key it was drawn for, so a template could not be signed — the list is the only
+  honest shape. The entry whose `mapNumber` matches wins, `demoUploadUrl` is the fallback
+  for every map without one (exactly what a Bo1 always did), and `demoUploadUrlFor()` is
+  the rule as a function, which the orchestrator, the fake and the plugin all call. With
+  only the single URL the plugin still refuses the second PUT and says so in its log.
+- **The `reprovision` command** (answers **T14's note**): the same match, another box.
+  Before the match is live the current server is released and the placement walk runs again
+  for the same `clientMatchId` — the thing a second create could never do, because that id
+  is the idempotency key and a repeat replays the match it already made. From `live` it is
+  the recovery a lost server starts by itself, started by hand: `match.recovering`, a
+  replacement handed the newest round backup, `match.recovered`. `no_backup` from `live`
+  with nothing to resume from, `invalid_state` while a replacement is already on its way.
+  The ledger and the events replay tell the whole story — two rows, two `match.allocated`.
+  It is the first command the orchestrator answers **by itself and never relays**
+  (`ORCHESTRATOR_COMMAND_TYPES`, beside `SIM_COMMAND_TYPES`).
+
+Four conformance flows travel with them — `sim-scenarios`, `prefer-lan`,
+`reprovision-before-live` and `demo-per-map` — and pass against the fake, the fake over
+HTTP and the real orchestrator.
+
 ## 0.8.0 — 2026-09-07
 
 Fleet facts and provider health (PRD-02 T31): a key can name one endpoint for everything

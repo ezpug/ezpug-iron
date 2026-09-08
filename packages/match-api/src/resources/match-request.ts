@@ -104,21 +104,43 @@ export const matchRulesSchema = z.object({
 export type MatchRules = z.infer<typeof matchRulesSchema>
 
 /**
- * Where the server may be placed. Every field narrows; none is required. A
- * request nothing can satisfy is refused `no_capable_server` at the door, not
- * discovered later.
+ * Where the server may be placed. Every field but `preferLan` narrows; none
+ * is required. A request nothing can satisfy is refused `no_capable_server`
+ * at the door, not discovered later.
  */
-export const matchRequirementsSchema = z.object({
-  /** A provider region id (`eu-central`); omitted = any. */
-  region: kebabNameSchema.optional(),
-  /** Only a self-hosted node — the venue's own capacity during an event (decision 23). */
-  lan: z.boolean().optional(),
-  /** Only the `sim` provider — a match nobody will connect to. */
-  simulated: z.boolean().optional(),
-  /** Exactly this provider (`dathost`, `sim`, a node's provider id). */
-  provider: kebabNameSchema.optional(),
-})
+export const matchRequirementsSchema = z
+  .object({
+    /** A provider region id (`eu-central`); omitted = any. */
+    region: kebabNameSchema.optional(),
+    /** Only a self-hosted node — the venue's own capacity during an event (decision 23). */
+    lan: z.boolean().optional(),
+    /**
+     * **Prefer** a self-hosted node, and take anything else when there is
+     * none: the only field here that ranks instead of narrowing. A LAN night
+     * held before a node is enrolled plays on a rented box rather than
+     * refusing every match — which is what `lan: true` does, and why it is
+     * still the field for "the venue's own hardware or nothing".
+     */
+    preferLan: z.boolean().optional(),
+    /** Only the `sim` provider — a match nobody will connect to. */
+    simulated: z.boolean().optional(),
+    /** Exactly this provider (`dathost`, `sim`, a node's provider id). */
+    provider: kebabNameSchema.optional(),
+  })
+  .superRefine((requirements, ctx) => {
+    // Two different sentences about the same wish; a request that says both
+    // has not decided whether a rented box is acceptable.
+    if (requirements.lan && requirements.preferLan)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['preferLan'],
+        message: 'lan and preferLan say different things; ask for one of them',
+      })
+  })
 export type MatchRequirements = z.infer<typeof matchRequirementsSchema>
+
+/** The longest series a client may hand upload urls for — a Bo9 and then some. */
+export const DEMO_UPLOAD_URLS_MAX = 16
 
 /**
  * Where the client wants to hear back (decisions 6, 10). `webhookSecretId`
@@ -129,13 +151,66 @@ export type MatchRequirements = z.infer<typeof matchRequirementsSchema>
  * hash, never touching a demo byte. `streamAllowedOrigins` is the CORS
  * allow-list for the match's stream and widget sockets.
  */
-export const matchCallbacksSchema = z.object({
-  webhookUrl: z.url(),
-  webhookSecretId: z.string().min(1).max(64),
-  demoUploadUrl: z.url().optional(),
-  streamAllowedOrigins: z.array(z.url()).max(16).optional(),
-})
+export const matchCallbacksSchema = z
+  .object({
+    webhookUrl: z.url(),
+    webhookSecretId: z.string().min(1).max(64),
+    demoUploadUrl: z.url().optional(),
+    /**
+     * One presigned PUT per map of a series, for a client that keeps every
+     * map's demo. A signature covers the key it was drawn for, so a template
+     * with a `{mapNumber}` in it could not be signed — the list is the only
+     * honest shape. The entry for the map being uploaded wins;
+     * `demoUploadUrl` is the fallback for every map without one, which is
+     * exactly what a Bo1 already had.
+     */
+    demoUploadUrls: z
+      .array(
+        z.object({
+          /** 1-based, matching `demo.uploaded.mapNumber` and the request's `maps` order. */
+          mapNumber: z.number().int().positive().max(DEMO_UPLOAD_URLS_MAX),
+          url: z.url(),
+        }),
+      )
+      .min(1)
+      .max(DEMO_UPLOAD_URLS_MAX)
+      .optional(),
+    streamAllowedOrigins: z.array(z.url()).max(16).optional(),
+  })
+  .superRefine((callbacks, ctx) => {
+    const seen = new Set<number>()
+    for (const entry of callbacks.demoUploadUrls ?? []) {
+      if (seen.has(entry.mapNumber))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['demoUploadUrls'],
+          message: `map ${entry.mapNumber} is given two upload urls`,
+        })
+      seen.add(entry.mapNumber)
+    }
+  })
 export type MatchCallbacks = z.infer<typeof matchCallbacksSchema>
+
+/**
+ * Where map `mapNumber`'s demo goes: its own presigned PUT when the request
+ * drew one, else the single `demoUploadUrl`, else nowhere (no upload, and
+ * `match.ended` reads `no_upload_url`). The orchestrator, the fake and the
+ * plugin all resolve it this way, so a client reads the same rule everywhere.
+ */
+export function demoUploadUrlFor(
+  callbacks: Pick<MatchCallbacks, 'demoUploadUrl' | 'demoUploadUrls'>,
+  mapNumber: number,
+): string | undefined {
+  const perMap = callbacks.demoUploadUrls?.find(entry => entry.mapNumber === mapNumber)
+  return perMap?.url ?? callbacks.demoUploadUrl
+}
+
+/** Whether a demo has anywhere at all to land — one url is enough. */
+export function hasDemoUploadUrl(
+  callbacks: Pick<MatchCallbacks, 'demoUploadUrl' | 'demoUploadUrls'>,
+): boolean {
+  return callbacks.demoUploadUrl !== undefined || (callbacks.demoUploadUrls?.length ?? 0) > 0
+}
 
 /** Branding this round: hostname and chat (decision 22). */
 export const matchBrandingSchema = z.object({

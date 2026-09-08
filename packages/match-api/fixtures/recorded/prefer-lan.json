@@ -1,0 +1,194 @@
+{
+  "flow": "prefer-lan",
+  "calls": [
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-prefer-lan",
+          "game": "cs2",
+          "gamemode": "pug",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                },
+                {
+                  "steamId64": "76561198000000003",
+                  "name": "flippo"
+                },
+                {
+                  "steamId64": "76561198000000004",
+                  "name": "Kessi"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                },
+                {
+                  "steamId64": "76561198000000103",
+                  "name": "BastiGHG"
+                },
+                {
+                  "steamId64": "76561198000000104",
+                  "name": "moepL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "de_mirage",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120,
+          "requirements": {
+            "preferLan": true
+          }
+        }
+      },
+      "ok": true,
+      "response": {
+        "id": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-prefer-lan",
+        "state": "allocating",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": null,
+        "serverId": null,
+        "fleetServerId": "f64b8c99-0cda-4b69-812a-480d63723add",
+        "connect": null,
+        "tv": null,
+        "seq": 0,
+        "createdAt": "2026-09-05T18:00:00.000Z",
+        "updatedAt": "2026-09-05T18:00:00.000Z",
+        "readyAt": null,
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-09-05T20:00:00.000Z",
+        "endedReason": null,
+        "sim": null
+      }
+    },
+    {
+      "route": "matches.cancel",
+      "input": {
+        "params": {
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7"
+        }
+      },
+      "ok": true,
+      "response": {
+        "id": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-prefer-lan",
+        "state": "cancelled",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "sim",
+        "serverId": "sim-1",
+        "fleetServerId": "f64b8c99-0cda-4b69-812a-480d63723add",
+        "connect": {
+          "host": "sim-1.sim.invalid",
+          "port": 27015,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "sim-1.sim.invalid",
+          "port": 27020,
+          "delaySeconds": 90
+        },
+        "seq": 6,
+        "createdAt": "2026-09-05T18:00:00.000Z",
+        "updatedAt": "2026-09-05T18:00:10.000Z",
+        "readyAt": "2026-09-05T18:00:05.000Z",
+        "liveAt": null,
+        "endedAt": "2026-09-05T18:00:10.000Z",
+        "expiresAt": "2026-09-05T20:00:00.000Z",
+        "endedReason": {
+          "kind": "cancelled"
+        },
+        "sim": {
+          "scenario": "happy-path",
+          "seed": "ezpug-fake#4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7#sim-1",
+          "mode": "auto",
+          "timeScale": 1,
+          "remainingBeats": 70,
+          "finished": false,
+          "outcome": "completed",
+          "chaos": null
+        }
+      }
+    }
+  ],
+  "envelopes": [],
+  "deliveries": [
+    {
+      "seq": 1,
+      "type": "match.allocated"
+    },
+    {
+      "seq": 2,
+      "type": "server_ready"
+    },
+    {
+      "seq": 3,
+      "type": "match.server_ready"
+    },
+    {
+      "seq": 4,
+      "type": "player_connected"
+    },
+    {
+      "seq": 5,
+      "type": "player.joined"
+    },
+    {
+      "seq": 6,
+      "type": "match.ended"
+    }
+  ],
+  "frames": []
+}

@@ -164,12 +164,14 @@ public sealed class Facts
     /// is what the orchestrator relays as <c>demo.uploaded</c> (decision 10, PRD-02 T21).
     /// A demo announced without them exists on this box and nowhere else.
     /// </summary>
-    public DemoAvailableEvent DemoAvailable(string filename, long? sizeBytes = null, string? sha256 = null, string? contentType = null, string? url = null) =>
+    public DemoAvailableEvent DemoAvailable(string filename, long? sizeBytes = null, string? sha256 = null, string? contentType = null, string? url = null, long? mapNumber = null) =>
         new()
         {
             MatchId = MatchId,
             Source = Source,
-            MapNumber = Context.MapNumber,
+            // A demo is finished a GOTV delay after its map, by which time the context
+            // has counted the next one — so the caller may name the map it belongs to.
+            MapNumber = mapNumber ?? Context.MapNumber,
             Filename = filename,
             Url = url,
             SizeBytes = sizeBytes,

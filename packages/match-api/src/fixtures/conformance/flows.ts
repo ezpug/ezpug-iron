@@ -525,6 +525,177 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
   },
 
   {
+    id: 'sim-scenarios',
+    title: 'the simulator’s scenario catalog is served, and a name from it is one the door takes',
+    needs: [],
+    async run(ctx) {
+      const catalog = await ctx.api.sim.scenarios()
+      ctx.require(
+        'the catalog names at least one scenario',
+        catalog.scenarios.length > 0,
+        String(catalog.scenarios.length),
+      )
+      ctx.check(
+        'the default is one of them',
+        catalog.scenarios.some(scenario => scenario.name === catalog.default),
+        catalog.default,
+      )
+      ctx.check(
+        'the happy path is in it',
+        catalog.scenarios.some(scenario => scenario.name === 'happy-path'),
+        catalog.scenarios.map(s => s.name).join(','),
+      )
+      ctx.check(
+        'every knob is spelled out',
+        catalog.scenarios.every(
+          scenario =>
+            typeof scenario.neverReady === 'boolean' &&
+            typeof scenario.absentPlayers === 'number' &&
+            (scenario.crashAfterRound === null || typeof scenario.crashAfterRound === 'number'),
+        ),
+      )
+      const unknown = await refusal(
+        ctx,
+        'a scenario nobody defined is refused',
+        ctx.api.matches.create({
+          body: ctx.request({ sim: { scenario: 'a-scenario-nobody-wrote' } }),
+        }),
+      )
+      ctx.check(
+        'an unknown scenario is validation_failed at the door',
+        unknown.code === 'validation_failed',
+        unknown.code,
+      )
+    },
+  },
+
+  {
+    id: 'prefer-lan',
+    title: 'preferLan ranks the venue first and still lands somewhere when no node is enrolled',
+    needs: [],
+    async run(ctx) {
+      // `lan: true` is "a node or nothing"; this is "a node first, anything
+      // after" — the difference a LAN night before a node is enrolled needs.
+      const created = await ctx.api.matches.create({
+        body: ctx.request({ requirements: { preferLan: true } }),
+      })
+      const ready = await ctx.waitFor('the server’s connect facts', async () => {
+        const match = await ctx.raw.matches.get({ params: { matchId: created.id } })
+        if (match.state === 'failed' || match.state === 'cancelled')
+          throw new Error(`the match ended before it was ready — ${terminal(match)}`)
+        return match.connect === null ? null : match
+      })
+      // The two halves of "ranks, never narrows": a server was found at all,
+      // and it is a real allocation with a row behind it. Asking for `lan`
+      // *and* `preferLan` is refused by the schema itself, which is a client's
+      // own parse and not a call this suite can make.
+      ctx.check('a preferred venue never refuses the match', ready.provider !== null, ready.state)
+      ctx.check('the box it found holds a ledger row', ready.fleetServerId !== null)
+      const cancelled = await ctx.api.matches.cancel({ params: { matchId: created.id } })
+      ctx.check(
+        'the box this flow rented is given back',
+        cancelled.state === 'cancelled',
+        cancelled.state,
+      )
+    },
+  },
+
+  {
+    id: 'reprovision-before-live',
+    title: 'reprovision moves a match to another box before it is live and keeps its id',
+    needs: [],
+    async run(ctx) {
+      const created = await ctx.api.matches.create({ body: ctx.request() })
+      const params = { matchId: created.id }
+      const first = await ctx.waitFor('the first server', async () => {
+        const match = await ctx.raw.matches.get({ params })
+        if (match.state === 'failed' || match.state === 'cancelled')
+          throw new Error(`the match ended before it was ready — ${terminal(match)}`)
+        return match.state === 'ready' ? match : null
+      })
+      ctx.require('the first box holds a ledger row', first.fleetServerId !== null)
+
+      const moved = await ctx.api.matches.command({
+        params,
+        body: { type: 'reprovision', correlationId: 'conformance-reprovision' },
+      })
+      ctx.require(
+        'a reprovision before live is taken',
+        moved.status !== 'rejected',
+        `${moved.status} ${moved.code ?? ''}`,
+      )
+      const second = await ctx.waitFor('the replacement server', async () => {
+        const match = await ctx.raw.matches.get({ params })
+        if (match.state === 'failed' || match.state === 'cancelled')
+          throw new Error(`the match ended while it moved — ${terminal(match)}`)
+        return match.state === 'ready' && match.fleetServerId !== first.fleetServerId ? match : null
+      })
+      ctx.check('the match kept its id', second.id === created.id)
+      ctx.check('the client’s own id is untouched', second.clientMatchId === created.clientMatchId)
+      ctx.check(
+        'the box is another one',
+        second.fleetServerId !== first.fleetServerId,
+        `${first.fleetServerId} then ${second.fleetServerId}`,
+      )
+
+      const { final, envelopes } = await playToEnd(ctx, created.id)
+      ctx.check('the match plays out on the box it moved to', final.state === 'ended', final.state)
+      const order = types(envelopes)
+      ctx.check(
+        'the replay carries both allocations',
+        order.filter(type => type === 'match.allocated').length === 2,
+        order.filter(type => type === 'match.allocated').length.toString(),
+      )
+    },
+  },
+
+  {
+    id: 'demo-per-map',
+    title: 'a series keeps every map’s demo: one presigned url per map',
+    needs: ['demoUploadPerMap'],
+    async run(ctx) {
+      const urls = ctx.target.demoUploadUrls?.(2) ?? []
+      ctx.require('the target drew two upload urls', urls.length === 2)
+      const body = ctx.request({
+        maps: [
+          { map: 'de_mirage', sides: 'ct' },
+          { map: 'de_nuke', sides: 't' },
+        ],
+        callbacks: { ...ctx.target.callbacks, demoUploadUrl: undefined, demoUploadUrls: urls },
+      })
+      const created = await ctx.api.matches.create({ body })
+      const { final, envelopes } = await playToEnd(ctx, created.id)
+      ctx.require('the series ends', final.state === 'ended', terminal(final))
+      const uploaded = envelopes
+        .map(envelope => envelope.payload)
+        .filter(payload => payload.type === 'demo.uploaded')
+      ctx.check(
+        'both maps handed over a demo',
+        uploaded.length === 2,
+        uploaded.map(u => (u.type === 'demo.uploaded' ? u.mapNumber : '')).join(','),
+      )
+      ctx.check(
+        'each demo landed under its own map’s key',
+        uploaded.every(
+          payload =>
+            payload.type === 'demo.uploaded' &&
+            (payload.key === undefined ||
+              new URL(
+                urls.find(entry => entry.mapNumber === payload.mapNumber)?.url ?? '',
+              ).pathname.endsWith(payload.key)),
+        ),
+        uploaded.map(u => (u.type === 'demo.uploaded' ? `${u.mapNumber}:${u.key}` : '')).join(','),
+      )
+      const ended = payload(envelopes, 'match.ended')
+      ctx.check(
+        'the ended fact counts both',
+        ended?.demo?.uploaded === 2,
+        JSON.stringify(ended?.demo),
+      )
+    },
+  },
+
+  {
     id: 'crash-restore',
     title: 'a server lost mid-match is recovered from its backup and the match finishes',
     needs: ['faults'],

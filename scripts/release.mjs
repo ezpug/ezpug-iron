@@ -10,6 +10,9 @@
  *   node scripts/release.mjs publish         # verify:extended, check, publish, smoke
  *   node scripts/release.mjs smoke           # what the registry actually serves
  *
+ * `--registry <url>` on `publish` and `smoke` (or `npm_config_registry`) points all
+ * three at another registry — the box's Verdaccio while npmjs has no login here.
+ *
  * `check` is the gate: it packs the package exactly the way a publish would and
  * refuses anything a consumer would trip over — an unresolved `catalog:` or
  * `workspace:` range, a file outside the whitelist, an entry point whose target
@@ -45,6 +48,24 @@ const PACKAGE = {
 }
 
 const NPM_REGISTRY = 'https://registry.npmjs.org'
+
+/**
+ * Where a publish and its smoke go. npmjs unless told otherwise:
+ * `--registry <url>` on the command, else `npm_config_registry` (what
+ * `npm_config_registry=… node scripts/release.mjs …` and `.npmrc`'s
+ * `registry=` set). The box's own Verdaccio is one flag away — the platform
+ * reads this package from `http://172.17.0.1:4873/` while npmjs has no login
+ * on this machine (PRD-02 T38a).
+ */
+function registryOf(argv = []) {
+  const flag = argv.indexOf('--registry')
+  if (flag >= 0) {
+    const url = argv[flag + 1]
+    if (!url || url.startsWith('--')) fail('usage: --registry <url>')
+    return url
+  }
+  return process.env.npm_config_registry || NPM_REGISTRY
+}
 
 // ---------------------------------------------------------------------------
 // shell helpers
@@ -306,26 +327,26 @@ function commandCheck(argv) {
 // ---------------------------------------------------------------------------
 
 /** The message T9 owes the round if nobody can talk to the registry. */
-function authInstructions(version) {
+function authInstructions(version, registry) {
   return [
-    `Nothing here can publish ${PACKAGE.name}@${version}: npm is not logged in on this box`,
+    `Nothing here can publish ${PACKAGE.name}@${version}: npm is not logged in for ${registry}`,
     'and no NPM_TOKEN reached the environment. Either:',
     '',
     '  # locally, as the owner of the @ezpug scope',
-    '  npm login',
+    `  npm login --registry ${registry}`,
     `  node scripts/release.mjs publish`,
     '',
     '  # or from CI: add an automation token as the NPM_TOKEN repository secret, then',
     `  git tag ${PACKAGE.tagPrefix}${version} && git push origin ${PACKAGE.tagPrefix}${version}`,
     '',
-    `Smoke afterwards: npm view ${PACKAGE.name} version`,
+    `Smoke afterwards: npm view ${PACKAGE.name} version --registry ${registry}`,
   ].join('\n')
 }
 
-function canPublish() {
+function canPublish(registry) {
   if (process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN) return true
   try {
-    capture('npm', ['whoami', '--registry', NPM_REGISTRY])
+    capture('npm', ['whoami', '--registry', registry])
     return true
   } catch {
     return false
@@ -334,6 +355,7 @@ function canPublish() {
 
 function commandPublish(argv) {
   const dryRun = argv.includes('--dry-run')
+  const registry = registryOf(argv)
 
   if (!argv.includes('--allow-dirty')) {
     const dirty = capture('git', ['status', '--porcelain'])
@@ -360,14 +382,14 @@ function commandPublish(argv) {
   // `--keep` because the tarball has to outlive the audit — it is what gets published.
   const packed = commandCheck(['--keep'])
   try {
-    if (!dryRun && !canPublish()) fail(authInstructions(version))
+    if (!dryRun && !canPublish(registry)) fail(authInstructions(version, registry))
 
     step(
       dryRun
-        ? `dry run: would publish ${PACKAGE.name}@${version}`
-        : `publishing ${PACKAGE.name}@${version}`,
+        ? `dry run: would publish ${PACKAGE.name}@${version} to ${registry}`
+        : `publishing ${PACKAGE.name}@${version} to ${registry}`,
     )
-    const args = ['publish', packed.tarball, '--access', 'public']
+    const args = ['publish', packed.tarball, '--access', 'public', '--registry', registry]
     // Provenance is an attestation signed by the CI run that built the tarball; npm
     // refuses the flag anywhere else.
     if (process.env.GITHUB_ACTIONS === 'true') args.push('--provenance')
@@ -379,7 +401,7 @@ function commandPublish(argv) {
 
   if (dryRun) return
   step('smoke')
-  commandSmoke([version])
+  commandSmoke([version, '--registry', registry])
   process.stdout.write(`\nTag it if the tag is not what got you here:\n  git tag ${tag}\n\n`)
 }
 
@@ -388,17 +410,22 @@ function commandPublish(argv) {
 // ---------------------------------------------------------------------------
 
 function commandSmoke(argv) {
-  const expected = argv[0] ?? readManifest().version
+  const registry = registryOf(argv)
+  const expected = argv[0]?.startsWith('--')
+    ? readManifest().version
+    : (argv[0] ?? readManifest().version)
   let published
   try {
-    published = capture('npm', ['view', PACKAGE.name, 'version', '--registry', NPM_REGISTRY])
+    published = capture('npm', ['view', PACKAGE.name, 'version', '--registry', registry])
   } catch (error) {
     fail(`npm view ${PACKAGE.name} version failed — nothing is published yet?\n${error.message}`)
   }
   if (published !== expected) {
     fail(`the registry serves ${PACKAGE.name}@${published}, expected ${expected}`)
   }
-  process.stdout.write(`  ✓ npm view ${PACKAGE.name} version → ${published}\n`)
+  process.stdout.write(
+    `  ✓ npm view ${PACKAGE.name} version --registry ${registry} → ${published}\n`,
+  )
 }
 
 // ---------------------------------------------------------------------------

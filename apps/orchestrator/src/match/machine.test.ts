@@ -384,6 +384,106 @@ describe('commands and cancel', () => {
   })
 })
 
+describe('reprovision', () => {
+  /** Wind the clock until the match reaches one of these states. */
+  const until = async (app: TestApp, key: AuthenticatedKey, id: string, states: string[]) => {
+    // Let whatever is queued run before the clock is moved: an unstarted walk
+    // and a jump to the allocation deadline would fail the match on purpose.
+    await app.settle()
+    for (let i = 0; i < 400; i += 1) {
+      const match = await app.matches.get(key, id)
+      if (states.includes(match.state)) return match
+      await app.clock.next()
+      await app.settle()
+    }
+    const last = await app.matches.get(key, id)
+    throw new Error(
+      `the match never reached ${states.join(' or ')} — it is ${last.state} (${JSON.stringify(last.endedReason)})`,
+    )
+  }
+
+  it('releases the box and walks again for the same match before it is live', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request())
+    await until(app, key, match.id, ['ready'])
+    expect((await app.matches.get(key, match.id)).serverId).toBe('sim-1')
+
+    const moved = await app.matches.command(key, match.id, {
+      type: 'reprovision',
+      correlationId: 'rp-1',
+    })
+    expect(moved.status).toBe('applied')
+    const next = await until(app, key, match.id, ['ready'])
+    // The same match id, a different box, a second ledger row.
+    expect(next.id).toBe(match.id)
+    expect(next.clientMatchId).toBe(match.clientMatchId)
+    expect(next.serverId).toBe('sim-2')
+    const rows = app.store.rows.servers.filter(r => r.matchId === match.id)
+    expect(rows.map(r => [r.serverId, r.state])).toEqual([
+      ['sim-1', 'released'],
+      ['sim-2', 'running'],
+    ])
+    expect(rows[0]?.releasedReason).toContain('reprovision')
+    // The events replay tells the story: two allocations, two servers ready.
+    const order = types(app, match.id)
+    expect(order.filter(t => t === 'match.allocated')).toHaveLength(2)
+    expect(order.filter(t => t === 'match.server_ready')).toHaveLength(2)
+
+    // And the match plays out on the box it moved to.
+    await app.playOut()
+    const final = await app.matches.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.endedReason).toEqual({ kind: 'completed' })
+    expect(app.sim.size()).toBe(0)
+    await app.close()
+  })
+
+  it('is the recovery an operator starts by hand once the match is live', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const { key } = await platformKey(app)
+    const rules = { ...request().rules, regulationRounds: 4 } as never
+    const { match } = await app.matches.create(key, request({ rules }))
+    await until(app, key, match.id, ['live'])
+    // Nothing to resume from until the first round's backup is written.
+    const tooEarly = await app.matches.command(key, match.id, {
+      type: 'reprovision',
+      correlationId: 'rp-early',
+    })
+    expect(tooEarly).toMatchObject({ status: 'rejected', code: 'no_backup' })
+
+    for (let i = 0; i < 200 && app.store.rows.backups.length === 0; i += 1) {
+      await app.clock.next()
+      await app.settle()
+    }
+    const moved = await app.matches.command(key, match.id, {
+      type: 'reprovision',
+      correlationId: 'rp-2',
+    })
+    expect(moved.status).toBe('applied')
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('recovering')
+    // A second one while the replacement is on its way is refused, not queued.
+    expect(
+      await app.matches.command(key, match.id, { type: 'reprovision', correlationId: 'rp-3' }),
+    ).toMatchObject({ status: 'rejected', code: 'invalid_state' })
+
+    await app.playOut()
+    const final = await app.matches.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.serverId).toBe('sim-2')
+    const order = types(app, match.id)
+    expect(order).toContain('match.recovering')
+    expect(order).toContain('match.recovered')
+    const recovering = app.store.rows.events
+      .filter(e => e.matchId === match.id)
+      .map(e => e.payload)
+      .find(f => f.type === 'match.recovering')
+    expect(recovering).toMatchObject({ reason: expect.stringContaining('asked for another') })
+    await app.close()
+  })
+})
+
 describe('the fleet', () => {
   it('lists open rows, releases one by handle, and drains a provider', async () => {
     const app = createTestApp({ sim: { positionTickIntervalMs: null } })
@@ -933,6 +1033,48 @@ describe('the demo', () => {
       app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
         ?.payload,
     ).toMatchObject({ demo: { uploaded: 1 } })
+    await app.close()
+  })
+
+  it('goes to the map’s own url when a series drew one per map', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(
+      key,
+      request({
+        maps: [
+          { map: 'de_mirage', sides: 'ct' },
+          { map: 'de_nuke', sides: 't' },
+        ],
+        callbacks: {
+          webhookUrl: 'https://platform.invalid/hooks',
+          webhookSecretId: SECRET_ID,
+          demoUploadUrls: [
+            { mapNumber: 1, url: 'https://bucket.invalid/demos/m/map-1.dem?signed=1' },
+            { mapNumber: 2, url: 'https://bucket.invalid/demos/m/map-2.dem?signed=2' },
+          ],
+        },
+      }),
+    )
+    await app.playOut()
+
+    // Two maps, two objects — before `demoUploadUrls` the second PUT would
+    // have overwritten the first at the one url the request carried.
+    expect(app.uploads.map(u => u.url)).toEqual([
+      'https://bucket.invalid/demos/m/map-1.dem?signed=1',
+      'https://bucket.invalid/demos/m/map-2.dem?signed=2',
+    ])
+    const uploaded = app.store.rows.events
+      .filter(e => e.matchId === match.id && e.payload.type === 'demo.uploaded')
+      .map(e => e.payload as { mapNumber: number; key?: string })
+    expect(uploaded.map(u => [u.mapNumber, u.key])).toEqual([
+      [1, 'demos/m/map-1.dem'],
+      [2, 'demos/m/map-2.dem'],
+    ])
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 2 } })
     await app.close()
   })
 

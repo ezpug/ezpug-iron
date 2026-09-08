@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isOrchestratorCommand,
   isSimCommand,
   MATCH_COMMAND_TYPES,
   MATCH_COMMANDS_REQUIRING_ADMIN,
   matchCommandResultSchema,
   matchCommandSchema,
+  ORCHESTRATOR_COMMAND_TYPES,
   SIM_COMMAND_TYPES,
 } from './commands'
 import { pageQuerySchema } from './common'
@@ -13,6 +15,9 @@ import { apiKeyCreateRequestSchema, webhookSecretsRequestSchema } from './keys'
 import { LOADOUT_SIDE_TEAM_NUMBER, loadoutSchema, STICKER_SLOTS } from './loadout'
 import { isTerminalMatchState, MATCH_STATES, matchSchema, TERMINAL_MATCH_STATES } from './match'
 import {
+  DEMO_UPLOAD_URLS_MAX,
+  demoUploadUrlFor,
+  hasDemoUploadUrl,
   MATCH_TTL_MINUTES_MAX,
   type MatchRequestInput,
   matchRequestSchema,
@@ -99,6 +104,70 @@ describe('MatchRequest', () => {
     expect(() =>
       matchRequestSchema.parse(
         pugRequest({ callbacks: { webhookUrl: 'not a url', webhookSecretId: 'x' } }),
+      ),
+    ).toThrow()
+  })
+
+  it('takes preferLan as a ranking and refuses it beside lan, which is a narrowing', () => {
+    const preferred = matchRequestSchema.parse(pugRequest({ requirements: { preferLan: true } }))
+    expect(preferred.requirements).toEqual({ preferLan: true })
+    expect(() =>
+      matchRequestSchema.parse(pugRequest({ requirements: { lan: true, preferLan: true } })),
+    ).toThrow(/different things/)
+  })
+
+  it('takes one demo upload url per map, and reads the single one as every map’s', () => {
+    const callbacks = {
+      webhookUrl: 'https://api.ezpug.example/iron/webhooks',
+      webhookSecretId: 'whsec-2026-09',
+      demoUploadUrls: [
+        { mapNumber: 1, url: 'https://bucket.example/m/1.dem?sig=a' },
+        { mapNumber: 2, url: 'https://bucket.example/m/2.dem?sig=b' },
+      ],
+    }
+    const parsed = matchRequestSchema.parse(pugRequest({ callbacks }))
+    expect(demoUploadUrlFor(parsed.callbacks, 2)).toBe('https://bucket.example/m/2.dem?sig=b')
+    // Map 3 was not given one and there is no single url to fall back to.
+    expect(demoUploadUrlFor(parsed.callbacks, 3)).toBeUndefined()
+    expect(hasDemoUploadUrl(parsed.callbacks)).toBe(true)
+
+    const single = matchRequestSchema.parse(
+      pugRequest({
+        callbacks: {
+          webhookUrl: 'https://api.ezpug.example/iron/webhooks',
+          webhookSecretId: 'whsec-2026-09',
+          demoUploadUrl: 'https://bucket.example/m/all.dem?sig=c',
+        },
+      }),
+    )
+    // What a Bo1 always did, and what a series without a per-map url still does.
+    expect(demoUploadUrlFor(single.callbacks, 1)).toBe('https://bucket.example/m/all.dem?sig=c')
+    expect(demoUploadUrlFor(single.callbacks, 3)).toBe('https://bucket.example/m/all.dem?sig=c')
+    expect(hasDemoUploadUrl({})).toBe(false)
+
+    expect(() =>
+      matchRequestSchema.parse(
+        pugRequest({
+          callbacks: {
+            ...callbacks,
+            demoUploadUrls: [
+              { mapNumber: 1, url: 'https://bucket.example/m/1.dem?sig=a' },
+              { mapNumber: 1, url: 'https://bucket.example/m/1b.dem?sig=b' },
+            ],
+          },
+        }),
+      ),
+    ).toThrow(/two upload urls/)
+    expect(() =>
+      matchRequestSchema.parse(
+        pugRequest({
+          callbacks: {
+            ...callbacks,
+            demoUploadUrls: [
+              { mapNumber: DEMO_UPLOAD_URLS_MAX + 1, url: 'https://bucket.example/m/x.dem' },
+            ],
+          },
+        }),
       ),
     ).toThrow()
   })
@@ -220,9 +289,11 @@ describe('Match', () => {
 
 describe('MatchCommand', () => {
   it('is a closed set with the sim family at the end', () => {
-    expect(MATCH_COMMAND_TYPES).toHaveLength(15)
+    expect(MATCH_COMMAND_TYPES).toHaveLength(16)
     expect(SIM_COMMAND_TYPES.every(isSimCommand)).toBe(true)
     expect(isSimCommand('pause')).toBe(false)
+    expect(ORCHESTRATOR_COMMAND_TYPES.every(isOrchestratorCommand)).toBe(true)
+    expect(isOrchestratorCommand('restore')).toBe(false)
     expect(MATCH_COMMANDS_REQUIRING_ADMIN).toEqual(['rcon'])
   })
 

@@ -1,11 +1,13 @@
 import {
   assertClosedSet,
   cfgFileSchema,
+  DEMO_UPLOAD_URLS_MAX,
   GAMEMODE_CAPABILITIES,
   gamemodeCvarsSchema,
   gamemodeManifestSchema,
   gameSchema,
   gameserverEventSchema,
+  isOrchestratorCommand,
   isSimCommand,
   kebabNameSchema,
   type MatchCommand,
@@ -16,6 +18,7 @@ import {
   matchIdSchema,
   matchRulesSchema,
   matchTeamsSchema,
+  type ORCHESTRATOR_COMMAND_TYPES,
   playerCommandNameSchema,
   pluginFolderNameSchema,
   rosterEntrySchema,
@@ -184,6 +187,7 @@ export type AssignedGamemode = z.infer<typeof assignedGamemodeSchema>
 // ---------------------------------------------------------------------------
 
 type SimCommandType = (typeof SIM_COMMAND_TYPES)[number]
+type OrchestratorCommandType = (typeof ORCHESTRATOR_COMMAND_TYPES)[number]
 
 /**
  * The one command that exists only on the link: send me the console tail.
@@ -201,25 +205,33 @@ export type ConsoleCommand = z.infer<typeof consoleCommandSchema>
 type MatchCommandOption = (typeof matchCommandSchema.options)[number]
 type RelayedCommandOption = Exclude<
   MatchCommandOption,
-  { shape: { type: { value: SimCommandType } } }
+  { shape: { type: { value: SimCommandType | OrchestratorCommandType } } }
 >
 
-/** The Match API's command options that reach a real server: everything but the `sim.*` family. */
+/**
+ * The Match API's command options that reach a real server: everything but
+ * the `sim.*` family and the orchestrator's own (`reprovision` — the box is
+ * being replaced, not asked).
+ */
 const relayedCommandOptions = matchCommandSchema.options.filter(
-  option => !isSimCommand(option.shape.type.value),
+  option =>
+    !isSimCommand(option.shape.type.value) && !isOrchestratorCommand(option.shape.type.value),
 ) as RelayedCommandOption[]
 
 /**
  * What a `command` frame carries: a Match API `MatchCommand` verbatim — the
  * same object the client posted, `correlationId` included — or the link's
  * own `console`. The `sim.*` commands are not here because a real server
- * cannot honour them; the orchestrator answers those itself.
+ * cannot honour them, and `reprovision` is not because it is about which box
+ * plays the match; the orchestrator answers both itself.
  */
 export const linkCommandSchema = z.discriminatedUnion('type', [
   consoleCommandSchema,
   ...relayedCommandOptions,
 ] as [typeof consoleCommandSchema, ...RelayedCommandOption[]])
-export type LinkCommand = ConsoleCommand | Exclude<MatchCommand, { type: SimCommandType }>
+export type LinkCommand =
+  | ConsoleCommand
+  | Exclude<MatchCommand, { type: SimCommandType | OrchestratorCommandType }>
 
 /** Every command type a server may be sent, in the union's order. */
 export const LINK_COMMAND_TYPES = [
@@ -512,6 +524,16 @@ export const assignOrchestratorFrameSchema = z.object({
   branding: matchBrandingSchema.default({}),
   /** The presigned PUT the plugin uploads the demo to (decision 10). Absent = no upload, `demo.skipped`. */
   demoUploadUrl: z.url().optional(),
+  /**
+   * One presigned PUT per map of a series (T38a): the entry for the map
+   * being uploaded wins, `demoUploadUrl` is the fallback for every map
+   * without one. A signature covers the key it was drawn for, which is why
+   * this is a list and not a template.
+   */
+  demoUploadUrls: z
+    .array(z.object({ mapNumber: z.number().int().positive(), url: z.url() }))
+    .max(DEMO_UPLOAD_URLS_MAX)
+    .optional(),
   restore: roundBackupSchema.optional(),
 })
 

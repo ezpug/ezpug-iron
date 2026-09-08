@@ -70,6 +70,10 @@ describe('requirementsOf', () => {
       ),
     ).toEqual({ game: 'cs2', region: 'saarland', lan: true, workshopMaps: true })
   })
+
+  it('never turns preferLan into a filter — it is the one field that only ranks', () => {
+    expect(requirementsOf(request({ requirements: { preferLan: true } }))).toEqual({ game: 'cs2' })
+  })
 })
 
 describe('eligibleProviders', () => {
@@ -104,6 +108,29 @@ describe('selectCandidates', () => {
     const lan = await selectCandidates(registry, request({ requirements: { lan: true } }))
     expect(lan.candidates.map(c => c.provider.id)).toEqual(['nodes'])
     expect(lan.asked).toBe(2)
+  })
+
+  it('puts the venue first for preferLan and still rents a box when no node is enrolled', async () => {
+    const registry = createProviderRegistry()
+    registry.register(provider('dathost', [offering({ cents: 90 })]))
+    // A venue box that is *dearer* than the rented one, so cheapest-first and
+    // lan-first disagree and the ordering is the only thing under test.
+    registry.register(provider('nodes', [offering({ region: 'saarland', lan: true, cents: 200 })]))
+    const preferred = await selectCandidates(
+      registry,
+      request({ requirements: { preferLan: true } }),
+    )
+    expect(preferred.candidates.map(c => c.provider.id)).toEqual(['nodes', 'dathost'])
+    const plain = await selectCandidates(registry, request())
+    expect(plain.candidates.map(c => c.provider.id)).toEqual(['dathost', 'nodes'])
+
+    // The whole point of the field: a LAN night before a node is enrolled.
+    const nodeless = createProviderRegistry()
+    nodeless.register(provider('dathost', [offering({ cents: 90 })]))
+    const softly = await selectCandidates(nodeless, request({ requirements: { preferLan: true } }))
+    expect(softly.candidates.map(c => c.provider.id)).toEqual(['dathost'])
+    const strictly = await selectCandidates(nodeless, request({ requirements: { lan: true } }))
+    expect(strictly.candidates).toEqual([])
   })
 
   it('reports a provider that cannot answer and keeps the rest, observing both', async () => {

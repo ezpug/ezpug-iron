@@ -28,6 +28,7 @@ import {
 import { matchListFilterSchema, matchSchema } from './resources/match'
 import { matchRequestSchema } from './resources/match-request'
 import { playerTokenRequestSchema, playerTokenSchema } from './resources/player-token'
+import { simScenarioCatalogSchema } from './resources/sim'
 import { defineRoute } from './rpc'
 import { streamFrameSchema, streamQuerySchema } from './stream/frames'
 import { kebabNameSchema } from './vocabulary/naming'
@@ -76,6 +77,22 @@ export const matchApiRoutes = {
       path: '/v1/capacity',
       scope: 'matches',
       response: capacitySchema,
+    }),
+  },
+  sim: {
+    /**
+     * The scenarios this build's simulator can play (decision 9). A console
+     * that offers a dropdown reads it here rather than keeping a second list
+     * — an added scenario used to be discovered as a `validation_failed` on
+     * a match somebody meant to demo. Served whether or not the `sim`
+     * provider is registered: it is what this build knows how to play, and
+     * `GET /v1/capacity` is what says whether it could.
+     */
+    scenarios: defineRoute({
+      method: 'get',
+      path: '/v1/sim/scenarios',
+      scope: 'matches',
+      response: simScenarioCatalogSchema,
     }),
   },
   matches: {

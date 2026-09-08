@@ -19,7 +19,9 @@ import type { MatchAssignment, SimBackup, SimPlan, SimulatedServer } from '@ezpu
 import {
   assignmentFromMatchRequest,
   createSimulatedServer,
+  DEFAULT_SCENARIO,
   findScenario,
+  listScenarios,
   SIM_PLAYER_COMMAND_EVENT,
   SIM_PROVIDER_ID,
   SIMULATED_MATCH_RECORD_CONTENT_TYPE,
@@ -51,12 +53,15 @@ import type {
   PlayerTokenRequest,
   ProviderHealth,
   RosterEntry,
+  SimScenarioCatalog,
   SimStatus,
   WebhookSecretsRequest,
 } from '../resources'
 import {
   CONSOLE_LINES_MAX,
+  demoUploadUrlFor,
   gamemodeAllowsMap,
+  hasDemoUploadUrl,
   isTerminalMatchState,
   matchDemoOutcome,
 } from '../resources'
@@ -857,7 +862,9 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     }
     const plan = planFor(request)
     checkBudget(key, request)
-    // Capability: one provider, one region, no LAN.
+    // Capability: one provider, one region, no LAN. `preferLan` is a ranking
+    // and not a narrowing, so it lands on the sim like any other request —
+    // which is exactly what it asks for when no node is enrolled (T38a).
     if (request.requirements.lan) throw refuse('no_capable_server', 'no LAN node is enrolled')
     if (request.requirements.provider && request.requirements.provider !== SIM_PROVIDER_ID)
       throw refuse('no_capable_server', `no provider ${request.requirements.provider}`)
@@ -1068,7 +1075,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
         reason,
         demo: matchDemoOutcome({
           recordsDemo: record.manifest.records === 'demo',
-          hasUploadUrl: record.request.callbacks.demoUploadUrl !== undefined,
+          hasUploadUrl: hasDemoUploadUrl(record.request.callbacks),
           announced: record.demos.announced,
           uploaded: record.demos.uploaded,
         }),
@@ -1094,13 +1101,21 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     )
   }
 
-  const lost = (record: MatchRecord): void => {
+  /**
+   * `reason` names who noticed; `restoreNow` is what an operator's
+   * `reprovision` asks for — walk to a replacement at once instead of
+   * waiting out `sim.autoRecover`'s window, because nobody is coming to
+   * `restore` a box that was replaced on purpose.
+   */
+  const lost = (record: MatchRecord, reason?: string, restoreNow = false): void => {
     if (isTerminalMatchState(record.match.state) || record.restoring || !record.server) return
     const backups = faults.crash?.backup === false ? [] : record.server.backups()
     const newest = backups.at(-1)
     emit(record, {
       type: 'match.recovering',
-      reason: `no heartbeat for ${sim.heartbeatTimeoutMs} ms; the sim provider reports the server gone`,
+      reason:
+        reason ??
+        `no heartbeat for ${sim.heartbeatTimeoutMs} ms; the sim provider reports the server gone`,
       backupRound: newest?.roundNumber ?? null,
     })
     setState(record, 'recovering')
@@ -1111,7 +1126,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       end(record, 'failed', { kind: 'server_lost', detail: 'no backup to restore from' }, 'failed')
       return
     }
-    if (sim.autoRecover) {
+    if (sim.autoRecover || restoreNow) {
       restoreFrom(record, newest)
       return
     }
@@ -1145,6 +1160,29 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       region: sim.region,
     })
     bootServer(record, serverId, { mapNumber: backup.mapNumber, roundNumber: backup.roundNumber })
+  }
+
+  /**
+   * **The same match on a different box, before it is live** (T38a's
+   * `reprovision`): the current server is released — its ledger row closed
+   * where an operator can read what it cost — and the walk runs again for
+   * the same `clientMatchId`, which is the one thing a second create could
+   * never do. A fresh row, a fresh `match.allocated`, the same match id.
+   */
+  const reallocate = (record: MatchRecord): void => {
+    record.timers.allocation?.cancel()
+    dropServer(record, 'released')
+    record.match.connect = null
+    record.match.tv = null
+    record.match.readyAt = null
+    record.match.serverId = null
+    record.presence.clear()
+    presenceFrame(record)
+    writeRow(record)
+    setState(record, 'allocating')
+    record.timers.allocation = clock.after(sim.allocateDelayMs, () => {
+      void enqueue(record, () => allocated(record))
+    })
   }
 
   const presenceFrame = (record: MatchRecord): void =>
@@ -1254,7 +1292,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     server: SimulatedServer,
     mapNumber: number,
   ): Promise<void> => {
-    const url = record.request.callbacks.demoUploadUrl
+    const url = demoUploadUrlFor(record.request.callbacks, mapNumber)
     if (record.manifest.records !== 'demo' || !url) return
     const recording = server.record(mapNumber)
     if (!recording) {
@@ -1357,6 +1395,19 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
         { kind: 'force_ended', ...(body.reason && { detail: body.reason }) },
         'released',
       )
+      return applied()
+    }
+    if (body.type === 'reprovision') {
+      if (state === 'recovering')
+        return rejected('invalid_state', 'a replacement is already on its way')
+      if (state === 'live') {
+        const backups = record.server?.backups() ?? []
+        if (backups.length === 0)
+          return rejected('no_backup', 'a live match can only move to a box that can resume it')
+        lost(record, 'the client asked for a different server', true)
+        return applied()
+      }
+      reallocate(record)
       return applied()
     }
     if (body.type === 'profile') {
@@ -1779,6 +1830,16 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     asOf: iso(),
   })
 
+  /**
+   * The scenario catalog (`GET /v1/sim/scenarios`): the engine's own table,
+   * read from the same object the story builder does — a scenario added to
+   * `@ezpug/sim` shows up here without a second list to maintain.
+   */
+  const simScenarios = (): SimScenarioCatalog => ({
+    scenarios: listScenarios(),
+    default: DEFAULT_SCENARIO,
+  })
+
   const requireProvider = (providerId: string): void => {
     if (providerId !== SIM_PROVIDER_ID) throw refuse('not_found', `no provider ${providerId}`)
   }
@@ -1906,6 +1967,8 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     events,
     stream,
     server: (matchId: string): SimulatedServer | null => matches.get(matchId)?.server ?? null,
+    // the simulator's own catalog
+    simScenarios,
     // fleet
     capacity,
     providerHealth,

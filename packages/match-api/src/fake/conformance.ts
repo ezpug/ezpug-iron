@@ -143,6 +143,13 @@ export function createFakeConformanceTarget(
         ? {}
         : { demoUploadUrl: demoUploadUrl ?? FAKE_CONFORMANCE_DEMO_URL }),
     },
+    // One presigned url per map for the series flow — a fake signature on a
+    // fake bucket, the shape a real client draws from its own storage.
+    demoUploadUrls: count =>
+      Array.from({ length: count }, (_unused, index) => ({
+        mapNumber: index + 1,
+        url: `https://bucket.invalid/demos/conformance/map-${index + 1}.dem?signed=${index + 1}`,
+      })),
     advance: ms => clock.advance(ms),
     settle: () => fake.playOut(),
     faults: faults => fake.setFaults(faults.crash === undefined ? {} : { crash: faults.crash }),

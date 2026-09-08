@@ -95,12 +95,25 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `teams`        | `{ teamA, teamB }`, each `{ name, players: RosterEntry[] }` | rosters may be empty for an open-join mode; a SteamID may appear once |
 | `maps`         | `{ map, sides: ct \| t \| knife }[]`, ≥1               | `sides` is where **team A** starts; every `map` inside the gamemode's `maps` |
 | `rules?`       | `{ regulationRounds, overtime, warmup, cvars }`        | absent = the gamemode's defaults |
-| `requirements` | `{ region?, lan?, simulated?, provider? }`             | every field narrows; default `{}` |
-| `callbacks`    | `{ webhookUrl, webhookSecretId, demoUploadUrl?, streamAllowedOrigins? }` | `webhookSecretId` names a secret registered on the key; `demoUploadUrl` is a presigned PUT |
+| `requirements` | `{ region?, lan?, preferLan?, simulated?, provider? }` | every field narrows except `preferLan`, which only ranks; default `{}`. `lan` and `preferLan` together are `validation_failed` |
+| `callbacks`    | `{ webhookUrl, webhookSecretId, demoUploadUrl?, demoUploadUrls?, streamAllowedOrigins? }` | `webhookSecretId` names a secret registered on the key; `demoUploadUrl` is a presigned PUT, `demoUploadUrls` is one per map (`{ mapNumber, url }[]`, ≤16) |
 | `warmupLines?` | string[] ≤20                                           | printed in warmup, one every eight seconds, in order and cycling; rendered by the client (one line everybody reads cannot be four languages), relayed unbranded, sanitized to one chat line |
 | `branding?`    | `{ hostname?, eventName? }`                            | decision 22 |
 | `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos? }`      | honoured on the `sim` provider only |
 | `ttlMinutes`   | int, 1…1440                                            | the reaper's deadline; never above the key's ceiling |
+
+**`lan` or `preferLan`.** `lan: true` is "the venue's own hardware or nothing" and refuses
+the match `no_capable_server` when no node is enrolled; `preferLan: true` is "the venue's
+first, a rented box otherwise" — the only field here that ranks candidates instead of
+filtering them. A LAN night held before a node is enrolled wants the second.
+
+**One demo upload URL, or one per map.** A presigned URL's signature covers the object key
+it was drawn for, so there is no `{mapNumber}` template to fill in: a series that keeps
+every map's demo draws one URL per map and sends them as `demoUploadUrls`. The entry whose
+`mapNumber` matches the map being uploaded wins; `demoUploadUrl` is the fallback for every
+map without one, which is exactly what a Bo1 always did. With only the single URL a series
+uploads map 1 and leaves the rest on the server (a second PUT would overwrite map 1's
+bytes), and the plugin says so in its log.
 
 **RosterEntry**: `{ steamId64, name, locale (default de), rating?, rankName?, loadout? }`.
 The orchestrator relays these to the server and never stores a player.
@@ -144,6 +157,7 @@ id; a retried command with the same id is not applied twice):
 | `rcon`          | `command` | needs `admin`; `command_unsupported` on a sim |
 | `restore`       | `roundNumber?` | latest backup when unsaid; `no_backup` when none |
 | `reroll`        | | the match over on the same server, rosters kept |
+| `reprovision`   | | the same match on **another box**: before `live` the server is released and the walk runs again for the same `clientMatchId`; from `live` it is the recovery a lost server starts by itself, started by hand (`match.recovering` → a replacement handed the newest backup → `match.recovered`). `no_backup` from `live` with nothing to resume from, `invalid_state` while `recovering` |
 | `profile`       | `player: RosterEntry` | push or refresh one player's profile |
 | `sim.step`      | | deal the next beat (step mode) |
 | `sim.mode`      | `mode: auto \| step` | |
@@ -248,6 +262,16 @@ ship.
 ### `GET /v1/capacity`
 
 Scope `matches`. `Capacity`.
+
+### `GET /v1/sim/scenarios`
+
+Scope `matches`. `{ scenarios: SimScenario[], default }` — the scripted shapes this build's
+simulator can play, and the one a `sim` block without a `scenario` gets. A `SimScenario` is
+`{ name, neverReady, absentPlayers, crashAfterRound, pauses, overtimes, comeback }`: the
+knobs spelled out, so a console renders facts rather than a hard-coded list. Served whether
+or not the `sim` provider is registered — this is what the build knows how to play, and
+`GET /v1/capacity` is what says whether it could. `MatchRequest.sim.scenario` takes a
+`name` from here; one that is not is `validation_failed` on the match.
 
 ### `POST /v1/matches`
 
@@ -556,17 +580,24 @@ hours. `createMemoryDeliveryStore()` is the `Map` version for tests.
 ## Demos
 
 The orchestrator never sees a byte of a demo (decision 10). The request carries a
-presigned PUT in `callbacks.demoUploadUrl`, the **server** puts the file there, and the
-orchestrator relays a fact about what landed:
+presigned PUT — one in `callbacks.demoUploadUrl`, or one per map in
+`callbacks.demoUploadUrls` — the **server** puts the file there, and the orchestrator
+relays a fact about what landed:
 
 1. The server finishes recording (MatchZy for a `matchzy` flow, the SDK for any other),
-   waits for the file to stop growing, PUTs it at `demoUploadUrl` and says
-   `demo_available` with `filename`, `sizeBytes`, `sha256` and `contentType`.
+   waits for the file to stop growing, PUTs it at the URL for **that map** — its entry in
+   `demoUploadUrls`, else the single `demoUploadUrl` — and says `demo_available` with
+   `filename`, `sizeBytes`, `sha256` and `contentType`.
 2. The orchestrator relays `demo.uploaded` with those numbers and the object `key` it
    reads out of the URL's path. A `demo_available` **without** `sha256` is honest news
    that a demo exists on a server and nowhere else — no `demo.uploaded` follows it.
 3. `match.ended` carries `demo`: `uploaded`, how many maps' demos landed, and `skipped`,
    why there were not more (`no_upload_url`, `not_recorded`, `no_demo`, `upload_failed`).
+
+**A series without a URL per map keeps only its first map's demo.** A presigned URL
+addresses one object, so a second PUT at the same one would overwrite what is already
+there; the plugin refuses to and says so in its log, and `match.ended` counts the demo it
+did hand over. Draw one URL per map (`demoUploadUrls`) and every map's demo travels.
 
 **A match that records a demo stays `live` past its own `series_end`** until the demo is
 announced or the orchestrator's demo window (six minutes) runs out. GOTV records the
@@ -575,7 +606,7 @@ and `match.ended` releases the server the file is still being written on. A clie
 watches `Match.state` sees `live` for a couple of minutes after `series_end` reaches its
 webhook; the series is over, the demo is not.
 
-Omit `demoUploadUrl` and none of this happens: no upload, no `demo.uploaded`, and
+Name neither URL and none of this happens: no upload, no `demo.uploaded`, and
 `match.ended` says `demo: { uploaded: 0, skipped: 'no_upload_url' }`.
 
 ## The stream
@@ -919,7 +950,9 @@ with pnpm (so `catalog:` versions and `publishConfig.exports` resolve — `npm p
 neither, and its tarball would be broken on install), audits the tarball, and publishes it
 with `npm publish --access public --provenance`. `node scripts/release.mjs publish` is the
 same path locally for an owner who is `npm login`ed; `node scripts/release.mjs check` is
-the audit alone and runs in `pnpm verify:extended` on every box.
+the audit alone and runs in `pnpm verify:extended` on every box. `publish` and `smoke`
+take `--registry <url>` (or read `npm_config_registry`) for a registry that is not npmjs —
+the box's own Verdaccio is where this repo's dev world reads the package from.
 
 The audit refuses: an unresolved `catalog:`/`workspace:` range, a `@ezpug/*` dependency
 escaping to a consumer (`core`, `gamemodes` and `sim` are bundled into `dist`), a file

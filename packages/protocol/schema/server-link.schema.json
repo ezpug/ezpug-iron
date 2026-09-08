@@ -2948,6 +2948,29 @@
               "type": "string",
               "format": "uri"
             },
+            "demoUploadUrls": {
+              "maxItems": 16,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "mapNumber": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                },
+                "required": [
+                  "mapNumber",
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            },
             "restore": {
               "$ref": "#/$defs/RoundBackup"
             }

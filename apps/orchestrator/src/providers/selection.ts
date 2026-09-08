@@ -19,8 +19,10 @@ import type { ProviderRegistry } from './registry'
  *   it is the honest fallback when none is — the dev world.
  * - A drained provider offers nothing.
  * - `lan` requested → nodes only (the filter) and nodes first (the ordering);
- *   otherwise cheapest first. Ties fall back to registration order then
- *   offering order, so the list is deterministic for any ordering.
+ *   `preferLan` → nodes first and nothing filtered out, so a LAN night held
+ *   before a node is enrolled still gets a rented box (T38a); otherwise
+ *   cheapest first. Ties fall back to registration order then offering
+ *   order, so the list is deterministic for any ordering.
  */
 
 export const SIM_PROVIDER_ID = 'sim'
@@ -83,9 +85,13 @@ export function eligibleProviders(
   return (real.length > 0 ? real : all).map(e => e.provider)
 }
 
-/** The ordering a request asks for. */
+/**
+ * The ordering a request asks for. `lan` has already narrowed the pool to
+ * nodes by the time this ranks it; `preferLan` narrowed nothing, so this is
+ * the whole of what it does.
+ */
 export function orderingFor(request: MatchRequest): CandidateOrdering {
-  return request.requirements.lan ? lanFirst : cheapestSuitable
+  return request.requirements.lan || request.requirements.preferLan ? lanFirst : cheapestSuitable
 }
 
 /**

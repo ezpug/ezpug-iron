@@ -20,11 +20,11 @@ namespace EZPug.Core;
 /// the orchestrator's cue to relay <c>demo.uploaded</c> to the client.</item>
 /// </list>
 ///
-/// <b>One demo per match.</b> The request carries a single presigned
-/// <c>demoUploadUrl</c>, so a second map's demo would overwrite the first map's in the
-/// client's storage; a series with more than one map wants a URL per map, which the Match
-/// API does not offer yet. Until it does, the first map's demo is the one that travels and
-/// the rest are said so in the log.
+/// <b>One demo per upload URL.</b> A request that drew one presigned URL per map
+/// (<c>callbacks.demoUploadUrls</c>, PRD-02 T38a) hands over every map's demo, each at its
+/// own; a request with the single <c>demoUploadUrl</c> hands over the first map's only,
+/// because a second PUT at the same presigned URL would overwrite it in the client's
+/// storage. The maps that stay behind are said so in the log.
 ///
 /// <b>Knowing when the file is finished is the whole difficulty.</b> GOTV keeps writing
 /// until <c>tv_stoprecord</c> and says nothing when it stops — there is no event, no
@@ -62,6 +62,11 @@ public sealed class DemoFlow
 
     private bool _records;
     private bool _ownsRecording;
+    private Assignment? _assignment;
+    /// <summary>The map whose demo is being recorded and handed over — read when the map loads, not when the file is found, because the context has moved on by then.</summary>
+    private long _mapNumber = 1;
+    /// <summary>Every presigned URL this match has already PUT a demo at; a second one would overwrite it.</summary>
+    private readonly HashSet<string> _uploaded = new(StringComparer.Ordinal);
     private Uri? _uploadUrl;
     private string? _folder;
     private string? _marker;
@@ -104,6 +109,9 @@ public sealed class DemoFlow
         Disarm();
         _records = assignment.Gamemode.Records == GamemodeRecords.Demo;
         _ownsRecording = false;
+        _assignment = assignment;
+        _mapNumber = _runtime.Match.MapNumber;
+        _uploaded.Clear();
         _uploadUrl = null;
         _folder = null;
         _marker = null;
@@ -123,11 +131,9 @@ public sealed class DemoFlow
         // played twice cannot hand over the wrong match's file. Ours carries the same
         // marker for the same reason.
         _marker = MatchZySerial(assignment) is { } serial ? serial.ToString() : null;
-        if (assignment.DemoUploadUrl is { Length: > 0 } url && Uri.TryCreate(url, UriKind.Absolute, out var parsed))
-        {
-            _uploadUrl = parsed;
-        }
-        else
+        // Resolved per map at the win panel (`UrlFor`); this is only whether the request
+        // named anywhere at all, which is worth saying while somebody is still watching.
+        if (assignment.DemoUploadUrl is null && (assignment.DemoUploadUrls?.Count ?? 0) == 0)
         {
             _log.Warn("this match records a demo and the request named nowhere to put one; it will stay on this server");
         }
@@ -135,7 +141,15 @@ public sealed class DemoFlow
 
     private void OnMapLoaded(Assignment assignment, string map)
     {
-        if (!_records || !_ownsRecording)
+        if (!_records)
+        {
+            return;
+        }
+
+        // Read here and nowhere else: by the time the file is finished the runtime has
+        // counted the map that ended, and this demo belongs to the one that just played.
+        _mapNumber = _runtime.Match.MapNumber;
+        if (!_ownsRecording)
         {
             return;
         }
@@ -158,6 +172,8 @@ public sealed class DemoFlow
         Disarm();
         _records = false;
         _ownsRecording = false;
+        _assignment = null;
+        _uploaded.Clear();
         _uploadUrl = null;
         _folder = null;
         _marker = null;
@@ -181,16 +197,20 @@ public sealed class DemoFlow
             return;
         }
 
-        if (_done)
+        // This map's own presigned PUT, or the single one the request carried for every
+        // map (`demoUploadUrlFor`, the same rule the orchestrator and the fake follow).
+        var url = _assignment?.DemoUploadUrlFor((int)_mapNumber);
+        if (url is { Length: > 0 } && _uploaded.Contains(url))
         {
-            // **One demo per match**, because the request carries one
-            // `demoUploadUrl` and a second PUT at the same presigned URL would
-            // overwrite the first map's demo in the client's storage. A series
-            // with more than one map wants a URL per map, which the Match API
-            // does not offer yet; until it does this is the honest half.
-            _log.Warn("a second map ended and this match's one demoUploadUrl already holds a demo; this map's stays on the server");
+            // A second PUT at the same presigned URL would overwrite the demo already
+            // there. A request that drew one URL per map never lands here.
+            _log.Warn($"map {_mapNumber} ended and this match's demoUploadUrl already holds another map's demo; this one stays on the server");
             return;
         }
+
+        _uploadUrl = url is { Length: > 0 } && Uri.TryCreate(url, UriKind.Absolute, out var parsed) ? parsed : null;
+        _done = false;
+        _length = -1;
 
         if (_ownsRecording)
         {
@@ -278,6 +298,7 @@ public sealed class DemoFlow
             return;
         }
 
+        _uploaded.Add(url.ToString());
         var task = _uploader.UploadAsync(url, found.Path);
         if (task.IsCompleted)
         {
@@ -318,7 +339,8 @@ public sealed class DemoFlow
             outcome.FileName,
             outcome.SizeBytes,
             outcome.Uploaded ? outcome.Sha256 : null,
-            outcome.Uploaded ? outcome.ContentType : null));
+            outcome.Uploaded ? outcome.ContentType : null,
+            mapNumber: _mapNumber));
     }
 
     /// <summary>MatchZy's numeric <c>matchid</c> for this assignment, when it has one.</summary>

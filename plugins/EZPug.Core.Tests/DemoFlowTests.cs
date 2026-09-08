@@ -17,6 +17,8 @@ public class DemoFlowTests
 {
     private const long Serial = 4711;
     private const string UploadUrl = "https://bucket.invalid/demos/match.dem?signed=1";
+    private const string MapOneUrl = "https://bucket.invalid/demos/match/map-1.dem?signed=1";
+    private const string MapTwoUrl = "https://bucket.invalid/demos/match/map-2.dem?signed=2";
 
     private sealed class Rig : IDisposable
     {
@@ -44,14 +46,19 @@ public class DemoFlowTests
         public string MatchZyFolder => Path.Combine(Image.CsgoDirectory, DemoFiles.MatchZyFolder);
 
         /// <summary>Assign a match and bring its map up, exactly as the runtime would.</summary>
-        public Assignment Start(string gamemode = "pug", string? uploadUrl = UploadUrl)
+        public Assignment Start(
+            string gamemode = "pug",
+            string? uploadUrl = UploadUrl,
+            IReadOnlyList<AssignOrchestratorFrameDemoUploadUrl>? uploadUrls = null,
+            IReadOnlyList<MapPlan>? maps = null)
         {
             var manifest = GamemodeTestHost.ManifestFrom(File.ReadAllText(Repo.Path("gamemodes", gamemode, "manifest.json")));
             var frame = GamemodeTestHost.AssignmentFor(manifest, map: "de_mirage") with
             {
                 MatchzyConfig = JsonNode.Parse("{\"matchid\":" + Serial + "}")!.AsObject(),
-                Maps = [new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Ct }],
+                Maps = maps ?? [new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Ct }],
                 DemoUploadUrl = uploadUrl,
+                DemoUploadUrls = uploadUrls,
             };
             Link.Assign(frame);
             World.StartMap("de_mirage");
@@ -148,6 +155,79 @@ public class DemoFlowTests
         Assert.Null(announced.ContentType);
         Assert.Empty(rig.Transport.Attempts);
         Assert.Contains(rig.Log.Lines, line => line.Contains("named nowhere to put one"));
+    }
+
+    [Fact]
+    public async Task ASeriesWithAUrlPerMapHandsOverEveryMapsDemo()
+    {
+        using var rig = new Rig();
+        // A Bo3's request drew one presigned PUT per map (PRD-02 T38a); before that
+        // field existed, map 2's demo stayed on the server.
+        rig.Start(
+            uploadUrl: null,
+            uploadUrls:
+            [
+                new AssignOrchestratorFrameDemoUploadUrl { MapNumber = 1, Url = MapOneUrl },
+                new AssignOrchestratorFrameDemoUploadUrl { MapNumber = 2, Url = MapTwoUrl },
+            ],
+            maps:
+            [
+                new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Ct },
+                new MapPlan { Map = "de_nuke", Sides = MapPlanSides.T },
+            ]);
+
+        rig.WriteDemo(rig.MatchZyFolder, $"2026_{Serial}_de_mirage_A_vs_B.dem", 1_024);
+        rig.World.EndMap();
+        rig.Poll();
+        rig.World.Elapse(DemoFlow.SettleMs);
+        var first = await rig.WaitForDemoAsync();
+
+        Assert.NotNull(first);
+        Assert.Equal(1, first.MapNumber);
+        Assert.Equal(new Uri(MapOneUrl), Assert.Single(rig.Transport.Attempts).Url);
+
+        rig.Link.Events.Clear();
+        rig.World.StartMap("de_nuke");
+        rig.WriteDemo(rig.MatchZyFolder, $"2026_{Serial}_de_nuke_A_vs_B.dem", 2_048);
+        rig.World.EndMap();
+        rig.Poll();
+        rig.World.Elapse(DemoFlow.SettleMs);
+        var second = await rig.WaitForDemoAsync();
+
+        Assert.NotNull(second);
+        // The map it belongs to, not the one the context had moved on to.
+        Assert.Equal(2, second.MapNumber);
+        Assert.Equal(2, rig.Transport.Attempts.Count);
+        Assert.Equal(new Uri(MapTwoUrl), rig.Transport.Attempts[1].Url);
+        Assert.NotNull(second.Sha256);
+    }
+
+    [Fact]
+    public async Task ASeriesWithOneUrlForEveryMapKeepsTheFirstMapsDemoAndSaysSo()
+    {
+        using var rig = new Rig();
+        rig.Start(maps:
+        [
+            new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Ct },
+            new MapPlan { Map = "de_nuke", Sides = MapPlanSides.T },
+        ]);
+
+        rig.WriteDemo(rig.MatchZyFolder, $"2026_{Serial}_de_mirage_A_vs_B.dem", 1_024);
+        rig.World.EndMap();
+        rig.Poll();
+        rig.World.Elapse(DemoFlow.SettleMs);
+        Assert.NotNull(await rig.WaitForDemoAsync());
+
+        rig.Link.Events.Clear();
+        rig.World.StartMap("de_nuke");
+        rig.WriteDemo(rig.MatchZyFolder, $"2026_{Serial}_de_nuke_A_vs_B.dem", 2_048);
+        rig.World.EndMap();
+        rig.World.Elapse(DemoFlow.WindowMs + DemoFlow.SettleMs);
+
+        // A second PUT at the same presigned URL would overwrite map 1's demo.
+        Assert.Single(rig.Transport.Attempts);
+        Assert.Empty(rig.Link.EventsOf<DemoAvailableEvent>());
+        Assert.Contains(rig.Log.Lines, line => line.Contains("already holds another map's demo"));
     }
 
     [Fact]

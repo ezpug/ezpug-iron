@@ -21,7 +21,9 @@ import type {
 } from '@ezpug/match-api'
 import {
   ApiError,
+  demoUploadUrlFor,
   gamemodeAllowsMap,
+  hasDemoUploadUrl,
   isSimCommand,
   isTerminalMatchState,
   MATCH_API_ERROR_STATUS,
@@ -602,13 +604,14 @@ export function createMatches(options: MatchesOptions): Matches {
   // --- demos (T21) --------------------------------------------------------------------
 
   /**
-   * The object key the demo landed under, read out of the presigned URL the
-   * request carried — the same rule the published fake uses. The orchestrator
-   * never sees a byte of a demo; this is the one thing it can say about where
-   * one went.
+   * The object key this map's demo landed under, read out of the presigned
+   * URL the request carried for it — the same rule the published fake uses,
+   * and the reason a series can name a different key per map (T38a). The
+   * orchestrator never sees a byte of a demo; this is the one thing it can
+   * say about where one went.
    */
-  const demoKeyOf = (row: MatchRow): string | undefined => {
-    const url = row.requestJson.callbacks.demoUploadUrl
+  const demoKeyOf = (row: MatchRow, mapNumber: number): string | undefined => {
+    const url = demoUploadUrlFor(row.requestJson.callbacks, mapNumber)
     if (!url) return undefined
     try {
       const key = new URL(url).pathname.replace(/^\/+/, '')
@@ -623,7 +626,7 @@ export function createMatches(options: MatchesOptions): Matches {
     const runtime = runtimes.get(row.id)
     return matchDemoOutcome({
       recordsDemo: manifestOf(row).records === 'demo',
-      hasUploadUrl: row.requestJson.callbacks.demoUploadUrl !== undefined,
+      hasUploadUrl: hasDemoUploadUrl(row.requestJson.callbacks),
       announced: runtime?.demos.announced ?? 0,
       uploaded: runtime?.demos.uploaded ?? 0,
     })
@@ -636,7 +639,7 @@ export function createMatches(options: MatchesOptions): Matches {
    */
   const demoPending = (row: MatchRow, runtime: Runtime): boolean =>
     manifestOf(row).records === 'demo' &&
-    row.requestJson.callbacks.demoUploadUrl !== undefined &&
+    hasDemoUploadUrl(row.requestJson.callbacks) &&
     runtime.demos.announced < runtime.currentMap
 
   const end = async (
@@ -1031,6 +1034,49 @@ export function createMatches(options: MatchesOptions): Matches {
   }
 
   /**
+   * **The same match on a different box, before it is live** (T38a's
+   * `reprovision`): the current server is released — the ledger row closed
+   * where an operator can read what the bad box cost — and the placement
+   * walk runs again for the same `clientMatchId`, which is the one thing a
+   * second create could never do (the id is the idempotency key, so a repeat
+   * replays the match it already made). A fresh ledger row, a second
+   * `match.allocated` on the replay, the same match id throughout.
+   *
+   * Whether the next box is on the same provider is the walk's business: the
+   * candidates are re-ranked from scratch, and an operator who wants a whole
+   * provider out of the running drains it first.
+   */
+  const reprovision = async (row: MatchRow): Promise<void> => {
+    if (isTerminalMatchState(row.state) || row.state === 'live' || row.state === 'recovering')
+      return
+    for (const timer of ['allocate', 'boot', 'join', 'heartbeat'] as const) cancelTimer(row, timer)
+    const server = await currentServer(row)
+    if (server)
+      await closeRow(server, 'released', 'reprovision: the client asked for another server', true)
+    // Whoever was on the old box is not on the next one until it says so.
+    const runtime = runtimeOf(row)
+    runtime.presence.clear()
+    presenceFrame(row)
+    const patch = {
+      provider: null,
+      serverId: null,
+      fleetServerId: null,
+      connect: null,
+      tv: null,
+      readyAt: null,
+      updatedAt: now(),
+    }
+    await store.updateMatch(row.id, patch)
+    Object.assign(row, patch)
+    await setState(row, 'pending')
+    // Queued behind this step, like every other walk: the command's chain is
+    // the one this is running on.
+    void enqueue(row, provision).catch((error: unknown) =>
+      report(error, { phase: 'reprovision', matchId: row.id }),
+    )
+  }
+
+  /**
    * The walk for a recovering match: the same candidates, the same rules,
    * with the backup. The match stays `recovering` throughout — the window
    * armed at the loss is the deadline for the replacement's `server_ready`,
@@ -1214,7 +1260,7 @@ export function createMatches(options: MatchesOptions): Matches {
         // (decision 10): it owns the upload, the orchestrator owns the fact.
         if (event.sha256 && event.contentType) {
           runtime.demos.uploaded += 1
-          const key = demoKeyOf(row)
+          const key = demoKeyOf(row, event.mapNumber)
           await emit(row, {
             type: 'demo.uploaded',
             mapNumber: event.mapNumber,
@@ -1468,6 +1514,22 @@ export function createMatches(options: MatchesOptions): Matches {
           return rejected('invalid_state', 'a restore is already in progress')
         runtime.restoring = { mapNumber: chosen.mapNumber, roundNumber: chosen.roundNumber }
         kickRecovery(row)
+        return { ...base, status: 'applied' }
+      }
+      case 'reprovision': {
+        // Before `live` it is a different box for the same match; from `live`
+        // it is the recovery a lost server starts by itself, started by hand
+        // instead (T14's path, T38a's door). `recovering` already has one.
+        if (state === 'recovering')
+          return rejected('invalid_state', 'a replacement is already on its way')
+        if (state === 'live') {
+          const backup = await store.latestBackup(row.id)
+          if (!backup)
+            return rejected('no_backup', 'a live match can only move to a box that can resume it')
+          await lost(row, 'the client asked for another server')
+          return { ...base, status: 'applied' }
+        }
+        await reprovision(row)
         return { ...base, status: 'applied' }
       }
       case 'profile': {

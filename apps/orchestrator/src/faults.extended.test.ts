@@ -288,6 +288,8 @@ async function createTemplate(fake: FakeDathost): Promise<string> {
     deletion_protection: 'true',
     'cs2_settings.slots': '12',
     'cs2_settings.enable_gotv': 'true',
+    // The vendor refuses a cs2 create without one, and so does the fake.
+    'cs2_settings.rcon': 'a-template-rcon-password',
   }))
     form.append(name, value)
   const response = await fake.fetch('https://dathost.net/api/0.1/game-servers', {

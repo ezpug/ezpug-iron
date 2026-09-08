@@ -1,4 +1,8 @@
-import { MATCH_COMMAND_TYPES, SIM_COMMAND_TYPES } from '@ezpug/match-api'
+import {
+  MATCH_COMMAND_TYPES,
+  ORCHESTRATOR_COMMAND_TYPES,
+  SIM_COMMAND_TYPES,
+} from '@ezpug/match-api'
 import { GAMESERVER_EVENT_FIXTURES } from '@ezpug/match-api/fixtures'
 import { describe, expect, it } from 'vitest'
 import { EVENTS_BATCH_MAX, PROTOCOL_VERSION } from './constants'
@@ -67,15 +71,14 @@ describe('the server link', () => {
     ).toBe(true)
   })
 
-  it('relays every Match API command except the sim family, plus console', () => {
-    const relayed = MATCH_COMMAND_TYPES.filter(
-      type => !(SIM_COMMAND_TYPES as readonly string[]).includes(type),
-    )
+  it('relays every Match API command except the sim family and the orchestrator’s own, plus console', () => {
+    const notRelayed: readonly string[] = [...SIM_COMMAND_TYPES, ...ORCHESTRATOR_COMMAND_TYPES]
+    const relayed = MATCH_COMMAND_TYPES.filter(type => !notRelayed.includes(type))
     expect([...LINK_COMMAND_TYPES]).toEqual(['console', ...relayed])
     for (const type of LINK_COMMAND_TYPES) {
       expect(linkCommandSchema.parse(LINK_COMMAND_FIXTURES[type]).type).toBe(type)
     }
-    for (const type of SIM_COMMAND_TYPES) {
+    for (const type of notRelayed) {
       expect(linkCommandSchema.safeParse({ type, correlationId: 'x' }).success).toBe(false)
     }
   })
