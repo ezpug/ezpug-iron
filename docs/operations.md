@@ -1296,7 +1296,8 @@ validity, not minutes.
 
 `scripts/iron-match.mjs` plays a whole match on real hardware through nothing but the
 Match API, and writes down everything it said. It is how the fixtures under
-`packages/protocol/fixtures/recorded/`, `packages/match-api/fixtures/recorded/real-*.json`
+`packages/protocol/fixtures/recorded/`,
+`packages/match-api/fixtures/recorded/{real,dathost}-*.json`
 and `apps/orchestrator/src/matchzy/fixtures/` came to hold what a real MatchZy sends
 rather than what its schema documentation claims (PRD-02 T13), and it is the client the
 `EZPUG_CS2_TESTS` lane runs.
@@ -1385,6 +1386,58 @@ the meaning. Both fixture tests assert no file names one.
 A recording costs ten minutes of real hardware, so changing how a fixture is *shaped* must
 not cost another match: every run writes `raw.json` beside its output, and
 `pnpm iron:match --rebuild .cache/iron-match/<run>` writes every file again from it.
+
+### Against a deployment, on a rented box (PRD-02 T36)
+
+The same recorder, pointed at `gs.ezpug.com` and at a server Dathost rents in Düsseldorf.
+Nothing about the match changes; five things about the *client* do, and each of them is a
+flag because each is a fact about where the run is standing rather than about the match:
+
+```
+set -a && . ./.env.production && set +a
+EZPUG_IRON_ADMIN_KEY="$EZPUG_IRON_API_KEY" node scripts/iron-match.mjs \
+  --base-url https://gs.ezpug.com \
+  --provider dathost --lan false \
+  --budget-cents 500 \
+  --webhook-host 172.17.0.1 \
+  --demo-relay gs.ezpug.com \
+  --no-trace \
+  --fixture-prefix dathost --write-fixtures
+```
+
+- **`--admin-key`** (`$EZPUG_IRON_ADMIN_KEY`), because the mint the dev lane uses opens
+  the database this checkout is configured for and production's is published to nothing.
+  The operator's key from `.env.production` is the door; the run still mints its own key
+  underneath it and revokes it at the end.
+- **`--budget-cents`**, because the default ceiling is **zero** and zero is a ceiling, not
+  the absence of one: without a number the first paid box is refused `402
+  budget_exceeded`. €5 is a wall well above a €0.40/hour server that lives ten minutes.
+- **`--webhook-host 172.17.0.1`**, the docker bridge gateway. The orchestrator is a
+  container; `127.0.0.1` is its own loopback and not this box's, and binding the endpoint
+  to the gateway keeps it off the internet.
+- **`--demo-relay <host>`**, because the demo is uploaded **by the plugin on the game
+  server** — so from a datacentre — and the platform's dev MinIO listens on loopback,
+  which is where it belongs. The flag presigns the PUT against `http://<host>:<port>` and
+  runs that port for the length of the run, forwarding to MinIO with the `Host` header
+  the client sent: that name is inside the SigV4 signature and MinIO recomputes it. The
+  relay authenticates nobody and does not need to — what it forwards carries a signature
+  drawn for one object key, one verb and a few hours, and a request without one is a 403
+  from MinIO. It also says what arrived, which is the half `match.ended` cannot: that
+  event reports what the *plugin* believed about its own upload.
+- **`--no-trace`**, because a production orchestrator refuses to write one (above) and
+  `.env` on this box names the dev one — a run that recorded *that* would be writing this
+  box's other conversations into a fixture. With no trace there is no `link.json` and no
+  `matchzy.json`, and the recorder writes neither rather than writing an empty one.
+
+`--fixture-prefix dathost` is what keeps the two lanes' recordings apart:
+`real-*` is a match on the dev node, `dathost-*` is one on rented iron, and
+`packages/match-api/src/fixtures/recorded.test.ts` treats both as hardware recordings —
+never regenerated, every payload in them must still parse.
+
+**The money is the same money as the smoke's.** One server, released in a `finally` and on
+a signal, `ttlMinutes` on the request so the reaper takes it back even if the process is
+killed, and the ledger row read after the release: the run's summary carries `ledger.open`
+and the count of servers still standing, and both being zero is what "it is over" means.
 
 ### The `EZPUG_CS2_TESTS` lane
 

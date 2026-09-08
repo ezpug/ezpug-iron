@@ -35,6 +35,15 @@ function fileFor(flow: string): string {
   return `${RECORDED_DIR}${flow}.json`
 }
 
+/**
+ * The prefixes `scripts/iron-match.mjs` writes a **hardware** recording under
+ * — everything else in this directory is a golden the fake produces. `real-`
+ * is a match on the dev node (PRD-02 T13); `dathost-` is one on a box rented
+ * in a datacentre and reached over the public internet (T36). Neither is
+ * regenerated from code, which is the whole reason they are worth keeping.
+ */
+const HARDWARE = /^(real|dathost)-/
+
 /** One flow, alone, against a fresh fake: the same instance every time. */
 async function record(flow: string): Promise<string> {
   const report = await runMatchApiConformance({
@@ -67,7 +76,7 @@ describe('the recorded fixtures', () => {
     const files = readdirSync(RECORDED_DIR)
       .filter(name => name.endsWith('.json'))
       .map(name => name.replace(/\.json$/, ''))
-      .filter(name => !name.startsWith('real-'))
+      .filter(name => !HARDWARE.test(name))
       .sort()
     expect(files).toEqual([...MATCH_API_CONFORMANCE_FLOWS.map(flow => flow.id)].sort())
   })
@@ -84,10 +93,10 @@ describe('the recorded fixtures', () => {
 })
 
 /**
- * **The real recordings** (PRD-02 T13). `real-*.json` is not a golden: it is
- * what one match on real hardware said over the published surface — the calls
- * a client made, the envelopes the events route replayed, the webhook
- * deliveries with their verification, the stream frames. It is written by
+ * **The real recordings** (PRD-02 T13, T36). A {@link HARDWARE} file is not a
+ * golden: it is what one match on real hardware said over the published
+ * surface — the calls a client made, the envelopes the events route replayed,
+ * the webhook deliveries with their verification, the stream frames. It is written by
  * `scripts/iron-match.mjs --write-fixtures` and never regenerated from code,
  * which is exactly what makes it worth having: **every payload in it must
  * still parse**, and the day one stops, the vocabulary moved under a server
@@ -95,13 +104,14 @@ describe('the recorded fixtures', () => {
  */
 describe('the real recordings', () => {
   const files = readdirSync(RECORDED_DIR)
-    .filter(name => name.startsWith('real-') && name.endsWith('.json'))
+    .filter(name => HARDWARE.test(name) && name.endsWith('.json'))
     .sort()
 
   it('exists — one match has been played and written down', () => {
-    expect(files.length, 'no real-*.json: run `pnpm iron:match --write-fixtures`').toBeGreaterThan(
-      0,
-    )
+    expect(
+      files.length,
+      'no hardware recording: run `pnpm iron:match --write-fixtures`',
+    ).toBeGreaterThan(0)
   })
 
   for (const file of files) {

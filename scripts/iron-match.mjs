@@ -23,7 +23,7 @@
 import { spawnSync } from 'node:child_process'
 import { createHash, createHmac, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:http'
+import { createServer, request as httpRequest } from 'node:http'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join } from 'node:path'
 import process from 'node:process'
@@ -60,10 +60,32 @@ const HELP = `iron-match — run one real match through the Match API and record
   --no-overtime          allow a drawn map — MatchZy then replays it, so the run hangs
   --max-live-minutes <n> force-end a match still live after this long; default 35
   --base-url <url>       default $EZPUG_IRON_BASE_URL
+  --admin-key <secret>   an existing admin key, instead of minting one from the
+                         box's own database; default $EZPUG_IRON_ADMIN_KEY. The
+                         only way to record against a deployment this checkout
+                         has no database handle on (production, PRD-02 T36).
+  --provider <id>        requirements.provider — this provider and no other
+  --lan <true|false>     requirements.lan; default true (the dev node)
+  --budget-cents <n>     the monthly ceiling of the run's own key; default 0,
+                         which is a ceiling of zero — free providers only. A
+                         run that rents a box needs a real number.
+  --webhook-host <addr>  where the run's webhook endpoint binds and how the
+                         orchestrator is told to reach it; default 127.0.0.1.
+                         A containerised orchestrator reaches this box at the
+                         docker bridge gateway, 172.17.0.1.
+  --demo-relay <host>    presign the demo PUT against http://<host>:<port> and
+                         relay that port to the S3 endpoint below. A rented box
+                         in a datacentre cannot reach a loopback MinIO; this is
+                         the door it can (PRD-02 T36).
   --trace <file>         the orchestrator's trace; default $EZPUG_IRON_TRACE_FILE
+  --no-trace             record no trace at all — what a run against a
+                         deployment that writes none has to say, rather than
+                         reading this box's dev trace because .env named one
   --out <dir>            where the run is written; default .cache/iron-match/<run>
   --no-demo              do not mint a demo upload URL
   --write-fixtures       update the recorded fixtures from this run
+  --fixture-prefix <id>  what the written fixtures are called; default 'real',
+                         so real-<gamemode>-bo1.json and its exchanges
   --rebuild <dir>        write the files again from a finished run's raw.json,
                          without playing another match
   --timeout-minutes <n>  give up and cancel after this long; default 45
@@ -111,6 +133,45 @@ const BASE_URL = (
   process.env.EZPUG_IRON_PUBLIC_URL ??
   'http://127.0.0.1:3430'
 ).replace(/\/+$/, '')
+/**
+ * An `admin` key that already exists, instead of minting one.
+ *
+ * The mint below runs `keys:mint` in `apps/orchestrator`, which opens the
+ * database this checkout is configured for — the dev one. Production's
+ * database is inside `compose.prod.yaml` and published to nothing, which is
+ * the point (T35), so a recording against `gs.ezpug.com` has to be handed the
+ * operator's key instead (`EZPUG_IRON_API_KEY` in `.env.production`).
+ */
+const ADMIN_KEY = flags.get('admin-key') ?? process.env.EZPUG_IRON_ADMIN_KEY ?? null
+/** `requirements.provider` — this provider and no other. */
+const PROVIDER = flags.get('provider') ?? null
+/**
+ * The monthly ceiling of the key this run mints for itself, in cents. Zero —
+ * the default — is a ceiling of *zero* (T37d): a match on a free provider
+ * runs, a match that would rent a box is refused `402 budget_exceeded`. A run
+ * that means to rent one says how much it may cost.
+ */
+const BUDGET_CENTS = Number(flags.get('budget-cents') ?? 0)
+/** `requirements.lan`. True is the dev node; false is whatever the deployment rents. */
+const LAN = (flags.get('lan') ?? 'true') !== 'false'
+/**
+ * Where the run's webhook endpoint binds, and the address the orchestrator is
+ * given for it. The default is loopback because the dev orchestrator is a
+ * process on this box; a containerised one reaches the host at the docker
+ * bridge gateway, and nothing on the internet reaches either.
+ */
+const WEBHOOK_HOST = flags.get('webhook-host') ?? '127.0.0.1'
+/**
+ * The public name of the demo relay, or null for no relay.
+ *
+ * The demo PUT is made by the **plugin on the game server** — so on a rented
+ * box in a datacentre, over the internet. The platform's dev MinIO on this
+ * box listens on loopback only, so a run against a rented server presigns
+ * against `http://<host>:<port>` and this script relays that port to MinIO
+ * for as long as the run lasts. `gs.ezpug.com` is the name that already
+ * resolves here.
+ */
+const DEMO_RELAY_HOST = flags.get('demo-relay') ?? null
 const GAMEMODE = flags.get('gamemode') ?? 'pug'
 /**
  * The first synthetic SteamID64 a bot is known by — `EZPug.Sdk`'s `BotIdentity`,
@@ -136,6 +197,14 @@ const WANT_DEMO = flags.get('no-demo') !== 'true'
  */
 const OVERTIME = flags.get('no-overtime') !== 'true'
 const WRITE_FIXTURES = flags.get('write-fixtures') === 'true'
+/**
+ * What the written fixtures are called. `real-` is a match on the dev node
+ * (T13); `dathost-` is the same recorder against a box rented in a datacentre
+ * and reached over the public internet (T36). Both are recordings of hardware
+ * and neither is regenerated from code, which is what
+ * `packages/match-api/src/fixtures/recorded.test.ts` sorts them by.
+ */
+const FIXTURE_PREFIX = flags.get('fixture-prefix') ?? 'real'
 const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 45) * 60_000
 /**
  * The orchestrator's trace, found rather than assumed. A **relative**
@@ -146,7 +215,10 @@ const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 45) * 60_000
  * both are looked in, repo first, and neither existing is fatal below rather
  * than a run that plays a whole match and records an empty conversation.
  */
-const TRACE_FLAG = flags.get('trace') ?? process.env.EZPUG_IRON_TRACE_FILE ?? null
+const TRACE_FLAG =
+  flags.get('no-trace') === 'true'
+    ? null
+    : (flags.get('trace') ?? process.env.EZPUG_IRON_TRACE_FILE ?? null)
 const TRACE_FILE = (() => {
   if (!TRACE_FLAG) return null
   if (isAbsolute(TRACE_FLAG)) return TRACE_FLAG
@@ -282,11 +354,20 @@ function mintKey(name, scopes) {
 // ---------------------------------------------------------------------------
 
 /**
- * SigV4 for one PUT, by hand. The alternative is an SDK dependency in a repo
- * that has no other use for one; presigning is a hash chain and forty lines.
- * The credentials come from the platform's own `.env` on this box and are
- * never written anywhere — the URL that carries the signature is scrubbed out
- * of everything this script records.
+ * SigV4 for one request, by hand. The alternative is an SDK dependency in a
+ * repo that has no other use for one; presigning is a hash chain and forty
+ * lines. The credentials come from the platform's own `.env` on this box and
+ * are never written anywhere — the URL that carries the signature is scrubbed
+ * out of everything this script records.
+ *
+ * `method` is `PUT` for the demo target the assignment carries and `HEAD` for
+ * reading the object back afterwards: a signature covers the verb, so the
+ * check that the bytes landed has to be signed for the verb it uses.
+ *
+ * **`endpoint` is the host the signature is computed over**, and it is not
+ * always the host the bytes are ultimately stored on. A relayed run signs for
+ * the public door (`--demo-relay`) and the relay forwards the `Host` header
+ * unchanged, so MinIO recomputes the same signature over the same name.
  */
 function presignPut({
   endpoint,
@@ -296,6 +377,7 @@ function presignPut({
   bucket,
   key,
   expiresIn = 3600,
+  method = 'PUT',
   now,
 }) {
   const url = new URL(`${endpoint.replace(/\/+$/, '')}/${bucket}/${key}`)
@@ -313,7 +395,7 @@ function presignPut({
     'X-Amz-SignedHeaders': 'host',
   })
   const canonical = [
-    'PUT',
+    method,
     url.pathname,
     [...query.entries()]
       .map(([k, v]) => [encodeURIComponent(k), encodeURIComponent(v)])
@@ -357,6 +439,80 @@ function platformS3() {
     secretKey: env.EZPUG_S3_SECRET_KEY,
     bucket: (env.EZPUG_S3_BUCKETS || 'demos').split(',')[0].trim(),
   }
+}
+
+/**
+ * **A door a datacentre can knock on** (PRD-02 T36).
+ *
+ * The demo is uploaded by the plugin on the game server, so a match on a
+ * rented box PUTs from the public internet — and the platform's dev MinIO on
+ * this box is published to loopback and nothing else, which is right and
+ * should stay that way. This is the relay in between: a socket on every
+ * interface for the length of one run, forwarding the method, the path, the
+ * query and the body to MinIO **with the `Host` header the client sent**,
+ * because that name is inside the SigV4 signature and MinIO recomputes it.
+ *
+ * It authenticates nobody, and does not have to: what it forwards is verified
+ * by MinIO against a signature this run drew for one object key, one verb and
+ * a few hours, and a request without one is a 403 from MinIO rather than from
+ * here. It also carries no credential of its own — the signature is in the
+ * URL the plugin was handed and never in this process's headers.
+ *
+ * What it saw is the run's evidence that the upload happened at all, which is
+ * the half a client cannot see: `match.ended` reports what the *plugin*
+ * believed, and this is the byte count that arrived.
+ */
+function startDemoRelay(target) {
+  const seen = []
+  const upstream = new URL(target)
+  const server = createServer((request, response) => {
+    const record = { method: request.method, path: request.url.split('?')[0], bytes: 0, status: 0 }
+    // `node:http` and not `fetch`, for one reason: **the `Host` header has to
+    // be forwarded verbatim**, it is inside the SigV4 signature MinIO
+    // recomputes, and undici will not let a caller set it. Piped rather than
+    // buffered, because a demo is tens of megabytes.
+    const forwarded = httpRequest(
+      {
+        protocol: upstream.protocol,
+        hostname: upstream.hostname,
+        port: upstream.port || 80,
+        method: request.method,
+        path: request.url,
+        headers: {
+          ...(request.headers.host && { host: request.headers.host }),
+          ...(request.headers['content-type'] && {
+            'content-type': request.headers['content-type'],
+          }),
+          ...(request.headers['content-length'] && {
+            'content-length': request.headers['content-length'],
+          }),
+        },
+      },
+      answer => {
+        record.status = answer.statusCode ?? 0
+        response.writeHead(answer.statusCode ?? 502, {
+          'content-type': answer.headers['content-type'] ?? 'application/xml',
+        })
+        answer.pipe(response)
+        answer.on('end', () => {
+          seen.push(record)
+          say(`demo relay: ${record.method} ${record.path} ${record.bytes} B -> ${record.status}`)
+        })
+      },
+    )
+    forwarded.on('error', error => {
+      record.error = error.message
+      seen.push(record)
+      say(`demo relay: ${record.method} ${record.path} upstream error — ${error.message}`)
+      if (!response.headersSent) response.writeHead(502, { 'content-type': 'text/plain' })
+      response.end('relay: upstream unreachable')
+    })
+    request.on('data', chunk => {
+      record.bytes += chunk.length
+    })
+    request.pipe(forwarded)
+  })
+  return { server, seen }
 }
 
 // ---------------------------------------------------------------------------
@@ -544,13 +700,26 @@ async function run() {
     )
 
   // 1. A key of this run's own, with a webhook secret nobody else holds.
-  const adminSecret = mintKey(`${RUN_ID}-admin`, 'admin')
+  //    The admin key it is minted with is either the operator's — the only
+  //    way in to a deployment whose database this checkout cannot open — or
+  //    one minted from the box, which is what a dev run does.
+  const adminSecret = ADMIN_KEY ?? mintKey(`${RUN_ID}-admin`, 'admin')
   const admin = makeApi(adminSecret)
+  if (ADMIN_KEY) say(`using the admin key from the environment against ${BASE_URL}`)
   const webhookSecret = `iron-match-${randomUUID()}`
   const created = await admin('POST', '/v1/keys', {
     name: RUN_ID,
     scopes: ['matches', 'fleet', 'admin'],
-    budget: { maxConcurrentServers: 2, maxServerLifetimeMinutes: 60, monthlyCents: 0 },
+    budget: {
+      maxConcurrentServers: 2,
+      maxServerLifetimeMinutes: 60,
+      // **Zero is a ceiling of zero, not the absence of one** (T37d): free
+      // providers forever, `402 budget_exceeded` on the first paid box. That
+      // is the right default for a run on the dev node and the wrong one for a
+      // run that means to rent something, so `--budget-cents` is how a run
+      // that spends money says how much.
+      monthlyCents: BUDGET_CENTS,
+    },
     webhookSecrets: [{ id: 'whsec-iron-match', secret: webhookSecret }],
   })
   const keyId = created.key.id
@@ -584,23 +753,40 @@ async function run() {
       response.end('{"ok":true}')
     })
   })
-  await new Promise(resolve => webhookServer.listen(0, '127.0.0.1', resolve))
-  const webhookUrl = `http://127.0.0.1:${webhookServer.address().port}/webhook`
+  await new Promise(resolve => webhookServer.listen(0, WEBHOOK_HOST, resolve))
+  const webhookUrl = `http://${WEBHOOK_HOST}:${webhookServer.address().port}/webhook`
   cleanups.push(() => new Promise(resolve => webhookServer.close(resolve)))
+  say(`webhook endpoint on ${webhookUrl}`)
 
-  // 3. Where the demo goes: a presigned PUT into the platform's dev MinIO.
+  // 3. Where the demo goes: a presigned PUT into the platform's dev MinIO,
+  //    directly from a server on this box or through the relay from one that
+  //    is not.
   let demoUploadUrl
   const s3 = WANT_DEMO ? platformS3() : null
+  let demoRelay = null
+  const demoKey = `iron-match/${RUN_ID}.dem`
   if (WANT_DEMO && !s3)
     say('no S3 credentials beside this box: the match runs without a demo target')
   if (s3) {
+    let signedEndpoint = s3.endpoint
+    if (DEMO_RELAY_HOST) {
+      demoRelay = startDemoRelay(s3.endpoint)
+      // Every interface, because the client is a datacentre; an ephemeral
+      // port, because the run is minutes long and nothing else may hold it.
+      await new Promise(resolve => demoRelay.server.listen(0, '0.0.0.0', resolve))
+      const port = demoRelay.server.address().port
+      signedEndpoint = `http://${DEMO_RELAY_HOST}:${port}`
+      cleanups.push(() => new Promise(resolve => demoRelay.server.close(resolve)))
+      say(`demo relay on ${signedEndpoint} → ${s3.endpoint}`)
+    }
     demoUploadUrl = presignPut({
       ...s3,
-      key: `iron-match/${RUN_ID}.dem`,
+      endpoint: signedEndpoint,
+      key: demoKey,
       expiresIn: 6 * 3600,
       now: wall.at(),
     })
-    say(`demo target: ${s3.endpoint}/${s3.bucket}/iron-match/${RUN_ID}.dem`)
+    say(`demo target: ${signedEndpoint}/${s3.bucket}/${demoKey}`)
   }
 
   // 3b. **Who owns the flow.** A `matchzy` mode needs a `css_start` and an empty
@@ -735,7 +921,7 @@ async function run() {
         }),
       },
     },
-    requirements: { lan: true },
+    requirements: { lan: LAN, ...(PROVIDER && { provider: PROVIDER }) },
     callbacks: {
       webhookUrl,
       webhookSecretId: 'whsec-iron-match',
@@ -1013,6 +1199,38 @@ async function run() {
   const ledger = await api('GET', `/v1/fleet/ledger?since=${new Date(startedAt).toISOString()}`)
   const fleet = await api('GET', '/v1/fleet/servers')
 
+  // **The bytes, read back off the store rather than off the report.**
+  // `match.ended` carries what the plugin believed about its own upload and
+  // the relay carries what arrived at this box; neither is the object. A
+  // signed HEAD against the real endpoint is — and it goes to `s3.endpoint`,
+  // loopback, because that is where the object is and the relay is a door for
+  // somebody else.
+  let demoStored = null
+  if (s3) {
+    try {
+      const head = await fetch(
+        presignPut({
+          ...s3,
+          key: demoKey,
+          method: 'HEAD',
+          expiresIn: 600,
+          now: wall.at(),
+        }),
+        { method: 'HEAD' },
+      )
+      demoStored = head.ok
+        ? { found: true, bytes: Number(head.headers.get('content-length') ?? 0) }
+        : { found: false, status: head.status }
+    } catch (error) {
+      demoStored = { found: false, error: error.message }
+    }
+    say(
+      demoStored.found
+        ? `demo in the store: ${demoStored.bytes} bytes at ${s3.bucket}/${demoKey}`
+        : `demo not in the store (${demoStored.status ?? demoStored.error})`,
+    )
+  }
+
   return {
     run: RUN_ID,
     forced,
@@ -1027,7 +1245,9 @@ async function run() {
     streamFrames,
     trace: readTrace(traceFrom),
     startedAt,
-    demoTarget: s3 ? `${s3.endpoint}/${s3.bucket}/iron-match/${RUN_ID}.dem` : null,
+    demoTarget: s3 ? `${s3.endpoint}/${s3.bucket}/${demoKey}` : null,
+    demoStored,
+    demoRelay: demoRelay?.seen ?? null,
     scoreboard,
     skins,
   }
@@ -1080,7 +1300,9 @@ function write(result) {
     [result.matchId]: FIXTURE_MATCH_ID,
     [result.request.clientMatchId]: 'iron-match-recorded',
   }
-  if (result.match.serverId) identities[result.match.serverId] = 'devbox-1'
+  if (result.match.serverId)
+    identities[result.match.serverId] =
+      FIXTURE_PREFIX === 'real' ? 'devbox-1' : `${FIXTURE_PREFIX}-1`
   // MatchZy knows the match by a serial derived from its id
   // (`match-config/matchzy.ts` `matchzySerial`): scrub the id and leave the
   // serial and the two no longer agree, which is exactly what the door
@@ -1116,6 +1338,10 @@ function write(result) {
     demoTarget: result.demoTarget,
     /** What `match.ended` said became of the demos (T21). */
     demo: result.match.endedReason ? (demoOutcome(result.envelopes) ?? null) : null,
+    /** What a signed HEAD found at the target afterwards — the object, not the report (T36). */
+    demoStored: result.demoStored ?? null,
+    /** What the public relay saw, when there was one: the PUT as it crossed the internet (T36). */
+    demoRelay: result.demoRelay ?? null,
     /** `ezpug_status`'s `scoreboard:` line while the match was up, or null when this gamemode does not show a rating (T27). */
     scoreboard: result.scoreboard ?? null,
     /** The core plugin's `skins:` console lines — how many, and the last — while the match was up, or null when no loadout was on the roster (T28). */
@@ -1157,7 +1383,7 @@ function write(result) {
     join(OUT_DIR, 'client.json'),
     stringify(
       scrub({
-        flow: `real-${GAMEMODE}-bo1`,
+        flow: `${FIXTURE_PREFIX}-${GAMEMODE}-bo1`,
         calls,
         envelopes: result.envelopes,
         // The order they arrived in, that each verified, and which attempt it
@@ -1202,13 +1428,19 @@ function write(result) {
   const protocolDir = join(repo, 'packages/protocol/fixtures/recorded')
   const matchApiDir = join(repo, 'packages/match-api/fixtures/recorded')
   mkdirSync(protocolDir, { recursive: true })
-  const files = [
-    [join(protocolDir, `real-${GAMEMODE}-link.json`), join(OUT_DIR, 'link.json')],
-    [join(protocolDir, `real-${GAMEMODE}-node.json`), join(OUT_DIR, 'node.json')],
-    [join(matchApiDir, `real-${GAMEMODE}-bo1.json`), join(OUT_DIR, 'client.json')],
-  ]
+  const name = `${FIXTURE_PREFIX}-${GAMEMODE}`
+  const files = [[join(matchApiDir, `${name}-bo1.json`), join(OUT_DIR, 'client.json')]]
+  // **An empty exchange is not a recording.** The wire only reaches this
+  // script through the orchestrator's trace, and a deployment that writes none
+  // — production, deliberately (`.env.production`) — has nothing to say here.
+  // The client half above is what that run recorded, and a fixture file
+  // holding `[]` would claim otherwise.
+  if (link.length > 0)
+    files.push([join(protocolDir, `${name}-link.json`), join(OUT_DIR, 'link.json')])
+  if (node.length > 0)
+    files.push([join(protocolDir, `${name}-node.json`), join(OUT_DIR, 'node.json')])
   if (matchzy.length > 0)
-    files.push([join(protocolDir, `real-${GAMEMODE}-matchzy.json`), join(OUT_DIR, 'matchzy.json')])
+    files.push([join(protocolDir, `${name}-matchzy.json`), join(OUT_DIR, 'matchzy.json')])
   for (const [target, source] of files) {
     writeFileSync(target, readFileSync(source, 'utf8'))
     say(`fixture ${target.replace(`${repo}/`, '')}`)

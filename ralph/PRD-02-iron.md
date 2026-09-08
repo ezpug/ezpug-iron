@@ -826,7 +826,7 @@ every offline proof here.
   > trio by name, and nothing else about the stack changes. Everything else in T35 shipped
   > and is live.
 
-- [ ] **T36: The first real match through `gs.ezpug.com`.** With T35 deployed and
+- [x] **T36: The first real match through `gs.ezpug.com`.** With T35 deployed and
   credentials in place: `pnpm iron matches create --gamemode pug --lan=false --bots` against
   production — bots play four rounds on a real Dathost server in Frankfurt, the link
   crosses the real internet, the demo lands by presigned PUT in the platform's dev MinIO
@@ -840,15 +840,23 @@ every offline proof here.
   > note (T29): while that human is connected, read the chat prefix, the line naming
   > their team's colour and the centre card two seconds after they load. Same reason:
   > a bots run proves what the plugin printed and never what a player saw.
-  > blocked: **still no Dathost credentials on this box** — `.env.production` carries the
-  > trio commented out and `EZPUG_IRON_PROVIDERS=sim,nodes`, so production has no provider
-  > that can rent a box in Frankfurt and there is no account to bill, tag or list. Nothing
-  > in this task can be faked: it *is* the live one. The exact lines the owner fills in are
-  > under T35; `./scripts/deploy.sh` takes it from there. Taken out of order by T37, which
-  > needs none of them. Two things T37 built that this task should reuse: the client key
-  > with a webhook secret must be minted through `POST /v1/keys` (`ezpug-iron keys create`
-  > cannot register one), and a webhook this box hosts is reachable from the production
-  > container at `http://172.17.0.1:<port>/…`, not at `127.0.0.1`.
+  > was blocked on the credentials until the owner filled them in; production has run
+  > `dathost,nodes` since. **Played:** match `2257bd17`, one clone of the template in
+  > Düsseldorf, `pending → configuring → ready → live → ended (completed)` in 8 m 52 s,
+  > four rounds and a side swap, MatchZy's own `series_end`, 48 envelopes delivered and
+  > every one verified by the published verifier. The demo is a real `PBDEMS2`, 15 989 004
+  > bytes, PUT by the plugin from the datacentre across the public internet and read back
+  > out of the platform's dev MinIO. Ledger: €0.40/hour, **€0.05 accrued**, released,
+  > nothing open, and the account lists the template and no clone. Recorded as
+  > `packages/match-api/fixtures/recorded/dathost-pug-bo1.json`.
+  > note: **the two visual checks above are still unproven and only a human can prove
+  > them.** Nothing in this round can connect a person to a CS2 server, so the EZ Rating
+  > cell (T27) and the chat prefix, the team-colour line and the centre card (T29) are
+  > exactly as unseen as they were — the run proved what the plugin printed, not what a
+  > player saw. They belong in the closing note as work for a human at a keyboard.
+  > note: production writes no trace (`NODE_ENV=production` refuses one, deliberately), so
+  > there is no `dathost-*-link.json`: the client half is what this lane can record, and
+  > the recorder now writes no fixture at all rather than an empty exchange.
 
 - [x] **T37: The LAN rehearsal.** `ezpug-node` on this box enrolled against the
   **production** orchestrator with the ghcr image; a `requirements.lan` request lands on
