@@ -1052,7 +1052,7 @@ every offline proof here.
   (`.verify/test/orchestrator.json`, T39a). References: `conformance.extended.test.ts`,
   `stream/hub.ts`, `stream/upgrade.ts`, `webhooks/`, T10a, T21c.
 
-- [ ] **T40: The sweep.** Everything in "When the PRD is complete", with the closing note.
+- [x] **T40: The sweep.** Everything in "When the PRD is complete", with the closing note.
 
 ## Working rules
 
