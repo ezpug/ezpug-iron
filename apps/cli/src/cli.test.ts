@@ -464,6 +464,79 @@ describe('nodes', () => {
   })
 })
 
+describe('providers, and the capacity they add up to', () => {
+  /**
+   * T38b: the first move of an outage, which was `curl` in the runbook until
+   * this group existed. Drained is not down and down is not drained — the
+   * table says which, because the answer to "is it them or is it us" is
+   * `lastError` and nothing else.
+   */
+  it('reads health, drains, undrains, and never calls a drained provider down', async () => {
+    const h = await setup()
+    const listed = await h.run('providers list')
+    expect(listed.code, listed.err).toBe(EXIT.ok)
+    expect(listed.out).toContain('sim')
+    expect(listed.out).toContain('up')
+
+    const drained = await h.run('providers drain sim')
+    expect(drained.out).toContain('is draining')
+    expect(
+      (await h.run('providers list --json')).json<{
+        providers: { drained: boolean; healthy: boolean }[]
+      }>().providers[0],
+    ).toMatchObject({ drained: true, healthy: true })
+    // What draining buys: the capacity read a lobby makes goes to zero at
+    // once, rather than every request finding out in an allocation timeout.
+    expect(
+      (await h.run('capacity --json')).json<{
+        providers: { regions: { available: number | null }[] }[]
+      }>().providers[0]?.regions[0]?.available,
+    ).toBe(0)
+
+    const back = await h.run('providers drain sim --undrain')
+    expect(back.out).toContain('takes allocations again')
+
+    h.fake.setFaults({ providerDown: true })
+    const down = await h.run('providers list')
+    expect(down.out).toContain('down')
+    expect(down.out).toContain('provider down')
+    h.fake.setFaults({ providerDown: false })
+
+    expect((await h.run('providers drain')).code).toBe(EXIT.usage)
+    expect((await h.run('providers drain nope')).code).toBe(EXIT.refused)
+    expect((await h.run('providers teleport')).code).toBe(EXIT.usage)
+  })
+
+  it('prints what could be allocated right now, per region, and when it was asked', async () => {
+    const h = await setup()
+    const capacity = await h.run('capacity')
+    expect(capacity.code, capacity.err).toBe(EXIT.ok)
+    expect(capacity.out).toContain('available')
+    expect(capacity.out).toContain('cs2')
+    expect(capacity.out).toContain('as of 2026-09-07T18:00:00')
+
+    h.fake.setFaults({ providerDown: true })
+    const outage = await h.run('capacity')
+    expect(outage.out).toContain('every provider is drained or down')
+    h.fake.setFaults({ providerDown: false })
+  })
+
+  /** The Saturday where servers boot and nobody outside can join them. */
+  it('reads the GSLT pool and says what an empty and a saturated one mean', async () => {
+    const empty = await setup()
+    const dry = await empty.run('providers gslt')
+    expect(dry.code, dry.err).toBe(EXIT.ok)
+    expect(dry.out).toContain('0 of 0 leased')
+    expect(dry.out).toContain('STEAM_WEB_API_KEY')
+    await empty.close()
+
+    harness = await createCliHarness({ gsltTotal: 4 })
+    const pool = await harness.run('providers gslt --json')
+    expect(pool.json<{ total: number; inUse: number }>()).toEqual({ total: 4, inUse: 0 })
+    expect((await harness.run('providers gslt')).out).toContain('0 of 4 leased')
+  })
+})
+
 describe('budget', () => {
   it('prints the three ceilings and this month against them', async () => {
     const h = await setup()
@@ -533,6 +606,9 @@ describe('the secret sweep', () => {
     await h.run(`matches get ${match.id}`)
     await h.run('servers list')
     await h.run('nodes list')
+    await h.run('providers list')
+    await h.run('capacity')
+    await h.run('providers gslt')
     await h.run('budget')
     await h.run('matches list --json')
 

@@ -436,8 +436,8 @@ of it needs a deploy.
 seconds since boot, so this is a read of a fact and not a call that can hang:
 
 ```sh
-curl -sS https://gs.ezpug.com/v1/fleet/providers -H "authorization: Bearer $EZPUG_IRON_API_KEY" | jq
-curl -sS https://gs.ezpug.com/v1/capacity        -H "authorization: Bearer $EZPUG_IRON_API_KEY" | jq
+pnpm iron providers list       # health, the last probe, the error that proved it, open rows
+pnpm iron capacity             # what could be allocated right now, per provider and region
 ```
 
 `lastError` on an unhealthy provider is the error that proved it and `lastCheckedAt` is
@@ -449,8 +449,7 @@ cache is still warm.
 **2. Take it out of selection, rather than letting every request find out.**
 
 ```sh
-curl -sS -X POST https://gs.ezpug.com/v1/fleet/providers/dathost/drain \
-  -H "authorization: Bearer $EZPUG_IRON_API_KEY"
+pnpm iron providers drain dathost              # …and `--undrain` when it is back
 ```
 
 A drained provider keeps everything it is already running and is offered nothing new. What
@@ -458,8 +457,10 @@ that buys is *where the failure happens*: a request that cannot be placed is ref
 `no_capable_server` at the door, in a second, with the reason — instead of walking a
 candidate list into an allocation timeout while a lobby waits. If nodes are enrolled, every
 `requirements.lan` request keeps landing on them exactly as before; if the venue has a box
-and the rented half is what died, this is the whole outage. `…/undrain` puts it back and
-the next probe decides whether that was optimistic.
+and the rented half is what died, this is the whole outage. `providers drain dathost
+--undrain` puts it back, and the next probe decides whether that was optimistic — nothing
+undrains a provider on its own, because a provider that healed on its own once is not a
+reason to stop asking.
 
 **3. The matches that were already on it.** A server that stops answering is a lost server,
 and the machine's own path handles it without help: `match.recovering`, the backup that
@@ -492,9 +493,15 @@ match nobody can connect to would be worse than an honest `503`. If the answer t
 evening is "play somewhere else", the move is a node at the venue (`docs/nodes.md` installs
 one in five commands) and not a provider list edit.
 
-Two of these are still curl because the terminal has no verb for them yet: reading provider
-health and draining a provider are routes the platform's console pulls, and `ezpug-iron`
-covers every group but that one.
+The first two steps were `curl` until T38b, which is the wrong shape for the first move of
+an outage: `providers` and `capacity` are verbs now, `--json` like every other, and the
+routes behind them are the ones the platform's console pulls. `--url https://gs.ezpug.com`
+is how one terminal does this to production while pointing at the dev world by default.
+
+**A third thing to read when servers boot and nobody can join them**:
+`pnpm iron providers gslt`. `0 of 0 leased` is no Steam key, a wrong one or a ceiling of
+zero; `n of n leased` is a saturated pool. "The GSLT pool" below is what to do about
+either.
 
 ## How it starts and stops
 
@@ -1203,9 +1210,12 @@ The rules, each with a test in `gslt/pool.test.ts`:
   adopted. Two deployments may share a Steam key; neither ever touches the other's memo.
 
 **When a Saturday goes wrong**: servers boot but nobody outside the datacentre can join →
-check `GET /v1/fleet/gslt` first. `total: 0` means no key, a wrong key (the log says
-`STEAM_WEB_API_KEY is wrong`) or a ceiling of zero; `inUse == total` means the pool is
-saturated — raise `EZPUG_IRON_GSLT_POOL_MAX` and restart, and the next allocation mints.
+check the pool first, with `pnpm iron providers gslt` (T38b) or `GET /v1/fleet/gslt` under
+it. `0 of 0 leased` means no key, a wrong key (the log says `STEAM_WEB_API_KEY is wrong`)
+or a ceiling of zero; `n of n leased` means the pool is saturated — raise
+`EZPUG_IRON_GSLT_POOL_MAX` and restart, and the next allocation mints. The verb prints
+which of the two it is looking at, because a dry pool is a warning and never a refusal:
+nothing else in the system will tell you.
 
 ## The MatchZy door
 
@@ -1391,6 +1401,9 @@ pnpm iron matches watch <matchId>      # the live stream until it closes
 pnpm iron servers list --all --since 2026-09-07T18:00:00Z   # what tonight cost
 pnpm iron nodes enrol-token --id saarlan-1 --region eu-central
 pnpm iron nodes remove saarlan-1        # un-enrol at the end of the venue night
+pnpm iron providers list               # who can rent a box, and what the last probe said
+pnpm iron providers drain dathost      # the first move of an outage
+pnpm iron capacity                     # what could be allocated right now
 pnpm iron budget
 pnpm iron dathost image --check
 ```
@@ -1402,6 +1415,8 @@ pnpm iron dathost image --check
 | `matches` | `create`, `list`, `get`, `watch`, `cancel`, `command` |
 | `servers` | `list` (`--all` reads the ledger, closed rows included), `kill`, `console` |
 | `nodes` | `enrol-token`, `list`, `drain` (`--undrain`), `remove` (un-enrol) |
+| `providers` | `list` (health, `lastError`, `lastCheckedAt`, open rows), `drain` (`--undrain`), `gslt` (the Steam login token pool) — the outage group (T38b) |
+| `capacity` | what could be allocated right now, per provider and region; the one `matches`-scope read of the fleet, because a client picks a region out of it |
 | `budget` | the calling key's three ceilings and this month against them |
 | `dathost` | `image --check` and `image --build` — a thin wrapper over `scripts/dathost-image.mjs` |
 
@@ -1464,6 +1479,19 @@ terminal's rather than the API's, and all three cost a venue operator time.
   do is stop anything that is playing — those containers belong to the ledger, not to the
   agent — so `drain` first, and `docker stop` the agent on the venue box afterwards or its
   restart policy dials it straight back into a refusal (`docs/nodes.md`).
+
+**The group a Saturday needed and the terminal did not have** (T38b). Writing "When a
+provider dies on a Saturday" found `ezpug-iron` covering every part of the fleet except the
+providers themselves, so the first move of an outage was `curl` with a bearer token on the
+command line. `providers list` is a read of what the probe loop already knows — health,
+`lastCheckedAt`, the `lastError` that proved it, and how many ledger rows are open there;
+`providers drain <id>` (and `--undrain`) is the lever that turns a lobby's twenty-second
+allocation timeout into an immediate `no_capable_server`; `providers gslt` is the pool
+question above. Beside them, `capacity` is `GET /v1/capacity`: it is the one fleet read on
+the `matches` scope rather than `fleet`, because a client picks a region out of it, and a
+drained provider stays in the table with `available` at zero — capacity that is not being
+offered is a different fact from capacity that is gone, and a dash is a third thing again
+(a provider that cannot say, which Dathost does not).
 
 ## Keys, scopes, rate limits, logs
 

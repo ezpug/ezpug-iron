@@ -100,10 +100,17 @@ export function revealedSecret(out: string): string | undefined {
   return out.match(/\n\n {4}(\S+)\n\n/)?.[1]
 }
 
-export async function createCliHarness(): Promise<CliHarness> {
+/** What a test bends about the fake before it starts; everything else is fixed. */
+export interface CliHarnessOptions {
+  /** The GSLT pool `providers gslt` reads (`GET /v1/fleet/gslt`). Default 0. */
+  gsltTotal?: number
+}
+
+export async function createCliHarness(options: CliHarnessOptions = {}): Promise<CliHarness> {
   const clock = createFakeClock({ start: Date.parse('2026-09-07T18:00:00.000Z') })
   const fake = createFakeOrchestrator({
     clock,
+    gsltTotal: options.gsltTotal,
     // Nothing leaves the process: webhooks are answered in memory, the demo
     // PUT is swallowed. A CLI test must not open a socket it did not open.
     webhooks: { deliver: () => 200 },

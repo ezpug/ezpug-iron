@@ -247,6 +247,13 @@ describe('the fake Dathost', () => {
     })
   })
 
+  it('refuses a cs2 create without an rcon password the way the vendor does: 200, text, no server', async () => {
+    const response = await post('/game-servers', { game: 'cs2', name: 'no-rcon' })
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('cs2_settings.rcon needs to be set')
+    expect(fake.servers()).toHaveLength(0)
+  })
+
   it('lists what the account holds and forgets a deleted server', async () => {
     const first = await create({ name: 'one' })
     await create({ name: 'two' })

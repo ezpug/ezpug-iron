@@ -46,7 +46,7 @@
 // allocation by the provider, and `ezpug.json` (the link URL and the server
 // token) is written by `configure`, on the clone, never here.
 import { spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import process from 'node:process'
@@ -401,7 +401,26 @@ function createClient({ baseUrl, email, password, fetchImpl, sleep }) {
       // again, because the second one would be a second server on the bill
       // that nothing knows about. (A 429 is, since it refused the call.)
       const response = await call('POST', '/game-servers', { form })
-      return await response.json()
+      // The vendor answers a create it *refused* with a 200 and a plain-text
+      // sentence ("cs2_settings.rcon needs to be set", seen 2026-09-08), so a
+      // 2xx is not yet a server: only a JSON body with an id is. That sentence
+      // is a validation message and not the account's header, so it is the
+      // one vendor body this script repeats — without it the failure reads as
+      // a parser bug.
+      const text = await response.text()
+      let server
+      try {
+        server = JSON.parse(text)
+      } catch {
+        server = undefined
+      }
+      if (typeof server !== 'object' || server === null || typeof server.id !== 'string') {
+        const line = text.split('\n')[0].trim().slice(0, 160)
+        throw new Error(
+          `POST /game-servers answered ${response.status} without a server: ${line || '(empty body)'}`,
+        )
+      }
+      return server
     },
     async updateServer(id, form) {
       await call('PUT', `/game-servers/${id}`, { form, idempotent: true })
@@ -673,6 +692,10 @@ export async function main(options = {}) {
         name,
         location,
         'cs2_settings.game_mode': 'competitive',
+        // The vendor refuses a cs2 create without one. The template never
+        // runs, so nobody ever types this: it is drawn once, kept nowhere, and
+        // every clone gets its own from `allocate` anyway.
+        'cs2_settings.rcon': randomBytes(24).toString('base64url'),
         ...templateSettings({ slots: slots ?? DEFAULT_SLOTS }),
       })
       say(`template: created ${server.id}`)

@@ -41,6 +41,10 @@ Dathost server and a LAN node behave identically and our plugin runs on both. Th
   the smoke), `on`, `booting`, `server_error`, `players_online`, `cost_per_hour`,
   `user_data`, `match_id` (their match API — must stay empty for us), `cs2_settings.rcon`,
   `cs2_settings.password`, `cs2_settings.enable_gotv`, `duplicate_source_server`.
+  **A cs2 `POST /game-servers` needs `cs2_settings.rcon`**, and a create the vendor
+  refuses comes back as a **200 with a plain-text sentence** (`cs2_settings.rcon needs to
+  be set`, seen 2026-09-08) and no server — a 2xx is a server only once the body is JSON
+  with an `id`.
 - **Files**: `GET …/files` lists, `GET …/files/{path}` downloads (a directory comes back as
   a zip), `POST …/files/{path}` uploads one file (multipart `file`, **100 MB limit**, a
   trailing `/` creates a directory), `PUT …/files/{path}` moves. Paths are relative to the

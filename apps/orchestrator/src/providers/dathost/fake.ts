@@ -372,6 +372,11 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     const game = form.get('game')
     const name = form.get('name')
     if (!game || !name) return bare(400)
+    // The vendor's own shape for a create it refuses (seen live 2026-09-08):
+    // a **200** carrying a plain-text sentence and no server. A caller that
+    // trusts the status and parses JSON reads it as a parser bug.
+    if (game === 'cs2' && !form.get('cs2_settings.rcon'))
+      return c.text('cs2_settings.rcon needs to be set', 200)
     const id = nextId()
     const server = blank(id, name, game, form.get('location') ?? defaultLocation)
     applyForm(server, form)

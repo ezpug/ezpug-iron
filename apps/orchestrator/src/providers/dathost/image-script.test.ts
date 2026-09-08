@@ -273,6 +273,10 @@ describe('building the template', () => {
     // Dathost's *managed* Metamod: ours is in the image, pinned and checksummed.
     expect(cs2.enable_metamod).toBe(false)
     expect(cs2.slots).toBe(12)
+    // The vendor refuses a cs2 create without an rcon password (a 200 with a
+    // sentence, no server). The template's is drawn here and never printed.
+    expect(cs2.rcon).toMatch(/^[A-Za-z0-9_-]{32}$/)
+    expect(`${out.join('')}${err.join('')}`).not.toContain(String(cs2.rcon))
     // Never a token on the template: a clone would inherit it and evict the
     // server that already holds it (T17, one per running server).
     expect(cs2.steam_game_server_login_token ?? '').toBe('')

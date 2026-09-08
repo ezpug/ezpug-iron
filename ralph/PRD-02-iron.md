@@ -937,7 +937,7 @@ every offline proof here.
   `CHANGELOG.md`; every doc checked by a test where it names a route, a command or a
   version.
 
-- [ ] **T38b: the two levers a Saturday needs and the terminal does not have.**
+- [x] **T38b: the two levers a Saturday needs and the terminal does not have.**
   Writing T38's "When a provider dies on a Saturday" found that `ezpug-iron` has a group
   for every part of the fleet except the providers themselves: reading
   `GET /v1/fleet/providers` (health, `lastError`, `lastCheckedAt`, `drained`) and

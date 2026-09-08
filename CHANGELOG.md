@@ -55,8 +55,10 @@ round's release task.
   `flying-scoutsman` on MatchZy, `retakes` on the community plugin, `powerup-dm` on the
   SDK; manifests as data, read by the orchestrator and the plugin alike.
 - **The terminal** (`apps/cli`) — `ezpug-iron`: keys, gamemodes, matches, servers, nodes,
-  budget and the Dathost image, every verb one call on the same Match API the platform
-  speaks, `--json` on all of them.
+  providers, capacity, budget and the Dathost image, every verb one call on the same Match
+  API the platform speaks, `--json` on all of them. The `providers` group (`list`, `drain`
+  `--undrain`, `gslt`) and `capacity` are the first two moves of an outage, which were
+  `curl` in the runbook until T38b.
 - **The deploy** (`scripts/deploy.sh`, `compose.prod.yaml`) — preflight, build, backup,
   migrate, up, routes, smoke; `rollback` and `backup` beside it. `ralph/DEPLOY.md` is the
   runbook.

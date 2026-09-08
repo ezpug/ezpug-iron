@@ -2,11 +2,13 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { COMMAND_GROUPS, USAGE } from './cli'
 import { BUDGET_USAGE } from './commands/budget'
+import { CAPACITY_USAGE } from './commands/capacity'
 import { DATHOST_USAGE } from './commands/dathost'
 import { GAMEMODES_USAGE } from './commands/gamemodes'
 import { KEYS_USAGE } from './commands/keys'
 import { MATCHES_USAGE } from './commands/matches'
 import { NODES_USAGE } from './commands/nodes'
+import { PROVIDERS_USAGE } from './commands/providers'
 import { SERVERS_USAGE } from './commands/servers'
 import { API_KEY_VAR, BASE_URL_VARS } from './config'
 
@@ -24,13 +26,15 @@ const readme = read('README.md')
 const envExample = read('.env.example')
 const rootManifest = JSON.parse(read('package.json')) as { scripts: Record<string, string> }
 
-/** The surface PRD-02 T33 asked for, verb by verb. */
+/** The surface PRD-02 T33 asked for, plus the group T38b added, verb by verb. */
 const VERBS: Readonly<Record<string, readonly string[]>> = {
   keys: ['create', 'list', 'revoke'],
   gamemodes: ['list'],
   matches: ['create', 'get', 'watch', 'cancel', 'command'],
   servers: ['list', 'kill', 'console'],
   nodes: ['enrol-token', 'list', 'drain', 'remove'],
+  providers: ['list', 'drain', 'gslt'],
+  capacity: [],
   budget: [],
   dathost: ['image'],
 }
@@ -41,6 +45,8 @@ const USAGES: Readonly<Record<string, string>> = {
   matches: MATCHES_USAGE,
   servers: SERVERS_USAGE,
   nodes: NODES_USAGE,
+  providers: PROVIDERS_USAGE,
+  capacity: CAPACITY_USAGE,
   budget: BUDGET_USAGE,
   dathost: DATHOST_USAGE,
 }

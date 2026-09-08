@@ -4,11 +4,13 @@ import type { StreamWebSocketConstructor } from '@ezpug/match-api/client'
 import { createMatchApiClient, type MatchApiClient } from '@ezpug/match-api/client'
 import { boolFlag, flag, type ParsedArgs, parseArgs } from './args'
 import { BUDGET_USAGE, runBudget } from './commands/budget'
+import { CAPACITY_USAGE, runCapacity } from './commands/capacity'
 import { DATHOST_USAGE, runDathost } from './commands/dathost'
 import { GAMEMODES_USAGE, runGamemodes } from './commands/gamemodes'
 import { KEYS_USAGE, runKeys } from './commands/keys'
 import { MATCHES_USAGE, runMatches } from './commands/matches'
 import { NODES_USAGE, runNodes } from './commands/nodes'
+import { PROVIDERS_USAGE, runProviders } from './commands/providers'
 import { runServers, SERVERS_USAGE } from './commands/servers'
 import { API_KEY_VAR, baseUrlFrom, type EnvRecord, readCliConfig } from './config'
 import type { CommandContext, DathostImageRunner } from './context'
@@ -59,6 +61,8 @@ Usage:
   servers list|kill|console      the fleet ledger: what is running, what it cost
   nodes enrol-token|list|drain|remove
                                  self-hosted capacity (docs/nodes.md)
+  providers list|drain|gslt      who can rent a box: health, the outage lever, the GSLT pool
+  capacity                       what could be allocated right now, per region
   budget                         this key's ceilings and this month's spend
   dathost image --check|--build  the Dathost template server (needs a checkout)
 
@@ -109,6 +113,8 @@ const GROUPS: Readonly<Record<string, CommandGroup | undefined>> = {
   matches: { run: runMatches, usage: MATCHES_USAGE },
   servers: { run: runServers, usage: SERVERS_USAGE },
   nodes: { run: runNodes, usage: NODES_USAGE },
+  providers: { run: runProviders, usage: PROVIDERS_USAGE },
+  capacity: { run: runCapacity, usage: CAPACITY_USAGE },
   budget: { run: runBudget, usage: BUDGET_USAGE },
   dathost: { run: runDathost, usage: DATHOST_USAGE },
 }
