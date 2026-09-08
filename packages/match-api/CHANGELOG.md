@@ -6,6 +6,37 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.11.0 — 2026-09-08
+
+The **fifth hardware recording**, `fixtures/recorded/real-powerup-dm-bo1.json` (PRD-02
+T40): a whole `powerup-dm` — the round's original SDK mode — played by eight bots on the
+dev node on this box and driven, like every other one, through nothing but the Match API.
+It is the recording the round's fourth gamemode never had: `pug`, `flying-scoutsman` and
+`retakes` were recorded when they landed, and `powerup-dm` was proved on hardware three
+times in T26 without any of those runs being written down.
+
+It is the longest of the five and honestly so — a ten-minute deathmatch is 346 deaths, so
+355 envelopes and 355 verified deliveries against `pug`'s 47 — and it is the only recording
+whose match ends on `mp_timelimit` rather than on a round count. The 5 741 position ticks
+its stream carried are **not** in the file and never were: ticks are ephemeral, stream
+only, never stored (`docs/decisions.md` 6), which is exactly the rule a recording of a mode
+this chatty is worth having as proof of.
+
+No schema, no route and no default moved: `0.10.1`'s shapes are this release's. Like the
+four beside it, the file is never regenerated from code, and every payload in it must still
+parse against this package's schemas — the day one stops, the vocabulary moved under a
+server that already spoke it.
+
+**And one conformance flow gets the margin 0.10.1 gave its neighbour.** `prefer-lan` ends
+by giving its box back with `cancel`, and a cancel is refused the moment the match is live;
+at the twenty times real time an extended target plays at, `ready → live` is a second or
+two, so the poll that saw the connect facts and the cancel that followed it were racing the
+story — green against the fake and against a quiet orchestrator, and red on a loaded box
+with `cannot cancel a live match; use force_end`. The flow now asks for `sim.timeScale: 2`
+like `reprovision-before-live` does, which makes the window tens of seconds; a target with
+no simulator ignores it, and the flow ends at the cancel, so nothing costs more.
+`fixtures/recorded/prefer-lan.json` is re-recorded to match.
+
 ## 0.10.1 — 2026-09-08
 
 Fixtures only: no schema, no route, no default. The `reprovision-before-live` conformance

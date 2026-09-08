@@ -79,7 +79,8 @@ tasks (net10.0 on the .NET SDK `plugins/global.json` pins — CounterStrikeSharp
 Green means commit, red means fix; a flaky test is a P1 against the spine.
 `pnpm verify:extended` adds the live world: compose up (Postgres, Redis), the orchestrator
 in sim mode driven through the real HTTP surface, the conformance suite against it, the
-fault-injection suite, the dev CS2 lane when its container is up, the Dathost smoke when
+fault-injection suite, the dev CS2 lane when `EZPUG_CS2_TESTS` demands it (a node on this
+box starts the container; the lane plays one real match through it), the Dathost smoke when
 demanded. Deploying is pre-authorized on this box (`./scripts/deploy.sh`, any verb);
 destroying a volume, dropping a database or editing another project's Traefik file still
 needs a human.

@@ -127,11 +127,20 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.10.1`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.11.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
 sha-256 in the notes.
+
+**What the platform pins today** (PRD-02 T40, read off `/root/ezpug` on 2026-09-08):
+`@ezpug/match-api` **`0.9.0`** in its `pnpm-workspace.yaml` catalog, and
+`ghcr.io/ezpug/ezpug-iron/orchestrator:dev` — a local build — for the copy its dev world
+runs in `sim` mode. Both are behind what this repo has released, and both are the
+platform's own commit to make: none of 0.10.0, 0.10.1 or 0.11.0 moved a schema, a route or
+a default — two added a hardware recording and one repaired a conformance flow — so nothing
+over there breaks by standing still, and `packages/match-api/CHANGELOG.md` is what its
+author reads before moving the number.
 
 ## Bumping one
 

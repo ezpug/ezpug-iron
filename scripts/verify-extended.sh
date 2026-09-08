@@ -28,7 +28,21 @@ report() {
 }
 trap report EXIT
 
+# **The live lanes belong to this tier, not to `pnpm verify`** (CLAUDE.md, and
+# `cs2.extended.test.ts` says it in as many words: "never part of `pnpm
+# verify`"). The lane is gated on an environment variable, so an operator who
+# exports `EZPUG_CS2_TESTS=required` for this script exports it for the
+# `pnpm verify` inside it too — and since the same file is collected by both
+# `test` and `test:extended`, that plays the whole fifteen-to-forty-five-minute
+# match **twice** for one tier. Withheld for the inner run and handed back
+# afterwards, the way `EZPUG_IRON_DATABASE_TESTS` is only turned on below
+# (PRD-02 T40).
+CS2_LANE="${EZPUG_CS2_TESTS-}"
+unset EZPUG_CS2_TESTS
+
 pnpm verify
+
+if [[ -n "$CS2_LANE" ]]; then export EZPUG_CS2_TESTS="$CS2_LANE"; fi
 
 # The dev world (PRD-02 T2): Postgres and Redis from compose.yaml, migrated.
 # `up` is idempotent, and the orchestrator's database suites are *required*

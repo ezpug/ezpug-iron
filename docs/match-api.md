@@ -929,10 +929,17 @@ Semver, read against a *consumer of the API*:
 | Change                                                                     | Bump  |
 | -------------------------------------------------------------------------- | ----- |
 | A new optional field, a new route, a new event or fact, a new error code    | minor |
+| A new published file — a conformance flow, a hardware recording             | minor |
 | A field becoming required, a removed or renamed field, a narrowed enum      | major |
-| A doc comment, a fixture, the fake's behaviour under an unchanged contract  | patch |
+| A doc comment, a re-recorded fixture, the fake's behaviour under an unchanged contract | patch |
 
 While the version is `0.x`, a minor is the breaking bump — pin exactly.
+
+The two fixture rows are one distinction and it is worth spelling out: **re-recording** a
+file that already shipped is a patch (0.10.1), because a consumer's `import` resolves to
+the same path and only its bytes moved; **adding** one is a minor (0.10.0, 0.11.0), because
+a file that was not there is something a consumer can now import. Neither ever touches a
+schema, which is why both say so in their changelog entry.
 
 `GAMESERVER_EVENT_CONTRACT_VERSION` is a *separate* number and moves only when the
 gameserver event union itself changes shape; it is the platform's and the plugin's

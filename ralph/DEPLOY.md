@@ -179,8 +179,9 @@ front door is what is wrong.
 The platform (`/root/ezpug`) reaches this orchestrator over **public TLS like any other
 client** — `https://gs.ezpug.com` with its own API key — and never through a docker
 network (decision 11). Its dev world pulls the orchestrator *image* and runs its own copy
-in `sim` mode on `127.0.0.1:3431`; that is a different process, a different database and a
-different port binding from this one, and the two never meet.
+in `sim` mode on port 3431 inside its own compose network, published to no host interface
+at all; that is a different process, a different database and a different container from
+this one, and the two never meet.
 
 When this repo changes the Match API, the platform learns by bumping its pin
 (`docs/pins.md`, `@ezpug/match-api`), not by anything this deploy does.

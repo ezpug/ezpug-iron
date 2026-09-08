@@ -58,15 +58,18 @@ export const SHORT_RULES: MatchRules = {
 export const HAPPY_RULES: MatchRules = { ...SHORT_RULES, regulationRounds: 4 }
 
 /**
- * **The margin `reprovision-before-live` needs**, and the only place a flow
- * asks a target to play slower than it wants to. A simulated story goes from
+ * **The margin `reprovision-before-live` and `prefer-lan` need.** The two
+ * flows that ask a target to play slower than it wants to, both because they
+ * act on a match *before* it is live — one moves it, one gives it back — and
+ * both were racing the story on a loaded box. A simulated story goes from
  * the box being ready to the first round in twelve to forty-five *match*
  * seconds, so at the twenty times real time an extended target plays at, the
  * window in which a match can still be moved is barely a second wide — narrow
  * enough that one starved poll cycle falls through it and the flow waits out
- * its budget on a match that is already playing (PRD-02 T39b). Two is that
- * window in tens of seconds; {@link PLAY_OUT_TIME_SCALE} is what the match is
- * put back to once there is nothing left to catch.
+ * its budget on a match that is already playing (PRD-02 T39b), or narrow
+ * enough that a cancel arrives one poll too late (T40). Two is that window in
+ * tens of seconds; {@link PLAY_OUT_TIME_SCALE} is what a match is put back to
+ * once there is nothing left to catch.
  */
 const PRE_LIVE_TIME_SCALE = 2
 /** Fast enough that the rest of the flow costs what it always did. */
@@ -591,8 +594,22 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
     async run(ctx) {
       // `lan: true` is "a node or nothing"; this is "a node first, anything
       // after" — the difference a LAN night before a node is enrolled needs.
+      //
+      // **And it plays slowly, for the same reason `reprovision-before-live`
+      // does** (PRD-02 T40). This flow gives its box back with `cancel`, and a
+      // cancel is refused the moment the match is live: at the twenty times
+      // real time an extended target plays at, `ready → live` is a second or
+      // two, so the poll that saw the connect facts and the cancel that
+      // followed it were racing the story. Green against the fake and against
+      // the real orchestrator most nights, red on a loaded box with
+      // `cannot cancel a live match; use force_end` — the shape of every race
+      // this round has found. {@link PRE_LIVE_TIME_SCALE} makes that window
+      // tens of seconds; the flow ends at the cancel, so it costs nothing.
       const created = await ctx.api.matches.create({
-        body: ctx.request({ requirements: { preferLan: true } }),
+        body: ctx.request({
+          requirements: { preferLan: true },
+          sim: { timeScale: PRE_LIVE_TIME_SCALE },
+        }),
       })
       const ready = await ctx.waitFor('the server’s connect facts', async () => {
         const match = await ctx.raw.matches.get({ params: { matchId: created.id } })

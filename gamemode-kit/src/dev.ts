@@ -40,6 +40,28 @@ import { type WidgetPaths, widgetVuePlugin } from './vite'
  */
 
 const HARNESS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'harness')
+/**
+ * **The harness's port is decided in `.env.example`** like every other port on
+ * this box (CLAUDE.md), as `EZPUG_IRON_WIDGET_HARNESS_PORT` — and until the
+ * sweep (PRD-02 T40) nothing read it: the kit hard-coded 3432 in three places
+ * while that file claimed to own the number. The repo-root `.env` is loaded
+ * the way the orchestrator's `loadRootEnv` loads it, which never overwrites a
+ * variable already in the environment, and `--port` still wins over both. A
+ * value that is not a port is ignored rather than obeyed — a typo here should
+ * cost a default, not a boot.
+ *
+ * @internal exported for its test; the harness reads {@link HARNESS_PORT}.
+ */
+export function harnessPort(): number {
+  try {
+    process.loadEnvFile(fileURLToPath(new URL('../../.env', import.meta.url)))
+  } catch {
+    // A fresh clone or CI has no .env: the process environment is all there is.
+  }
+  const named = Number(process.env.EZPUG_IRON_WIDGET_HARNESS_PORT)
+  return Number.isInteger(named) && named > 0 && named < 65_536 ? named : 3432
+}
+const HARNESS_PORT = harnessPort()
 /** The harness player: on the roster, so the token is minted without open join. */
 export const HARNESS_PLAYER = {
   steamId64: '76561198000000001',
@@ -158,7 +180,9 @@ export async function startHarness(
       callbacks: {
         webhookUrl: 'https://harness.invalid/hooks',
         webhookSecretId: 'harness',
-        streamAllowedOrigins: [`http://${options.host ?? '127.0.0.1'}:${options.port ?? 3432}`],
+        streamAllowedOrigins: [
+          `http://${options.host ?? '127.0.0.1'}:${options.port ?? HARNESS_PORT}`,
+        ],
       },
       requirements: { simulated: true },
       sim: { timeScale: options.timeScale ?? 1 },
@@ -252,7 +276,7 @@ export async function startHarness(
     plugins: [widgetVuePlugin(), harnessPlugin],
     resolve: { alias: { '/@widget': paths.entry } },
     server: {
-      port: options.port ?? 3432,
+      port: options.port ?? HARNESS_PORT,
       host: options.host ?? '127.0.0.1',
       strictPort: true,
       // The frame is sandboxed without `allow-same-origin`, so its module
@@ -264,7 +288,8 @@ export async function startHarness(
   })
   await vite.listen()
   const address = vite.httpServer?.address()
-  const port = typeof address === 'object' && address ? address.port : (options.port ?? 3432)
+  const port =
+    typeof address === 'object' && address ? address.port : (options.port ?? HARNESS_PORT)
   const url = `http://${options.host ?? '127.0.0.1'}:${port}/`
 
   return {

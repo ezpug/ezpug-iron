@@ -87,6 +87,9 @@
           "ttlMinutes": 120,
           "requirements": {
             "preferLan": true
+          },
+          "sim": {
+            "timeScale": 2
           }
         }
       },
@@ -140,10 +143,10 @@
           "port": 27020,
           "delaySeconds": 90
         },
-        "seq": 6,
+        "seq": 17,
         "createdAt": "2026-09-05T18:00:00.000Z",
         "updatedAt": "2026-09-05T18:00:10.000Z",
-        "readyAt": "2026-09-05T18:00:05.000Z",
+        "readyAt": "2026-09-05T18:00:03.000Z",
         "liveAt": null,
         "endedAt": "2026-09-05T18:00:10.000Z",
         "expiresAt": "2026-09-05T20:00:00.000Z",
@@ -154,8 +157,8 @@
           "scenario": "happy-path",
           "seed": "ezpug-fake#4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7#sim-1",
           "mode": "auto",
-          "timeScale": 1,
-          "remainingBeats": 70,
+          "timeScale": 2,
+          "remainingBeats": 65,
           "finished": false,
           "outcome": "completed",
           "chaos": null
@@ -187,6 +190,50 @@
     },
     {
       "seq": 6,
+      "type": "player_connected"
+    },
+    {
+      "seq": 7,
+      "type": "player.joined"
+    },
+    {
+      "seq": 8,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 9,
+      "type": "player_connected"
+    },
+    {
+      "seq": 10,
+      "type": "player.joined"
+    },
+    {
+      "seq": 11,
+      "type": "player_connected"
+    },
+    {
+      "seq": 12,
+      "type": "player.joined"
+    },
+    {
+      "seq": 13,
+      "type": "player_connected"
+    },
+    {
+      "seq": 14,
+      "type": "player.joined"
+    },
+    {
+      "seq": 15,
+      "type": "player_connected"
+    },
+    {
+      "seq": 16,
+      "type": "player.joined"
+    },
+    {
+      "seq": 17,
       "type": "match.ended"
     }
   ],

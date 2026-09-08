@@ -15,7 +15,18 @@
       // Not cacheable: the suite talks to a Postgres and a Redis that may be
       // up or down, and a cached "skipped" would still read as green once
       // they are up again (the platform's `packages/db` posture).
-      "cache": false
+      "cache": false,
+      // **After the dependencies are built** (PRD-02 T40). Every other package
+      // here imports `@ezpug/match-api`'s *source* — its internal `exports`
+      // point at `src/`, which is why `test` never needed a build — but the
+      // `EZPUG_CS2_TESTS` lane shells out to `scripts/iron-match.mjs`, and
+      // that script loads the package from `dist/` on purpose, being the one
+      // client that must run the bytes an installer gets. `tsdown` *cleans*
+      // `dist/` before it writes it, so the lane and the build racing inside
+      // one `pnpm verify` gave `no build at …/dist/index.js` on a tree that
+      // had been built minutes earlier. Ordering it is the fix; the builds
+      // are cached and cost nothing when nothing moved.
+      "dependsOn": ["transit", "^build"]
     }
   }
 }

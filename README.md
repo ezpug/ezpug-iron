@@ -31,10 +31,11 @@ contract; the iron (`ralph/PRD-02-iron.md`) made it true on hardware — the orc
 runs behind `gs.ezpug.com`, `ezpug-node` turns a venue box into capacity, the SDK and the
 core plugin play real CS2 matches on Dathost and on self-hosted nodes, and `ezpug-iron` is
 the terminal over all of it. `CHANGELOG.md` is what has been released and
-`packages/match-api/CHANGELOG.md` is the contract's own history (**0.10.1** today). Two
-things are still waiting on a human rather than on code: publishing the package to npm
-needs an `npm login` (the `> blocked:` note under T9 in the spine's PRD), and the live
-Dathost proof needs credentials on the box (T36 in the iron's).
+`packages/match-api/CHANGELOG.md` is the contract's own history (**0.11.0** today). One
+thing is still waiting on a human rather than on code: publishing the package to public npm
+needs an `npm login` on the box the loops run on (the `> blocked:` note under T9 in the
+spine's PRD), so a release goes to the box's own Verdaccio the day it is cut and to npmjs
+the day the owner logs in (`docs/decisions.md` 3, as amended).
 
 ## Running it
 
@@ -234,10 +235,10 @@ The package is the contract, so a schema change is a release with a changelog li
 a silent edit (`docs/decisions.md` 24). `scripts/release.mjs` is the whole path:
 
 ```sh
-pnpm release version 0.11.0   # bump packages/match-api, roll its CHANGELOG, print the tag
+pnpm release version 0.12.0   # bump packages/match-api, roll its CHANGELOG, print the tag
 pnpm verify:extended          # the conformance suite is the gate
-git commit -am 'chore(match-api): 0.11.0'
-git tag match-api@0.11.0 && git push origin match-api@0.11.0
+git commit -am 'chore(match-api): 0.12.0'
+git tag match-api@0.12.0 && git push origin match-api@0.12.0
 ```
 
 The tag fires `.github/workflows/release.yml`, which re-verifies, packs, audits the tarball

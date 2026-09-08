@@ -27,7 +27,8 @@ _Nothing yet._
 
 **The iron** (`ralph/PRD-02-iron.md`), released: `orchestrator@0.1.0`, `node@0.1.0`,
 `cs2@0.1.0` and `plugins@0.1.0` — the first tags any of them has ever carried — beside
-`@ezpug/match-api` **0.10.0**, whose own changelog has the nine versions the round cut.
+`@ezpug/match-api` **0.10.0** — with **0.10.1** and **0.11.0** following the same evening,
+both fixtures only — whose own changelog has every version the round cut.
 Each image tag publishes `0.1.0`, the moving `0.1` and `latest` over per-platform digests,
 with the commit in `org.opencontainers.image.revision` and signed build provenance against
 the manifest list; the plugin zip is on the tag's GitHub release with its sha-256 in the

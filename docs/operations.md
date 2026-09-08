@@ -1439,6 +1439,13 @@ EZPUG_IRON_ADMIN_KEY="$EZPUG_IRON_API_KEY" node scripts/iron-match.mjs \
 `packages/match-api/src/fixtures/recorded.test.ts` treats both as hardware recordings —
 never regenerated, every payload in them must still parse.
 
+Five exist, which is one per gamemode plus the rented one: `real-pug-bo1`,
+`real-flying-scoutsman-bo1`, `real-retakes-bo1`, `real-powerup-dm-bo1` (the sweep, T40 —
+the one mode that had been proved on hardware without being written down) and
+`dathost-pug-bo1`. Adding one is a `@ezpug/match-api` minor with a changelog line, because
+a file that was not in the package is something a consumer can now import
+(`docs/match-api.md`, "Versioning and releases").
+
 **The money is the same money as the smoke's.** One server, released in a `finally` and on
 a signal, `ttlMinutes` on the request so the reaper takes it back even if the process is
 killed, and the ledger row read after the release: the run's summary carries `ledger.open`

@@ -55,7 +55,12 @@ export EZPUG_NODE_REGION="$REGION"
 # 67 GB game volume it needs. `EZPUG_NODE_WARM=1 pnpm dev:node up` asks for one.
 export EZPUG_NODE_WARM="$WARM"
 
-reachable() { curl -fsS --max-time 3 "$BASE_URL/healthz" >/dev/null 2>&1; }
+# **Answering, not healthy** (PRD-02 T40). `/healthz` is 503 while `nodes` has
+# an enrolled node nobody has heard from — which is exactly the state `up`
+# exists to leave, so a `-f` here made the agent unstartable the moment it had
+# been enrolled once and then died. Any HTTP answer means there is an
+# orchestrator to enrol against; a connection refused still is not.
+reachable() { curl -sS --max-time 3 "$BASE_URL/healthz" >/dev/null 2>&1; }
 enabled() { [[ ",$PROVIDERS," == *,nodes,* ]]; }
 
 # **Every agent this checkout owns, not the one pid a file remembers.** The pid

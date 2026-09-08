@@ -825,6 +825,11 @@ every offline proof here.
   > `./scripts/deploy.sh` then takes it the rest of the way: preflight refuses a partial
   > trio by name, and nothing else about the stack changes. Everything else in T35 shipped
   > and is live.
+  >
+  > **Resolved before T36 (2026-09-08):** the owner filled the trio in, production has
+  > served `EZPUG_IRON_PROVIDERS=dathost,nodes` since, and T36's match was played on a
+  > rented box through it. Kept here because the shape of the block is the runbook for
+  > the next box that has no credentials.
 
 - [x] **T36: The first real match through `gs.ezpug.com`.** With T35 deployed and
   credentials in place: `pnpm iron matches create --gamemode pug --lan=false --bots` against
