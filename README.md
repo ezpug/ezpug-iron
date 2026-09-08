@@ -19,19 +19,22 @@ gamemodes, the node agent and the server image.
   `powerup-dm`); the package bundles them, the orchestrator and the plugin read them.
 - `apps/orchestrator` — the service behind `gs.ezpug.com`.
 - `apps/node` — `ezpug-node`, turns a docker host into capacity.
+- `apps/cli` — `ezpug-iron`, an operator's terminal over the Match API and nothing else.
 - `plugins/` — `EZPug.Sdk`, the core plugin, gamemodes and pinned vendored plugins.
 - `gamemode-kit/` — the toolchain for a gamemode's phone widget: the runtime a widget is written on, the Vite preset that builds `gamemodes/<id>/widget/` into one bundle, and a dev harness against the fake (`pnpm --filter @ezpug/gamemodes exec ezpug-widget dev powerup-dm`; `docs/gamemodes.md` "Building a widget").
 - `docs/decisions.md` — why things are the way they are. Start there.
 - `docs/match-api.md` — the contract, written to be read instead of the code.
   `docs/gamemodes.md` is the manifest, `docs/pins.md` every version we are fixed to.
 
-Status: **the spine round (`ralph/PRD-01-spine.md`) is done.** `@ezpug/match-api` 0.1.0 —
-the vocabulary, the Match API, the webhooks, the stream, the manifests, a typed client, a
-webhook verifier, an in-process fake orchestrator that plays real matches on the simulator
-engine, and a conformance suite with recorded golden files — is built, verified and tagged
-`match-api@0.1.0`; publishing it to npm is waiting on an `npm login` (see the `> blocked:`
-note under T9 in the PRD). Everything named above that does not exist yet — the
-orchestrator, the node agent, the SDK, the plugins, the image — is `ralph/PRD-02-iron.md`.
+Status: **both rounds have shipped.** The spine (`ralph/PRD-01-spine.md`) built the
+contract; the iron (`ralph/PRD-02-iron.md`) made it true on hardware — the orchestrator
+runs behind `gs.ezpug.com`, `ezpug-node` turns a venue box into capacity, the SDK and the
+core plugin play real CS2 matches on Dathost and on self-hosted nodes, and `ezpug-iron` is
+the terminal over all of it. `CHANGELOG.md` is what has been released and
+`packages/match-api/CHANGELOG.md` is the contract's own history (**0.8.0** today). Two
+things are still waiting on a human rather than on code: publishing the package to npm
+needs an `npm login` (the `> blocked:` note under T9 in the spine's PRD), and the live
+Dathost proof needs credentials on the box (T36 in the iron's).
 
 ## Running it
 
@@ -86,7 +89,78 @@ The first API key comes from the box: `pnpm --filter @ezpug/orchestrator keys:mi
 --name root --scopes admin` prints it once. `docs/operations.md` is the operator's
 reference — the environment, the schema, migrations, keys, what is and is not stored.
 
-A real CS2 server on this box is one lane further, and opt-in because the game is tens of
+## Your first match, in ten minutes
+
+No CS2, no Dathost, no account anywhere. `pnpm dev:up` registers the **simulator** as a
+provider (`EZPUG_IRON_PROVIDERS=sim` is the dev default), and a simulated match is a real
+match by every door it touches: the same request schema, the same machine, the same ledger
+row, the same events on the same stream. Four commands from a fresh clone.
+
+**One — the world, and a key that may create a match.** Every match request has to name a
+webhook secret registered on the key that sends it, so mint the key with one:
+
+```sh
+pnpm install && pnpm dev:up               # Postgres, Redis, the migrations, a .env
+pnpm dev &                                # the orchestrator on http://localhost:3430
+
+export EZPUG_IRON_API_KEY=$(pnpm --silent --filter @ezpug/orchestrator keys:mint -- \
+  --name root --scopes admin | tail -1)   # the root key of a fresh database
+pnpm iron keys create --name first --scopes matches,fleet --webhook-secret whsec-dev
+export EZPUG_IRON_API_KEY=<the key it printed>
+```
+
+**Two — the request.** This is the document the platform POSTs, minus the people: an empty
+roster is legal, `requirements.simulated` says *this one is not for humans*, and
+`sim.timeScale` runs the clock sixty times over so four rounds take seconds. The webhook
+endpoint below will never answer and that is fine here — the deliveries retry into nothing
+while you watch the stream instead.
+
+```sh
+cat > first-match.json <<'JSON'
+{
+  "clientMatchId": "my-first-match",
+  "game": "cs2",
+  "gamemode": "pug",
+  "teams": {
+    "teamA": { "name": "Team A", "players": [] },
+    "teamB": { "name": "Team B", "players": [] }
+  },
+  "maps": [{ "map": "de_mirage", "sides": "knife" }],
+  "rules": {
+    "regulationRounds": 4,
+    "overtime": { "enabled": false, "maxRounds": 6, "startMoney": 10000 },
+    "warmup": { "minPlayersToReady": 0, "minSpectatorsToReady": 0 }
+  },
+  "requirements": { "simulated": true },
+  "callbacks": { "webhookUrl": "https://example.com/hooks/ezpug", "webhookSecretId": "whsec-dev" },
+  "sim": { "timeScale": 60 },
+  "ttlMinutes": 60
+}
+JSON
+```
+
+**Three — play it.**
+
+```sh
+pnpm iron matches create --file first-match.json   # prints the match id
+pnpm iron matches watch <matchId>                  # every event until the stream closes
+```
+
+What goes past is the vocabulary itself — `server_ready`, `going_live`, `round_start`,
+`player_death`, `bomb_planted`, `round_end`, `map_end`, `demo_available`, `series_end` —
+and then `match.ended`, and `stream closed 4000 — the match reached a terminal state`.
+
+**Four — the ledger.** `pnpm iron servers list` says `(none)`: the row the allocation
+opened was closed when the match ended. That query is the whole answer to "what is running
+and what did tonight cost", and it is the one an operator asks first.
+
+From here: `docs/match-api.md` is the contract you just used, `docs/gamemodes.md` is what
+`"gamemode": "pug"` resolved to, `docs/sdk.md` is how to write a mode of your own, and the
+next section is the same match on a server made of actual iron.
+
+## A real server on this box
+
+A real CS2 server is one lane further, and opt-in because the game is tens of
 gigabytes:
 
 ```sh

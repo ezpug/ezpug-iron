@@ -320,6 +320,60 @@ past Traefik and past DNS) and over public TLS, `http` redirecting to `https`, a
 `GET /v1/capacity` answering `200` with the operator key and `401` without one. The key
 reaches curl on stdin (`--config -`), never in argv — the same rule the CLI holds itself to.
 
+### Rolling back a plugin
+
+A plugin is not a thing a server has a version of. Every plugin EZPug runs — `EZPug.Core`,
+the SDK beside it, MatchZy, retakes and its allocator, the WeaponPaints fork — is baked
+into `ghcr.io/ezpug/ezpug-iron/cs2` and a server takes that image whole (decision 16).
+**So rolling one back is rolling the image tag back**, and the only question is where the
+tag is written for the half of the fleet you mean.
+
+First, know what actually ran. Two witnesses, and they cost nothing:
+
+- the orchestrator's own log, which prints the plugin's version out of every `hello` the
+  moment a server dials in — `link <server>: hello from plugin 0.1.0 on de_mirage, idle`;
+- `addons/counterstrikesharp/plugins/EZPug.Core/build.json` inside the image or on the
+  Dathost template — the SDK version, the core's, the CounterStrikeSharp it was compiled
+  against, and the commit `plugins/publish.sh` built them from. `pnpm dathost:image
+  --check` reads it for you and goes red when the template drifted from this checkout.
+
+Then move the tag where the servers come from:
+
+```sh
+# a venue node: the agent's environment names the image it starts servers from
+ezpug-iron nodes drain saarlan-1                     # finish what is playing, take no more
+# on the venue box: EZPUG_NODE_IMAGE=ghcr.io/ezpug/ezpug-iron/cs2:0.1.0 in the agent's env,
+# then restart the agent — it pulls the tag at boot
+ezpug-iron nodes drain saarlan-1 --undrain
+
+# Dathost: the template is the image, so rebuild it from the older one
+docker pull ghcr.io/ezpug/ezpug-iron/cs2:0.1.0
+pnpm dathost:image --image ghcr.io/ezpug/ezpug-iron/cs2:0.1.0 --dry-run   # what moves
+pnpm dathost:image --image ghcr.io/ezpug/ezpug-iron/cs2:0.1.0             # …and move it
+
+# a server whose image this repo does not build: the zip on the `plugins@x.y.z` release,
+# unpacked over game/csgo/, then restart it
+```
+
+**A running server keeps the plugin it booted with.** Neither path touches a container that
+is already playing, which is the point of draining first: a node restarted under a live
+match would take the match with it, and a Dathost clone was copied from the template at
+allocate and never looks at it again. `matches command <id> rcon --command 'css_plugins
+reload EZPug.Core'` exists and is not the rollback — it reloads what is *on that box's
+disk*, which is the version you are trying to leave.
+
+**The orchestrator needs no rollback of its own for this.** A gamemode manifest names the
+plugin folders a match wants; the orchestrator refuses an assignment naming one the server
+did not report in its `hello`, and the core plugin's loader warns and skips one that is not
+there. An older image with a folder the newest manifest expects is therefore a refusal at
+the door with the folder's name in it, not a match that starts and then behaves strangely.
+
+**The Match API is the thing that must not move backwards.** Rolling a plugin back rolls
+back what it can *emit*; the vocabulary it emits into is `@ezpug/match-api`, which only
+grows (decision 24). So an old plugin against a new orchestrator is a plugin that says less
+than it could, never one that says something unparseable — and that asymmetry is why this
+whole section is four commands and not a migration plan.
+
 ## Health
 
 `GET /healthz` needs no key. It answers `200 { ok: true, service: "orchestrator", checks }`
@@ -372,6 +426,75 @@ The envelope is unchanged — same `matchId`, same `seq`, same signature scheme 
 clears it and the facts go back to each match's own callback. A `secretId` the key never
 registered is refused: an endpoint whose envelopes carry a `kid` nothing can verify fails
 silently at three in the morning.
+
+### When a provider dies on a Saturday
+
+Dathost is down, or the venue's uplink is, and there are people waiting. In order, and none
+of it needs a deploy.
+
+**1. Ask what the orchestrator already knows.** The probe loop has been asking every 30
+seconds since boot, so this is a read of a fact and not a call that can hang:
+
+```sh
+curl -sS https://gs.ezpug.com/v1/fleet/providers -H "authorization: Bearer $EZPUG_IRON_API_KEY" | jq
+curl -sS https://gs.ezpug.com/v1/capacity        -H "authorization: Bearer $EZPUG_IRON_API_KEY" | jq
+```
+
+`lastError` on an unhealthy provider is the error that proved it and `lastCheckedAt` is
+when — which is usually enough to tell "their API is 502ing" from "our credentials expired"
+without opening anyone's status page. `/healthz` asks the same question live, so an
+orchestrator whose Dathost credentials stopped working is `503` even while its offering
+cache is still warm.
+
+**2. Take it out of selection, rather than letting every request find out.**
+
+```sh
+curl -sS -X POST https://gs.ezpug.com/v1/fleet/providers/dathost/drain \
+  -H "authorization: Bearer $EZPUG_IRON_API_KEY"
+```
+
+A drained provider keeps everything it is already running and is offered nothing new. What
+that buys is *where the failure happens*: a request that cannot be placed is refused
+`no_capable_server` at the door, in a second, with the reason — instead of walking a
+candidate list into an allocation timeout while a lobby waits. If nodes are enrolled, every
+`requirements.lan` request keeps landing on them exactly as before; if the venue has a box
+and the rented half is what died, this is the whole outage. `…/undrain` puts it back and
+the next probe decides whether that was optimistic.
+
+**3. The matches that were already on it.** A server that stops answering is a lost server,
+and the machine's own path handles it without help: `match.recovering`, the backup that
+crossed the link as it was written replayed onto the next candidate, `match.recovered` with
+the round it resumed from — or, when no candidate can take it, `failed: server_lost` with
+everything that was recorded up to the last round. That path is what the fault-injection
+suite runs on every extended verify, and what T37a proved on hardware. **Do not delete
+ledger rows to tidy up.** The reaper reconciles rows against the provider's `list()`, and a
+provider that cannot be listed is a provider whose orphans cannot be found yet; a row
+deleted by hand is a server nobody will ever go back for, still billing.
+
+```sh
+ezpug-iron matches list --state live          # who is still playing, and where
+ezpug-iron servers list                        # the open rows, with cost/h and accrued
+ezpug-iron servers kill <serverId> --reason 'provider outage'   # close one row now
+```
+
+`servers kill` deallocates and closes the row; the match ends `provider_error`, because a
+person did that and the record should say so.
+
+**4. What it costs while you decide.** Rows keep accruing for as long as they are open:
+`ezpug-iron servers list --all --since <iso>` is the night's bill and
+`ezpug-iron budget` is this month against the key's ceiling. An outage that ends in a
+`402` for the key that was going to rebook everyone is a bad ending to an evening —
+"Raising a ceiling in the middle of a Saturday", below, is that lever.
+
+**5. The simulator is not a fallback.** It is chosen only when a request asks for it, or
+when no real provider is registered at all — a deployment that answered a real lobby with a
+match nobody can connect to would be worse than an honest `503`. If the answer to the
+evening is "play somewhere else", the move is a node at the venue (`docs/nodes.md` installs
+one in five commands) and not a provider list edit.
+
+Two of these are still curl because the terminal has no verb for them yet: reading provider
+health and draining a provider are routes the platform's console pulls, and `ezpug-iron`
+covers every group but that one.
 
 ## How it starts and stops
 

@@ -108,3 +108,48 @@ describe('the runbook', () => {
     expect(readme).toContain('pnpm --silent iron')
   })
 })
+
+/**
+ * T38, the other direction. The suite above asks whether the docs cover the
+ * command; this asks whether the command covers the docs — a verb dropped or
+ * renamed leaves a line in a runbook that reads perfectly and does nothing,
+ * and the operator who finds out is the one at the venue at nine on a
+ * Saturday. Every doc a stranger might type out of, not just the two above.
+ */
+describe('every `ezpug-iron` line in a doc', () => {
+  const DOCS = [
+    'README.md',
+    'CHANGELOG.md',
+    'docs/operations.md',
+    'docs/nodes.md',
+    'docs/gamemodes.md',
+    'docs/sdk.md',
+    'docs/match-api.md',
+    'docs/decisions.md',
+    'docs/pins.md',
+    'ralph/DEPLOY.md',
+  ] as const
+  const docs = DOCS.map(doc => [doc, read(doc)] as const)
+
+  it('names a group the command has, and a verb that group has', () => {
+    for (const [doc, body] of docs)
+      for (const match of body.matchAll(
+        /(?:pnpm iron|ezpug-iron) (--[a-z-]+|[a-z][a-z-]*)(?: ([a-z][a-z-]*))?/g,
+      )) {
+        const group = match[1] ?? ''
+        const verb = match[2]
+        if (group.startsWith('--')) {
+          expect(USAGE, `${doc}: \`ezpug-iron ${group}\``).toContain(group)
+          continue
+        }
+        expect(COMMAND_GROUPS, `${doc}: \`ezpug-iron ${group}\``).toContain(group)
+        // The group's own usage block is the authority, not `VERBS` above:
+        // that is the surface T33 asked for, and the command has grown past
+        // it (`matches list`). A verb is optional — `ezpug-iron budget` is
+        // the whole command, and a sentence may name a group without one.
+        const usage = USAGES[group] ?? ''
+        if (verb && usage.includes(`${group} `))
+          expect(usage, `${doc}: \`ezpug-iron ${group} ${verb}\``).toContain(`${group} ${verb}`)
+      }
+  })
+})
