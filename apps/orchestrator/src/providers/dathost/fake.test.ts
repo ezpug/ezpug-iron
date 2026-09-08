@@ -188,7 +188,13 @@ const del = (path: string): Promise<Response> =>
   call(`${BASE}${path}`, { method: 'DELETE', headers: AUTH })
 
 const create = async (fields: Record<string, string> = {}): Promise<Record<string, unknown>> => {
-  const response = await post('/game-servers', { game: 'cs2', name: 'ezpug-template', ...fields })
+  const response = await post('/game-servers', {
+    game: 'cs2',
+    name: 'ezpug-template',
+    // The vendor refuses a cs2 create without one (its own test is below).
+    'cs2_settings.rcon': 'fake-rcon-from-the-test',
+    ...fields,
+  })
   expect(response.status).toBe(200)
   return (await response.json()) as Record<string, unknown>
 }

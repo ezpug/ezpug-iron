@@ -412,6 +412,7 @@ describe('what it refuses', () => {
         game: 'cs2',
         name: 'ezpug 1234 cs2',
         user_data: JSON.stringify({ tag: DATHOST_DEFAULT_TAG, matchId: 'm-1' }),
+        'cs2_settings.rcon': 'a-match-servers-rcon',
       })
     ).json()) as { id: string }
 
@@ -445,6 +446,7 @@ describe('what it refuses', () => {
       await vendor('POST', '/game-servers', {
         game: 'cs2',
         name: "somebody else's server",
+        'cs2_settings.rcon': 'somebody-elses-rcon',
       })
     ).json()) as { id: string }
 

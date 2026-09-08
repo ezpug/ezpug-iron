@@ -502,7 +502,11 @@ describe('configuration and the boot', () => {
 describe('the ledger’s side', () => {
   it('lists only our servers, never the template, with the row they belong to', async () => {
     // Somebody else's server on the same account.
-    await vendor('POST', '/game-servers', { game: 'cs2', name: 'not-ours' })
+    await vendor('POST', '/game-servers', {
+      game: 'cs2',
+      name: 'not-ours',
+      'cs2_settings.rcon': 'somebody-elses-rcon',
+    })
     const adapter = provider()
     const allocated = await drive(adapter.allocate(allocation()))
 
