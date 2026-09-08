@@ -930,12 +930,23 @@ every offline proof here.
   > Frankfurt — it names a real ceiling now. `docs.test.ts` holds the phrase out of every
   > usage block and out of the runbook, so it cannot come back.
 
-- [ ] **T38: Docs for strangers.** `README.md` (install, run, first match in ten minutes),
+- [x] **T38: Docs for strangers.** `README.md` (install, run, first match in ten minutes),
   `docs/sdk.md` (write a gamemode), `docs/gamemodes.md` (manifest, tiers, the widget host
   contract), `docs/nodes.md`, `docs/operations.md` (deploy, budgets, Dathost image, GSLT,
   what to do when a provider dies on a Saturday, rolling back a plugin), `docs/pins.md`,
   `CHANGELOG.md`; every doc checked by a test where it names a route, a command or a
   version.
+
+- [ ] **T38b: the two levers a Saturday needs and the terminal does not have.**
+  Writing T38's "When a provider dies on a Saturday" found that `ezpug-iron` has a group
+  for every part of the fleet except the providers themselves: reading
+  `GET /v1/fleet/providers` (health, `lastError`, `lastCheckedAt`, `drained`) and
+  `POST /v1/fleet/providers/:id/drain|undrain` — the first move of an outage, the one that
+  turns a lobby's twenty-second allocation timeout into an immediate, honest
+  `no_capable_server` — is curl only, and so is `GET /v1/capacity`. Add a `providers`
+  group (`list`, `drain`, `drain --undrain`) and a `capacity` verb, `--json` on both like
+  every other, and take the curl out of the runbook's step 1 and step 2. `GET /v1/fleet/gslt`
+  has the same hole and the same fix, if it fits in the same group.
 
 - [ ] **T38a (fable): What the platform's console found missing — the additive 0.2.0.**
   The platform loop (`/root/ezpug/ralph/PRD-09-iron-platform.md`, its `> blocked:` notes
