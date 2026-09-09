@@ -83,7 +83,12 @@ fault-injection suite, the dev CS2 lane when `EZPUG_CS2_TESTS` demands it (a nod
 box starts the container; the lane plays one real match through it), the Dathost smoke when
 demanded. Deploying is pre-authorized on this box (`./scripts/deploy.sh`, any verb);
 destroying a volume, dropping a database or editing another project's Traefik file still
-needs a human.
+needs a human. The deploy script is also the **only** hand on the production stack: never
+`docker compose -p ezpug-iron` (or `-p ezpug`, the platform's), never `-f compose.prod.yaml`
+by hand — the dev world is plain `docker compose` in this repo, whose `compose.yaml` names
+its own project. The box's `docker` shim (`/root/.local/bin/docker`) refuses both outside a
+`deploy.sh` (exit 125), because a loop once typed `-p ezpug` in a dev tree and took the
+platform's production Postgres and Redis down with it.
 
 ## The box
 

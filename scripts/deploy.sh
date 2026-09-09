@@ -25,6 +25,10 @@
 # `pnpm verify:extended` are the gate and they run against the *dev* world;
 # deploying is a separate act with separate failure modes. Run them first.
 set -euo pipefail
+# The box's compose guard (`/root/.local/bin/docker`) refuses a production project
+# name or `compose.prod.yaml` from anything but this script: an unattended loop once
+# typed `docker compose -p ezpug` in the dev tree and took production down with it.
+export EZPUG_PROD_COMPOSE_OK=1
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
