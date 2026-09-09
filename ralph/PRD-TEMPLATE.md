@@ -47,6 +47,11 @@ and wiring stay on Opus.
 
     ## Working rules
 
+    - **Production is `./scripts/deploy.sh` and nothing else.** Never `docker compose -p <prod
+      project>` and never `-f compose.prod.yaml` by hand, not even for `ps`: the dev world is
+      plain `docker compose` in the repo. The box's `docker` shim refuses both with exit 125 —
+      if you meet that refusal, you were about to touch production; use the deploy script's
+      verb or leave it alone.
     <Round-specific verification beyond CLAUDE.md's defaults; budgets; hard don'ts.>
 
     ## When the PRD is complete
