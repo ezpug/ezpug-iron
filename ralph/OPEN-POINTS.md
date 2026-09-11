@@ -21,11 +21,19 @@ fleet console.
 That is a rented box billing until somebody notices. `ttlMinutes` is the only backstop, and
 a backstop is not a design.
 
+**Seen again 2026-09-10** (platform match `7108f17b`, two humans on a rented box): the
+mode itself worked — connect details, both players in, a `speed` and a `radar_peek` power-up
+claimed, chat bridged — and the owner still described it as *"the match never started"*.
+Mechanically nothing was wrong. One `round_start` at 0:0, five deaths, no score, no
+countdown, no end, and the box released by hand after four minutes. That is the whole
+symptom: a mode with nothing to win reads to a player as a match that never began.
+
 **The decision:** give a `flow: plugin` mode a *length* the manifest declares — a duration,
 a frag limit, an idle timeout when the last body leaves, or all three as a small vocabulary
 every future creative mode inherits. An empty server that nobody has been on for N minutes
 ending itself is probably the general answer, and it is the SDK's to own rather than each
-mode's.
+mode's. Whatever it is, the **phone and the match page need something to count down or
+count up**, or the mode will keep reading as broken while working perfectly.
 
 ## 2. An unrostered body reports as `team: "spec"`
 
