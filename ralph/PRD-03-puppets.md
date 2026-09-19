@@ -180,7 +180,11 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - Our `cfg/MatchZy` keeps each of those paths off, and a test reads the shipped cfg and
     fails if one is on.
   - Pin it like every vendor: `docker/cs2/Dockerfile` ARG plus sha256, `docs/pins.md`,
-    `check-pins`. Run its own test project in our plugin verify if it builds on our
+    `check-pins`. **Owner decision, 2026-09-19: we pin upstream's release and do not
+    customise it.** One maintainer shipped five releases on 2026-09-16, so the sha is the
+    point: nothing unpinned reaches a server. A fork of our own is the escape hatch for a
+    task that cannot be done without a patch. If a task takes it, that task records why
+    and files the change upstream first. Run its own test project in our plugin verify if it builds on our
     toolchain; say so if not.
   - Amend decision 19, and strike PRD-02's "no fork of MatchZy" don't with the reason:
     the stall, simulation mode, the ready events.
@@ -199,6 +203,42 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - New fixtures recorded from a real run go in `apps/orchestrator/src/matchzy/fixtures`.
   - Additive release. The changelog tells the platform what it can now draw: who is
     ready, a countdown, the knife decision.
+
+- [ ] **T3a: what real matches turn on** (owner decision, 2026-09-19).
+  - Two of the fork's player features go **on** for real matches:
+    - **the side-pick timer**: a knife winner who never answers no longer holds a server
+      forever (`matchzy_side_selection_enabled`, `matchzy_side_selection_time`,
+      `src/ConfigConvars.cs:132-134`);
+    - **auto-ready**: nobody types `.ready`, and the match counts down once everyone is
+      in (`matchzy_autoready_enabled`, `matchzy_autoready_start_delay`, `:84-87`).
+  - **`.gg` and forfeit-on-disconnect stay off.** The platform has no forfeit result yet,
+    and a server must not end a match in a way the platform cannot record.
+  - Read how auto-ready decides: whether it waits for the full roster or for
+    `players_per_team`, and what it does with a rostered player who never connects. Make
+    that one sentence in `docs/match-api.md`.
+  - The platform's join deadline stays the only thing that gives up on a missing player.
+  - Whether auto-ready is the cfg's or the request's (`rules.warmup.autoReady`, additive)
+    is this task's call. A LAN admin may well want manual ready back, so lean to the
+    request with the preset deciding.
+  - `.ready` still works for anyone who types it.
+  - Lane cases:
+    - a 1v1 of puppets with auto-ready starts with no ready command sent;
+    - a knife round nobody answers resolves on the timer.
+  - `matchzy_autoready_simulation_enabled` (`:92`, spawns two bots) is one more switch
+    for T2's off-list.
+
+- [ ] **T3b: 1v1 and wingman on the wire** (owner decision, 2026-09-19: both presets, and
+  every configured size works).
+  - The platform already has a `wingman` preset and is adding `1v1` (PRD-10 T2a).
+  - **Wingman.** MatchZy's match JSON has `wingman: true`, which switches `game_mode` and
+    execs the wingman live cfg, with a map reload (`src/MatchManagement.cs:433`, `:590`,
+    `:775-777`, `:1188`).
+    - Decide how a request says so, additively: a `rules.format`, or reading 2v2 plus
+      MR8 off the roster is too clever, so prefer the explicit field.
+    - Decide what a wingman match means for maps: Valve's wingman layouts use one bomb
+      site, and our catalog has no such notion yet. Say what happens on a full map.
+  - **1v1** needs no engine mode, only T1's roster-derived gate and short rules.
+  - Released, with the PRD-10 task named in the changelog.
 
 - [ ] **T4 (fable): the simulation switch in the contract.**
   - A match request may ask for simulated players. Decide the shape: which roster
@@ -223,8 +263,9 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
 
 - [ ] **T6: the regression matrix, on real hardware.** Lane cases that each assert their
   fact sequence:
-  - `pug` 1v1, 2v2, 2v1 (uneven: the platform's PRD-10 T1 makes customs allow it) and
-    5v5;
+  - `pug` at **every size from one to five a side**, and 2v1 (uneven: the platform's
+    PRD-10 T1 makes customs allow it);
+  - the `1v1` and `wingman` formats from T3b;
   - knife on, with the side decided by the new timer, and knife off;
   - a pause and an unpause;
   - a rostered puppet leaving and coming back;
@@ -314,6 +355,26 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     replacing the script-only `--bots`.
   - `docs/operations.md`: how to run a puppet match against `gs.ezpug.com` to show the
     platform to somebody, or to rehearse before a LAN.
+
+- [ ] **T15a: this repo stops filling the box** (owner decision, 2026-09-19: prevent it
+  rather than alert on it).
+  - The root disk hit 100 % on 2026-09-15 and twice on 2026-09-17. Measured 2026-09-19:
+    - 42 GB of Docker build cache across 1,151 entries, none in use;
+    - 322 dangling images;
+    - no log cap on any compose service in either repo;
+    - this repo's `.cache/dathost-image` and lane artefacts.
+  - After a successful deploy or image build, `scripts/deploy.sh` and `cs2-env.sh build`
+    remove dangling images and bound the build cache by age
+    (`docker builder prune --filter until=...`).
+  - Every service in `compose.yaml`, `compose.prod.yaml` and `compose.cs2.yaml` caps its
+    json log (`max-size`, `max-file`).
+  - Preflight refuses to build below a free-space floor and prints `df` when it does.
+  - **Never `docker volume prune`, never `system prune --volumes`.** The CS2 install is a
+    68 GB volume whose container is usually stopped, so Docker lists it as reclaimable,
+    and other projects' data sits beside it on this box.
+  - **Never edit `/etc/docker/daemon.json` and never restart dockerd.** Every project on
+    the box would restart with it.
+  - The platform's PRD-10 T10a does the same there.
 
 - [ ] **T16: release and deploy.**
   - `@ezpug/match-api` carries every additive change of the round, each changelog line
