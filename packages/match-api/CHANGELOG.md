@@ -6,6 +6,39 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.12.0 — 2026-09-20
+
+**Six new gameserver events, so a client can draw the ready gate and the knife** (PRD-03
+T3, for the platform's PRD-10 T4): `player_ready`, `player_unready`, `team_ready`,
+`all_ready`, `knife_start` and `knife_end`. Additive — the union goes from 22 types to 28,
+`GAMESERVER_EVENT_CONTRACT_VERSION` stays 1, nothing that existed moved, and a client that
+ignores an unknown `type` needs no change. They are all durable, so they arrive on the
+webhook, on the stream and in `GET /v1/matches/:matchId/events` like every other fact.
+
+- `player_ready` and `player_unready` carry the player and a `tally`: `tally.ready` is the
+  ready count per team in team order, `tally.expected` is how many the server is waiting
+  for across both teams.
+- `team_ready` carries the team that passed the gate and the same tally.
+- `all_ready` means both teams are through, with `countdown: true` when the server is
+  counting down rather than starting at once. `going_live` still follows, after the knife
+  round where there is one.
+- `knife_start` and `knife_end` bracket a knifed map. `knife_end.winner` is who picks the
+  side, `null` when the server could not attribute it; the pick itself arrives as
+  `side_swap` when they swap and as nothing at all when they stay.
+
+**Draw these, do not recompute them.** Whether a team has passed the ready gate is a
+judgement the match plugin makes from its own rules — who is connected, who is on which
+side, the configured minimum — and a client that reimplements it is exactly what let the
+2026-09-18 stall (0.11.1) hide from every test we had. The tally is the server's
+arithmetic; a lobby renders it.
+
+Beside it, in the orchestrator rather than in this package (PRD-03 T3): the MatchZy door
+now translates MatchZy-Enhanced's `round_started` into the `round_start` this package has
+always had. Until now a `pug` produced no `round_start` at all — the core plugin emits it
+only for its own gamemode flows, and MatchZy had no event for it before the fork. A
+consumer that counted rounds off `round_end` is unaffected; one that wanted a round's
+beginning now gets one.
+
 ## 0.11.1 — 2026-09-19
 
 **`warmup.minPlayersToReady` gets one meaning, written down** (PRD-03 T1, for the

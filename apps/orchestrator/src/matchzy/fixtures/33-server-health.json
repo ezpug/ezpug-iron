@@ -1,0 +1,21 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/Events.cs",
+  "note": "Server-level, not a match fact. The door reads it for the log: sqlite and db_ok is the shape T2’s cfg check exists to guarantee.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "server_health",
+    "server_id": "devbox-1",
+    "plugin_version": "1.4.32",
+    "timestamp": 1758312168,
+    "db_ok": true,
+    "db_type": "sqlite",
+    "reason": "startup"
+  },
+  "expect": {
+    "dropped": "server-level, not a match fact: health (startup), database sqlite ok"
+  }
+}

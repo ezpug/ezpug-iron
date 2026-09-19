@@ -1,0 +1,21 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/Events.cs",
+  "note": "The fork announcing which remote log it will POST to. The token rides in a header, never here.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "server_configured",
+    "server_id": "devbox-1",
+    "hostname": "EZPug · pug · Dust II",
+    "plugin_version": "1.4.32",
+    "remote_log_url": "http://172.17.0.1:3430/matchzy/log",
+    "timestamp": 1758312168,
+    "configured_by": "console"
+  },
+  "expect": {
+    "dropped": "server-level, not a match fact: MatchZy 1.4.32 configured its remote log"
+  }
+}

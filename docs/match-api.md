@@ -61,16 +61,29 @@ transient.
 
 ## Vocabulary
 
-**Gameserver events** are the platform's `gameserver.ts` on 2026-09-05, verbatim: 22
-types (`server_ready`, `heartbeat`, `player_connected`, `player_disconnected`,
-`going_live`, `round_start`, `round_end`, `side_swap`, `map_end`, `series_end`,
-`match_paused`, `match_unpaused`, `player_death`, `bomb_planted`, `bomb_defused`,
-`bomb_exploded`, `position_tick`, `backup_written`, `demo_available`, `chat_command`,
-`chat_message`, `plugin_event`), `GAMESERVER_EVENT_CONTRACT_VERSION = 1`,
-`position_tick` ephemeral. `source.provider` on an event is the provider badge (`sim`,
-`dathost`, a node's provider id). The platform re-exports these from the package; its
-fixtures parse unchanged (a test in this package proves it against the platform's own
-recorded files).
+**Gameserver events** began as the platform's `gameserver.ts` on 2026-09-05, verbatim —
+22 types — and are **28** since 0.12.0: `server_ready`, `heartbeat`, `player_connected`,
+`player_disconnected`, `player_ready`, `player_unready`, `team_ready`, `all_ready`,
+`knife_start`, `knife_end`, `going_live`, `round_start`, `round_end`, `side_swap`,
+`map_end`, `series_end`, `match_paused`, `match_unpaused`, `player_death`,
+`bomb_planted`, `bomb_defused`, `bomb_exploded`, `position_tick`, `backup_written`,
+`demo_available`, `chat_command`, `chat_message`, `plugin_event`.
+`GAMESERVER_EVENT_CONTRACT_VERSION = 1`, `position_tick` ephemeral. `source.provider` on
+an event is the provider badge (`sim`, `dathost`, a node's provider id). The platform
+re-exports these from the package; its fixtures parse unchanged (a test in this package
+proves it against the platform's own recorded files).
+
+**The ready gate is the server's arithmetic, never the client's.** `player_ready`,
+`player_unready` and `team_ready` each carry a `tally`: `ready` is the ready player count
+per team, in team order, and `expected` is how many the server is waiting for across both
+teams. `all_ready` means both teams passed the gate, with `countdown: true` when the
+server is counting down rather than starting at once; `going_live` still follows, after
+the knife round where there is one. A client draws these and does not recompute them —
+whether a team has passed is a judgement the match plugin makes from its own rules, and a
+client that reimplemented it is what made the 2026-09-18 stall invisible to every test we
+had. `knife_start` and `knife_end` bracket a knifed map; `knife_end.winner` is who picks
+the side, `null` when the server could not attribute it, and the pick itself arrives as
+`side_swap` when they swap and as nothing at all when they stay.
 
 Also in the vocabulary: `steamId64Schema` (a 17-digit string, never a number), `game`
 (`cs2 | csgo`), `locale` (`de | en`, German default), `mapRadar` (overview geometry, the

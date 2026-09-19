@@ -10,7 +10,7 @@ import type {
  * **One valid event per type** — the platform's own fixture table from
  * `gameserver.test.ts` on 2026-09-05, exported so a consumer (the platform's
  * translator, a C# round-trip test, a gamemode test in the SDK harness) can
- * prove itself against the same twenty-two shapes this package proves itself
+ * prove itself against the same twenty-eight shapes this package proves itself
  * against. The union is a closed set, so the table is exhaustive by
  * construction: a type without a fixture does not type-check.
  *
@@ -37,6 +37,27 @@ export const GAMESERVER_EVENT_FIXTURES: {
   heartbeat: { type: 'heartbeat', ...base, seq: 12, playerCount: 10 },
   player_connected: { type: 'player_connected', ...base, player: tk },
   player_disconnected: { type: 'player_disconnected', ...base, player: tk },
+  player_ready: {
+    type: 'player_ready',
+    ...base,
+    player: tk,
+    tally: { ready: { teamA: 4, teamB: 5 }, expected: 10 },
+  },
+  player_unready: {
+    type: 'player_unready',
+    ...base,
+    player: maex,
+    tally: { ready: { teamA: 5, teamB: 4 }, expected: 10 },
+  },
+  team_ready: {
+    type: 'team_ready',
+    ...base,
+    team: 'team_a',
+    tally: { ready: { teamA: 5, teamB: 4 }, expected: 10 },
+  },
+  all_ready: { type: 'all_ready', ...base, ready: { teamA: 5, teamB: 5 }, countdown: true },
+  knife_start: { type: 'knife_start', ...base, mapNumber: 1 },
+  knife_end: { type: 'knife_end', ...base, mapNumber: 1, winner: 'team_b' },
   going_live: { type: 'going_live', ...base, mapNumber: 1, map: 'de_nuke' },
   round_start: {
     type: 'round_start',

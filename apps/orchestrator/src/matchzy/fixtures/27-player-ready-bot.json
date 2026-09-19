@@ -1,0 +1,26 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/SimulationMode.cs",
+  "note": "BuildPlayerInfo falls back to the engine’s SteamID, which is \"0\" for a bot outside simulation mode. A ready with no SteamID64 cannot be attributed and is dropped rather than guessed at.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "player_ready",
+    "matchid": 1083740696,
+    "player": {
+      "steamid": "0",
+      "name": "Romanov",
+      "team": "EZPug B"
+    },
+    "team": "EZPug B",
+    "ready_count_team1": 1,
+    "ready_count_team2": 1,
+    "total_ready": 2,
+    "expected_total": 2
+  },
+  "expect": {
+    "dropped": "a ready from \"Romanov\" with no SteamID64 — a bot outside simulation mode"
+  }
+}

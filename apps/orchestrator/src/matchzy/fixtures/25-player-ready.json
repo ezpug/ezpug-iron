@@ -1,0 +1,47 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/ReadyEventHelpers.cs",
+  "note": "The dev lane force-starts, so no recorded run has ever readied up; PRD-03 T5 replays this from puppets and it becomes recorded. The team comes from the roster’s SteamID, never from the free team name beside it.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "player_ready",
+    "matchid": 1083740696,
+    "player": {
+      "steamid": "76561198279375306",
+      "name": "tk",
+      "team": "EZPug A"
+    },
+    "team": "EZPug A",
+    "ready_count_team1": 1,
+    "ready_count_team2": 0,
+    "total_ready": 1,
+    "expected_total": 2
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "player_ready",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "player": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        },
+        "tally": {
+          "ready": {
+            "teamA": 1,
+            "teamB": 0
+          },
+          "expected": 2
+        }
+      }
+    ]
+  }
+}

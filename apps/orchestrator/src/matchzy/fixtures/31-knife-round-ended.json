@@ -1,0 +1,29 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/MatchZy.cs",
+  "note": "The winner picks the side. The pick itself arrives as the core plugin’s side_swap when they swap, and as nothing at all when they stay.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "knife_round_ended",
+    "matchid": 1083740696,
+    "map_number": 0,
+    "winner": "team1"
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "knife_end",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "mapNumber": 1,
+        "winner": "team_a"
+      }
+    ]
+  }
+}

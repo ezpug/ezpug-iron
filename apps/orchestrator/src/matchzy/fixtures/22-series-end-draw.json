@@ -1,15 +1,24 @@
 {
-  "source": "recorded",
-  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
-  "note": "Sent moments after map_result, with time_until_restore.",
+  "source": "derived",
+  "from": "16-series-end-won.json",
+  "note": "A 0–0 series is a draw; \"none\" is not a team.",
+  "state": {
+    "scores": {
+      "1": {
+        "team1": 2,
+        "team2": 2
+      }
+    },
+    "starts": {}
+  },
   "payload": {
     "time_until_restore": 10,
     "winner": {
       "side": "2",
-      "team": "team2"
+      "team": "none"
     },
     "team1_series_score": 0,
-    "team2_series_score": 1,
+    "team2_series_score": 0,
     "matchid": 1083740696,
     "event": "series_end"
   },
@@ -24,9 +33,9 @@
         },
         "seriesScore": {
           "teamA": 0,
-          "teamB": 1
+          "teamB": 0
         },
-        "winner": "team_b"
+        "winner": null
       }
     ]
   }

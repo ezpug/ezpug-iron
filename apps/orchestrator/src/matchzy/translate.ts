@@ -1,5 +1,6 @@
 import type {
   GameserverEvent,
+  GameserverPlayer,
   GameserverSource,
   MapPlan,
   MatchTeam,
@@ -51,12 +52,53 @@ import { z } from 'zod'
  * - **Map numbers are 0-based on the wire and 1-based in the vocabulary;**
  *   the map's name is the request's plan, because MatchZy's events never
  *   carry it.
- * - **Dropped, on purpose:** `series_start` (no fact of ours; `server_ready`
- *   and `going_live` bracket it), the veto trio (the platform runs the veto),
- *   `demo_upload_ended` (the core plugin owns the upload, decision 10 / T21),
- *   `player_disconnect` (the core plugin emits `player_disconnected` from the
- *   engine; nobody double-speaks), and any event naming another `matchid`
- *   than the match this server holds.
+ * - **Dropped, on purpose:** every name in {@link MATCHZY_DROPPED_EVENTS},
+ *   each with its own reason, and any event naming another `matchid` than
+ *   the match this server holds.
+ *
+ * **MatchZy-Enhanced 1.4.32** (PRD-03 T2) sends twenty-six names stock 0.8.15
+ * never had, and PRD-03 T3 gave each of them one of three answers. The rule
+ * is decision 19's: *neither double-speaks the other's events*, and the
+ * arbiter is what a `pug` on the dev node actually put on the wire
+ * (`packages/protocol/fixtures/recorded/real-pug-matchzy.json`, re-recorded
+ * on the fork) beside what the core plugin put on the link
+ * (`real-pug-link.json`) in the same match.
+ *
+ * - **Vocabulary**, because nobody else says it: the ready gate
+ *   (`player_ready`, `player_unready`, `team_ready`, `all_players_ready` →
+ *   `all_ready`) and the knife (`knife_round_started`, `knife_round_ended`).
+ *   A client must not recompute the gate — whether a team has passed it is
+ *   the match plugin's own judgement, which is the whole lesson of the
+ *   2026-09-18 stall (T1).
+ * - **`round_started` too, and this was a hole.** `MatchZyFlow` (the core
+ *   plugin) emits `match_paused`, `side_swap` and `backup_written` for a
+ *   matchzy flow and deliberately nothing else; `GenericFlow` — the plugin
+ *   flows — is the only thing that ever emitted `round_start`. The recorded
+ *   `pug` proves it: five `round_started` from MatchZy, not one `round_start`
+ *   on the link. A MatchZy match has had no round start in its durable log
+ *   until now.
+ * - **Already said by the core plugin, so dropped:** `player_connect` and
+ *   `player_disconnect` (the plugin reads the engine), `side_swap`,
+ *   `match_paused` / `match_unpaused` and the two `*_requested` events
+ *   (`MatchZyFlow` polls the gamerules and knows *who* paused and why).
+ * - **Internal to the orchestrator**, read for the log and never turned into
+ *   a fact: `server_configured`, `server_health` (a `db_ok: false` or a
+ *   `db_type` that is not sqlite is a warning — T2's cfg check says the
+ *   multi-server database stays off), `test_event` and `cs2_update_required`
+ *   (the auto-updater is off; one of these arriving means the image is due a
+ *   rebuild, which is a human's job, not a match fact).
+ * - **`warmup_ended` is not vocabulary**, though T3 listed it as a candidate.
+ *   The fork sends it from exactly two places (`Utility.cs` `StartKnifeRound`
+ *   and `StartLive`), and in both it is immediately followed by the event
+ *   that says the same thing better — `knife_round_started` on a knifed map,
+ *   `going_live` on every other. Two facts a millisecond apart for one moment
+ *   is what the durable log must not hold.
+ * - **Nor is `halftime_started` or `overtime_started`:** `side_swap` says the
+ *   first and the round numbers say the second. Nor `demo_recording_start` /
+ *   `_stop` or the four `demo_upload_*`, because the core plugin owns the
+ *   demo (decision 10) and MatchZy's own upload URL is never set. Nor
+ *   `backup_loaded`: the restore has no vocabulary yet, and inventing one
+ *   here would be a contract the plugin's `backup_written` does not match.
  */
 
 /** What a MatchZy payload needs from the match it is about. */
@@ -67,16 +109,41 @@ export interface MatchZyContext {
   serial: number
   /** The request's map plan, in order: the names MatchZy's events lack, and the starting sides. */
   maps: readonly MapPlan[]
+  /**
+   * The request's two rosters, as the config named them. A ready event says
+   * which team a player is on with a **team name** — the request's own free
+   * string, which two teams may well share — so the SteamID against the
+   * roster decides first and the name is only the fallback.
+   */
+  teams: {
+    teamA: MatchZyTeamContext
+    teamB: MatchZyTeamContext
+  }
+}
+
+export interface MatchZyTeamContext {
+  /** `teams.teamX.name` from the request, which is what MatchZy prints and echoes. */
+  name: string
+  /** Every rostered SteamID64 on this team. */
+  players: readonly string[]
 }
 
 /** What the translator remembers between one round and the next: the last score it saw, per map. */
 export interface MatchZyState {
   /** The map score after the last `round_end`, keyed by 1-based map number. */
   scores: Record<number, { team1: number; team2: number }>
+  /**
+   * The last `round_started` reported, keyed by 1-based map number. The
+   * engine restarts the round two or three times at go-live and MatchZy
+   * forwards every one of them (the recorded `pug` has three identical
+   * round 1 payloads), so an exact repeat of the round number *and* the
+   * score is dropped. A backup restore moves the score, so it still passes.
+   */
+  starts: Record<number, { roundNumber: number; team1: number; team2: number }>
 }
 
 export function initialMatchZyState(): MatchZyState {
-  return { scores: {} }
+  return { scores: {}, starts: {} }
 }
 
 export interface TranslationResult {
@@ -163,30 +230,150 @@ const seriesEndSchema = base.extend({
   time_until_restore: z.number().int().optional(),
 })
 
-/** Everything MatchZy sends that becomes nothing of ours, by name. */
-export const MATCHZY_DROPPED_EVENTS = [
-  'series_start',
-  'map_picked',
-  'map_vetoed',
-  'side_picked',
-  'demo_upload_ended',
-  'player_disconnect',
+const matchzyPlayerSchema = z
+  .object({ steamid: z.string(), name: z.string(), team: z.string().nullish() })
+  .loose()
+
+/** The four counters every ready event carries. `expected_total` is `players_per_team × 2`. */
+const readyCounts = {
+  ready_count_team1: z.number().int().nonnegative(),
+  ready_count_team2: z.number().int().nonnegative(),
+  total_ready: z.number().int().nonnegative(),
+  expected_total: z.number().int().nonnegative(),
+}
+
+const playerReadySchema = base.extend({
+  event: z.literal('player_ready'),
+  player: matchzyPlayerSchema,
+  team: z.string().nullish(),
+  ...readyCounts,
+})
+
+const playerUnreadySchema = base.extend({
+  event: z.literal('player_unready'),
+  player: matchzyPlayerSchema,
+  team: z.string().nullish(),
+  ...readyCounts,
+})
+
+const teamReadySchema = base.extend({
+  event: z.literal('team_ready'),
+  /** `team1` or `team2` here, unlike the player events' free team name. */
+  team: z.string(),
+  ready_count: z.number().int().nonnegative(),
+  total_ready: z.number().int().nonnegative(),
+  expected_total: z.number().int().nonnegative(),
+})
+
+const allPlayersReadySchema = base.extend({
+  event: z.literal('all_players_ready'),
+  ready_count_team1: z.number().int().nonnegative(),
+  ready_count_team2: z.number().int().nonnegative(),
+  total_ready: z.number().int().nonnegative(),
+  countdown_started: z.boolean(),
+})
+
+const knifeRoundStartedSchema = base.extend({
+  event: z.literal('knife_round_started'),
+  map_number: z.number().int().nonnegative(),
+})
+
+const knifeRoundEndedSchema = base.extend({
+  event: z.literal('knife_round_ended'),
+  map_number: z.number().int().nonnegative(),
+  /** `team1`, `team2` or `none` when the sides were unreadable. */
+  winner: z.string(),
+})
+
+const roundStartedSchema = base.extend({
+  event: z.literal('round_started'),
+  map_number: z.number().int().nonnegative(),
+  round_number: z.number().int().positive(),
+  team1_score: z.number().int().nonnegative(),
+  team2_score: z.number().int().nonnegative(),
+})
+
+/**
+ * Everything MatchZy-Enhanced sends that becomes nothing of ours, and why —
+ * the reason is what the door logs and what a fixture pins, so a name moving
+ * from this table into the union is a diff a reader can argue with (PRD-03
+ * T3). Every name here was weighed against the recorded `pug`; the doc block
+ * at the top of this file carries the argument.
+ */
+export const MATCHZY_DROPPED_EVENTS: Readonly<Record<string, string>> = {
+  // Nothing of ours to say.
+  series_start: 'not a fact of ours: server_ready and going_live bracket it',
+  map_picked: 'the platform runs the veto',
+  map_vetoed: 'the platform runs the veto',
+  side_picked: 'the platform runs the veto',
+  halftime_started: 'side_swap says it, and the core plugin owns side_swap',
+  overtime_started: 'the round numbers say it',
+  backup_loaded:
+    'a restore has no vocabulary yet; backup_written is the plugin’s and means the other direction',
+  // The core plugin already says it; decision 19 — neither double-speaks.
+  player_connect: 'the core plugin emits player_connected from the engine',
+  player_disconnect: 'the core plugin emits player_disconnected from the engine',
+  side_swap: 'the core plugin’s MatchZyFlow emits side_swap from the gamerules',
+  match_paused: 'the core plugin’s MatchZyFlow emits match_paused, and knows who paused',
+  match_unpaused: 'the core plugin’s MatchZyFlow emits match_unpaused',
+  pause_requested: 'the core plugin reports a pause when it is requested',
+  unpause_requested: 'the core plugin reports the unpause itself',
+  // Said better by the event that follows it in the same breath.
+  warmup_ended: 'knife_round_started or going_live follows it at once and says it better',
+  // The core plugin owns the demo (decision 10); MatchZy’s upload URL is never set.
+  demo_recording_start: 'the core plugin owns the demo (decision 10)',
+  demo_recording_stop: 'the core plugin owns the demo (decision 10)',
+  demo_upload_ended:
+    'the core plugin owns the upload (decision 10); MatchZy’s upload URL is never set',
+  demo_upload_start:
+    'the core plugin owns the upload (decision 10); MatchZy’s upload URL is never set',
+  demo_upload_success:
+    'the core plugin owns the upload (decision 10); MatchZy’s upload URL is never set',
+  demo_upload_fail:
+    'the core plugin owns the upload (decision 10); MatchZy’s upload URL is never set',
+}
+
+/**
+ * Names the door reads for its log and never turns into a fact. They are
+ * about the server, not about a match, and the fleet already has a shape for
+ * every one of them. {@link internalNoteOf} is what gets logged.
+ */
+export const MATCHZY_INTERNAL_EVENTS = [
+  'server_configured',
+  'server_health',
+  'test_event',
+  'cs2_update_required',
 ] as const
 
-/** The names this translator knows, translated or dropped. */
+/** The names this translator knows, translated, internal or dropped. */
 export const MATCHZY_KNOWN_EVENTS = [
   'going_live',
+  'round_started',
   'round_end',
   'map_result',
   'series_end',
-  ...MATCHZY_DROPPED_EVENTS,
+  'player_ready',
+  'player_unready',
+  'team_ready',
+  'all_players_ready',
+  'knife_round_started',
+  'knife_round_ended',
+  ...MATCHZY_INTERNAL_EVENTS,
+  ...Object.keys(MATCHZY_DROPPED_EVENTS),
 ] as const
 
 const matchzyPayloadSchema = z.discriminatedUnion('event', [
   goingLiveSchema,
+  roundStartedSchema,
   roundEndSchema,
   mapResultSchema,
   seriesEndSchema,
+  playerReadySchema,
+  playerUnreadySchema,
+  teamReadySchema,
+  allPlayersReadySchema,
+  knifeRoundStartedSchema,
+  knifeRoundEndedSchema,
 ])
 
 // ---------------------------------------------------------------------------
@@ -271,6 +458,41 @@ function scoreOf(team1: number, team2: number): TeamScore {
   return { teamA: team1, teamB: team2 }
 }
 
+/**
+ * Which team a body belongs to. The roster decides — a SteamID the request
+ * named is the one thing MatchZy cannot get wrong — and only then the team
+ * label the payload carries, which is `team1`/`team2` on a `team_ready` and
+ * the request's own free team name on a player event. Two teams sharing a
+ * name resolve to nobody rather than to a guess.
+ */
+export function playerTeamOf(
+  context: MatchZyContext,
+  steamId64: string,
+  label: string | null | undefined,
+): MatchTeam | null {
+  if (context.teams.teamA.players.includes(steamId64)) return 'team_a'
+  if (context.teams.teamB.players.includes(steamId64)) return 'team_b'
+  const slot = teamOf(label)
+  if (slot) return slot
+  const name = (label ?? '').trim()
+  if (name.length === 0) return null
+  const a = name === context.teams.teamA.name
+  const b = name === context.teams.teamB.name
+  return a && !b ? 'team_a' : b && !a ? 'team_b' : null
+}
+
+/** A player as the vocabulary wants one, or `null` when MatchZy named no real SteamID. */
+function playerOf(
+  context: MatchZyContext,
+  player: { steamid: string; name: string; team?: string | null },
+  label: string | null | undefined,
+): GameserverPlayer | null {
+  if (!steamId64Schema.safeParse(player.steamid).success) return null
+  if (player.name.length === 0) return null
+  const team = playerTeamOf(context, player.steamid, label ?? player.team)
+  return { steamId64: player.steamid, name: player.name, ...(team && { team }) }
+}
+
 function summaries(
   team1: z.infer<typeof statsTeamSchema>,
   team2: z.infer<typeof statsTeamSchema>,
@@ -303,6 +525,47 @@ function summaries(
   return players.length > 0 ? players : undefined
 }
 
+/**
+ * What the door logs for a server-level event. Never a fact: these say
+ * something about the box, and the fleet has its own shapes for that. Two of
+ * them are worth a warning rather than a line, because T2's cfg check exists
+ * to make them impossible: a database that is not the local SQLite means the
+ * multi-server database came on, and a CS2 update notice means the
+ * auto-updater did.
+ */
+export function internalNoteOf(name: string, payload: unknown): { dropped: string; note?: string } {
+  const body = (payload ?? {}) as Record<string, unknown>
+  const said = (detail: string) => `server-level, not a match fact: ${detail}`
+  switch (name) {
+    case 'server_health': {
+      const type = typeof body.db_type === 'string' ? body.db_type : 'unknown'
+      const ok = body.db_ok === true
+      const why = typeof body.reason === 'string' ? body.reason : 'unstated'
+      if (ok && type === 'sqlite') return { dropped: said(`health (${why}), database ${type} ok`) }
+      const detail = ok
+        ? 'ok'
+        : `failing — ${typeof body.db_error === 'string' ? body.db_error : 'no detail'}`
+      return {
+        dropped: said(`health (${why}), database ${type} ${detail}`),
+        note: `MatchZy reports its database as ${type}, ${detail}; the image ships SQLite and the multi-server database is meant to be off (docker/cs2/matchzy-cfg-check.sh)`,
+      }
+    }
+    case 'server_configured':
+      return {
+        dropped: said(
+          `MatchZy ${typeof body.plugin_version === 'string' ? body.plugin_version : 'of an unstated version'} configured its remote log`,
+        ),
+      }
+    case 'cs2_update_required':
+      return {
+        dropped: said('MatchZy reports a CS2 update'),
+        note: 'MatchZy reports that CS2 needs updating; the auto-updater is off on purpose, so the image is due a rebuild — a human’s job, not a match fact',
+      }
+    default:
+      return { dropped: said(name) }
+  }
+}
+
 export interface TranslateOptions {
   /** `mp_maxrounds`, for the side schedule fallback. Default 24. */
   regulationRounds?: number
@@ -330,8 +593,10 @@ export function translateMatchZyEvent(
   const drop = (dropped: string): TranslationResult => ({ events: [], state, name, dropped })
 
   if (name === '?') return drop('no event name')
-  if ((MATCHZY_DROPPED_EVENTS as readonly string[]).includes(name)) {
-    return drop('not a fact of ours')
+  const reason = MATCHZY_DROPPED_EVENTS[name]
+  if (reason !== undefined) return drop(reason)
+  if ((MATCHZY_INTERNAL_EVENTS as readonly string[]).includes(name)) {
+    return { events: [], state, name, ...internalNoteOf(name, payload) }
   }
   const parsed = matchzyPayloadSchema.safeParse(payload)
   if (!parsed.success) {
@@ -356,6 +621,135 @@ export function translateMatchZyEvent(
         ],
         state,
         name,
+      }
+    }
+    case 'round_started': {
+      const plan = mapAt(event.map_number)
+      if (!plan) return drop(`map_number ${event.map_number} is outside the plan`)
+      const mapNumber = event.map_number + 1
+      const score = scoreOf(event.team1_score, event.team2_score)
+      const last = state.starts[mapNumber]
+      // The engine restarts the round two or three times at go-live and
+      // MatchZy forwards each one: the recorded `pug` opens with three
+      // identical round 1 payloads. The same round number at the same score
+      // is one of those, and the durable log must not hold round 1 thrice.
+      if (
+        last &&
+        last.roundNumber === event.round_number &&
+        last.team1 === score.teamA &&
+        last.team2 === score.teamB
+      )
+        return drop(`round ${event.round_number} already started at ${score.teamA}–${score.teamB}`)
+      return {
+        events: [
+          {
+            type: 'round_start',
+            matchId,
+            source,
+            mapNumber,
+            roundNumber: event.round_number,
+            score,
+          },
+        ],
+        state: {
+          ...state,
+          starts: {
+            ...state.starts,
+            [mapNumber]: {
+              roundNumber: event.round_number,
+              team1: score.teamA,
+              team2: score.teamB,
+            },
+          },
+        },
+        name,
+      }
+    }
+    case 'player_ready':
+    case 'player_unready': {
+      const player = playerOf(context, event.player, event.team)
+      if (!player)
+        return drop(
+          `a ready from "${event.player.name}" with no SteamID64 — a bot outside simulation mode`,
+        )
+      return {
+        events: [
+          {
+            type: event.event === 'player_ready' ? 'player_ready' : 'player_unready',
+            matchId,
+            source,
+            player,
+            tally: {
+              ready: scoreOf(event.ready_count_team1, event.ready_count_team2),
+              expected: event.expected_total,
+            },
+          },
+        ],
+        state,
+        name,
+      }
+    }
+    case 'team_ready': {
+      const team = teamOf(event.team)
+      if (!team) return drop(`team "${event.team}" is neither team1 nor team2`)
+      // MatchZy sends this team's count and the total; the other team's is
+      // the difference, and never below zero however the two were counted.
+      const other = Math.max(0, event.total_ready - event.ready_count)
+      return {
+        events: [
+          {
+            type: 'team_ready',
+            matchId,
+            source,
+            team,
+            tally: {
+              ready:
+                team === 'team_a'
+                  ? scoreOf(event.ready_count, other)
+                  : scoreOf(other, event.ready_count),
+              expected: event.expected_total,
+            },
+          },
+        ],
+        state,
+        name,
+      }
+    }
+    case 'all_players_ready': {
+      return {
+        events: [
+          {
+            type: 'all_ready',
+            matchId,
+            source,
+            ready: scoreOf(event.ready_count_team1, event.ready_count_team2),
+            countdown: event.countdown_started,
+          },
+        ],
+        state,
+        name,
+      }
+    }
+    case 'knife_round_started': {
+      if (!mapAt(event.map_number))
+        return drop(`map_number ${event.map_number} is outside the plan`)
+      return {
+        events: [{ type: 'knife_start', matchId, source, mapNumber: event.map_number + 1 }],
+        state,
+        name,
+      }
+    }
+    case 'knife_round_ended': {
+      if (!mapAt(event.map_number))
+        return drop(`map_number ${event.map_number} is outside the plan`)
+      const winner = teamOf(event.winner)
+      return {
+        events: [{ type: 'knife_end', matchId, source, mapNumber: event.map_number + 1, winner }],
+        state,
+        name,
+        ...(winner === null && {
+          note: `knife_round_ended named "${event.winner}": the sides were unreadable, so nobody is credited with the pick`,
+        }),
       }
     }
     case 'round_end': {
@@ -403,6 +797,7 @@ export function translateMatchZyEvent(
       }
 
       const next: MatchZyState = {
+        ...state,
         scores: { ...state.scores, [mapNumber]: { team1: score.teamA, team2: score.teamB } },
       }
       const players = summaries(event.team1, event.team2)

@@ -1,0 +1,16 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "The engine restarts the round at go-live and MatchZy forwards each one: the run opens with three identical round 1 payloads. The same round at the same score is a repeat.",
+  "payload": {
+    "team1_score": 0,
+    "team2_score": 0,
+    "round_number": 1,
+    "map_number": 0,
+    "matchid": 1083740696,
+    "event": "round_started"
+  },
+  "expect": {
+    "dropped": "round 1 already started at 0–0"
+  }
+}

@@ -408,6 +408,248 @@ public sealed record PlayerDisconnectedEvent : GameserverEvent
     public required GameserverPlayer Player { get; init; }
 }
 
+/// <summary><c>player_ready</c> — one branch of <see cref="GameserverEvent"/>.</summary>
+public sealed record PlayerReadyEvent : GameserverEvent
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "player_ready";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("matchId")]
+    [JsonPropertyOrder(0)]
+    public required string MatchId { get; init; }
+
+    [JsonPropertyName("source")]
+    [JsonPropertyOrder(1)]
+    public required GameserverSource Source { get; init; }
+
+    [JsonPropertyName("seq")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; init; }
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(3)]
+    public string Type => TypeName;
+
+    [JsonPropertyName("player")]
+    [JsonPropertyOrder(4)]
+    public required GameserverPlayer Player { get; init; }
+
+    [JsonPropertyName("tally")]
+    [JsonPropertyOrder(5)]
+    public required PlayerReadyEventTally Tally { get; init; }
+}
+
+/// <summary>The <c>tally</c> block of <see cref="PlayerReadyEvent"/>.</summary>
+public sealed record PlayerReadyEventTally
+{
+    [JsonPropertyName("ready")]
+    [JsonPropertyOrder(0)]
+    public required TeamScore Ready { get; init; }
+
+    [JsonPropertyName("expected")]
+    [JsonPropertyOrder(1)]
+    public required long Expected { get; init; }
+}
+
+/// <summary><c>player_unready</c> — one branch of <see cref="GameserverEvent"/>.</summary>
+public sealed record PlayerUnreadyEvent : GameserverEvent
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "player_unready";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("matchId")]
+    [JsonPropertyOrder(0)]
+    public required string MatchId { get; init; }
+
+    [JsonPropertyName("source")]
+    [JsonPropertyOrder(1)]
+    public required GameserverSource Source { get; init; }
+
+    [JsonPropertyName("seq")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; init; }
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(3)]
+    public string Type => TypeName;
+
+    [JsonPropertyName("player")]
+    [JsonPropertyOrder(4)]
+    public required GameserverPlayer Player { get; init; }
+
+    [JsonPropertyName("tally")]
+    [JsonPropertyOrder(5)]
+    public required PlayerUnreadyEventTally Tally { get; init; }
+}
+
+/// <summary>The <c>tally</c> block of <see cref="PlayerUnreadyEvent"/>.</summary>
+public sealed record PlayerUnreadyEventTally
+{
+    [JsonPropertyName("ready")]
+    [JsonPropertyOrder(0)]
+    public required TeamScore Ready { get; init; }
+
+    [JsonPropertyName("expected")]
+    [JsonPropertyOrder(1)]
+    public required long Expected { get; init; }
+}
+
+/// <summary><c>team_ready</c> — one branch of <see cref="GameserverEvent"/>.</summary>
+public sealed record TeamReadyEvent : GameserverEvent
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "team_ready";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("matchId")]
+    [JsonPropertyOrder(0)]
+    public required string MatchId { get; init; }
+
+    [JsonPropertyName("source")]
+    [JsonPropertyOrder(1)]
+    public required GameserverSource Source { get; init; }
+
+    [JsonPropertyName("seq")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; init; }
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(3)]
+    public string Type => TypeName;
+
+    [JsonPropertyName("team")]
+    [JsonPropertyOrder(4)]
+    public required MatchTeam Team { get; init; }
+
+    [JsonPropertyName("tally")]
+    [JsonPropertyOrder(5)]
+    public required TeamReadyEventTally Tally { get; init; }
+}
+
+/// <summary>The <c>tally</c> block of <see cref="TeamReadyEvent"/>.</summary>
+public sealed record TeamReadyEventTally
+{
+    [JsonPropertyName("ready")]
+    [JsonPropertyOrder(0)]
+    public required TeamScore Ready { get; init; }
+
+    [JsonPropertyName("expected")]
+    [JsonPropertyOrder(1)]
+    public required long Expected { get; init; }
+}
+
+/// <summary><c>all_ready</c> — one branch of <see cref="GameserverEvent"/>.</summary>
+public sealed record AllReadyEvent : GameserverEvent
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "all_ready";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("matchId")]
+    [JsonPropertyOrder(0)]
+    public required string MatchId { get; init; }
+
+    [JsonPropertyName("source")]
+    [JsonPropertyOrder(1)]
+    public required GameserverSource Source { get; init; }
+
+    [JsonPropertyName("seq")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; init; }
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(3)]
+    public string Type => TypeName;
+
+    [JsonPropertyName("ready")]
+    [JsonPropertyOrder(4)]
+    public required TeamScore Ready { get; init; }
+
+    [JsonPropertyName("countdown")]
+    [JsonPropertyOrder(5)]
+    public required bool Countdown { get; init; }
+}
+
+/// <summary><c>knife_start</c> — one branch of <see cref="GameserverEvent"/>.</summary>
+public sealed record KnifeStartEvent : GameserverEvent
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "knife_start";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("matchId")]
+    [JsonPropertyOrder(0)]
+    public required string MatchId { get; init; }
+
+    [JsonPropertyName("source")]
+    [JsonPropertyOrder(1)]
+    public required GameserverSource Source { get; init; }
+
+    [JsonPropertyName("seq")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; init; }
+
+    [JsonPropertyName("mapNumber")]
+    [JsonPropertyOrder(3)]
+    public required long MapNumber { get; init; }
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(4)]
+    public string Type => TypeName;
+}
+
+/// <summary><c>knife_end</c> — one branch of <see cref="GameserverEvent"/>.</summary>
+public sealed record KnifeEndEvent : GameserverEvent
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "knife_end";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("matchId")]
+    [JsonPropertyOrder(0)]
+    public required string MatchId { get; init; }
+
+    [JsonPropertyName("source")]
+    [JsonPropertyOrder(1)]
+    public required GameserverSource Source { get; init; }
+
+    [JsonPropertyName("seq")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; init; }
+
+    [JsonPropertyName("mapNumber")]
+    [JsonPropertyOrder(3)]
+    public required long MapNumber { get; init; }
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(4)]
+    public string Type => TypeName;
+
+    [JsonPropertyName("winner")]
+    [JsonPropertyOrder(5)]
+    public MatchTeam? Winner { get; init; }
+}
+
 /// <summary><c>going_live</c> — one branch of <see cref="GameserverEvent"/>.</summary>
 public sealed record GoingLiveEvent : GameserverEvent
 {
@@ -2944,6 +3186,12 @@ internal sealed class GameserverEventConverter : DiscriminatedUnionConverter<Gam
             "heartbeat" => typeof(HeartbeatEvent),
             "player_connected" => typeof(PlayerConnectedEvent),
             "player_disconnected" => typeof(PlayerDisconnectedEvent),
+            "player_ready" => typeof(PlayerReadyEvent),
+            "player_unready" => typeof(PlayerUnreadyEvent),
+            "team_ready" => typeof(TeamReadyEvent),
+            "all_ready" => typeof(AllReadyEvent),
+            "knife_start" => typeof(KnifeStartEvent),
+            "knife_end" => typeof(KnifeEndEvent),
             "going_live" => typeof(GoingLiveEvent),
             "round_start" => typeof(RoundStartEvent),
             "round_end" => typeof(RoundEndEvent),

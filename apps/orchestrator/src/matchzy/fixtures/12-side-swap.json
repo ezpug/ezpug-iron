@@ -1,0 +1,15 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "New in the fork, and dropped: the core plugin emitted its own side_swap in this very match (real-pug-link.json). Decision 19 — neither double-speaks.",
+  "payload": {
+    "team1_side": "TERRORIST",
+    "team2_side": "CT",
+    "map_number": 0,
+    "matchid": 1083740696,
+    "event": "side_swap"
+  },
+  "expect": {
+    "dropped": "the core plugin’s MatchZyFlow emits side_swap from the gamerules"
+  }
+}

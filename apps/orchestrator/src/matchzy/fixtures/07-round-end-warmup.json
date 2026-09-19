@@ -1,12 +1,12 @@
 {
   "source": "recorded",
   "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
-  "note": "MatchZy sent round 1 twice, a second apart, with the same score and a different reason. The second is a repeat and is dropped: a durable log that holds round 1 twice is one a client cannot count with.",
+  "note": "Reason 16 (GameCommencing) at 0–0, before anybody has played a round: a round_end whose scores sum to zero is not a round.",
   "payload": {
-    "reason": 1,
+    "reason": 16,
     "winner": {
-      "side": "2",
-      "team": "team2"
+      "side": "1",
+      "team": "none"
     },
     "team1": {
       "series_score": 0,
@@ -19,7 +19,7 @@
     },
     "team2": {
       "series_score": 0,
-      "score": 1,
+      "score": 0,
       "score_ct": 0,
       "score_t": 0,
       "players": [],
@@ -27,12 +27,12 @@
       "name": "EZPug B"
     },
     "round_time": 0,
-    "round_number": 1,
+    "round_number": 0,
     "map_number": 0,
     "matchid": 1083740696,
     "event": "round_end"
   },
   "expect": {
-    "dropped": "round 1 was already reported at 0–1"
+    "dropped": "a round_end with a 0–0 score"
   }
 }

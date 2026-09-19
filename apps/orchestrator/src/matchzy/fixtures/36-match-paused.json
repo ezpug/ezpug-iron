@@ -1,0 +1,21 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/Events.cs",
+  "note": "New in the fork and dropped: MatchZyFlow polls the gamerules and emits match_paused itself, knowing the kind and who asked. Decision 19 — neither double-speaks.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "match_paused",
+    "matchid": 1083740696,
+    "map_number": 0,
+    "paused_by": "EZPug A",
+    "is_tactical": true,
+    "is_admin": false,
+    "pause_time": 30
+  },
+  "expect": {
+    "dropped": "the core plugin’s MatchZyFlow emits match_paused, and knows who paused"
+  }
+}

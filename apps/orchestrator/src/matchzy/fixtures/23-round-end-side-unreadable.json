@@ -1,6 +1,6 @@
 {
   "source": "derived",
-  "from": "07-round-end-clinch.json",
+  "from": "14-round-end-clinch.json",
   "note": "A winner side that is neither a side nor a team number cannot become a round_end; the vocabulary insists on one.",
   "state": {
     "scores": {
@@ -8,7 +8,8 @@
         "team1": 1,
         "team2": 1
       }
-    }
+    },
+    "starts": {}
   },
   "payload": {
     "reason": 8,
@@ -18,7 +19,7 @@
     },
     "team1": {
       "series_score": 0,
-      "score": 1,
+      "score": 0,
       "score_ct": 0,
       "score_t": 0,
       "players": [],
@@ -35,7 +36,7 @@
       "name": "EZPug B"
     },
     "round_time": 0,
-    "round_number": 4,
+    "round_number": 3,
     "map_number": 0,
     "matchid": 1083740696,
     "event": "round_end"

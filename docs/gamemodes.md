@@ -146,13 +146,15 @@ is:
   with its own link token in the `x-ezpug-server-token` header — from its sidecar, after
   `matchzy_loadmatch`, never inside the file: the file is serialised into every round
   backup MatchZy writes.
-- **The door translates once**: `going_live`, `round_end`, `map_result` → `map_end`,
-  `series_end` become the vocabulary attributed to the same server as its link events.
+- **The door translates once**: `going_live`, `round_started` → `round_start`,
+  `round_end`, `map_result` → `map_end`, `series_end`, the four ready events and the two
+  knife events become the vocabulary attributed to the same server as its link events.
   The round winner is the score delta between rounds (MatchZy's `winner.team` names the
   map *leader*), `winner.side` is read as `ct`/`t` or as the engine team number MatchZy
   actually writes, round numbers are the score sum (1-based), a tied map or series is
-  `winner: null`. `series_start`, the veto trio, `demo_upload_ended` and
-  `player_disconnect` are dropped: not facts of ours, or the core plugin's own.
+  `winner: null`. Everything else is dropped with its own reason, or read for the log and
+  never made a fact — `docs/operations.md`, "The MatchZy door", has the table name by
+  name, and PRD-03 T3 the argument.
 - **What MatchZy cannot say, the core plugin observes** from the engine (`MatchZyFlow`):
   `match_paused` / `match_unpaused` off the gamerules (a tactical timeout names its team;
   the `pause` command over the link is MatchZy's `css_forcepause` and an admin pause),
@@ -162,15 +164,21 @@ is:
 
 Everything the plugin does here is on the SDK harness (`plugins/EZPug.Core.Tests`), and the
 translation's fixtures are no longer guesses: `scripts/iron-match.mjs` played a `pug` with
-bots on the dev node and the payloads a real MatchZy 0.8.15 sent are kept whole in
+bots on the dev node and the payloads a real MatchZy sent are kept whole in
 `packages/protocol/fixtures/recorded/real-pug-matchzy.json`; the door's fixtures are those
-bytes, the cases they cannot produce edited from them, and the three events our flow never
-produces read off MatchZy's own source. `apps/orchestrator/src/matchzy/fixtures.test.ts`
-holds each file to saying which it is.
+bytes, the cases they cannot produce edited from them, and the events that run never
+produced read off MatchZy's own source. `apps/orchestrator/src/matchzy/fixtures.test.ts`
+holds each file to saying which it is. The dev lane force-starts, so **no recorded run has
+ever readied up or knifed** — the ready and knife fixtures are shaped from the fork's own
+serialisers until PRD-03 T5 plays a pug whose puppets ready up for real.
 
-**One rule the recording added:** a `round_end` whose score has not moved since the last one
-is a repeat and is dropped. MatchZy sent round 1 twice, a second apart, with two different
-`reason` codes; a durable log that holds round 1 twice is one a client cannot count with.
+**Two rules the recordings added.** A `round_end` whose score has not moved since the last
+one is a repeat and is dropped: MatchZy sent round 1 twice, a second apart, with two
+different `reason` codes, and a durable log that holds round 1 twice is one a client cannot
+count with. A `round_start` at the same round number *and* the same score is the same
+thing — the engine restarts the round two or three times at go-live and the fork forwards
+every one — while a backup restore comes back to a round number already seen at another
+score, and passes.
 
 ### Writing a cvar a console will accept
 

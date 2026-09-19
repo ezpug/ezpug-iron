@@ -113,13 +113,119 @@
               "provider": "sim",
               "serverId": "sim-1"
             },
+            "type": "player_ready",
+            "player": {
+              "steamId64": "76561198279375306",
+              "name": "tk",
+              "team": "team_a"
+            },
+            "tally": {
+              "ready": {
+                "teamA": 4,
+                "teamB": 5
+              },
+              "expected": 10
+            }
+          }
+        },
+        {
+          "seq": 6,
+          "event": {
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "source": {
+              "provider": "sim",
+              "serverId": "sim-1"
+            },
+            "type": "player_unready",
+            "player": {
+              "steamId64": "76561198279375307",
+              "name": "maex",
+              "team": "team_b"
+            },
+            "tally": {
+              "ready": {
+                "teamA": 5,
+                "teamB": 4
+              },
+              "expected": 10
+            }
+          }
+        },
+        {
+          "seq": 7,
+          "event": {
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "source": {
+              "provider": "sim",
+              "serverId": "sim-1"
+            },
+            "type": "team_ready",
+            "team": "team_a",
+            "tally": {
+              "ready": {
+                "teamA": 5,
+                "teamB": 4
+              },
+              "expected": 10
+            }
+          }
+        },
+        {
+          "seq": 8,
+          "event": {
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "source": {
+              "provider": "sim",
+              "serverId": "sim-1"
+            },
+            "type": "all_ready",
+            "ready": {
+              "teamA": 5,
+              "teamB": 5
+            },
+            "countdown": true
+          }
+        },
+        {
+          "seq": 9,
+          "event": {
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "source": {
+              "provider": "sim",
+              "serverId": "sim-1"
+            },
+            "mapNumber": 1,
+            "type": "knife_start"
+          }
+        },
+        {
+          "seq": 10,
+          "event": {
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "source": {
+              "provider": "sim",
+              "serverId": "sim-1"
+            },
+            "mapNumber": 1,
+            "type": "knife_end",
+            "winner": "team_b"
+          }
+        },
+        {
+          "seq": 11,
+          "event": {
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "source": {
+              "provider": "sim",
+              "serverId": "sim-1"
+            },
             "mapNumber": 1,
             "type": "going_live",
             "map": "de_nuke"
           }
         },
         {
-          "seq": 6,
+          "seq": 12,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -136,7 +242,7 @@
           }
         },
         {
-          "seq": 7,
+          "seq": 13,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -174,7 +280,7 @@
           }
         },
         {
-          "seq": 8,
+          "seq": 14,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -190,7 +296,7 @@
           }
         },
         {
-          "seq": 9,
+          "seq": 15,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -208,7 +314,7 @@
           }
         },
         {
-          "seq": 10,
+          "seq": 16,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -224,7 +330,7 @@
           }
         },
         {
-          "seq": 11,
+          "seq": 17,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -238,7 +344,7 @@
           }
         },
         {
-          "seq": 12,
+          "seq": 18,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -250,7 +356,7 @@
           }
         },
         {
-          "seq": 13,
+          "seq": 19,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -287,7 +393,7 @@
           }
         },
         {
-          "seq": 14,
+          "seq": 20,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -307,7 +413,7 @@
           }
         },
         {
-          "seq": 15,
+          "seq": 21,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -326,7 +432,7 @@
           }
         },
         {
-          "seq": 16,
+          "seq": 22,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -340,7 +446,7 @@
           }
         },
         {
-          "seq": 17,
+          "seq": 23,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -362,7 +468,7 @@
           }
         },
         {
-          "seq": 18,
+          "seq": 24,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -376,7 +482,7 @@
           }
         },
         {
-          "seq": 19,
+          "seq": 25,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -390,7 +496,7 @@
           }
         },
         {
-          "seq": 20,
+          "seq": 26,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -407,7 +513,7 @@
           }
         },
         {
-          "seq": 21,
+          "seq": 27,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {
@@ -426,7 +532,7 @@
           }
         },
         {
-          "seq": 22,
+          "seq": 28,
           "event": {
             "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
             "source": {

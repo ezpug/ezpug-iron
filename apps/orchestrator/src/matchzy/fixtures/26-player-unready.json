@@ -1,0 +1,47 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/ReadyEventHelpers.cs",
+  "note": "Somebody took their ready back; the tally is the whole gate as of that moment.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "player_unready",
+    "matchid": 1083740696,
+    "player": {
+      "steamid": "76561198279375307",
+      "name": "maex",
+      "team": "EZPug B"
+    },
+    "team": "EZPug B",
+    "ready_count_team1": 1,
+    "ready_count_team2": 0,
+    "total_ready": 1,
+    "expected_total": 2
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "player_unready",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "player": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        },
+        "tally": {
+          "ready": {
+            "teamA": 1,
+            "teamB": 0
+          },
+          "expected": 2
+        }
+      }
+    ]
+  }
+}

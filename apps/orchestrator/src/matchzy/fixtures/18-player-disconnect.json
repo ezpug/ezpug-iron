@@ -1,0 +1,17 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "The fork sends one per bot at the end of the match, steamid \"0\" and all. The core plugin emits player_disconnected from the engine; nobody double-speaks.",
+  "payload": {
+    "player": {
+      "steamid": "0",
+      "name": "Romanov",
+      "team": "EZPug B"
+    },
+    "matchid": 1083740696,
+    "event": "player_disconnect"
+  },
+  "expect": {
+    "dropped": "the core plugin emits player_disconnected from the engine"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy/MapVeto.cs",
+  "note": "The veto is the platform’s; the three veto events are dropped. The fork has no MapVeto.cs at all, so it cannot send one — the name stays in the table because a cfg can never bring it back.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "map_vetoed",
+    "matchid": 1083740696,
+    "team": "team1",
+    "map_name": "de_nuke"
+  },
+  "expect": {
+    "dropped": "the platform runs the veto"
+  }
+}

@@ -7,6 +7,7 @@ import type { AuthenticatedKey } from '../keys/service'
 import { matchzySerial } from '../match-config/matchzy'
 import type { GameServerProvider, ServerConfiguration } from '../providers/provider'
 import { mintToken } from '../tokens'
+import { MATCHZY_DROPPED_EVENTS } from './translate'
 
 /**
  * **A pug through both doors** (PRD-02 T9): the link says `server_ready`,
@@ -183,7 +184,10 @@ describe('a pug through the MatchZy door', () => {
 
     // series_start is MatchZy's, never ours: read, dropped, still 200.
     const start = await rig.post({ event: 'series_start', matchid: serial, num_maps: 1 })
-    expect(start).toEqual({ status: 200, body: { accepted: 0, dropped: 'not a fact of ours' } })
+    expect(start).toEqual({
+      status: 200,
+      body: { accepted: 0, dropped: MATCHZY_DROPPED_EVENTS.series_start },
+    })
 
     await rig.post({
       event: 'round_end',

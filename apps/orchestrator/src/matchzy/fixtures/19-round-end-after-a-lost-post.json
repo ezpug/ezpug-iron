@@ -1,16 +1,25 @@
 {
-  "source": "recorded",
-  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
-  "note": "Reason 7 after the swap: team B is on CT now and defused.",
+  "source": "derived",
+  "from": "14-round-end-clinch.json",
+  "note": "Round 3 never arrived (MatchZy does not retry). Round 4 shows both scores up by one: the side that won and the map plan’s schedule (team A started CT, round 4 is first half) decide, with a log line.",
+  "state": {
+    "scores": {
+      "1": {
+        "team1": 1,
+        "team2": 1
+      }
+    },
+    "starts": {}
+  },
   "payload": {
-    "reason": 7,
+    "reason": 8,
     "winner": {
-      "side": "3",
-      "team": "team2"
+      "side": "ct",
+      "team": "team1"
     },
     "team1": {
       "series_score": 0,
-      "score": 1,
+      "score": 2,
       "score_ct": 0,
       "score_t": 0,
       "players": [],
@@ -27,7 +36,7 @@
       "name": "EZPug B"
     },
     "round_time": 0,
-    "round_number": 3,
+    "round_number": 4,
     "map_number": 0,
     "matchid": 1083740696,
     "event": "round_end"
@@ -42,17 +51,18 @@
           "serverId": "devbox-1"
         },
         "mapNumber": 1,
-        "roundNumber": 3,
+        "roundNumber": 4,
         "winner": {
-          "team": "team_b",
+          "team": "team_a",
           "side": "ct"
         },
-        "winCondition": "bomb_defused",
+        "winCondition": "elimination",
         "score": {
-          "teamA": 1,
+          "teamA": 2,
           "teamB": 2
         }
       }
-    ]
+    ],
+    "note": true
   }
 }

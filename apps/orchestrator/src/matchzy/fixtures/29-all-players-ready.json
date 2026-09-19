@@ -1,0 +1,34 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/ReadyEventHelpers.cs",
+  "note": "Both teams through the gate. countdown_started is what a lobby turns into a countdown; going_live still follows, after the knife round where there is one.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "all_players_ready",
+    "matchid": 1083740696,
+    "ready_count_team1": 1,
+    "ready_count_team2": 1,
+    "total_ready": 2,
+    "countdown_started": true
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "all_ready",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "ready": {
+          "teamA": 1,
+          "teamB": 1
+        },
+        "countdown": true
+      }
+    ]
+  }
+}

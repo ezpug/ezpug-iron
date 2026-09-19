@@ -1,17 +1,24 @@
 /**
- * **The MatchZy door's fixtures, written from the recording** (PRD-02 T13).
+ * **The MatchZy door's fixtures, written from the recording** (PRD-02 T13,
+ * re-planned for MatchZy-Enhanced by PRD-03 T3).
  *
  *   pnpm --filter @ezpug/orchestrator fixtures:matchzy
  *
- * The payloads under `src/matchzy/fixtures/` are not invented: nine of them
- * are bytes a real MatchZy 0.8.15 sent to the door during
- * `scripts/iron-match.mjs` (kept whole in
- * `packages/protocol/fixtures/recorded/real-pug-matchzy.json`), and the rest
- * are those payloads edited into the cases one bots match on one map cannot
- * produce — a draw, a lost POST, a foreign `matchid` — plus the three events
- * our flow never produces at all, whose shape is read off MatchZy's own
- * source. `src/matchzy/fixtures.test.ts` holds that rule; this file is where
- * the plan lives and where a re-recording is folded in.
+ * The payloads under `src/matchzy/fixtures/` are not invented: most of them
+ * are bytes a real MatchZy sent to the door during `scripts/iron-match.mjs`
+ * (kept whole in
+ * `packages/protocol/fixtures/recorded/real-pug-matchzy.json`, re-recorded on
+ * MatchZy-Enhanced 1.4.32 by T2), and the rest are those payloads edited into
+ * the cases one bots match on one map cannot produce — a draw, a lost POST, a
+ * foreign `matchid` — plus the events that run never produced at all, whose
+ * shape is read off MatchZy's own source. `src/matchzy/fixtures.test.ts`
+ * holds that rule; this file is where the plan lives and where a re-recording
+ * is folded in.
+ *
+ * **Payloads are chosen by name and occurrence, never by index.** T2's
+ * re-record put twenty `player_disconnect` payloads in front of the flow and
+ * moved every position in the file; a plan that counted from zero would have
+ * silently pinned the wrong bytes.
  *
  * The **expectations are computed, never typed**: this runs the translator
  * and writes what it said. That is not circular — `translate.test.ts` then
@@ -37,14 +44,26 @@ const recorded = (
   }
 ).events
 
+/** The two rostered SteamIDs the whole fixture set uses (`@ezpug/match-api/fixtures`). */
+const TK = '76561198279375306'
+const MAEX = '76561198279375307'
+
 const context: MatchZyContext = {
   matchId: FIXTURE_MATCH_ID,
   source: { provider: 'nodes', serverId: 'devbox-1' },
   serial: matchzySerial(FIXTURE_MATCH_ID),
   maps: [{ map: 'de_dust2', sides: 'ct' }],
+  // The names the recorded run's config carried, and a roster of one a side
+  // so a ready event's SteamID resolves without leaning on those names.
+  teams: {
+    teamA: { name: 'EZPug A', players: [TK] },
+    teamB: { name: 'EZPug B', players: [MAEX] },
+  },
 }
 
 const RECORDING_PATH = 'packages/protocol/fixtures/recorded/real-pug-matchzy.json'
+const ENHANCED = 'references/MatchZy-Enhanced/src'
+const SERIAL = matchzySerial(FIXTURE_MATCH_ID)
 
 interface Plan {
   file: string
@@ -55,167 +74,421 @@ interface Plan {
   state?: MatchZyState
 }
 
-function round(index: number): Record<string, unknown> {
-  const entry = recorded[index]
+/** The `nth` payload the recording holds under `name` — never a bare index. */
+function at(name: string, nth = 0): Record<string, unknown> {
+  const matches = recorded.filter(entry => entry.name === name)
+  const entry = matches[nth]
   if (!entry)
-    throw new Error(`the recording has no event ${index} — re-record and revisit the plan`)
+    throw new Error(
+      `the recording holds ${matches.length} ${name} payload(s), not ${nth + 1} — re-record and revisit the plan`,
+    )
   return entry.payload
 }
-const scores = (team1: number, team2: number): MatchZyState => ({ scores: { 1: { team1, team2 } } })
+
+const scores = (team1: number, team2: number): MatchZyState => ({
+  scores: { 1: { team1, team2 } },
+  starts: {},
+})
+const fresh = (): MatchZyState => initialMatchZyState()
 
 const plan: Plan[] = [
+  // ------------------------------------------------------- the recorded run
   {
     file: '01-series-start.json',
     source: 'recorded',
     from: RECORDING_PATH,
     note: 'MatchZy fires it at the end of matchzy_loadmatch; server_ready and going_live bracket it in the vocabulary.',
-    payload: round(0),
+    payload: at('series_start'),
   },
   {
-    file: '02-going-live.json',
+    file: '02-demo-recording-start.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'New in the fork. The core plugin owns the demo (decision 10) and says demo_available when the file is there; MatchZy starting its recorder is not a fact of ours.',
+    payload: at('demo_recording_start'),
+  },
+  {
+    file: '03-warmup-ended.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'New in the fork, and deliberately not vocabulary: Utility.cs sends it from StartKnifeRound and StartLive, and in both the very next event (knife_round_started, going_live) says the same moment better.',
+    payload: at('warmup_ended'),
+  },
+  {
+    file: '04-going-live.json',
     source: 'recorded',
     from: RECORDING_PATH,
     note: 'map_number is 0-based on the wire; the map name is the plan’s, MatchZy never sends it.',
-    payload: round(1),
+    payload: at('going_live'),
   },
   {
-    file: '03-round-end-team-b.json',
+    file: '05-round-start.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'New in the fork, and a hole it fills: MatchZyFlow never emitted round_start, so a pug’s durable log had no round start at all. round_number is already 1-based here.',
+    payload: at('round_started', 0),
+  },
+  {
+    file: '06-round-start-repeated.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'The engine restarts the round at go-live and MatchZy forwards each one: the run opens with three identical round 1 payloads. The same round at the same score is a repeat.',
+    payload: at('round_started', 1),
+  },
+  {
+    file: '07-round-end-warmup.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'Reason 16 (GameCommencing) at 0–0, before anybody has played a round: a round_end whose scores sum to zero is not a round.',
+    payload: at('round_end', 0),
+  },
+  {
+    file: '08-round-end-team-b.json',
     source: 'recorded',
     from: RECORDING_PATH,
     note: 'winner.side "2" is T as the engine numbers it; winner.team is the map leader, the delta 0-1 says team B.',
-    payload: round(2),
+    payload: at('round_end', 1),
   },
   {
-    file: '04-round-end-repeated.json',
+    file: '09-round-start-second.json',
     source: 'recorded',
     from: RECORDING_PATH,
-    note: 'MatchZy sent round 1 twice, a second apart, with the same score and a different reason. The second is a repeat and is dropped: a durable log that holds round 1 twice is one a client cannot count with.',
-    payload: round(3),
+    note: 'Round 2, carrying the score it starts from — what the vocabulary’s optional round_start score is for.',
+    payload: at('round_started', 3),
   },
   {
-    file: '05-round-end-team-a.json',
+    file: '10-round-end-bomb-exploded.json',
     source: 'recorded',
     from: RECORDING_PATH,
-    note: 'winner.side "3" is CT; the delta 1-0 says team A took it, though MatchZy still names the leader.',
-    payload: round(4),
+    note: 'Reason 1: the bomb went off, still on the first half’s sides.',
+    payload: at('round_end', 2),
   },
   {
-    file: '06-round-end-bomb-defused.json',
+    file: '11-halftime-started.json',
     source: 'recorded',
     from: RECORDING_PATH,
-    note: 'Reason 7 after the swap: team B is on CT now and defused.',
-    payload: round(5),
+    note: 'New in the fork. side_swap says halftime, and the core plugin’s MatchZyFlow is what emits side_swap.',
+    payload: at('halftime_started'),
   },
   {
-    file: '07-round-end-clinch.json',
+    file: '12-side-swap.json',
     source: 'recorded',
     from: RECORDING_PATH,
-    note: 'The round that clinched the map at 1-3.',
-    payload: round(6),
+    note: 'New in the fork, and dropped: the core plugin emitted its own side_swap in this very match (real-pug-link.json). Decision 19 — neither double-speaks.',
+    payload: at('side_swap'),
   },
   {
-    file: '08-map-result-won.json',
+    file: '13-round-start-third.json',
     source: 'recorded',
     from: RECORDING_PATH,
-    note: 'winner.side "2" and winner.team "team2"; the scores are what decides.',
-    payload: round(7),
+    note: 'Round 3, after the swap.',
+    payload: at('round_started', 4),
   },
   {
-    file: '09-series-end-won.json',
+    file: '14-round-end-clinch.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'The round that clinched the map at 0-3; winner.side "3" is CT.',
+    payload: at('round_end', 3),
+  },
+  {
+    file: '15-map-result-won.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'winner.side "3" and winner.team "team2"; the scores are what decides.',
+    payload: at('map_result'),
+  },
+  {
+    file: '16-series-end-won.json',
     source: 'recorded',
     from: RECORDING_PATH,
     note: 'Sent moments after map_result, with time_until_restore.',
-    payload: round(8),
+    payload: at('series_end'),
   },
   {
-    file: '10-round-end-after-a-lost-post.json',
+    file: '17-demo-recording-stop.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'The other half of the fork’s recorder pair; the core plugin’s demo_available is the fact.',
+    payload: at('demo_recording_stop'),
+  },
+  {
+    file: '18-player-disconnect.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'The fork sends one per bot at the end of the match, steamid "0" and all. The core plugin emits player_disconnected from the engine; nobody double-speaks.',
+    payload: at('player_disconnect'),
+  },
+
+  // --------------------------------------------- edited from a recorded one
+  {
+    file: '19-round-end-after-a-lost-post.json',
     source: 'derived',
-    from: '07-round-end-clinch.json',
+    from: '14-round-end-clinch.json',
     note: 'Round 3 never arrived (MatchZy does not retry). Round 4 shows both scores up by one: the side that won and the map plan’s schedule (team A started CT, round 4 is first half) decide, with a log line.',
     state: scores(1, 1),
     payload: {
-      ...round(6),
+      ...at('round_end', 3),
       round_number: 4,
-      team1: { ...(round(6).team1 as object), score: 2 },
-      team2: { ...(round(6).team2 as object), score: 2 },
+      team1: { ...(at('round_end', 3).team1 as object), score: 2 },
+      team2: { ...(at('round_end', 3).team2 as object), score: 2 },
       winner: { side: 'ct', team: 'team1' },
     },
   },
   {
-    file: '11-map-result-draw.json',
+    file: '20-round-start-after-a-restore.json',
     source: 'derived',
-    from: '08-map-result-won.json',
+    from: '13-round-start-third.json',
+    note: 'A backup restored to round 3 at a different score. The repeat rule keys on the round number *and* the score, so a restore is not mistaken for a go-live restart.',
+    state: { scores: {}, starts: { 1: { roundNumber: 3, team1: 0, team2: 2 } } },
+    payload: { ...at('round_started', 4), team1_score: 1, team2_score: 1 },
+  },
+  {
+    file: '21-map-result-draw.json',
+    source: 'derived',
+    from: '15-map-result-won.json',
     note: 'A 2–2 map: MatchZy names team2 the winner of a tie (t1score > t2score is false); the scores say a draw. MatchZy itself then replays the map rather than ending the series — see docs/operations.md.',
     state: scores(2, 2),
     payload: {
-      ...round(7),
-      team1: { ...(round(7).team1 as object), score: 2, series_score: 0 },
-      team2: { ...(round(7).team2 as object), score: 2, series_score: 0 },
+      ...at('map_result'),
+      team1: { ...(at('map_result').team1 as object), score: 2, series_score: 0 },
+      team2: { ...(at('map_result').team2 as object), score: 2, series_score: 0 },
     },
   },
   {
-    file: '12-series-end-draw.json',
+    file: '22-series-end-draw.json',
     source: 'derived',
-    from: '09-series-end-won.json',
+    from: '16-series-end-won.json',
     note: 'A 0–0 series is a draw; "none" is not a team.',
     state: scores(2, 2),
     payload: {
-      ...round(8),
+      ...at('series_end'),
       team1_series_score: 0,
       team2_series_score: 0,
       winner: { side: '2', team: 'none' },
     },
   },
   {
-    file: '13-round-end-side-unreadable.json',
+    file: '23-round-end-side-unreadable.json',
     source: 'derived',
-    from: '07-round-end-clinch.json',
+    from: '14-round-end-clinch.json',
     note: 'A winner side that is neither a side nor a team number cannot become a round_end; the vocabulary insists on one.',
     state: scores(1, 1),
-    payload: { ...round(6), winner: { side: 'spec', team: 'team1' } },
+    payload: { ...at('round_end', 3), winner: { side: 'spec', team: 'team1' } },
   },
   {
-    file: '14-going-live-foreign-matchid.json',
+    file: '24-going-live-foreign-matchid.json',
     source: 'derived',
-    from: '02-going-live.json',
+    from: '04-going-live.json',
     note: 'A MatchZy still talking about an earlier match on the same server.',
-    state: initialMatchZyState(),
-    payload: { ...round(1), matchid: 4711 },
+    state: fresh(),
+    payload: { ...at('going_live'), matchid: 4711 },
   },
+
+  // ----------- the fork's own events, shaped from its source (PRD-03 T3/T5)
   {
-    file: '15-map-vetoed.json',
+    file: '25-player-ready.json',
     source: 'upstream',
-    from: 'references/MatchZy/MapVeto.cs',
-    note: 'The veto is the platform’s; the three veto events are dropped. Never seen on our wire — skip_veto is always true.',
-    state: initialMatchZyState(),
+    from: `${ENHANCED}/ReadyEventHelpers.cs`,
+    note: 'The dev lane force-starts, so no recorded run has ever readied up; PRD-03 T5 replays this from puppets and it becomes recorded. The team comes from the roster’s SteamID, never from the free team name beside it.',
+    state: fresh(),
     payload: {
-      event: 'map_vetoed',
-      matchid: matchzySerial(FIXTURE_MATCH_ID),
-      team: 'team1',
-      map_name: 'de_nuke',
+      event: 'player_ready',
+      matchid: SERIAL,
+      player: { steamid: TK, name: 'tk', team: 'EZPug A' },
+      team: 'EZPug A',
+      ready_count_team1: 1,
+      ready_count_team2: 0,
+      total_ready: 1,
+      expected_total: 2,
     },
   },
   {
-    file: '16-demo-upload-ended.json',
+    file: '26-player-unready.json',
     source: 'upstream',
-    from: 'references/MatchZy/DemoManagement.cs',
+    from: `${ENHANCED}/ReadyEventHelpers.cs`,
+    note: 'Somebody took their ready back; the tally is the whole gate as of that moment.',
+    state: fresh(),
+    payload: {
+      event: 'player_unready',
+      matchid: SERIAL,
+      player: { steamid: MAEX, name: 'maex', team: 'EZPug B' },
+      team: 'EZPug B',
+      ready_count_team1: 1,
+      ready_count_team2: 0,
+      total_ready: 1,
+      expected_total: 2,
+    },
+  },
+  {
+    file: '27-player-ready-bot.json',
+    source: 'upstream',
+    from: `${ENHANCED}/SimulationMode.cs`,
+    note: 'BuildPlayerInfo falls back to the engine’s SteamID, which is "0" for a bot outside simulation mode. A ready with no SteamID64 cannot be attributed and is dropped rather than guessed at.',
+    state: fresh(),
+    payload: {
+      event: 'player_ready',
+      matchid: SERIAL,
+      player: { steamid: '0', name: 'Romanov', team: 'EZPug B' },
+      team: 'EZPug B',
+      ready_count_team1: 1,
+      ready_count_team2: 1,
+      total_ready: 2,
+      expected_total: 2,
+    },
+  },
+  {
+    file: '28-team-ready.json',
+    source: 'upstream',
+    from: `${ENHANCED}/ReadyEventHelpers.cs`,
+    note: 'Here the team really is "team1"/"team2". MatchZy sends this team’s count and the total, so the other team’s is the difference — and whether a team has passed the gate is MatchZy’s judgement, never a number a client recomputes (the 2026-09-18 stall, T1).',
+    state: fresh(),
+    payload: {
+      event: 'team_ready',
+      matchid: SERIAL,
+      team: 'team2',
+      ready_count: 1,
+      total_ready: 2,
+      expected_total: 2,
+    },
+  },
+  {
+    file: '29-all-players-ready.json',
+    source: 'upstream',
+    from: `${ENHANCED}/ReadyEventHelpers.cs`,
+    note: 'Both teams through the gate. countdown_started is what a lobby turns into a countdown; going_live still follows, after the knife round where there is one.',
+    state: fresh(),
+    payload: {
+      event: 'all_players_ready',
+      matchid: SERIAL,
+      ready_count_team1: 1,
+      ready_count_team2: 1,
+      total_ready: 2,
+      countdown_started: true,
+    },
+  },
+  {
+    file: '30-knife-round-started.json',
+    source: 'upstream',
+    from: `${ENHANCED}/Utility.cs`,
+    note: 'Only a map whose sides are knifed for has one, and the recorded pug’s map plan is ct — so no run has produced it yet.',
+    state: fresh(),
+    payload: { event: 'knife_round_started', matchid: SERIAL, map_number: 0 },
+  },
+  {
+    file: '31-knife-round-ended.json',
+    source: 'upstream',
+    from: `${ENHANCED}/MatchZy.cs`,
+    note: 'The winner picks the side. The pick itself arrives as the core plugin’s side_swap when they swap, and as nothing at all when they stay.',
+    state: fresh(),
+    payload: { event: 'knife_round_ended', matchid: SERIAL, map_number: 0, winner: 'team1' },
+  },
+  {
+    file: '32-knife-round-ended-none.json',
+    source: 'upstream',
+    from: `${ENHANCED}/MatchZy.cs`,
+    note: 'MatchZy writes "none" when reverseTeamSides holds no entry for the winning side. The fact still travels — the knife happened — with nobody credited, and a log line.',
+    state: fresh(),
+    payload: { event: 'knife_round_ended', matchid: SERIAL, map_number: 0, winner: 'none' },
+  },
+  {
+    file: '33-server-health.json',
+    source: 'upstream',
+    from: `${ENHANCED}/Events.cs`,
+    note: 'Server-level, not a match fact. The door reads it for the log: sqlite and db_ok is the shape T2’s cfg check exists to guarantee.',
+    state: fresh(),
+    payload: {
+      event: 'server_health',
+      server_id: 'devbox-1',
+      plugin_version: '1.4.32',
+      timestamp: 1_758_312_168,
+      db_ok: true,
+      db_type: 'sqlite',
+      reason: 'startup',
+    },
+  },
+  {
+    file: '34-server-health-failing.json',
+    source: 'upstream',
+    from: `${ENHANCED}/Events.cs`,
+    note: 'A db_type that is not sqlite means the multi-server database came on, which T2’s off-list forbids. Still not a fact — the log is where an operator meets it.',
+    state: fresh(),
+    payload: {
+      event: 'server_health',
+      server_id: 'devbox-1',
+      plugin_version: '1.4.32',
+      timestamp: 1_758_312_168,
+      db_ok: false,
+      db_type: 'mysql',
+      db_error: 'connection refused',
+      reason: 'periodic',
+    },
+  },
+  {
+    file: '35-server-configured.json',
+    source: 'upstream',
+    from: `${ENHANCED}/Events.cs`,
+    note: 'The fork announcing which remote log it will POST to. The token rides in a header, never here.',
+    state: fresh(),
+    payload: {
+      event: 'server_configured',
+      server_id: 'devbox-1',
+      hostname: 'EZPug · pug · Dust II',
+      plugin_version: '1.4.32',
+      remote_log_url: 'http://172.17.0.1:3430/matchzy/log',
+      timestamp: 1_758_312_168,
+      configured_by: 'console',
+    },
+  },
+  {
+    file: '36-match-paused.json',
+    source: 'upstream',
+    from: `${ENHANCED}/Events.cs`,
+    note: 'New in the fork and dropped: MatchZyFlow polls the gamerules and emits match_paused itself, knowing the kind and who asked. Decision 19 — neither double-speaks.',
+    state: fresh(),
+    payload: {
+      event: 'match_paused',
+      matchid: SERIAL,
+      map_number: 0,
+      paused_by: 'EZPug A',
+      is_tactical: true,
+      is_admin: false,
+      pause_time: 30,
+    },
+  },
+  {
+    file: '37-demo-upload-ended.json',
+    source: 'upstream',
+    from: `${ENHANCED}/DemoManagement.cs`,
     note: 'The core plugin owns the upload (decision 10, T21); MatchZy’s own upload URL is never set, so it never sends this.',
-    state: initialMatchZyState(),
+    state: fresh(),
     payload: {
       event: 'demo_upload_ended',
-      matchid: matchzySerial(FIXTURE_MATCH_ID),
+      matchid: SERIAL,
       map_number: 0,
       filename: '1083740696_map_0_de_dust2.dem',
       success: false,
     },
   },
   {
-    file: '17-player-disconnect.json',
+    file: '38-map-vetoed.json',
     source: 'upstream',
-    from: 'references/MatchZy/Events.cs',
-    note: 'The core plugin emits player_disconnected from the engine; nobody double-speaks. Bots never reach it either.',
-    state: initialMatchZyState(),
-    payload: { event: 'player_disconnect', matchid: matchzySerial(FIXTURE_MATCH_ID), player: 3 },
+    from: 'references/MatchZy/MapVeto.cs',
+    note: 'The veto is the platform’s; the three veto events are dropped. The fork has no MapVeto.cs at all, so it cannot send one — the name stays in the table because a cfg can never bring it back.',
+    state: fresh(),
+    payload: { event: 'map_vetoed', matchid: SERIAL, team: 'team1', map_name: 'de_nuke' },
+  },
+  {
+    file: '39-player-connect.json',
+    source: 'upstream',
+    from: `${ENHANCED}/Events.cs`,
+    note: 'New in the fork, synthesised because EventPlayerConnectFull is unreliable for bots. The core plugin reads the engine and emits player_connected; nobody double-speaks.',
+    state: fresh(),
+    payload: {
+      event: 'player_connect',
+      matchid: SERIAL,
+      player: { steamid: TK, name: 'tk', team: 'EZPug A' },
+    },
   },
 ]
 

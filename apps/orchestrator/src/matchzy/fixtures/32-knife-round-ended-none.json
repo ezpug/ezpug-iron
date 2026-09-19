@@ -1,0 +1,30 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/MatchZy.cs",
+  "note": "MatchZy writes \"none\" when reverseTeamSides holds no entry for the winning side. The fact still travels — the knife happened — with nobody credited, and a log line.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "knife_round_ended",
+    "matchid": 1083740696,
+    "map_number": 0,
+    "winner": "none"
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "knife_end",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "mapNumber": 1,
+        "winner": null
+      }
+    ],
+    "note": true
+  }
+}

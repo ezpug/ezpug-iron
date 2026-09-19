@@ -15,8 +15,8 @@ import {
 
 /**
  * **The MatchZy door** — `POST /matchzy/log` (decision 19, PRD-02 T9). The
- * one HTTP path a server speaks to besides its link, because MatchZy 0.8.15
- * only knows how to POST its events to a URL. The core plugin sets
+ * one HTTP path a server speaks to besides its link, because MatchZy only
+ * knows how to POST its events to a URL. The core plugin sets
  * `matchzy_remote_log_url` to this path and the header
  * (`MATCHZY_TOKEN_HEADER`) to the server's own link token, from its sidecar;
  * the door hashes the token, finds the ledger row it was minted for, the
@@ -32,9 +32,22 @@ import {
  * events included, with the reason in the body — and a refusal only for a
  * token it does not know or a body it cannot read.
  *
- * Per-match state (the last score seen, for the round winner) lives in this
- * process and is forgotten when the match ends; a restart between two rounds
- * falls back to the schedule and says so in the log.
+ * Per-match state (the last score seen, for the round winner; the last round
+ * start, for the go-live restarts) lives in this process and is forgotten
+ * when the match ends; a restart between two rounds falls back to the
+ * schedule and says so in the log.
+ *
+ * Three answers leave here, and `translate.ts` holds which name gets which:
+ * a payload becomes vocabulary, or it is **dropped** with its reason in the
+ * log and in the 200's body, or it is **server-level** — `server_health` and
+ * its three siblings, which are read for the log and never become a fact. A
+ * drop the operator should see (a database that is not the local SQLite, a
+ * CS2 update notice) carries a `note` too, and a note is a `warn`.
+ *
+ * Since PRD-03 T2 the build is MatchZy-Enhanced, whose remote log **retries**:
+ * an unanswered POST is queued and re-sent for up to twenty attempts, so the
+ * sink's dedup is load-bearing and a 200 for a dropped event is what stops a
+ * queue growing over a name we will never want.
  */
 
 export interface MatchZyDoorOptions {
@@ -102,9 +115,19 @@ export function createMatchZyDoor(options: MatchZyDoorOptions): MatchZyDoor {
       const source = { provider: server.provider, serverId: server.serverId }
       const state = states.get(row.id) ?? initialMatchZyState()
       const rules = row.requestJson.rules
+      const teams = row.requestJson.teams
       const result = translateMatchZyEvent(
         payload,
-        { matchId: row.id, source, serial: matchzySerial(row.id), maps: row.requestJson.maps },
+        {
+          matchId: row.id,
+          source,
+          serial: matchzySerial(row.id),
+          maps: row.requestJson.maps,
+          teams: {
+            teamA: { name: teams.teamA.name, players: teams.teamA.players.map(p => p.steamId64) },
+            teamB: { name: teams.teamB.name, players: teams.teamB.players.map(p => p.steamId64) },
+          },
+        },
         state,
         {
           ...(rules && {

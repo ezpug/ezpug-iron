@@ -1,9 +1,10 @@
 {
   "source": "derived",
-  "from": "02-going-live.json",
+  "from": "04-going-live.json",
   "note": "A MatchZy still talking about an earlier match on the same server.",
   "state": {
-    "scores": {}
+    "scores": {},
+    "starts": {}
   },
   "payload": {
     "map_number": 0,

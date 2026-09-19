@@ -192,7 +192,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     (review the fixture diff), the image is rebuilt, and the Dathost template is
     refreshed (`pnpm dathost:image`), because the template carries MatchZy.
 
-- [ ] **T3: the new events, translated once, at the edge.**
+- [x] **T3: the new events, translated once, at the edge.**
   - Decide per added event whether it becomes vocabulary, stays internal to the
     orchestrator, or duplicates what `EZPug.Core` already says (decision 19: neither
     double-speaks).

@@ -201,8 +201,75 @@ export const playerDisconnectedEventSchema = eventBase.extend({
 })
 
 // ---------------------------------------------------------------------------
+// Ready-up (the warmup tier)
+// ---------------------------------------------------------------------------
+
+/**
+ * How far the ready gate has got. `ready` is the ready player count per team,
+ * in team order; `expected` is how many the server is waiting for in total
+ * across both teams. Both are the **server's** arithmetic, not the client's:
+ * whether a team passes the gate is a judgement the match plugin makes from
+ * its own rules (who is connected, who is on which side, the configured
+ * minimum), and a client that recomputed it would be reimplementing that
+ * plugin — the thing decision 19 exists to prevent.
+ */
+export const readyTallySchema = z.object({
+  ready: teamScoreSchema,
+  expected: z.number().int().nonnegative(),
+})
+export type ReadyTally = z.infer<typeof readyTallySchema>
+
+/** One player readied. The tally is the whole gate as of this moment. */
+export const playerReadyEventSchema = eventBase.extend({
+  type: z.literal('player_ready'),
+  player: gameserverPlayerSchema,
+  tally: readyTallySchema,
+})
+
+/** One player took their ready back. */
+export const playerUnreadyEventSchema = eventBase.extend({
+  type: z.literal('player_unready'),
+  player: gameserverPlayerSchema,
+  tally: readyTallySchema,
+})
+
+/** A whole team passed the server's ready gate. */
+export const teamReadyEventSchema = eventBase.extend({
+  type: z.literal('team_ready'),
+  team: matchTeamSchema,
+  tally: readyTallySchema,
+})
+
+/**
+ * Both teams are ready and the server is starting. `countdown` is true when
+ * the server is counting down rather than starting at once — the moment a
+ * lobby stops offering a ready button. `going_live` still follows, after the
+ * knife round where there is one.
+ */
+export const allReadyEventSchema = eventBase.extend({
+  type: z.literal('all_ready'),
+  ready: teamScoreSchema,
+  countdown: z.boolean(),
+})
+
+// ---------------------------------------------------------------------------
 // Match flow
 // ---------------------------------------------------------------------------
+
+/** The knife round began. Only a map whose sides are knifed for has one. */
+export const knifeStartEventSchema = mapScoped.extend({
+  type: z.literal('knife_start'),
+})
+
+/**
+ * The knife round was decided. `winner` is who picks the side — `null` when
+ * the server could not attribute it. The pick itself arrives as `side_swap`
+ * when they swap, and as nothing at all when they stay.
+ */
+export const knifeEndEventSchema = mapScoped.extend({
+  type: z.literal('knife_end'),
+  winner: matchTeamSchema.nullable(),
+})
 
 /** Knife/warmup is over — the map is live. */
 export const goingLiveEventSchema = mapScoped.extend({
@@ -496,6 +563,12 @@ export const gameserverEventSchema = z.discriminatedUnion('type', [
   heartbeatEventSchema,
   playerConnectedEventSchema,
   playerDisconnectedEventSchema,
+  playerReadyEventSchema,
+  playerUnreadyEventSchema,
+  teamReadyEventSchema,
+  allReadyEventSchema,
+  knifeStartEventSchema,
+  knifeEndEventSchema,
   goingLiveEventSchema,
   roundStartEventSchema,
   roundEndEventSchema,
@@ -524,7 +597,14 @@ export const GAMESERVER_EVENT_TYPES = [
   'heartbeat',
   'player_connected',
   'player_disconnected',
+  // ready-up (the warmup tier)
+  'player_ready',
+  'player_unready',
+  'team_ready',
+  'all_ready',
   // match flow
+  'knife_start',
+  'knife_end',
   'going_live',
   'round_start',
   'round_end',

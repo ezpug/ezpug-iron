@@ -34,7 +34,7 @@ describe('the normalized gameserver event union', () => {
   })
 
   it('keeps the published type list and the union in lockstep, in Match.md §5 order', () => {
-    expect(GAMESERVER_EVENT_TYPES).toHaveLength(22)
+    expect(GAMESERVER_EVENT_TYPES).toHaveLength(28)
     expect(new Set(GAMESERVER_EVENT_TYPES).size).toBe(GAMESERVER_EVENT_TYPES.length)
     expect(gameserverEventSchema.options.map(option => option.shape.type.value)).toEqual([
       ...GAMESERVER_EVENT_TYPES,

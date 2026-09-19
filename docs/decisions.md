@@ -157,6 +157,29 @@ it here.
     side, `.forceready` included, so the platform's join deadline is the only thing that
     gives up on a missing player. Map veto is gone from the fork; the platform runs the
     veto (`skip_veto`), so nothing of ours used it.*
+    *Amended by PRD-03 T3, 2026-09-20: **the fork's twenty-six new events, classified
+    once.** "Neither double-speaks" needed an answer per name, and the arbiter was what a
+    real `pug` put on both wires at once — `real-pug-matchzy.json` beside
+    `real-pug-link.json`. Three answers, all in
+    `apps/orchestrator/src/matchzy/translate.ts`. **Vocabulary**, because nobody else says
+    it: the ready gate (`player_ready`, `player_unready`, `team_ready`,
+    `all_players_ready`) and the knife pair, added to `@ezpug/match-api` 0.12.0 as six
+    types — the gate is the match plugin's own judgement and a client must draw it rather
+    than recompute it, which is the lesson of the 2026-09-18 stall. **`round_started`
+    too**, and finding out why was the task's one product bug: `MatchZyFlow` emits only
+    what MatchZy cannot see (pauses, `side_swap`, backups) and `GenericFlow` — the plugin
+    flows — was the only thing that ever emitted `round_start`, so a `pug` had no round
+    start in its durable log at all. **Dropped because the core plugin already says it**:
+    `player_connect`, `player_disconnect`, `side_swap`, the pause pair and the two
+    `*_requested`. **Read for the log and never a fact**: `server_configured`,
+    `server_health`, `test_event`, `cs2_update_required` — server-level, and the last two
+    worth a warning, because T2's cfg check exists to make them impossible. And
+    **`warmup_ended` is not vocabulary** though it looked like a candidate: the fork sends
+    it from two places and both are immediately followed by the event that says the moment
+    better (`knife_round_started`, `going_live`), and the durable log must not hold two
+    facts a millisecond apart for one moment. A test reads the pinned clone's own
+    serialisers, when it is on the box, and fails if the fork ever adds a name nobody
+    classified.*
 20. **Skins travel over the link, no exposed MySQL.** The platform owns loadouts; a match
     request's roster entries carry them; a **data-layer fork of cs2-WeaponPaints** takes
     the in-memory loadout the core plugin hands it instead of querying MySQL. No public

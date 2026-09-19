@@ -46,7 +46,7 @@ type RosterEntryInput = z.input<typeof rosterEntrySchema>
  * proves the generated types read every frame and write it back byte for
  * byte. A frame type without a fixture does not type-check, so the tables
  * are exhaustive by construction, and the `events` frame carries all
- * twenty-two vocabulary events so the union rides along.
+ * twenty-eight vocabulary events so the union rides along.
  *
  * Nothing here is a secret. Every token is a placeholder that says so.
  */

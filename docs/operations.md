@@ -1235,22 +1235,42 @@ nothing else in the system will tell you.
 ## The MatchZy door
 
 The one HTTP path a server speaks to besides its link: `POST /matchzy/log`
-(`MATCHZY_LOG_PATH` in `@ezpug/protocol`). MatchZy 0.8.15 has no in-process forwards —
-its match-flow events leave it only as one POST per event to `matchzy_remote_log_url`,
-with one custom header, a fifteen-second timeout and no retry — so the core plugin points
-that URL here and puts the server's own link token in the `x-ezpug-server-token` header,
-both from its sidecar (decision 19; `docs/gamemodes.md`, "The `matchzy` flow"). No API key,
-no scope: the token is the server's identity exactly as on the link. It travels in a
-header, never the path, so neither the request log nor a proxy's access log holds it.
+(`MATCHZY_LOG_PATH` in `@ezpug/protocol`). MatchZy has no in-process forwards — its
+match-flow events leave it only as one POST per event to `matchzy_remote_log_url`, with
+one custom header and a fifteen-second timeout — so the core plugin points that URL here
+and puts the server's own link token in the `x-ezpug-server-token` header, both from its
+sidecar (decision 19; `docs/gamemodes.md`, "The `matchzy` flow"). No API key, no scope:
+the token is the server's identity exactly as on the link. It travels in a header, never
+the path, so neither the request log nor a proxy's access log holds it. Stock 0.8.15 never
+retried a POST; MatchZy-Enhanced queues an unanswered one in its own SQLite and re-sends
+it for up to twenty attempts over hours, which is why the sink's dedup is load-bearing and
+why the door answers `200` even for what it throws away.
 
 The door hashes the token, finds the `server_tokens` row, the open ledger row it was
-minted for and the match that row holds, translates the payload (`matchzy/translate.ts`:
-`going_live`, `round_end`, `map_result` → `map_end`, `series_end`; the veto trio,
-`series_start`, `demo_upload_ended` and `player_disconnect` dropped) and hands the events
-to the same sink the link feeds, attributed to the same `provider/serverId` — the machine
-cannot tell which door a fact came through. `going_live` still moves the match to `live`
-and `series_end` still ends it. A payload naming another `matchid` than the serial the
-config gave this match (`matchzySerial`) is a stale plugin and is dropped.
+minted for and the match that row holds, translates the payload
+(`matchzy/translate.ts`) and hands the events to the same sink the link feeds, attributed
+to the same `provider/serverId` — the machine cannot tell which door a fact came through.
+`going_live` still moves the match to `live` and `series_end` still ends it. A payload
+naming another `matchid` than the serial the config gave this match (`matchzySerial`) is a
+stale plugin and is dropped.
+
+**Which name becomes what** (PRD-03 T3; decision 19's "neither double-speaks" is the whole
+rule, and `MATCHZY_DROPPED_EVENTS` in `translate.ts` carries a reason per name):
+
+| MatchZy says | The door says |
+| ------------ | ------------- |
+| `going_live`, `round_started`, `round_end`, `map_result`, `series_end` | `going_live`, `round_start`, `round_end`, `map_end`, `series_end` |
+| `player_ready`, `player_unready`, `team_ready`, `all_players_ready` | `player_ready`, `player_unready`, `team_ready`, `all_ready` |
+| `knife_round_started`, `knife_round_ended` | `knife_start`, `knife_end` |
+| `player_connect`, `player_disconnect`, `side_swap`, `match_paused`, `match_unpaused`, `pause_requested`, `unpause_requested` | nothing — the core plugin speaks all of these from the engine |
+| `server_configured`, `server_health`, `test_event`, `cs2_update_required` | nothing — server-level, read for the log; a database that is not the local SQLite and a CS2 update notice each get a `warn` |
+| `warmup_ended`, `halftime_started`, `overtime_started`, `backup_loaded`, the demo pair, the four `demo_upload_*`, the veto trio, `series_start` | nothing — said better by the next event, by `side_swap`, by the round numbers, or owned by the core plugin (decision 10) |
+
+Two of those are worth knowing about as an operator. **A `pug` had no `round_start` at
+all** until T3: `MatchZyFlow` emits only what MatchZy cannot see, and the fork is the first
+MatchZy to send a round's beginning. And **the ready events are the server's own
+arithmetic** — a client draws them rather than recomputing the gate, which is what made
+the 2026-09-18 stall invisible.
 
 Answers: `200` with `{ accepted, statuses }` for anything the door could read, dropped
 events included (`{ accepted: 0, dropped: <why> }` — MatchZy only logs the status);

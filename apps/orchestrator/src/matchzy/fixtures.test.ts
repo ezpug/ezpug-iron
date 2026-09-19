@@ -19,12 +19,15 @@ import { describe, expect, it } from 'vitest'
  *   produce (a draw, a lost POST, a foreign `matchid`). `from` names the
  *   `recorded` fixture beside it that it was edited from, so a reader can
  *   diff the two and see exactly what was invented.
- * - **`upstream`** — an event our flow never produces at all: the veto trio
- *   (the platform vetoes), `demo_upload_ended` (the core plugin uploads,
- *   decision 10) and `player_disconnect` (the plugin speaks it from the
- *   engine). Their shape is read off MatchZy's own serialisers and `from`
- *   says which file; the only thing asserted about them is that the door
- *   **drops** them, which no payload detail can change.
+ * - **`upstream`** — an event the recorded run never produced at all. Its
+ *   shape is read off MatchZy's own serialisers and `from` names the file
+ *   under `references/`, which is the assertion: an upstream fixture can
+ *   never quietly become an invented one. Some are dropped whatever they
+ *   hold (the veto trio, the demo events, the pause pair, `player_connect`,
+ *   the server-level pair); PRD-03 T3 added the ones the door **translates**,
+ *   because the dev lane force-starts and so no run has ever readied up or
+ *   knifed. Those are owed a recording — PRD-03 T5 plays a pug whose puppets
+ *   ready up through MatchZy's own ready system.
  *
  * `schema` is gone and may not come back: T13 is ticked in the PRD, and this
  * test reads that checkbox so the rule cannot quietly lapse.
@@ -37,6 +40,7 @@ interface Provenance {
   source?: string
   from?: string
   state?: unknown
+  payload?: unknown
   expect?: { events?: unknown[]; dropped?: string }
 }
 
@@ -109,11 +113,38 @@ describe('the fixtures’ provenance', () => {
     }
   })
 
-  it('asserts nothing but a drop about an upstream-shaped payload', () => {
+  it('has every upstream fixture reading its shape off a file under references/', () => {
     for (const { name, fixture } of fixtures()) {
       if (fixture.source !== 'upstream') continue
-      expect(fixture.expect?.dropped, `${name} is upstream-shaped but expects events`).toBeTruthy()
+      expect(
+        fixture.from,
+        `${name} is upstream-shaped but does not name the vendor file it was read off`,
+      ).toMatch(/^references\/MatchZy(-Enhanced)?\//)
+    }
+  })
+
+  it('keeps every event the core plugin already speaks out of the vocabulary', () => {
+    // Decision 19 — neither double-speaks. These are the fork's own names for
+    // facts `MatchZyFlow` and the runtime emit from the engine; whatever their
+    // payloads hold, the door must drop them.
+    const theirs = [
+      'player_connect',
+      'player_disconnect',
+      'side_swap',
+      'match_paused',
+      'match_unpaused',
+    ]
+    const seen = new Set<string>()
+    for (const { name, fixture } of fixtures()) {
+      const event = (fixture.payload as { event?: unknown } | undefined)?.event
+      if (typeof event !== 'string' || !theirs.includes(event)) continue
+      seen.add(event)
+      expect(
+        fixture.expect?.dropped,
+        `${name} carries ${event}, which the core plugin says`,
+      ).toBeTruthy()
       expect(fixture.expect?.events ?? [], name).toEqual([])
     }
+    expect([...seen].sort(), 'no fixture pins the events the core plugin owns').not.toEqual([])
   })
 })

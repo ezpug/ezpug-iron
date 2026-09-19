@@ -1,9 +1,10 @@
 {
   "source": "upstream",
-  "from": "references/MatchZy/DemoManagement.cs",
+  "from": "references/MatchZy-Enhanced/src/DemoManagement.cs",
   "note": "The core plugin owns the upload (decision 10, T21); MatchZy’s own upload URL is never set, so it never sends this.",
   "state": {
-    "scores": {}
+    "scores": {},
+    "starts": {}
   },
   "payload": {
     "event": "demo_upload_ended",
@@ -13,6 +14,6 @@
     "success": false
   },
   "expect": {
-    "dropped": "not a fact of ours"
+    "dropped": "the core plugin owns the upload (decision 10); MatchZy’s upload URL is never set"
   }
 }

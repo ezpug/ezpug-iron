@@ -1,0 +1,13 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "New in the fork, and deliberately not vocabulary: Utility.cs sends it from StartKnifeRound and StartLive, and in both the very next event (knife_round_started, going_live) says the same moment better.",
+  "payload": {
+    "map_number": 0,
+    "matchid": 1083740696,
+    "event": "warmup_ended"
+  },
+  "expect": {
+    "dropped": "knife_round_started or going_live follows it at once and says it better"
+  }
+}

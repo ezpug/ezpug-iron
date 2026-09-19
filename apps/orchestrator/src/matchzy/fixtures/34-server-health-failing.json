@@ -1,0 +1,23 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/Events.cs",
+  "note": "A db_type that is not sqlite means the multi-server database came on, which T2’s off-list forbids. Still not a fact — the log is where an operator meets it.",
+  "state": {
+    "scores": {},
+    "starts": {}
+  },
+  "payload": {
+    "event": "server_health",
+    "server_id": "devbox-1",
+    "plugin_version": "1.4.32",
+    "timestamp": 1758312168,
+    "db_ok": false,
+    "db_type": "mysql",
+    "db_error": "connection refused",
+    "reason": "periodic"
+  },
+  "expect": {
+    "dropped": "server-level, not a match fact: health (periodic), database mysql failing — connection refused",
+    "note": true
+  }
+}

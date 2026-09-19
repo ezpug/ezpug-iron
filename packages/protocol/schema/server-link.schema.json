@@ -439,6 +439,274 @@
               "minimum": 0,
               "maximum": 9007199254740991
             },
+            "type": {
+              "type": "string",
+              "const": "player_ready"
+            },
+            "player": {
+              "$ref": "#/$defs/GameserverPlayer"
+            },
+            "tally": {
+              "type": "object",
+              "properties": {
+                "ready": {
+                  "$ref": "#/$defs/TeamScore"
+                },
+                "expected": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "ready",
+                "expected"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "player",
+            "tally"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "player_unready"
+            },
+            "player": {
+              "$ref": "#/$defs/GameserverPlayer"
+            },
+            "tally": {
+              "type": "object",
+              "properties": {
+                "ready": {
+                  "$ref": "#/$defs/TeamScore"
+                },
+                "expected": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "ready",
+                "expected"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "player",
+            "tally"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "team_ready"
+            },
+            "team": {
+              "$ref": "#/$defs/MatchTeam"
+            },
+            "tally": {
+              "type": "object",
+              "properties": {
+                "ready": {
+                  "$ref": "#/$defs/TeamScore"
+                },
+                "expected": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "ready",
+                "expected"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "team",
+            "tally"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "all_ready"
+            },
+            "ready": {
+              "$ref": "#/$defs/TeamScore"
+            },
+            "countdown": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "type",
+            "ready",
+            "countdown"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "knife_start"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "knife_end"
+            },
+            "winner": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MatchTeam"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type",
+            "winner"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
             "mapNumber": {
               "type": "integer",
               "exclusiveMinimum": 0,

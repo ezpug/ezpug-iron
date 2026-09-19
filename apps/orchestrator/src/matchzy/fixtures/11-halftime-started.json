@@ -1,0 +1,15 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "New in the fork. side_swap says halftime, and the core plugin’s MatchZyFlow is what emits side_swap.",
+  "payload": {
+    "team1_score": 2,
+    "team2_score": 0,
+    "map_number": 0,
+    "matchid": 1083740696,
+    "event": "halftime_started"
+  },
+  "expect": {
+    "dropped": "side_swap says it, and the core plugin owns side_swap"
+  }
+}
