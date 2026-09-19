@@ -1,4 +1,7 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
@@ -222,5 +225,106 @@ describe('the CS2 server image', () => {
     expect(operations).toContain('ghcr.io/ezpug/ezpug-iron/cs2')
     for (const command of ['pnpm cs2:build', 'pnpm cs2:install', 'pnpm cs2:up', 'pnpm cs2:console'])
       expect(operations).toContain(command)
+  })
+
+  describe('ships MatchZy-Enhanced with every path it opens by itself switched off', () => {
+    // PRD-03 T2, decision 19 as amended: the fork replaces stock 0.8.15 and,
+    // unlike stock, reaches out on its own — a Steam update check that is on by
+    // default, a heartbeat, a bootstrap fetch that runs the console commands it
+    // is sent, a match report. `cfg/MatchZy/ezpug.cfg` is appended to the
+    // release's own config.cfg so it is read last, and `matchzy-cfg-check.sh`
+    // is the list of what may never be on. The build runs the check over the
+    // file as it ships; this runs it over ours, so a line that goes missing
+    // here is a red verify and not a server phoning Steam.
+    const check = repoUrl('docker/cs2/matchzy-cfg-check.sh')
+    const ours = repoUrl('docker/cs2/cfg/MatchZy/ezpug.cfg')
+    const run = (cfg: string, database?: string) =>
+      spawnSync('sh', [check, cfg, ...(database ? [database] : [])], { encoding: 'utf8' })
+    const scratch = (name: string, content: string): string => {
+      const file = join(mkdtempSync(join(tmpdir(), 'matchzy-cfg-')), name)
+      writeFileSync(file, content)
+      return file
+    }
+
+    it('is the upstream release binary, pinned, unwrapped and checked before the cfg is appended', () => {
+      expect(dockerfile).toContain(
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: the Dockerfile's own ARG expansion
+        'https://github.com/sivert-io/MatchZy-Enhanced/releases/download/v${MATCHZY_VERSION}/MatchZy-${MATCHZY_VERSION}.zip',
+      )
+      expect(dockerfile).not.toContain('shobhit-pathak/MatchZy/releases')
+      expect(dockerfile).toContain(
+        'COPY docker/cs2/cfg/MatchZy/ezpug.cfg docker/cs2/matchzy-cfg-check.sh ./',
+      )
+      expect(dockerfile).toContain('cat ezpug.cfg >> /out/cfg/MatchZy/config.cfg')
+      expect(dockerfile).toContain(
+        'sh matchzy-cfg-check.sh /out/cfg/MatchZy/config.cfg /out/cfg/MatchZy/database.json',
+      )
+      // Pinned like every vendor: the version in the table, the checksum in the build.
+      const version = dockerfile.match(/^ARG MATCHZY_VERSION=(\S+)$/m)?.[1]
+      expect(repo('docs/pins.md')).toMatch(new RegExp(`MatchZy-Enhanced[^\\n]*\\| \`${version}\``))
+    })
+
+    it('passes our cfg, which says every switch itself rather than trusting a code default', () => {
+      const result = run(ours)
+      expect(result.stdout + result.stderr).toBe('')
+      expect(result.status).toBe(0)
+      // Each switch the check demands is written in our file, not inherited.
+      for (const name of [
+        'matchzy_safeautoupdater_enabled false',
+        'matchzy_safeautoupdater_action "warn_only"',
+        'matchzy_autoready_simulation_enabled false',
+        'matchzy_report_endpoint ""',
+        'matchzy_report_server_id ""',
+        'matchzy_report_token ""',
+      ])
+        expect(repo('docker/cs2/cfg/MatchZy/ezpug.cfg')).toContain(name)
+    })
+
+    it('fails a cfg that turns one on, that leaves one to its default, or that names a URL', () => {
+      const base = repo('docker/cs2/cfg/MatchZy/ezpug.cfg')
+      // The last line wins, the way the engine reads it: a later `true` is on.
+      const on = run(scratch('config.cfg', `${base}\nmatchzy_safeautoupdater_enabled true\n`))
+      expect(on.status).toBe(1)
+      expect(on.stdout).toContain('leaves matchzy_safeautoupdater_enabled at "true"')
+      // A switch that is never written falls to the code default, and the
+      // defaults are on: absent is a failure, not a pass.
+      const absent = run(
+        scratch('config.cfg', base.replace(/^matchzy_autoready_simulation_enabled .*$/m, '')),
+      )
+      expect(absent.status).toBe(1)
+      expect(absent.stdout).toContain('never sets matchzy_autoready_simulation_enabled')
+      // A console command given a value persists it and starts a fetch or a timer.
+      const url = run(
+        scratch('config.cfg', `${base}\nmatchzy_heartbeat_url "https://example.invalid/beat"\n`),
+      )
+      expect(url.status).toBe(1)
+      expect(url.stdout).toContain('sets matchzy_heartbeat_url (MatHeartbeat')
+      // Upstream's own file writes the URL commands with `""`, which is unset.
+      const empty = run(scratch('config.cfg', `${base}\nmatchzy_heartbeat_url ""\n`))
+      expect(empty.status).toBe(0)
+      // The stats database is the SQLite file beside the plugin, never MySQL.
+      const mysql = run(ours, scratch('database.json', '{ "DatabaseType": "MySQL" }'))
+      expect(mysql.status).toBe(1)
+      expect(mysql.stdout).toContain('does not say "DatabaseType": "SQLite"')
+      expect(run(ours, scratch('database.json', '{ "DatabaseType": "SQLite" }')).status).toBe(0)
+    })
+
+    it("passes the pinned release's own cfg once ours is appended, when the reference clone is here", () => {
+      // `references/MatchZy-Enhanced` is a gitignored clone at the pinned tag
+      // (`references/README.md`); verify never needs the network, so without it
+      // this is the build's job (the Dockerfile runs the same check) and not a red.
+      const release = repoUrl('references/MatchZy-Enhanced/cfg/MatchZy/config.cfg')
+      if (!existsSync(release)) return
+      const shipped = run(
+        scratch(
+          'config.cfg',
+          readFileSync(release, 'utf8') + repo('docker/cs2/cfg/MatchZy/ezpug.cfg'),
+        ),
+      )
+      expect(shipped.stdout).toBe('')
+      expect(shipped.status).toBe(0)
+      // And the release alone does not pass: the appended file is doing work.
+      expect(run(release).status).toBe(1)
+    })
   })
 })

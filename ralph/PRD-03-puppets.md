@@ -172,7 +172,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - Release the change (docs-only if no schema moved) and deploy `gs.ezpug.com`. Say in
     the note that a 1v1 pug is playable tonight.
 
-- [ ] **T2 (fable): MatchZy-Enhanced, read and pinned.**
+- [x] **T2 (fable): MatchZy-Enhanced, read and pinned.**
   - Clone the pinned tag into `references/MatchZy-Enhanced` and read it against
     `references/MatchZy` (0.8.15). Cover the licence, the CounterStrikeSharp API it
     compiles against, what changed in ready, knife, side choice, backups and the remote

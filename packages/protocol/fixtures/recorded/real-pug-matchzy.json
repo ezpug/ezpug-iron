@@ -2,19 +2,140 @@
   "schema": "MatchZyExchange",
   "events": [
     {
-      "name": "series_start",
+      "name": "player_disconnect",
       "payload": {
-        "team1": {
-          "id": "",
-          "name": "EZPug A"
+        "player": {
+          "steamid": "0",
+          "name": "Romanov",
+          "team": "EZPug B"
         },
-        "team2": {
-          "id": "",
-          "name": "EZPug B"
-        },
-        "num_maps": 1,
         "matchid": 1083740696,
-        "event": "series_start"
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Slingshot",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Darryl",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Maximus",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Kev",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Bank",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Jaques",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Enforcer",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Lieutenant",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Rouchard",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "demo_recording_start",
+      "payload": {
+        "filename": "2026-09-19_20-42-48_1830351630_de_dust2_EZPug_A_vs_EZPug_B.dem",
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "demo_recording_start"
+      }
+    },
+    {
+      "name": "warmup_ended",
+      "payload": {
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "warmup_ended"
       }
     },
     {
@@ -26,12 +147,23 @@
       }
     },
     {
+      "name": "round_started",
+      "payload": {
+        "team1_score": 0,
+        "team2_score": 0,
+        "round_number": 1,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_started"
+      }
+    },
+    {
       "name": "round_end",
       "payload": {
         "reason": 16,
         "winner": {
           "side": "1",
-          "team": "team2"
+          "team": "none"
         },
         "team1": {
           "series_score": 0,
@@ -56,6 +188,44 @@
         "map_number": 0,
         "matchid": 1083740696,
         "event": "round_end"
+      }
+    },
+    {
+      "name": "round_started",
+      "payload": {
+        "team1_score": 0,
+        "team2_score": 0,
+        "round_number": 1,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_started"
+      }
+    },
+    {
+      "name": "round_started",
+      "payload": {
+        "team1_score": 0,
+        "team2_score": 0,
+        "round_number": 1,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_started"
+      }
+    },
+    {
+      "name": "series_start",
+      "payload": {
+        "team1": {
+          "id": "",
+          "name": "EZPug A"
+        },
+        "team2": {
+          "id": "",
+          "name": "EZPug B"
+        },
+        "num_maps": 1,
+        "matchid": 1083740696,
+        "event": "series_start"
       }
     },
     {
@@ -92,9 +262,20 @@
       }
     },
     {
+      "name": "round_started",
+      "payload": {
+        "team1_score": 0,
+        "team2_score": 1,
+        "round_number": 2,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "round_started"
+      }
+    },
+    {
       "name": "round_end",
       "payload": {
-        "reason": 9,
+        "reason": 1,
         "winner": {
           "side": "2",
           "team": "team2"
@@ -125,49 +306,47 @@
       }
     },
     {
-      "name": "round_end",
+      "name": "halftime_started",
       "payload": {
-        "reason": 9,
-        "winner": {
-          "side": "2",
-          "team": "team2"
-        },
-        "team1": {
-          "series_score": 0,
-          "score": 1,
-          "score_ct": 0,
-          "score_t": 0,
-          "players": [],
-          "id": "",
-          "name": "EZPug A"
-        },
-        "team2": {
-          "series_score": 0,
-          "score": 2,
-          "score_ct": 0,
-          "score_t": 0,
-          "players": [],
-          "id": "",
-          "name": "EZPug B"
-        },
-        "round_time": 0,
+        "team1_score": 2,
+        "team2_score": 0,
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "halftime_started"
+      }
+    },
+    {
+      "name": "side_swap",
+      "payload": {
+        "team1_side": "TERRORIST",
+        "team2_side": "CT",
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "side_swap"
+      }
+    },
+    {
+      "name": "round_started",
+      "payload": {
+        "team1_score": 0,
+        "team2_score": 2,
         "round_number": 3,
         "map_number": 0,
         "matchid": 1083740696,
-        "event": "round_end"
+        "event": "round_started"
       }
     },
     {
       "name": "round_end",
       "payload": {
-        "reason": 7,
+        "reason": 8,
         "winner": {
           "side": "3",
           "team": "team2"
         },
         "team1": {
           "series_score": 0,
-          "score": 1,
+          "score": 0,
           "score_ct": 0,
           "score_t": 0,
           "players": [],
@@ -184,7 +363,7 @@
           "name": "EZPug B"
         },
         "round_time": 0,
-        "round_number": 4,
+        "round_number": 3,
         "map_number": 0,
         "matchid": 1083740696,
         "event": "round_end"
@@ -194,12 +373,12 @@
       "name": "map_result",
       "payload": {
         "winner": {
-          "side": "2",
+          "side": "3",
           "team": "team2"
         },
         "team1": {
           "series_score": 0,
-          "score": 1,
+          "score": 0,
           "score_ct": 0,
           "score_t": 0,
           "players": [],
@@ -225,13 +404,142 @@
       "payload": {
         "time_until_restore": 10,
         "winner": {
-          "side": "2",
+          "side": "3",
           "team": "team2"
         },
         "team1_series_score": 0,
         "team2_series_score": 1,
         "matchid": 1083740696,
         "event": "series_end"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Trapper",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Voltzmann",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Romanov",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Crasswater",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Bank",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Mae",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Rezan",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "K",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Arno",
+          "team": "EZPug A"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "player_disconnect",
+      "payload": {
+        "player": {
+          "steamid": "0",
+          "name": "Specialist",
+          "team": "EZPug B"
+        },
+        "matchid": 1083740696,
+        "event": "player_disconnect"
+      }
+    },
+    {
+      "name": "demo_recording_stop",
+      "payload": {
+        "filename": "2026-09-19_20-42-48_1830351630_de_dust2_EZPug_A_vs_EZPug_B.dem",
+        "map_number": 0,
+        "matchid": 1083740696,
+        "event": "demo_recording_stop"
       }
     }
   ]

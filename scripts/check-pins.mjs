@@ -65,7 +65,12 @@ const expected = [
     dockerArg(cs2Image, 'COUNTER_STRIKE_SHARP_VERSION'),
     'docker/cs2/Dockerfile',
   ],
-  ['MatchZy', dockerArg(cs2Image, 'MATCHZY_VERSION'), 'docker/cs2/Dockerfile'],
+  ['MatchZy-Enhanced', dockerArg(cs2Image, 'MATCHZY_VERSION'), 'docker/cs2/Dockerfile'],
+  [
+    'Debian bullseye-security (the snapshot)',
+    dockerArg(cs2Image, 'DEBIAN_SECURITY_SNAPSHOT'),
+    'docker/cs2/Dockerfile',
+  ],
   [
     'cs2-retakes-weapon-allocator',
     dockerArg(cs2Image, 'RETAKES_ALLOCATOR_VERSION'),

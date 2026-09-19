@@ -1084,7 +1084,9 @@ every offline proof here.
   a widget on a phone) is written as visual in the progress line; nothing is claimed
   verified that a test did not see.
 - **Hard don'ts:** no Dathost *match API*; no inbound port on a server; no player
-  registry in the orchestrator; no UI beyond widgets; no fork of MatchZy or retakes; no
+  registry in the orchestrator; no UI beyond widgets; ~~no fork of MatchZy or retakes~~ no fork of retakes (MatchZy struck by
+  PRD-03 T2, 2026-09-19 — the ready-up stall, simulation mode and the ready events;
+  decision 19 as amended: upstream's MatchZy-Enhanced release, pinned, never patched); no
   MySQL in the image; no CS:GO provider; no cron (probes and the reaper are the clock's);
   no `Date.now()`; no hand-written wire types in C#; no gameserver on this box in
   production; no second permission mechanism beside API-key scopes.

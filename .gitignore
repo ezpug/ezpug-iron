@@ -38,6 +38,7 @@ downloads/
 # Upstream reference clones — external repos, restorable via references/README.md
 references/CounterStrikeSharp/
 references/MatchZy/
+references/MatchZy-Enhanced/
 references/cs2-WeaponPaints/
 references/cs2-retakes/
 references/legacy/

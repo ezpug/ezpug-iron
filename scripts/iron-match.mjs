@@ -212,8 +212,11 @@ const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 45) * 60_000
  * `docs/operations.md` both show — is resolved by each process against its own
  * working directory, and the orchestrator's is its package (`pnpm dev` runs the
  * task there, `pnpm --filter … start` too) while this script's is the repo. So
- * both are looked in, repo first, and neither existing is fatal below rather
- * than a run that plays a whole match and records an empty conversation.
+ * both are looked in, and neither existing is fatal below rather than a run
+ * that plays a whole match and records an empty conversation. **When both
+ * exist the one written last wins** (PRD-03 T2): a trace left at the repo root
+ * on 2026-09-07 was preferred over the one the orchestrator was writing, and a
+ * whole match on real hardware recorded zero link frames.
  */
 const TRACE_FLAG =
   flags.get('no-trace') === 'true'
@@ -223,7 +226,10 @@ const TRACE_FILE = (() => {
   if (!TRACE_FLAG) return null
   if (isAbsolute(TRACE_FLAG)) return TRACE_FLAG
   const candidates = [join(repo, TRACE_FLAG), join(repo, 'apps/orchestrator', TRACE_FLAG)]
-  return candidates.find(path => existsSync(path)) ?? candidates[0]
+  const written = candidates
+    .filter(path => existsSync(path))
+    .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)
+  return written[0] ?? candidates[0]
 })()
 /**
  * How long a live match may run before it is force-ended.

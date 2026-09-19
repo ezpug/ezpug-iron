@@ -127,6 +127,36 @@ it here.
     retry and no dedup. The fallback branch is the whole path: the plugin subscribes to
     nothing of MatchZy's, and the orchestrator owns the retries and the dedup MatchZy
     does not have.*
+    *Amended by PRD-03 T2, 2026-09-19: **the day came, and the fork is somebody else's.**
+    The image ships [MatchZy-Enhanced](https://github.com/sivert-io/MatchZy-Enhanced)
+    (MIT, a fork of MatchZy; `docs/pins.md` holds the release and its sha256) where it
+    shipped stock 0.8.15. Three reasons, each one a hook stock does not have: the
+    2026-09-18 stall showed that ready-up had never run outside production, and only a
+    **simulation mode** — bots as rostered players that ready up through MatchZy's own
+    ready system — lets a test take the path a human takes; the **ready events**
+    (`player_ready`, `team_ready`, …) are what a client needs to draw who is ready; and
+    the **side-pick timer** ends a knife round nobody answers. Owner decision the same
+    day: **we pin upstream's release binary and do not customise it** — one maintainer
+    shipped five releases on 2026-09-16, so the checksum is the point and nothing
+    unpinned reaches a server. A fork of our own stays the escape hatch for a task that
+    cannot be done without a patch; that task records why and files the change upstream
+    first. "One MatchZy, everywhere": the build a test proves is the build production
+    runs, and simulation is a per-match switch, never a second binary.
+    What reading it against 0.8.15 changed in the paragraph above: **the fork retries.**
+    A remote-log POST that is not answered 2xx is queued in the plugin's own SQLite file
+    and re-sent for up to twenty attempts over hours, byte-identical and out of order, to
+    whatever URL and header are current *then* — so the orchestrator's dedup stays, and a
+    refusal from the door is no longer the end of an event. **It also reaches out by
+    itself**, which stock never did: a Steam update check that is on by default, a
+    heartbeat, a bootstrap fetch that executes the console commands it is sent, an admin
+    list, a match report. The end of the shipped `cfg/MatchZy/config.cfg` is ours
+    (`docker/cs2/cfg/MatchZy/ezpug.cfg`) and keeps each one off;
+    `docker/cs2/matchzy-cfg-check.sh` is the list, the image build fails over the file as
+    it ships, and `cs2-image.test.ts` fails over ours. **And it waits for the roster**: a
+    loaded match does not start until every rostered SteamID is connected and on its
+    side, `.forceready` included, so the platform's join deadline is the only thing that
+    gives up on a missing player. Map veto is gone from the fork; the platform runs the
+    veto (`skip_veto`), so nothing of ours used it.*
 20. **Skins travel over the link, no exposed MySQL.** The platform owns loadouts; a match
     request's roster entries carry them; a **data-layer fork of cs2-WeaponPaints** takes
     the in-memory loadout the core plugin hands it instead of querying MySQL. No public

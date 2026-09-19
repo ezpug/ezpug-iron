@@ -79,8 +79,8 @@ ARG METAMOD_VERSION=2.0.0-git1411
 ARG METAMOD_SHA256=e3d4c3d457a1c86a5079e8bd8248a4a00361c7d0a3dce7c7e0c4c45458096649
 ARG COUNTER_STRIKE_SHARP_VERSION=1.0.373
 ARG COUNTER_STRIKE_SHARP_SHA256=2b9b64069c06c78bbb1ad92d59f165b32c107845c18eb7ca6e5c808a26fb6906
-ARG MATCHZY_VERSION=0.8.15
-ARG MATCHZY_SHA256=425955d7565df84915dd6002d0a7848546d3859d376cb493f2988ed182586b57
+ARG MATCHZY_VERSION=1.4.32
+ARG MATCHZY_SHA256=97c1f1d06d366f739df2030bd4c74f8ea47a184372183eb87071d39594eb4eaa
 ARG RETAKES_ALLOCATOR_VERSION=3.2.5
 ARG RETAKES_ALLOCATOR_SHA256=68e6e8ecfe999e7a09898b17bc33250efb0aa47ff35fb82e4040e9fa871ef24d
 
@@ -121,20 +121,32 @@ RUN curl -fsSL -o css.zip \
          > /out/addons/counterstrikesharp/configs/core.json \
     && grep -q '"FollowCS2ServerGuidelines": false' /out/addons/counterstrikesharp/configs/core.json
 
-# MatchZy, into `plugins/disabled/` — CounterStrikeSharp auto-loads every folder
-# directly under `plugins/` and skips `disabled/`, which is exactly the door the
-# core plugin's loader opens for the gamemode that names it (decision 16). Its
-# `cfg/MatchZy/` set rides along; the plugin ships its own dependencies and they
-# stay where upstream put them, because a stock vendor is a stock vendor.
+# MatchZy — **MatchZy-Enhanced**, the fork (decision 19 as amended, PRD-03 T2:
+# the stall, simulation mode, the ready events) — into `plugins/disabled/`.
+# CounterStrikeSharp auto-loads every folder directly under `plugins/` and skips
+# `disabled/`, which is exactly the door the core plugin's loader opens for the
+# gamemode that names it (decision 16). The release binary, never a build of
+# ours: one maintainer ships several releases a day, so the sha is the point.
+# Its `cfg/MatchZy/` set rides along; the plugin ships its own dependencies and
+# they stay where upstream put them, because a stock vendor is a stock vendor.
+# The zip wraps everything in `MatchZy-<version>/`, which stock's never did.
+#
+# The one thing of ours in there is the end of `config.cfg`: the fork reaches
+# out by itself (a Steam update check that is on by default, a heartbeat, a
+# bootstrap fetch, a match report), `cfg/MatchZy/ezpug.cfg` keeps each of those
+# off, and `matchzy-cfg-check.sh` fails the build over the file as it ships.
+COPY docker/cs2/cfg/MatchZy/ezpug.cfg docker/cs2/matchzy-cfg-check.sh ./
 RUN curl -fsSL -o matchzy.zip \
-      "https://github.com/shobhit-pathak/MatchZy/releases/download/${MATCHZY_VERSION}/MatchZy-${MATCHZY_VERSION}.zip" \
+      "https://github.com/sivert-io/MatchZy-Enhanced/releases/download/v${MATCHZY_VERSION}/MatchZy-${MATCHZY_VERSION}.zip" \
     && echo "${MATCHZY_SHA256}  matchzy.zip" | sha256sum -c - \
     && unzip -q -o matchzy.zip -d matchzy \
     && mkdir -p /out/addons/counterstrikesharp/plugins/disabled \
-    && mv matchzy/addons/counterstrikesharp/plugins/MatchZy \
+    && mv "matchzy/MatchZy-${MATCHZY_VERSION}/addons/counterstrikesharp/plugins/MatchZy" \
           /out/addons/counterstrikesharp/plugins/disabled/MatchZy \
-    && cp -a matchzy/cfg/. /out/cfg/ \
-    && rm -rf matchzy matchzy.zip
+    && cp -a "matchzy/MatchZy-${MATCHZY_VERSION}/cfg/." /out/cfg/ \
+    && cat ezpug.cfg >> /out/cfg/MatchZy/config.cfg \
+    && sh matchzy-cfg-check.sh /out/cfg/MatchZy/config.cfg /out/cfg/MatchZy/database.json \
+    && rm -rf matchzy matchzy.zip ezpug.cfg matchzy-cfg-check.sh
 
 # The retakes weapon allocator (`docs/pins.md` says why this fork): a release
 # zip laid out exactly like the tree it extracts into, plus the gamedata file
@@ -191,7 +203,19 @@ ENV EZPUG_CS2_HOME=/serverdata \
 # hours after the date passed). The packages are still the pinned base's own and
 # every artifact this image downloads is checked against a SHA-256 in
 # `docs/pins.md`, so what this turns off is a clock, not a signature.
-RUN apt-get -o Acquire::Check-Valid-Until=false update \
+#
+# `bullseye-security` is read from **snapshot.debian.org at a date** (PRD-03 T2,
+# found rebuilding for the MatchZy bump on 2026-09-19): the base's sources still
+# name `deb.debian.org/debian-security`, whose index is there and whose pool is
+# not — `libc6-i386 2.31-13+deb11u14` and `ca-certificates` both answered 404,
+# and `archive.debian.org` has not taken the suite yet. The snapshot is the same
+# signed archive frozen on a day when index and pool agreed, carries the exact
+# `libc6-i386` the pinned base's own `libc6` demands, and cannot move again. The
+# `grep` makes a base whose sources changed shape a red build, not a silent one.
+ARG DEBIAN_SECURITY_SNAPSHOT=20260801T000000Z
+RUN sed -i "s#http://deb.debian.org/debian-security\(-debug\)\? #http://snapshot.debian.org/archive/debian-security\1/${DEBIAN_SECURITY_SNAPSHOT} #" /etc/apt/sources.list \
+    && grep -q "snapshot.debian.org/archive/debian-security/${DEBIAN_SECURITY_SNAPSHOT} bullseye-security" /etc/apt/sources.list \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends \
         ca-certificates curl locales procps lib32gcc-s1 lib32stdc++6 lib32z1 \
     && echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen \
