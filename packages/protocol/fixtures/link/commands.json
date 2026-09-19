@@ -126,8 +126,8 @@
           "skip_veto": true,
           "clinch_series": true,
           "wingman": false,
-          "players_per_team": 5,
-          "min_players_to_ready": 2,
+          "players_per_team": 1,
+          "min_players_to_ready": 1,
           "min_spectators_to_ready": 0,
           "team1": {
             "name": "Team tk",

@@ -1719,12 +1719,14 @@
             "minPlayersToReady": {
               "type": "integer",
               "minimum": 0,
-              "maximum": 9007199254740991
+              "maximum": 9007199254740991,
+              "description": "ready players across both teams, not per team"
             },
             "minSpectatorsToReady": {
               "type": "integer",
               "minimum": 0,
-              "maximum": 9007199254740991
+              "maximum": 9007199254740991,
+              "description": "ready spectators; casters are one group"
             }
           },
           "required": [

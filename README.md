@@ -31,7 +31,7 @@ contract; the iron (`ralph/PRD-02-iron.md`) made it true on hardware — the orc
 runs behind `gs.ezpug.com`, `ezpug-node` turns a venue box into capacity, the SDK and the
 core plugin play real CS2 matches on Dathost and on self-hosted nodes, and `ezpug-iron` is
 the terminal over all of it. `CHANGELOG.md` is what has been released and
-`packages/match-api/CHANGELOG.md` is the contract's own history (**0.11.0** today). One
+`packages/match-api/CHANGELOG.md` is the contract's own history (**0.11.1** today). One
 thing is still waiting on a human rather than on code: publishing the package to public npm
 needs an `npm login` on the box the loops run on (the `> blocked:` note under T9 in the
 spine's PRD), so a release goes to the box's own Verdaccio the day it is cut and to npmjs

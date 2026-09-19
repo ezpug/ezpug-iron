@@ -102,6 +102,23 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos? }`      | honoured on the `sim` provider only |
 | `ttlMinutes`   | int, 1…1440                                            | the reaper's deadline; never above the key's ceiling |
 
+**The ready gate counts the match, not a team.** `rules.warmup.minPlayersToReady` is how
+many players **across both teams** must be ready before the match goes live, and
+`minSpectatorsToReady` how many casters. A client computes both from the roster it already
+holds — the platform's `gamemodeReadyGate` sends `min(players, seats, preset)` — and never
+has to know which match plugin runs the server: MatchZy counts *per team*
+(`GetTeamMinReady`), and the orchestrator's config builder halves the wire's number,
+rounding up, on the way in.
+
+The same builder sizes `players_per_team` from the **roster**, not from the gamemode's
+`teamSize`: MatchZy passes a team only at `playerCount >= players_per_team`
+(`ReadySystem.cs`), so a 1v1 sent with a five-a-side mode's number could never go live
+however often the two typed `!ready` — which is exactly what happened on 2026-09-18. The
+number is the *smaller* roster's length, because one number has to let both teams through
+and a 2v1's single player is refused by anything larger; `playerCount == readyCount` is
+what still makes everybody who is on the server say so. A match the request rosters nobody
+for (bots, an open room) keeps the mode's own house.
+
 **`lan` or `preferLan`.** `lan: true` is "the venue's own hardware or nothing" and refuses
 the match `no_capable_server` when no node is enrolled; `preferLan: true` is "the venue's
 first, a rented box otherwise" — the only field here that ranks candidates instead of

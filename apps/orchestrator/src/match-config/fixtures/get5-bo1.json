@@ -7,7 +7,7 @@
   "skip_veto": true,
   "side_type": "never_knife",
   "players_per_team": 5,
-  "min_players_to_ready": 10,
+  "min_players_to_ready": 5,
   "min_spectators_to_ready": 0,
   "team1": {
     "name": "Team hunzR",

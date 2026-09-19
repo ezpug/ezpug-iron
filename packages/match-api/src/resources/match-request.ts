@@ -91,8 +91,24 @@ export const matchRulesSchema = z.object({
     startMoney: z.number().int().nonnegative(),
   }),
   warmup: z.object({
-    minPlayersToReady: z.number().int().nonnegative(),
-    minSpectatorsToReady: z.number().int().nonnegative(),
+    /**
+     * **How many players in the whole match** — both teams together, not per
+     * team — must be ready before it goes live. A client computes it from the
+     * roster it already holds and never has to know which match plugin runs
+     * the server; the orchestrator converts it to whatever that plugin counts
+     * (MatchZy counts per team, so it is halved there). `0` gates on nobody.
+     */
+    minPlayersToReady: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe('ready players across both teams, not per team'),
+    /** How many spectators must be ready. Casters are one group, so this one is not split. */
+    minSpectatorsToReady: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe('ready spectators; casters are one group'),
   }),
   /**
    * A preset's cvars, merged **under** the ones the gamemode derives — a

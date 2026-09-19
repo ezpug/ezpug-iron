@@ -211,6 +211,132 @@ describe('two id spaces', () => {
   })
 })
 
+/**
+ * MatchZy's ready gate for one team (`references/MatchZy/ReadySystem.cs`
+ * `IsTeamReady`), transcribed like its validator above. `readyAvailable` is
+ * true for the whole warmup a loaded config sits in, so the `playerCount == 0`
+ * refusal always applies.
+ */
+function matchZyTeamReady(
+  config: Pick<MatchZyMatchConfig, 'players_per_team' | 'min_players_to_ready'>,
+  team: { playerCount: number; readyCount: number; forced?: boolean },
+): boolean {
+  const { playerCount, readyCount, forced = false } = team
+  if (playerCount === 0) return false
+  if (playerCount === readyCount && playerCount >= config.players_per_team) return true
+  if (forced && readyCount >= config.min_players_to_ready) return true
+  return false
+}
+
+/** Every rostered player is on the server and has typed `!ready`. Does MatchZy go live? */
+function goesLiveOnceEverybodyReadies(config: MatchZyMatchConfig): boolean {
+  return [config.team1, config.team2].every(team => {
+    const size = Object.keys(team.players).length
+    return matchZyTeamReady(config, { playerCount: size, readyCount: size })
+  })
+}
+
+/**
+ * **The 2026-09-18 stall, and the rule that ends it** (PRD-03 T1). Two people
+ * in a 1v1 pug typed `!ready` twice each and nothing went live, because the
+ * config said `players_per_team: 5` — the manifest's — and MatchZy passes a
+ * team only at `playerCount >= players_per_team`. These cases are replayed
+ * through MatchZy's own gate above, so a regression here reads as the plugin
+ * refusing to start a match, which is what the owner saw, rather than as a
+ * number in a fixture moving.
+ */
+describe('a team of one can ready up', () => {
+  /** A pug rostered `a` against `b`, with the wire's whole-match ready gate. */
+  function pug(a: number, b: number, total = a + b): MatchConfigInput {
+    return {
+      ...pugBo1(),
+      request: request({
+        teams: {
+          teamA: { name: 'Team hunzR', players: TEAM_A.slice(0, a) },
+          teamB: { name: 'Team Bommelmann', players: TEAM_B.slice(0, b) },
+        },
+        rules: {
+          regulationRounds: 24,
+          overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+          warmup: { minPlayersToReady: total, minSpectatorsToReady: 0 },
+        },
+      }),
+    }
+  }
+
+  it.each([
+    [1, 1, 1],
+    [2, 1, 1],
+    [2, 2, 2],
+    [5, 5, 5],
+  ])('goes live on a %ivs%i roster, at %i a side', (a, b, perTeam) => {
+    const config = buildMatchZyConfig(pug(a, b))
+    expect(config.players_per_team).toBe(perTeam)
+    expect(goesLiveOnceEverybodyReadies(config)).toBe(true)
+    expect(matchZyValidationError(config)).toBe('')
+  })
+
+  it("is the stall itself when the manifest's five is sent for a 1v1", () => {
+    const stalled = { ...buildMatchZyConfig(pug(1, 1)), players_per_team: 5 }
+    expect(goesLiveOnceEverybodyReadies(stalled)).toBe(false)
+    expect(goesLiveOnceEverybodyReadies(buildMatchZyConfig(pug(1, 1)))).toBe(true)
+  })
+
+  it('takes the smaller team, because one number has to let both through', () => {
+    // Two would refuse the single player for ever; `playerCount == readyCount`
+    // is what still makes both of the pair say `!ready`.
+    const config = buildMatchZyConfig(pug(2, 1))
+    expect(config.players_per_team).toBe(1)
+    expect(matchZyTeamReady(config, { playerCount: 2, readyCount: 1 })).toBe(false)
+    expect(matchZyTeamReady(config, { playerCount: 2, readyCount: 2 })).toBe(true)
+  })
+
+  it('never lets a roster outgrow the mode it plays', () => {
+    const config = buildMatchZyConfig({
+      ...pug(5, 5),
+      manifest: {
+        ...shippedGamemode('pug'),
+        slots: { ...shippedGamemode('pug').slots, teamSize: 2 },
+      },
+    })
+    expect(config.players_per_team).toBe(2)
+  })
+
+  it("keeps the manifest's house when the request rosters nobody", () => {
+    expect(buildMatchZyConfig(pug(0, 0, 0)).players_per_team).toBe(5)
+  })
+
+  it("reads the wire's ready gate as the whole match and halves it for MatchZy", () => {
+    // The platform sends `min(players, seats, preset)` across both teams;
+    // MatchZy counts per team (`GetTeamMinReady`), so ten become five.
+    expect(buildMatchZyConfig(pug(5, 5, 10)).min_players_to_ready).toBe(5)
+    expect(buildMatchZyConfig(pug(1, 1, 2)).min_players_to_ready).toBe(1)
+    // An odd total rounds up, then stops at the team a force-ready must pass.
+    expect(buildMatchZyConfig(pug(2, 1, 3)).min_players_to_ready).toBe(1)
+    expect(buildMatchZyConfig(pug(1, 1, 0)).min_players_to_ready).toBe(0)
+  })
+
+  it('says the same number to Get5, which counts per team too', () => {
+    const config = buildGet5Config({
+      ...pug(1, 1),
+      request: request({
+        game: 'csgo',
+        teams: {
+          teamA: { name: 'Team hunzR', players: TEAM_A.slice(0, 1) },
+          teamB: { name: 'Team Bommelmann', players: TEAM_B.slice(0, 1) },
+        },
+        rules: {
+          regulationRounds: 30,
+          overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+          warmup: { minPlayersToReady: 2, minSpectatorsToReady: 0 },
+        },
+      }),
+    })
+    expect(config.players_per_team).toBe(1)
+    expect(config.min_players_to_ready).toBe(1)
+  })
+})
+
 describe('the platform ran the veto', () => {
   it('always skips the server-side veto and pins every side from the plan', () => {
     const config = buildMatchZyConfig(pugBo1())
@@ -280,8 +406,9 @@ describe('the round format rides in the config', () => {
       request: request({ rules: undefined }),
     })
     expect(config.cvars.mp_maxrounds).toBeUndefined()
-    // No rules: the manifest's full house must ready up, casters never gate.
-    expect(config.min_players_to_ready).toBe(10)
+    // No rules: the manifest's full house must ready up — ten across the
+    // match, which is MatchZy's five a side. Casters never gate.
+    expect(config.min_players_to_ready).toBe(5)
     expect(config.min_spectators_to_ready).toBe(0)
   })
 
@@ -295,7 +422,7 @@ describe('the round format rides in the config', () => {
 })
 
 describe('rosters', () => {
-  it('renders players as steamid → name, sizes teams from the manifest, spectates nobody', () => {
+  it('renders players as steamid → name, sizes teams from the roster, spectates nobody', () => {
     const config = buildMatchZyConfig(pugBo1())
     expect(config.players_per_team).toBe(5)
     expect(config.team1.name).toBe('Team hunzR')

@@ -6,6 +6,25 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.11.1 — 2026-09-19
+
+**`warmup.minPlayersToReady` gets one meaning, written down** (PRD-03 T1, for the
+platform's PRD-10 T3): it is the number of ready players **across both teams**, never per
+team. Nothing in the shape moved — two doc comments and a `.describe()` on each of the two
+warmup fields — but until now neither this package nor `docs/match-api.md` said which, and
+the two ends had picked different answers: the platform computes a total
+(`gamemodeReadyGate`), MatchZy counts per team (`GetTeamMinReady`). The total is the wire's,
+because a client can compute it from the roster it already holds without knowing which
+match plugin will run the server; the orchestrator's config builder halves it for MatchZy
+on the way in.
+
+Beside it, in the orchestrator rather than in this package: `players_per_team` is sized
+from the roster instead of from the gamemode's `teamSize`, which is what made a 1v1 pug
+impossible to start on 2026-09-18 — MatchZy passes a team only at `playerCount >=
+players_per_team`, so two people typing `!ready` at a five-a-side number waited for ever.
+A client that was already sending the right `minPlayersToReady` needs no change; a 1v1 now
+goes live.
+
 ## 0.11.0 — 2026-09-08
 
 The **fifth hardware recording**, `fixtures/recorded/real-powerup-dm-bo1.json` (PRD-02

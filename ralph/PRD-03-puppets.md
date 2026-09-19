@@ -158,7 +158,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
 
 ## Tasks
 
-- [ ] **T1 (P1): a team of one can ready up.** The 2026-09-18 stall, fixed where it
+- [x] **T1 (P1): a team of one can ready up.** The 2026-09-18 stall, fixed where it
   lives.
   - `players_per_team` comes from the roster: the larger team, capped at the manifest's
     `teamSize`. The manifest's number stands only for an unrostered match.

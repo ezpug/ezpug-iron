@@ -38,8 +38,15 @@ import { mergeCvars } from './cvars'
  *   every time, and the door (`matchzy/door.ts`) checks the events MatchZy
  *   sends carry it — a stale plugin talking about an earlier match is dropped.
  *   Get5 takes a string and gets the uuid itself.
- * - **`players_per_team` is the manifest's `teamSize`**, not the roster's
- *   length: an unrostered match (bots, an open room) still plays five a side.
+ * - **`players_per_team` is the roster's, not the manifest's** (PRD-03 T1).
+ *   MatchZy passes a team when `playerCount == readyCount && playerCount >=
+ *   players_per_team` (`references/MatchZy/ReadySystem.cs:48`), so a 1v1 sent
+ *   with the pug manifest's five could never go live however often the two
+ *   typed `!ready` — the 2026-09-18 stall. The number is the roster's now,
+ *   and the manifest's stands only where there is no roster.
+ * - **`min_players_to_ready` is per team on the plugin and per match on the
+ *   wire**, so the builder converts. {@link warmup} says which way round and
+ *   why the wire's is the total.
  */
 
 /** A team as MatchZy and Get5 both read one: `{ "<steamid64>": "<name>" }`. */
@@ -143,16 +150,54 @@ function team(roster: Roster): PluginTeamConfig {
   return { name: roster.name, players: playerMap(roster) }
 }
 
-/** The ready thresholds: the request's rules, or the manifest's full house and no caster. */
+/**
+ * **How many bodies a team must hold before it can be ready.** MatchZy reads
+ * this one number for both teams (`ReadySystem.cs` `GetPlayersPerTeam`) and
+ * refuses a team with fewer than it, so the only value every team on an
+ * uneven roster can reach is the **smaller** roster's length: a 2v1 with two
+ * would leave the single player refused for ever, which is the bug this
+ * function exists to end. `playerCount == readyCount` is what still makes
+ * everyone who *is* there say `!ready`.
+ *
+ * A match the request rosters nobody for (bots, an open room) keeps the
+ * manifest's house: there is no roster to read, and five a side is what the
+ * mode says it plays. The manifest is also the ceiling — a roster longer than
+ * the mode's seats is the request's mistake, not a gate we widen.
+ */
+function playersPerTeam({ request, manifest }: MatchConfigInput): number {
+  const rostered = [request.teams.teamA.players.length, request.teams.teamB.players.length].filter(
+    size => size > 0,
+  )
+  if (rostered.length === 0) return manifest.slots.teamSize
+  return Math.min(...rostered, manifest.slots.teamSize)
+}
+
+/** MatchZy and Get5 both count one team's ready players; team1 and team2 are all they know. */
+const PLUGIN_TEAMS = 2
+
+/**
+ * **The ready thresholds, converted.** `warmup.minPlayersToReady` on the wire
+ * is the **whole match's** count — how many rostered people must say they are
+ * ready before it goes live — because that is the number a client can compute
+ * without knowing which plugin runs the match (the platform's
+ * `gamemodeReadyGate` already computes exactly it: `min(players, seats,
+ * preset)`). MatchZy's `min_players_to_ready` is **per team**
+ * (`GetTeamMinReady`), so the builder halves the wire's, rounding up, and
+ * never lets it exceed {@link playersPerTeam} — a force-ready floor above the
+ * ordinary gate would refuse the very team it exists to let through.
+ *
+ * With no rules at all the manifest's full house is the total, as it always
+ * was. `min_spectators_to_ready` needs no conversion: spectators are one team.
+ */
 function warmup(input: MatchConfigInput): { players: number; spectators: number } {
   const { request, manifest } = input
-  if (request.rules) {
-    return {
-      players: request.rules.warmup.minPlayersToReady,
-      spectators: request.rules.warmup.minSpectatorsToReady,
-    }
+  const total = request.rules
+    ? request.rules.warmup.minPlayersToReady
+    : manifest.slots.teamSize * manifest.slots.teams
+  return {
+    players: Math.min(Math.ceil(total / PLUGIN_TEAMS), playersPerTeam(input)),
+    spectators: request.rules ? request.rules.warmup.minSpectatorsToReady : 0,
   }
-  return { players: manifest.slots.teamSize * manifest.slots.teams, spectators: 0 }
 }
 
 function common(input: MatchConfigInput) {
@@ -164,7 +209,7 @@ function common(input: MatchConfigInput) {
     map_sides: request.maps.map(mapSide),
     // The platform already vetoed; the server must not offer to do it again.
     skip_veto: true,
-    players_per_team: manifest.slots.teamSize,
+    players_per_team: playersPerTeam(input),
     min_players_to_ready: ready.players,
     min_spectators_to_ready: ready.spectators,
     team1: team(request.teams.teamA),

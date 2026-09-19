@@ -233,8 +233,8 @@ Nothing is released by pushing to a branch. Five tag prefixes, one artifact each
 | `plugins@x.y.z` | `ezpug-plugins-x.y.z.zip` on the tag's GitHub release | `plugins.yml` |
 
 ```sh
-node scripts/release.mjs version 0.11.0        # the package: bump + CHANGELOG, then commit
-git tag match-api@0.11.0     && git push origin match-api@0.11.0
+node scripts/release.mjs version 0.11.2        # the package: bump + CHANGELOG, then commit
+git tag match-api@0.11.2     && git push origin match-api@0.11.2
 node scripts/release-image.mjs plan cs2@0.1.1  # an image: what that tag would publish
 git tag cs2@0.1.1            && git push origin cs2@0.1.1
 git tag plugins@0.1.1        && git push origin plugins@0.1.1   # after the csproj's <Version>
