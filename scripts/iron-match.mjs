@@ -57,6 +57,8 @@ const HELP = `iron-match — run one real match through the Match API and record
   --map <name>           default de_dust2
   --rounds <n>           mp_maxrounds; even, default 4
   --bots <n>             bot_quota, default 10; 0 leaves the server empty
+  --format <name>        rules.format: competitive (default) or wingman, the
+                         two-a-side game — use it with --bots 4
   --no-overtime          allow a drawn map — MatchZy then replays it, so the run hangs
   --max-live-minutes <n> force-end a match still live after this long; default 35
   --base-url <url>       default $EZPUG_IRON_BASE_URL
@@ -187,6 +189,14 @@ const ROUNDS = Number(flags.get('rounds') ?? 4)
  * the interesting part and lives down in the poll loop.
  */
 const BOTS = Number(flags.get('bots') ?? 10)
+/**
+ * `rules.format` — the game the engine plays (PRD-03 T3b). `wingman` is
+ * `game_mode 2`, which MatchZy sets from the match file and which costs one
+ * map reload at the start; pair it with `--bots 4`, because the format seats
+ * two a side and a full quota would stand around with nowhere to spawn.
+ */
+const FORMAT = flags.get('format') ?? 'competitive'
+if (FORMAT !== 'competitive' && FORMAT !== 'wingman') die('--format is `competitive` or `wingman`')
 const WANT_DEMO = flags.get('no-demo') !== 'true'
 /**
  * Overtime is **on** by default and that is a finding, not a preference: with
@@ -841,7 +851,9 @@ async function run() {
     },
     ct: { weapons: [{ defindex: 60, paintId: 1231 }] },
   }
-  say(`gamemode ${GAMEMODE} v${manifest.version}: flow ${FLOW}, records ${manifest.records}`)
+  say(
+    `gamemode ${GAMEMODE} v${manifest.version}: flow ${FLOW}, records ${manifest.records}, format ${FORMAT}`,
+  )
 
   // 4. The request. Bots, four rounds, no overtime, nobody rostered — MatchZy
   //    plays it out and `css_start` is what starts it, because a bot never
@@ -871,6 +883,7 @@ async function run() {
     },
     maps: [{ map: MAP, sides: 'ct' }],
     rules: {
+      format: FORMAT,
       regulationRounds: ROUNDS,
       // **Overtime is where the wall clock goes.** Ten bots are evenly matched,
       // so a four-round map draws 2-2 more often than not and the overtime

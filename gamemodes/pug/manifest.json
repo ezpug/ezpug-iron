@@ -8,6 +8,7 @@
     "en": "The queue's game: five against five, a knife round, overtime, a demo and round backups – MatchZy runs the match."
   },
   "slots": { "teamSize": 5, "teams": 2, "openJoin": false },
+  "formats": ["competitive", "wingman"],
   "flow": "matchzy",
   "records": "demo",
   "ranked": false,
@@ -30,6 +31,6 @@
     "scoreboardRating": true
   },
   "commands": [],
-  "version": "0.1.0",
+  "version": "0.2.0",
   "sdkVersion": "0.1.0"
 }

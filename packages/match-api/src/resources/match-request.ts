@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { type MatchFormat, matchFormatSchema, WINGMAN_TEAM_SIZE } from '../vocabulary/format'
 import { gameSchema } from '../vocabulary/game'
 import { SERVER_CHAT_TEXT_MAX, teamSideSchema } from '../vocabulary/gameserver'
 import { DEFAULT_LOCALE, localeSchema } from '../vocabulary/locale'
@@ -80,8 +81,24 @@ export const mapPlanSchema = z.object({
 })
 export type MapPlan = z.infer<typeof mapPlanSchema>
 
-/** The rules a context decided — the platform's `matchRulesSchema`, verbatim. */
+/**
+ * The rules a context decided — the platform's `matchRulesSchema`, plus the
+ * two fields a server needed that a platform never had to say: `warmup.autoReady`
+ * (PRD-03 T3a) and {@link matchFormatSchema | `format`} (PRD-03 T3b). Both
+ * default, so a request written before either existed parses unchanged.
+ */
 export const matchRulesSchema = z.object({
+  /**
+   * **Which game the engine plays.** `competitive` (the default, and what a
+   * request that says nothing gets) or `wingman`; {@link matchFormatSchema}
+   * has what each means and what it does to the map. A gamemode lists the
+   * formats it can play (`GamemodeManifest.formats`); asking one for a format
+   * it does not list is `validation_failed`, never a match quietly played as
+   * the other game.
+   */
+  format: matchFormatSchema
+    .default('competitive')
+    .describe('the engine game: competitive (5v5) or wingman (2v2)'),
   /** `mp_maxrounds`, the MR format before overtime. Even, positive. */
   regulationRounds: z.number().int().positive().multipleOf(2),
   overtime: z.object({
@@ -271,6 +288,41 @@ export const matchSimOptionsSchema = z.object({
   chaos: simChaosSchema.nullable().optional(),
 })
 export type MatchSimOptions = z.infer<typeof matchSimOptionsSchema>
+
+/**
+ * **Whether a gamemode can play the format a request asks for**, decided once
+ * here so an orchestrator and the fake refuse the same requests for the same
+ * reasons (PRD-03 T3b). `undefined` means play it; anything else is a
+ * `validation_failed` with the field that has to change.
+ *
+ * Two ways a request is refused, and neither is a quiet demotion to the other
+ * game: the mode does not list the format ({@link GamemodeManifest.formats} —
+ * only some match software can switch the engine's game), and `wingman` with
+ * more than {@link WINGMAN_TEAM_SIZE} players on a side, who would arrive at a
+ * map with no spawn for them.
+ */
+export function matchFormatProblem(
+  request: Pick<MatchRequest, 'rules' | 'teams'>,
+  mode: { id: string; formats: readonly MatchFormat[] },
+): { message: string; field: string } | undefined {
+  const format = request.rules?.format
+  if (format === undefined) return undefined
+  if (!mode.formats.includes(format))
+    return {
+      message: `${mode.id} plays ${mode.formats.join(', ')}, not ${format}`,
+      field: 'rules.format',
+    }
+  if (format !== 'wingman') return undefined
+  for (const side of ['teamA', 'teamB'] as const) {
+    const rostered = request.teams[side].players.length
+    if (rostered > WINGMAN_TEAM_SIZE)
+      return {
+        message: `wingman plays ${WINGMAN_TEAM_SIZE} a side; ${side} rosters ${rostered}`,
+        field: `teams.${side}.players`,
+      }
+  }
+  return undefined
+}
 
 /** The longest a match may hold a server. The key's own ceiling may be lower. */
 export const MATCH_TTL_MINUTES_MAX = 24 * 60

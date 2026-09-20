@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MATCH_FORMATS, matchFormatSchema } from '../vocabulary/format'
 import { gameSchema } from '../vocabulary/game'
 import { localizedTextSchema } from '../vocabulary/locale'
 import { mapIdentifierSchema, mapNameSchema, workshopIdSchema } from '../vocabulary/maps'
@@ -311,6 +312,24 @@ export const gamemodeSummarySchema = z.object({
   title: localizedTextSchema,
   description: localizedTextSchema,
   slots: gamemodeSlotsSchema,
+  /**
+   * **Which engine games this mode can play** (PRD-03 T3b), in the order a
+   * client should offer them. `['competitive']` — the default, and what every
+   * manifest written before this field said — unless the match software the
+   * mode runs on can switch the engine's game, which is a property of that
+   * software and not of the request: a match plugin that loads a match file
+   * with the game in it can, a mode that plays whatever the map loaded as
+   * cannot. A request for a format outside this list is refused
+   * `validation_failed` ({@link matchFormatProblem}).
+   */
+  formats: z
+    .array(matchFormatSchema)
+    .min(1)
+    .max(MATCH_FORMATS.length)
+    .refine(formats => new Set(formats).size === formats.length, {
+      message: 'a format is listed once',
+    })
+    .default(['competitive']),
   flow: gamemodeFlowSchema,
   records: gamemodeRecordsSchema,
   /** Always false this round: the manifest states what the server records, never what counts. */

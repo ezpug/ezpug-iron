@@ -67,6 +67,7 @@
             }
           ],
           "rules": {
+            "format": "competitive",
             "regulationRounds": 4,
             "overtime": {
               "enabled": false,

@@ -64,6 +64,7 @@ import {
   hasDemoUploadUrl,
   isTerminalMatchState,
   matchDemoOutcome,
+  matchFormatProblem,
 } from '../resources'
 import type { StreamCloseCode, StreamFrame } from '../stream/frames'
 import { STREAM_CLOSE_CODES } from '../stream/frames'
@@ -854,6 +855,11 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       throw refuse('no_capable_server', `no provider advertises ${request.game}`)
     if (manifest.game !== request.game)
       throw refuse('game_unsupported', `${manifest.id} plays ${manifest.game}, not ${request.game}`)
+    // The format the engine plays, refused by the same rule the orchestrator
+    // uses (PRD-03 T3b): a wingman request only a MatchZy gamemode can play.
+    const formatProblem = matchFormatProblem(request, manifest)
+    if (formatProblem)
+      throw refuse('validation_failed', formatProblem.message, { field: formatProblem.field })
     for (const plan of request.maps) {
       if (!gamemodeAllowsMap(manifest.maps, plan.map))
         throw refuse('map_not_allowed', `${manifest.id} does not play ${plan.map}`, {

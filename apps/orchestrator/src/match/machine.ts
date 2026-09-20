@@ -28,6 +28,7 @@ import {
   isTerminalMatchState,
   MATCH_API_ERROR_STATUS,
   matchDemoOutcome,
+  matchFormatProblem,
   STREAM_CLOSE_CODES,
 } from '@ezpug/match-api'
 import {
@@ -304,6 +305,18 @@ const LAST_SEEN_WRITE_INTERVAL_MS = 5_000
 
 function refuse(code: MatchApiErrorCode, message: string, details?: Record<string, unknown>) {
   return new ApiError(MATCH_API_ERROR_STATUS[code], code, message, details)
+}
+
+/**
+ * **A format a server cannot play is a refusal, never a quiet demotion**
+ * (PRD-03 T3b). The manifest lists what a mode plays and the rule itself
+ * lives in `@ezpug/match-api` ({@link matchFormatProblem}), so the fake
+ * refuses exactly what this does and a client meets one answer wherever it
+ * asks.
+ */
+function assertFormatIsPlayable(request: MatchRequest, manifest: GamemodeManifest): void {
+  const problem = matchFormatProblem(request, manifest)
+  if (problem) throw refuse('validation_failed', problem.message, { field: problem.field })
 }
 
 function sortKeys(value: unknown): unknown {
@@ -1416,6 +1429,7 @@ export function createMatches(options: MatchesOptions): Matches {
     }
     if (manifest.game !== request.game)
       throw refuse('game_unsupported', `${manifest.id} plays ${manifest.game}, not ${request.game}`)
+    assertFormatIsPlayable(request, manifest)
     for (const plan of request.maps) {
       if (!gamemodeAllowsMap(manifest.maps, plan.map))
         throw refuse('map_not_allowed', `${manifest.id} does not play ${plan.map}`, {

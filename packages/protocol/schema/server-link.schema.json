@@ -1950,6 +1950,15 @@
       "description": "The rules a context decided.",
       "type": "object",
       "properties": {
+        "format": {
+          "default": "competitive",
+          "description": "the engine game: competitive (5v5) or wingman (2v2)",
+          "type": "string",
+          "enum": [
+            "competitive",
+            "wingman"
+          ]
+        },
         "regulationRounds": {
           "type": "integer",
           "exclusiveMinimum": 0,
@@ -2021,6 +2030,7 @@
         }
       },
       "required": [
+        "format",
         "regulationRounds",
         "overtime",
         "warmup",

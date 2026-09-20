@@ -23,10 +23,14 @@
               "teams": 2,
               "openJoin": false
             },
+            "formats": [
+              "competitive",
+              "wingman"
+            ],
             "flow": "matchzy",
             "records": "demo",
             "ranked": false,
-            "version": "0.1.0",
+            "version": "0.2.0",
             "maps": "any",
             "plugins": [
               "MatchZy"
@@ -69,6 +73,9 @@
               "teams": 2,
               "openJoin": true
             },
+            "formats": [
+              "competitive"
+            ],
             "flow": "none",
             "records": "events",
             "ranked": false,
@@ -107,6 +114,9 @@
               "teams": 2,
               "openJoin": true
             },
+            "formats": [
+              "competitive"
+            ],
             "flow": "plugin",
             "records": "events",
             "ranked": false,
@@ -164,6 +174,9 @@
               "teams": 1,
               "openJoin": true
             },
+            "formats": [
+              "competitive"
+            ],
             "flow": "plugin",
             "records": "events",
             "ranked": false,
@@ -314,6 +327,7 @@
             }
           ],
           "rules": {
+            "format": "competitive",
             "regulationRounds": 4,
             "overtime": {
               "enabled": false,
@@ -424,6 +438,7 @@
             }
           ],
           "rules": {
+            "format": "competitive",
             "regulationRounds": 4,
             "overtime": {
               "enabled": false,

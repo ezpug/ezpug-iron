@@ -171,15 +171,17 @@ export type SequencedEvent = z.infer<typeof sequencedEventSchema>
 /**
  * What a gamemode looks like once the orchestrator has resolved it for one
  * assignment: the manifest as shipped (`@ezpug/match-api`'s
- * `GamemodeManifest`) minus the two blocks a server never reads — the map
- * allow-list (the request's map plan already passed it) and the widget
- * bundle (the orchestrator serves that to browsers). Everything else is
- * verbatim, defaults filled, so the loader and the SDK's command table read
- * the same fields `docs/gamemodes.md` documents.
+ * `GamemodeManifest`) minus the three blocks a server never reads — the map
+ * allow-list (the request's map plan already passed it), the widget bundle
+ * (the orchestrator serves that to browsers) and the formats the mode can
+ * play (a catalog fact for whoever builds the request; the match this server
+ * was handed already decided, and the format travels in its match config).
+ * Everything else is verbatim, defaults filled, so the loader and the SDK's
+ * command table read the same fields `docs/gamemodes.md` documents.
  */
 export const assignedGamemodeSchema = z
   .object(gamemodeManifestSchema.shape)
-  .omit({ maps: true, widget: true })
+  .omit({ maps: true, widget: true, formats: true })
 export type AssignedGamemode = z.infer<typeof assignedGamemodeSchema>
 
 // ---------------------------------------------------------------------------

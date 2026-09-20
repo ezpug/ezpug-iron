@@ -1758,21 +1758,33 @@ public sealed record MapPlan
 /// <summary>The rules a context decided.</summary>
 public sealed record MatchRules
 {
-    [JsonPropertyName("regulationRounds")]
+    [JsonPropertyName("format")]
     [JsonPropertyOrder(0)]
+    public MatchRulesFormat Format { get; init; } = MatchRulesFormat.Competitive;
+
+    [JsonPropertyName("regulationRounds")]
+    [JsonPropertyOrder(1)]
     public required long RegulationRounds { get; init; }
 
     [JsonPropertyName("overtime")]
-    [JsonPropertyOrder(1)]
+    [JsonPropertyOrder(2)]
     public required MatchRulesOvertime Overtime { get; init; }
 
     [JsonPropertyName("warmup")]
-    [JsonPropertyOrder(2)]
+    [JsonPropertyOrder(3)]
     public required MatchRulesWarmup Warmup { get; init; }
 
     [JsonPropertyName("cvars")]
-    [JsonPropertyOrder(3)]
+    [JsonPropertyOrder(4)]
     public Dictionary<string, string> Cvars { get; init; } = new();
+}
+
+public enum MatchRulesFormat
+{
+    [JsonStringEnumMemberName("competitive")]
+    Competitive,
+    [JsonStringEnumMemberName("wingman")]
+    Wingman,
 }
 
 /// <summary>The <c>overtime</c> block of <see cref="MatchRules"/>.</summary>

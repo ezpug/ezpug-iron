@@ -107,13 +107,38 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `gamemode`     | kebab id                                               | from `GET /v1/gamemodes` |
 | `teams`        | `{ teamA, teamB }`, each `{ name, players: RosterEntry[] }` | rosters may be empty for an open-join mode; a SteamID may appear once |
 | `maps`         | `{ map, sides: ct \| t \| knife }[]`, ≥1               | `sides` is where **team A** starts; every `map` inside the gamemode's `maps` |
-| `rules?`       | `{ regulationRounds, overtime, warmup, cvars }`        | absent = the gamemode's defaults. `warmup` is `{ minPlayersToReady, minSpectatorsToReady, autoReady }`, the last defaulting to `true` |
+| `rules?`       | `{ format, regulationRounds, overtime, warmup, cvars }` | absent = the gamemode's defaults. `format` is `competitive \| wingman`, defaulting to `competitive`. `warmup` is `{ minPlayersToReady, minSpectatorsToReady, autoReady }`, the last defaulting to `true` |
 | `requirements` | `{ region?, lan?, preferLan?, simulated?, provider? }` | every field narrows except `preferLan`, which only ranks; default `{}`. `lan` and `preferLan` together are `validation_failed` |
 | `callbacks`    | `{ webhookUrl, webhookSecretId, demoUploadUrl?, demoUploadUrls?, streamAllowedOrigins? }` | `webhookSecretId` names a secret registered on the key; `demoUploadUrl` is a presigned PUT, `demoUploadUrls` is one per map (`{ mapNumber, url }[]`, ≤16) |
 | `warmupLines?` | string[] ≤20                                           | printed in warmup, one every eight seconds, in order and cycling; rendered by the client (one line everybody reads cannot be four languages), relayed unbranded, sanitized to one chat line |
 | `branding?`    | `{ hostname?, eventName? }`                            | decision 22 |
 | `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos? }`      | honoured on the `sim` provider only |
 | `ttlMinutes`   | int, 1…1440                                            | the reaper's deadline; never above the key's ceiling |
+
+**`rules.format` is which game the engine plays**, and there are two (PRD-03 T3b, owner
+decision 2026-09-19).
+
+- `competitive` — CS2's `game_mode 1`, the five-a-side game, **played at whatever size the
+  roster holds**. A **1v1 is this**: one player a side, short rules, and the ready gate the
+  roster derives. There is no `1v1` format and there does not need to be one.
+- `wingman` — CS2's `game_mode 2`, the two-a-side game. MatchZy switches the engine mode
+  from the match file and execs its `live_wingman.cfg` (MR8, a smaller overtime) instead
+  of `live.cfg`, so **the map is loaded again** when the server was not already in that
+  mode: a wingman match costs one map change before warmup. Your `rules` still win over
+  that cfg — they are re-applied after it — so send the rounds you mean.
+
+**Wingman seats two a side, and the map is yours to name.** A roster with a third player
+on a side is refused `validation_failed` on `teams.<side>.players`, because the engine's
+wingman layouts hold two spawns for a team. This API keeps **no separate wingman map
+catalog and never substitutes a map**: `maps[].map` is loaded as asked under `game_mode
+2`. A Valve map that ships a wingman layout plays it (the short half, one bomb site); one
+that ships none loads whole — legal and playable, but not the game a wingman player
+expects, so name a wingman map (`de_lake`, `de_shortdust`, …) when that is what you mean.
+
+Only a gamemode whose manifest says `flow: "matchzy"`, on `cs2`, can play wingman: the
+switch travels in MatchZy's own match file, and a mode that runs its own flow has nowhere
+to put it. Asking anyway is `validation_failed` on `rules.format` — never a match quietly
+played as the other game.
 
 **The ready gate counts the match, not a team.** `rules.warmup.minPlayersToReady` is how
 many players **across both teams** must be ready before the match goes live, and

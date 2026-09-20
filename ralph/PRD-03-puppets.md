@@ -234,7 +234,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - `matchzy_autoready_simulation_enabled` (`:92`, spawns two bots) is one more switch
     for T2's off-list.
 
-- [ ] **T3b: 1v1 and wingman on the wire** (owner decision, 2026-09-19: both presets, and
+- [x] **T3b: 1v1 and wingman on the wire** (owner decision, 2026-09-19: both presets, and
   every configured size works).
   - The platform already has a `wingman` preset and is adding `1v1` (PRD-10 T2a).
   - **Wingman.** MatchZy's match JSON has `wingman: true`, which switches `game_mode` and

@@ -26,6 +26,9 @@
           "teams": 1,
           "openJoin": true
         },
+        "formats": [
+          "competitive"
+        ],
         "flow": "plugin",
         "records": "events",
         "ranked": false,
@@ -132,6 +135,7 @@
             }
           ],
           "rules": {
+            "format": "competitive",
             "regulationRounds": 2,
             "overtime": {
               "enabled": false,

@@ -139,6 +139,7 @@
             }
           ],
           "rules": {
+            "format": "competitive",
             "regulationRounds": 2,
             "overtime": {
               "enabled": false,

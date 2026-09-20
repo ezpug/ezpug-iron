@@ -212,6 +212,72 @@ describe('the walk', () => {
   })
 })
 
+/**
+ * **Wingman is refused where it cannot be played** (PRD-03 T3b). The format
+ * is one field on the wire and three things on the server, so the request
+ * that cannot become those three is answered at the door with the field to
+ * change — never allocated, never played as the other game.
+ */
+describe('the format the engine plays', () => {
+  const wingman = (overrides: Partial<MatchRequestInput> = {}) =>
+    request({
+      teams: {
+        teamA: { name: 'Team hunzR', players: roster(TEAM_A.slice(0, 2), 0) },
+        teamB: { name: 'Team wickeD', players: roster(TEAM_B.slice(0, 2), 100) },
+      },
+      rules: {
+        format: 'wingman',
+        regulationRounds: 2,
+        overtime: { enabled: false, maxRounds: 2, startMoney: 10_000 },
+        warmup: { minPlayersToReady: 4, minSpectatorsToReady: 0 },
+      },
+      ...overrides,
+    })
+
+  it('plays a 2v2 wingman pug, and says so in the match file', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, wingman())
+    await app.settle()
+    const row = app.store.rows.matches.find(r => r.id === match.id)
+    expect(row?.requestJson.rules?.format).toBe('wingman')
+    expect(row?.state).not.toBe('failed')
+    await app.close()
+  })
+
+  it('refuses a gamemode that runs its own flow, naming the field', async () => {
+    const app = createTestApp()
+    const { key } = await platformKey(app)
+    // `flying-scoutsman` is a cfg-only mode (`flow: "none"`): there is no
+    // MatchZy match file to carry a wingman switch.
+    const error = await refused(app.matches.create(key, wingman({ gamemode: 'flying-scoutsman' })))
+    expect(error.code).toBe('validation_failed')
+    expect(error.details).toEqual({ field: 'rules.format' })
+    expect(error.message).toContain('wingman')
+    expect(app.store.rows.matches).toHaveLength(0)
+    await app.close()
+  })
+
+  it('refuses a third player on a side — wingman seats two', async () => {
+    const app = createTestApp()
+    const { key } = await platformKey(app)
+    const error = await refused(
+      app.matches.create(
+        key,
+        wingman({
+          teams: {
+            teamA: { name: 'Team hunzR', players: roster(TEAM_A.slice(0, 3), 0) },
+            teamB: { name: 'Team wickeD', players: roster(TEAM_B.slice(0, 2), 100) },
+          },
+        }),
+      ),
+    )
+    expect(error.code).toBe('validation_failed')
+    expect(error.details).toEqual({ field: 'teams.teamA.players' })
+    await app.close()
+  })
+})
+
 describe('deadlines', () => {
   it('fails provider_error when the server never boots', async () => {
     const app = createTestApp({ sim: { scenario: 'never-ready', positionTickIntervalMs: null } })

@@ -48,6 +48,7 @@ export const EMPTY_TEAMS = {
 
 /** The shortest rules that still play a whole map: MR1, no overtime. */
 export const SHORT_RULES: MatchRules = {
+  format: 'competitive',
   regulationRounds: 2,
   overtime: { enabled: false, maxRounds: 2, startMoney: 10_000 },
   warmup: { minPlayersToReady: 10, minSpectatorsToReady: 0, autoReady: true },
@@ -878,6 +879,71 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         'a refused request left no match behind',
         listed.items.length === 0,
         `${listed.items.length} matches`,
+      )
+    },
+  },
+
+  {
+    id: 'wingman-format',
+    title: 'the two-a-side game is played where it can be, and refused where it cannot',
+    needs: [],
+    async run(ctx) {
+      // A wingman pug is an ordinary match with one more field, so an
+      // implementation that cannot play the format must say so at the door
+      // rather than quietly playing the five-a-side game instead.
+      const duo = {
+        teamA: { name: 'Team hunzR', players: conformanceRoster(TEAM_A_NAMES.slice(0, 2), 0) },
+        teamB: { name: 'Team wickeD', players: conformanceRoster(TEAM_B_NAMES.slice(0, 2), 100) },
+      }
+      const wingmanRules = { ...SHORT_RULES, format: 'wingman' as const }
+      const body = ctx.request({ teams: duo, rules: wingmanRules })
+      const created = await ctx.api.matches.create({ body })
+      ctx.require('a wingman pug is accepted', UUID.test(created.id), created.id)
+      await ctx.api.matches.cancel({ params: { matchId: created.id } })
+
+      // `flying-scoutsman` runs no match plugin of its own (`flow: "none"`),
+      // so there is nothing on that server to switch the engine game.
+      const wrongFlow = await refusal(
+        ctx,
+        'a gamemode that runs its own flow refuses wingman',
+        ctx.api.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-wingman-format-flow',
+            gamemode: 'flying-scoutsman',
+            teams: duo,
+            rules: wingmanRules,
+          }),
+        }),
+      )
+      ctx.check(
+        'the refusal is validation_failed on rules.format',
+        wrongFlow.code === 'validation_failed' && wrongFlow.details?.field === 'rules.format',
+        `${wrongFlow.code} ${JSON.stringify(wrongFlow.details)}`,
+      )
+
+      // Wingman seats two; a third player would arrive at a map with no
+      // spawn for them, so the roster is what is refused, by name.
+      const tooMany = await refusal(
+        ctx,
+        'a third player on a side refuses wingman',
+        ctx.api.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-wingman-format-size',
+            teams: {
+              teamA: {
+                name: 'Team hunzR',
+                players: conformanceRoster(TEAM_A_NAMES.slice(0, 3), 0),
+              },
+              teamB: duo.teamB,
+            },
+            rules: wingmanRules,
+          }),
+        }),
+      )
+      ctx.check(
+        'the refusal names the roster that is too long',
+        tooMany.code === 'validation_failed' && tooMany.details?.field === 'teams.teamA.players',
+        `${tooMany.code} ${JSON.stringify(tooMany.details)}`,
       )
     },
   },

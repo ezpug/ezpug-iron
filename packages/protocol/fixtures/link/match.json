@@ -70,7 +70,7 @@
           "flow": "matchzy",
           "records": "demo",
           "ranked": false,
-          "version": "0.1.0",
+          "version": "0.2.0",
           "plugins": [
             "MatchZy"
           ],
@@ -165,6 +165,7 @@
           }
         ],
         "rules": {
+          "format": "competitive",
           "regulationRounds": 2,
           "overtime": {
             "enabled": false,

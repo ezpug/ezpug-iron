@@ -6,6 +6,40 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.14.0 — 2026-09-20
+
+**Wingman, and every size in between** (PRD-03 T3b, for the platform's PRD-10 T2a):
+`rules.format`, either `competitive` (the default) or `wingman`. Additive — a request
+written before this field existed parses unchanged and is competitive, which is the only
+thing it could ever have meant.
+
+- **`competitive` is the five-a-side game at whatever size the roster holds.** A **1v1 is
+  this**, not a format of its own: one player a side, short rules, and the ready gate the
+  roster derives (0.11.1). There is no `1v1` value and there does not need to be one — a
+  `1v1` *preset* is yours, and it sends the rounds and the gate, not a format.
+- **`wingman` is CS2's two-a-side game** (`game_mode 2`). The server execs MatchZy's
+  `live_wingman.cfg` (MR8, a smaller overtime) instead of `live.cfg` and **loads the map
+  again** when it was not already in that mode, so a wingman match costs one map change
+  before warmup. Your `rules` still win over that cfg — they are re-applied after it — so
+  send the rounds you mean rather than relying on MR8.
+
+Two refusals come with it, both `validation_failed` and both at the door, because a format
+a server cannot play must never be quietly demoted to the other game:
+
+- `rules.format` — only a gamemode whose manifest says `flow: "matchzy"`, on `cs2`, can
+  play wingman. The switch rides in MatchZy's own match file; a mode that runs its own
+  flow has nowhere to put it.
+- `teams.<side>.players` — **wingman seats two a side.** The engine's wingman layouts hold
+  two spawns for a team, so a third rostered player is refused rather than sent to a map
+  with nowhere to put them.
+
+**Maps stay yours to name.** This API keeps no separate wingman catalog and never
+substitutes a map: `maps[].map` is loaded as asked under `game_mode 2`. A Valve map that
+ships a wingman layout plays it (the short half, one bomb site); one that ships none loads
+whole — legal and playable, but not the game a wingman player expects. Name a wingman map
+(`de_lake`, `de_shortdust`, …) when that is what you mean, and say so on the screen where
+somebody picks the format.
+
 ## 0.13.0 — 2026-09-20
 
 **Nobody has to type `.ready`** (PRD-03 T3a, for the platform's PRD-10 T4):

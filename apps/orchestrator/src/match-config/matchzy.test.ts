@@ -114,6 +114,32 @@ function csgoBo1(): MatchConfigInput {
 }
 
 /**
+ * **The 2v2 the rooms default to** (PRD-03 T3b): `rules.format: 'wingman'`,
+ * knife for sides, MR8 — the platform's own `wingman` preset, on a full map,
+ * which is what a person picking "wingman" on ezpug.com builds today.
+ */
+function wingmanBo1(): MatchConfigInput {
+  return {
+    matchId: 'e4c1a9b8-3d27-4f65-9a08-1b2c3d4e5f60',
+    request: request({
+      clientMatchId: 'platform-match-212',
+      teams: {
+        teamA: { name: 'Team hunzR', players: TEAM_A.slice(0, 2) },
+        teamB: { name: 'Team Bommelmann', players: TEAM_B.slice(0, 2) },
+      },
+      maps: [{ map: 'de_mirage', sides: 'knife' }],
+      rules: {
+        format: 'wingman',
+        regulationRounds: 16,
+        overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+        warmup: { minPlayersToReady: 4, minSpectatorsToReady: 0 },
+      },
+    }),
+    manifest: shippedGamemode('pug'),
+  }
+}
+
+/**
  * MatchZy's own `ValidateMatchJsonStructure`
  * (`references/MatchZy/MatchManagement.cs`), transcribed. A config we emit
  * has to survive the parser that will load it — the goldens pin the *shape*,
@@ -170,6 +196,10 @@ describe('golden fixtures — the wire format', () => {
     expect(buildMatchZyConfig(knifeBo3())).toEqual(golden('matchzy-knife-bo3'))
   })
 
+  it('builds the wingman Bo1 MatchZy file byte for byte', () => {
+    expect(buildMatchZyConfig(wingmanBo1())).toEqual(golden('matchzy-wingman-bo1'))
+  })
+
   it('builds the CS:GO Bo1 Get5 file byte for byte', () => {
     expect(buildGet5Config(csgoBo1())).toEqual(golden('get5-bo1'))
   })
@@ -177,6 +207,7 @@ describe('golden fixtures — the wire format', () => {
   it('emits configs MatchZy own validator accepts', () => {
     expect(matchZyValidationError(buildMatchZyConfig(pugBo1()))).toBe('')
     expect(matchZyValidationError(buildMatchZyConfig(knifeBo3()))).toBe('')
+    expect(matchZyValidationError(buildMatchZyConfig(wingmanBo1()))).toBe('')
   })
 
   it('round-trips through JSON — nothing on the wire is undefined or a Map', () => {
@@ -334,6 +365,104 @@ describe('a team of one can ready up', () => {
     })
     expect(config.players_per_team).toBe(1)
     expect(config.min_players_to_ready).toBe(1)
+  })
+})
+
+/**
+ * **Wingman on the wire** (PRD-03 T3b, owner decision 2026-09-19). One field
+ * in the request, `rules.format`, and three things on the server: `game_mode
+ * 2`, `live_wingman.cfg` instead of `live.cfg`, and a map loaded again when
+ * the box was not already in that mode (`Utility.cs` `SetCorrectGameMode`,
+ * `IsMapReloadRequiredForGameMode`). The builder's whole share of it is the
+ * `wingman` boolean and a seat count of two; the refusals for a format a
+ * gamemode cannot play live at the door (`match/machine.ts`).
+ */
+describe('wingman is a format, not a gamemode', () => {
+  it('sets MatchZy’s wingman flag only when the request asks for it', () => {
+    expect(buildMatchZyConfig(wingmanBo1()).wingman).toBe(true)
+    expect(buildMatchZyConfig(pugBo1()).wingman).toBe(false)
+    expect(buildMatchZyConfig(knifeBo3()).wingman).toBe(false)
+  })
+
+  it('plays the five-a-side game for a request that says nothing', () => {
+    // Additive: a request written before the field existed parses and is
+    // competitive, which is the only thing it could ever have meant.
+    expect(request().rules?.format).toBe('competitive')
+    expect(
+      buildMatchZyConfig({ ...pugBo1(), request: request({ rules: undefined }) }).wingman,
+    ).toBe(false)
+  })
+
+  it('seats two a side however many the mode’s manifest holds', () => {
+    // The pug manifest says five; wingman says two, and MatchZy reads one
+    // number for both teams. An unrostered wingman match waits for two.
+    const unrostered = buildMatchZyConfig({
+      ...wingmanBo1(),
+      request: request({
+        teams: { teamA: { name: 'CT', players: [] }, teamB: { name: 'T', players: [] } },
+        rules: {
+          format: 'wingman',
+          regulationRounds: 16,
+          overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+          warmup: { minPlayersToReady: 4, minSpectatorsToReady: 0 },
+        },
+      }),
+    })
+    expect(unrostered.players_per_team).toBe(2)
+    expect(buildMatchZyConfig(wingmanBo1()).players_per_team).toBe(2)
+  })
+
+  it('goes live once a 2v2 readies, and once a 1v1 wingman pair does', () => {
+    const duo = buildMatchZyConfig(wingmanBo1())
+    expect(goesLiveOnceEverybodyReadies(duo)).toBe(true)
+    expect(duo.min_players_to_ready).toBe(2)
+    const solo = buildMatchZyConfig({
+      ...wingmanBo1(),
+      request: request({
+        teams: {
+          teamA: { name: 'Team hunzR', players: TEAM_A.slice(0, 1) },
+          teamB: { name: 'Team Bommelmann', players: TEAM_B.slice(0, 1) },
+        },
+        rules: {
+          format: 'wingman',
+          regulationRounds: 16,
+          overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+          warmup: { minPlayersToReady: 2, minSpectatorsToReady: 0 },
+        },
+      }),
+    })
+    expect(solo.players_per_team).toBe(1)
+    expect(goesLiveOnceEverybodyReadies(solo)).toBe(true)
+  })
+
+  it('loads the map the request named — there is no wingman catalog here', () => {
+    // Valve's short maps are named like any other; a full map under
+    // `game_mode 2` is the client's choice and is passed through unchanged.
+    expect(buildMatchZyConfig(wingmanBo1()).maplist).toEqual(['de_mirage'])
+    expect(
+      buildMatchZyConfig({
+        ...wingmanBo1(),
+        request: request({
+          maps: [{ map: 'de_lake', sides: 'knife' }],
+          rules: {
+            format: 'wingman',
+            regulationRounds: 16,
+            overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+            warmup: { minPlayersToReady: 4, minSpectatorsToReady: 0 },
+          },
+        }),
+      }).maplist,
+    ).toEqual(['de_lake'])
+  })
+
+  it('carries the request’s MR8 over the wingman live cfg’s own MR8', () => {
+    // `live_wingman.cfg` says `mp_maxrounds 16` and MatchZy re-applies the
+    // config's cvars after it; the rules are still what decide the format.
+    expect(buildMatchZyConfig(wingmanBo1()).cvars.mp_maxrounds).toBe('16')
+  })
+
+  it('never says wingman to Get5, which has no such field', () => {
+    expect(buildGet5Config(csgoBo1())).not.toHaveProperty('wingman')
   })
 })
 

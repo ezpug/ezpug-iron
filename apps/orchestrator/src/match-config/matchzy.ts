@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto'
-import type { GamemodeManifest, MapPlan, MatchRequest, Roster } from '@ezpug/match-api'
+import {
+  type GamemodeManifest,
+  type MapPlan,
+  type MatchRequest,
+  type Roster,
+  WINGMAN_TEAM_SIZE,
+} from '@ezpug/match-api'
 import { mergeCvars } from './cvars'
 
 /**
@@ -47,6 +53,12 @@ import { mergeCvars } from './cvars'
  * - **`min_players_to_ready` is per team on the plugin and per match on the
  *   wire**, so the builder converts. {@link warmup} says which way round and
  *   why the wire's is the total.
+ * - **`wingman` is the request's `rules.format`** (PRD-03 T3b). MatchZy sets
+ *   `game_mode 2` from it and execs `live_wingman.cfg` instead of `live.cfg`,
+ *   reloading the map when the server is not already in that mode
+ *   (`Utility.cs` `SetCorrectGameMode`, `IsMapReloadRequiredForGameMode`).
+ *   Get5 has no such field, and a `csgo` wingman request is refused at the
+ *   door rather than silently played straight (`match/machine.ts`).
  * - **The fork's own switches ride in `cvars`, above everything else**
  *   (PRD-03 T3a). {@link matchzyCvars} is the layer: what a *match* decides
  *   about MatchZy-Enhanced, as against what the image's cfg decides about the
@@ -139,6 +151,15 @@ export function matchzySerial(matchId: string): number {
   return serial === 0 ? 1 : serial
 }
 
+/**
+ * Whether this match is CS2's two-a-side game. The wire says it once, in
+ * `rules.format`; a request with no rules at all plays the five-a-side game,
+ * which is what every request before the field existed meant.
+ */
+function isWingman(request: MatchRequest): boolean {
+  return request.rules?.format === 'wingman'
+}
+
 /** MatchZy / Get5 `map_sides` vocabulary. Team A is `team1`. */
 function mapSide(plan: MapPlan): string {
   return plan.sides === 'knife' ? 'knife' : `team1_${plan.sides}`
@@ -169,11 +190,17 @@ function team(roster: Roster): PluginTeamConfig {
  * the mode's seats is the request's mistake, not a gate we widen.
  */
 function playersPerTeam({ request, manifest }: MatchConfigInput): number {
+  // Wingman is two a side whatever the mode's seats say, so an unrostered
+  // wingman match waits for two rather than the pug manifest's five.
+  const seats =
+    request.rules?.format === 'wingman'
+      ? Math.min(manifest.slots.teamSize, WINGMAN_TEAM_SIZE)
+      : manifest.slots.teamSize
   const rostered = [request.teams.teamA.players.length, request.teams.teamB.players.length].filter(
     size => size > 0,
   )
-  if (rostered.length === 0) return manifest.slots.teamSize
-  return Math.min(...rostered, manifest.slots.teamSize)
+  if (rostered.length === 0) return seats
+  return Math.min(...rostered, seats)
 }
 
 /** MatchZy and Get5 both count one team's ready players; team1 and team2 are all they know. */
@@ -256,7 +283,7 @@ export function buildMatchZyConfig(input: MatchConfigInput): MatchZyMatchConfig 
     skip_veto: shared.skip_veto,
     // Bo1 makes this moot; a Bo3 ends at 2–0 rather than playing a dead map.
     clinch_series: true,
-    wingman: false,
+    wingman: isWingman(input.request),
     players_per_team: shared.players_per_team,
     min_players_to_ready: shared.min_players_to_ready,
     min_spectators_to_ready: shared.min_spectators_to_ready,

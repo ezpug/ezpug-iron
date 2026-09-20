@@ -51,6 +51,7 @@ same data.
 | `tier` | `config`, `plugin` or `sdk` — see above |
 | `title`, `description` | `{ de, en }`, both always present, German first. The card's headline and its one paragraph |
 | `slots` | how many people play and how they arrive — `teamSize`, `teams`, `openJoin`, below |
+| `formats` | which engine games the mode plays, in the order a client offers them: `["competitive"]` unless the mode's match software can switch the engine's game (`pug` also plays `wingman`, CS2's two-a-side game). A request whose `rules.format` is outside the list is refused `validation_failed` at the door, never played as the other game; a manifest that says nothing plays `competitive` |
 | `flow` | who owns match flow. `matchzy`: MatchZy runs ready-up, knife, live, the series; its events are translated into the vocabulary once, by the orchestrator, off the HTTP remote log the core plugin points at it ("The `matchzy` flow" below). `plugin`: the mode's plugin may speak `going_live`, `round_end`, `map_end`, `series_end` itself, and the SDK's generic emitter speaks for it when it does not. `none`: no plugin at all — the generic emitter is the whole story ("The generic flow" below) |
 | `records` | `demo`: a demo is recorded and uploaded to the request's `demoUploadUrl` **by the server** (MatchZy records for a `matchzy` flow, the SDK for any other; the core plugin always owns the PUT), `demo.uploaded` follows, the match waits for it past `series_end`, and every durable event flows. `events`: the durable events only. `none`: orchestration facts only; the game's events still stream live but nothing is promised durably. Positions and chat are never records |
 | `ranked` | always `false`. The manifest states what the server records, never what counts |
@@ -140,6 +141,12 @@ is:
   own `live.cfg` resets the round format and MatchZy re-applies its config's cvars after
   it. `matchid` is a positive 31-bit serial folded from the match id (MatchZy parses an
   `int`). No secret and no hostname in it.
+- **Only a `matchzy` mode plays a `rules.format` other than `competitive`** (PRD-03 T3b).
+  `wingman` is a field in that same match file — MatchZy sets `game_mode 2` from it, execs
+  `live_wingman.cfg` and reloads the map when the server was not already in that mode — so
+  a `plugin` or `none` mode asking for it is refused `validation_failed` at the door rather
+  than played as the five-a-side game. The format also caps the seats the config asks for
+  at two a side, whatever the manifest's `teamSize` says.
 - **The core plugin writes and loads it** when the map is up, adds
   `matchzy_hostname_format` (MatchZy rewrites the hostname from that cvar every round),
   and *then* points MatchZy's remote log at the orchestrator's door `POST /matchzy/log`
