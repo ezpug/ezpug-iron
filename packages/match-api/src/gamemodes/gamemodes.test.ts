@@ -59,6 +59,7 @@ function sdkManifest(overrides: Partial<GamemodeManifestInput> = {}): GamemodeMa
       widget: true,
       backups: false,
       scoreboardRating: false,
+      simulation: false,
     },
     commands: [{ name: 'tap', title: { de: 'Tippen', en: 'Tap' } }],
     widget: { entry: 'widget/test-mode.js', needs: ['tokens', 'locale', 'playerToken'] },

@@ -110,6 +110,11 @@ public sealed record GameserverSource
     [JsonPropertyName("serverId")]
     [JsonPropertyOrder(1)]
     public required string ServerId { get; init; }
+
+    [JsonPropertyName("simulated")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Simulated { get; init; }
 }
 
 /// <summary>A player as a gameserver sees one: SteamID64, in-game name, slot.</summary>
@@ -1908,6 +1913,10 @@ public sealed record GamemodeCapabilities
     [JsonPropertyName("scoreboardRating")]
     [JsonPropertyOrder(5)]
     public required bool ScoreboardRating { get; init; }
+
+    [JsonPropertyName("simulation")]
+    [JsonPropertyOrder(6)]
+    public bool Simulation { get; init; } = false;
 }
 
 /// <summary>What a charge is counted against.</summary>
@@ -1997,6 +2006,8 @@ public enum GamemodeCapability
     Backups,
     [JsonStringEnumMemberName("scoreboardRating")]
     ScoreboardRating,
+    [JsonStringEnumMemberName("simulation")]
+    Simulation,
 }
 
 /// <summary>The versions a server runs.</summary>

@@ -128,7 +128,7 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.14.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.15.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -142,12 +142,15 @@ platform's own commit to make: none of 0.10.0, 0.10.1, 0.11.0 or 0.11.1 moved a 
 route or a default — two added a hardware recording, one repaired a conformance flow, and
 0.11.1 wrote down what `warmup.minPlayersToReady` counts (PRD-03 T1) — so nothing over
 there breaks by standing still, and `packages/match-api/CHANGELOG.md` is what its author
-reads before moving the number. 0.12.0, 0.13.0 and 0.14.0 are all additive too — six
-gameserver event types (PRD-03 T3), `rules.warmup.autoReady` (T3a) and `rules.format`
-(T3b) — and three platform tasks want them: PRD-10 T4 for the ready board (which cannot
-draw the gate without the first, nor say the right empty state without the second) and
-PRD-10 T2a for the `wingman` preset, whose wire meaning is the third. The platform's
-PRD-10 T3 is the task that moves this pin.
+reads before moving the number. 0.12.0, 0.13.0, 0.14.0 and 0.15.0 are all additive too —
+six gameserver event types (PRD-03 T3), `rules.warmup.autoReady` (T3a), `rules.format`
+(T3b) and the puppets switch (T4: `simulation` on the request, the `simulation` scope,
+`capabilities.simulation`, `Match.simulated` and `source.simulated`) — and five platform
+tasks want them: PRD-10 T4 for the ready board (which cannot draw the gate without the
+first, nor say the right empty state without the second), PRD-10 T2a for the `wingman`
+preset, whose wire meaning is the third, and PRD-10 T7 and T8, which cannot skip a
+simulated match nor start one without the fourth. The platform's PRD-10 T3 is the task
+that moves this pin.
 
 ## Bumping one
 

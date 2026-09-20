@@ -30,7 +30,7 @@
             "flow": "matchzy",
             "records": "demo",
             "ranked": false,
-            "version": "0.2.0",
+            "version": "0.3.0",
             "maps": "any",
             "plugins": [
               "MatchZy"
@@ -51,7 +51,8 @@
               "playerCommands": false,
               "widget": false,
               "backups": true,
-              "scoreboardRating": true
+              "scoreboardRating": true,
+              "simulation": true
             },
             "commands": [],
             "sdkVersion": "0.1.0"
@@ -92,7 +93,8 @@
               "playerCommands": false,
               "widget": false,
               "backups": false,
-              "scoreboardRating": false
+              "scoreboardRating": false,
+              "simulation": false
             },
             "commands": [],
             "sdkVersion": "0.1.0"
@@ -152,7 +154,8 @@
               "playerCommands": false,
               "widget": false,
               "backups": false,
-              "scoreboardRating": true
+              "scoreboardRating": true,
+              "simulation": false
             },
             "commands": [],
             "sdkVersion": "0.1.0"
@@ -214,7 +217,8 @@
               "playerCommands": true,
               "widget": true,
               "backups": false,
-              "scoreboardRating": false
+              "scoreboardRating": false,
+              "simulation": false
             },
             "commands": [
               {
@@ -369,7 +373,8 @@
         "endedAt": null,
         "expiresAt": "2026-09-05T20:00:00.000Z",
         "endedReason": null,
-        "sim": null
+        "sim": null,
+        "simulated": false
       }
     },
     {
@@ -480,7 +485,8 @@
         "endedAt": null,
         "expiresAt": "2026-09-05T20:00:00.000Z",
         "endedReason": null,
-        "sim": null
+        "sim": null,
+        "simulated": false
       }
     },
     {

@@ -6,6 +6,51 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.15.0 — 2026-09-20
+
+**Puppets** (PRD-03 T4, for the platform's PRD-10 T7 and T8): a match request may ask to
+be played by simulated players, and every fact of such a match says so. Additive — a
+request written before this release parses unchanged and is a real match, a `Match` read
+from an older orchestrator reads `simulated: false`, and a client that ignores a field it
+does not know needs no change.
+
+- **`MatchRequest.simulation`**, `{ scenario?, timeScale? }`. Every rostered player is
+  played by a puppet: a body on the server carrying that entry's SteamID and name, that
+  connects, readies up through the match plugin's own ready system, plays and leaves by
+  the doors a human takes. All or nothing this round — there is no "these two are humans"
+  field, because MatchZy-Enhanced fills every seat or none and a field a server cannot
+  honour would be a lie. A roster with nobody on it is refused `validation_failed` on
+  `teams`. `scenario` is a name from `GET /v1/sim/scenarios`, the same catalog `sim.scenario`
+  reads (one scenario language; naming a different story in each is `validation_failed` on
+  `simulation.scenario`); `timeScale` is the engine's `host_timescale`, `0.1…10`, `1` when
+  unsaid. It is **not** the `sim` block: that steers the simulator provider, this asks a
+  real server to play without people and **costs what a real server costs**.
+- **The `simulation` scope.** A fourth key scope, the first that no route requires: `POST
+  /v1/matches` still needs `matches`, and a body carrying `simulation` needs this one on
+  top — refused `forbidden` with `details.scope: "simulation"` before anything else about
+  the body is judged. `admin` implies it like the others. **Your production key does not
+  hold it and should not**: that is how a real match can never be a simulated one by
+  accident. Mint a second key with `["matches", "simulation"]` for the test door (PRD-10 T8)
+  and the lane.
+- **`GamemodeManifest.capabilities.simulation`**, a seventh capability, default `false`.
+  A request with `simulation` to a mode without it is `validation_failed` on `simulation`
+  at the door — never a server waiting in warmup for people who are not coming. `pug`
+  claims it (manifest `0.3.0`); the SDK modes will when the SDK seats a puppet (PRD-03 T7).
+  Offer the switch exactly where the catalog says it works.
+- **`Match.simulated`** and **`source.simulated`** — the marker (PRD-10 T7). `Match.simulated`
+  is `true` on the resource from creation; every gameserver event of the match carries
+  `source.simulated: true`, stamped by the orchestrator whatever the server said. Read one
+  field: a stats pipe, a board, a drop or a feed that skips on `source.simulated === true`
+  (and an admin page that badges on `Match.simulated`) never has to know what a request
+  looked like. A real match carries neither, and **so does a match on the `sim` provider
+  that did not ask** — its players are the simulator's inventions and its
+  `source.provider` has always said so; nothing about how you count those changes.
+- The fake honours all of it: the scope, the capability, the scenario, the marker on the
+  resource and on every event. A new conformance flow, `simulation-switch`, holds the four
+  refusals and the played match against the fake and the real orchestrator; a target that
+  offers a `simulation` key (one holding the scope beside `matches`) runs it, one that does
+  not skips it with the reason.
+
 ## 0.14.0 — 2026-09-20
 
 **Wingman, and every size in between** (PRD-03 T3b, for the platform's PRD-10 T2a):

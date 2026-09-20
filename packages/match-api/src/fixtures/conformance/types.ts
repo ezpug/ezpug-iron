@@ -38,6 +38,8 @@ export const CONFORMANCE_CAPABILITIES = [
   'demoUpload',
   /** `target.demoUploadUrls` — one presigned url per map of a series (T38a). */
   'demoUploadPerMap',
+  /** `target.simulation` — a key holding the `simulation` scope, for a puppets match (PRD-03 T4). */
+  'simulation',
 ] as const
 export type ConformanceCapability = (typeof CONFORMANCE_CAPABILITIES)[number]
 
@@ -115,6 +117,14 @@ export interface ConformanceTarget {
   budget?: {
     client: ConformanceClient
     maxServerLifetimeMinutes: number
+  }
+  /**
+   * A key that holds the `simulation` scope beside `matches`, for the
+   * puppets flow (PRD-03 T4). `client` — the suite's own key — must **not**
+   * hold it: the flow proves the refusal on one and the match on the other.
+   */
+  simulation?: {
+    client: ConformanceClient
   }
   /** How long one `waitFor` sleeps between polls. Default 15 s of clock time. */
   pollIntervalMs?: number

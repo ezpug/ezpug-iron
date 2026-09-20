@@ -466,6 +466,54 @@ describe('wingman is a format, not a gamemode', () => {
   })
 })
 
+/**
+ * **Puppets are a per-match switch in the match file** (PRD-03 T4, decision
+ * 19): MatchZy-Enhanced reads `simulation` and `simulation_timescale` from
+ * the JSON it loads (`src/MatchManagement.cs`), so the one build production
+ * runs plays a simulated match when asked and a real one otherwise — and a
+ * real match's file is byte for byte what it was before the field existed.
+ */
+describe('the simulation switch', () => {
+  const puppets = (simulation: MatchRequestInput['simulation']): MatchConfigInput => ({
+    ...pugBo1(),
+    request: request({ simulation }),
+  })
+
+  it('is absent from a real match’s file, so the golden did not move', () => {
+    const file = buildMatchZyConfig(pugBo1())
+    expect(file).not.toHaveProperty('simulation')
+    expect(file).not.toHaveProperty('simulation_timescale')
+    expect(JSON.stringify(file)).not.toContain('simulation')
+  })
+
+  it('turns the fork’s simulation mode on when the request asks, at the engine’s own speed', () => {
+    const file = buildMatchZyConfig(puppets({}))
+    expect(file.simulation).toBe(true)
+    // The fork's default, and the only honest speed for a server nobody watches slowly.
+    expect(file.simulation_timescale).toBe(1)
+    expect(buildMatchZyConfig(puppets({ timeScale: 4 })).simulation_timescale).toBe(4)
+    expect(matchZyValidationError(file)).toBe('')
+  })
+
+  it('leaves the roster and the gate alone — a puppet sits in a rostered seat', () => {
+    const real = buildMatchZyConfig(pugBo1())
+    const simulated = buildMatchZyConfig(puppets({ timeScale: 2 }))
+    expect(simulated.team1).toEqual(real.team1)
+    expect(simulated.team2).toEqual(real.team2)
+    expect(simulated.players_per_team).toBe(real.players_per_team)
+    expect(simulated.min_players_to_ready).toBe(real.min_players_to_ready)
+  })
+
+  it('never says simulation to Get5, which has no such mode', () => {
+    const file = buildGet5Config({
+      ...csgoBo1(),
+      request: request({ game: 'csgo', simulation: {} }),
+    })
+    expect(file).not.toHaveProperty('simulation')
+    expect(file).not.toHaveProperty('simulation_timescale')
+  })
+})
+
 describe('the platform ran the veto', () => {
   it('always skips the server-side veto and pins every side from the plan', () => {
     const config = buildMatchZyConfig(pugBo1())

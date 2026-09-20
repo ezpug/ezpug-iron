@@ -46,7 +46,7 @@ const MAX_WEBHOOK_SECRETS = 8
 
 export const KEYS_USAGE = `ezpug-iron keys — API keys and their ceilings (the admin scope)
 
-  keys create --name <name> [--scopes matches,fleet,admin]
+  keys create --name <name> [--scopes matches,fleet,admin,simulation]
               [--max-concurrent 4] [--max-lifetime-minutes 240] [--monthly-cents 0]
               [--webhook-secret <id>]...
   keys list
@@ -199,7 +199,7 @@ function parseScopes(raw: string): MatchApiScope[] {
   const parsed = matchApiScopesSchema.safeParse(scopes)
   if (!parsed.success)
     throw new CliUsageError(
-      `--scopes takes matches, fleet and/or admin, comma-separated; got '${raw}'`,
+      `--scopes takes matches, fleet, admin and/or simulation, comma-separated; got '${raw}'`,
       KEYS_USAGE,
     )
   return parsed.data

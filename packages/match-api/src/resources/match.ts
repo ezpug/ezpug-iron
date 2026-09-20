@@ -185,6 +185,14 @@ export const matchSchema = z.object({
   endedReason: matchEndedReasonSchema.nullable(),
   /** Present on the `sim` provider only. */
   sim: simStatusSchema.nullable(),
+  /**
+   * **The players are puppets** (PRD-03 T4): the request carried
+   * `simulation`, and every gameserver event of this match carries
+   * `source.simulated: true`. The badge an admin page shows and the flag a
+   * stats pipe skips on; `false` for every real match, and for a `Match`
+   * read from an orchestrator older than this field.
+   */
+  simulated: z.boolean().default(false),
 })
 export type Match = z.infer<typeof matchSchema>
 

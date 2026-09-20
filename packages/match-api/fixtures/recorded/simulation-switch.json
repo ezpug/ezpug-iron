@@ -1,0 +1,713 @@
+{
+  "flow": "simulation-switch",
+  "calls": [
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-simulation-switch-scope",
+          "game": "cs2",
+          "gamemode": "pug",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                },
+                {
+                  "steamId64": "76561198000000003",
+                  "name": "flippo"
+                },
+                {
+                  "steamId64": "76561198000000004",
+                  "name": "Kessi"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                },
+                {
+                  "steamId64": "76561198000000103",
+                  "name": "BastiGHG"
+                },
+                {
+                  "steamId64": "76561198000000104",
+                  "name": "moepL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "de_mirage",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "format": "competitive",
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0,
+              "autoReady": true
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120,
+          "simulation": {}
+        }
+      },
+      "ok": false,
+      "status": 403,
+      "code": "forbidden",
+      "message": "simulation on a match request needs the simulation scope"
+    },
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-simulation-switch-capability",
+          "game": "cs2",
+          "gamemode": "flying-scoutsman",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                },
+                {
+                  "steamId64": "76561198000000003",
+                  "name": "flippo"
+                },
+                {
+                  "steamId64": "76561198000000004",
+                  "name": "Kessi"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                },
+                {
+                  "steamId64": "76561198000000103",
+                  "name": "BastiGHG"
+                },
+                {
+                  "steamId64": "76561198000000104",
+                  "name": "moepL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "de_mirage",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "format": "competitive",
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0,
+              "autoReady": true
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120,
+          "simulation": {}
+        }
+      },
+      "ok": false,
+      "status": 400,
+      "code": "validation_failed",
+      "message": "flying-scoutsman cannot play with simulated players"
+    },
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-simulation-switch-scenario",
+          "game": "cs2",
+          "gamemode": "pug",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                },
+                {
+                  "steamId64": "76561198000000003",
+                  "name": "flippo"
+                },
+                {
+                  "steamId64": "76561198000000004",
+                  "name": "Kessi"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                },
+                {
+                  "steamId64": "76561198000000103",
+                  "name": "BastiGHG"
+                },
+                {
+                  "steamId64": "76561198000000104",
+                  "name": "moepL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "de_mirage",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "format": "competitive",
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0,
+              "autoReady": true
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120,
+          "simulation": {
+            "scenario": "no-such-story"
+          }
+        }
+      },
+      "ok": false,
+      "status": 400,
+      "code": "validation_failed",
+      "message": "unknown sim scenario no-such-story"
+    },
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-simulation-switch",
+          "game": "cs2",
+          "gamemode": "pug",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                },
+                {
+                  "steamId64": "76561198000000003",
+                  "name": "flippo"
+                },
+                {
+                  "steamId64": "76561198000000004",
+                  "name": "Kessi"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                },
+                {
+                  "steamId64": "76561198000000103",
+                  "name": "BastiGHG"
+                },
+                {
+                  "steamId64": "76561198000000104",
+                  "name": "moepL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "de_mirage",
+              "sides": "ct"
+            }
+          ],
+          "rules": {
+            "format": "competitive",
+            "regulationRounds": 2,
+            "overtime": {
+              "enabled": false,
+              "maxRounds": 2,
+              "startMoney": 10000
+            },
+            "warmup": {
+              "minPlayersToReady": 10,
+              "minSpectatorsToReady": 0,
+              "autoReady": true
+            },
+            "cvars": {}
+          },
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120,
+          "simulation": {
+            "scenario": "happy-path",
+            "timeScale": 4
+          }
+        }
+      },
+      "ok": true,
+      "response": {
+        "id": "010ec1da-9911-44fb-b817-7de8e3740ba7",
+        "clientMatchId": "conformance-simulation-switch",
+        "state": "allocating",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": null,
+        "serverId": null,
+        "fleetServerId": "f49c7035-24d8-4869-a431-79be9d39b5d6",
+        "connect": null,
+        "tv": null,
+        "seq": 0,
+        "createdAt": "2026-09-05T18:00:00.000Z",
+        "updatedAt": "2026-09-05T18:00:00.000Z",
+        "readyAt": null,
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-09-05T20:00:00.000Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    }
+  ],
+  "envelopes": [],
+  "deliveries": [
+    {
+      "seq": 1,
+      "type": "match.allocated"
+    },
+    {
+      "seq": 2,
+      "type": "server_ready"
+    },
+    {
+      "seq": 3,
+      "type": "match.server_ready"
+    },
+    {
+      "seq": 4,
+      "type": "player_connected"
+    },
+    {
+      "seq": 5,
+      "type": "player.joined"
+    },
+    {
+      "seq": 6,
+      "type": "player_connected"
+    },
+    {
+      "seq": 7,
+      "type": "player.joined"
+    },
+    {
+      "seq": 8,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 9,
+      "type": "player_connected"
+    },
+    {
+      "seq": 10,
+      "type": "player.joined"
+    },
+    {
+      "seq": 11,
+      "type": "player_connected"
+    },
+    {
+      "seq": 12,
+      "type": "player.joined"
+    },
+    {
+      "seq": 13,
+      "type": "player_connected"
+    },
+    {
+      "seq": 14,
+      "type": "player.joined"
+    },
+    {
+      "seq": 15,
+      "type": "player_connected"
+    },
+    {
+      "seq": 16,
+      "type": "player.joined"
+    },
+    {
+      "seq": 17,
+      "type": "player_connected"
+    },
+    {
+      "seq": 18,
+      "type": "player.joined"
+    },
+    {
+      "seq": 19,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 20,
+      "type": "player_connected"
+    },
+    {
+      "seq": 21,
+      "type": "player.joined"
+    },
+    {
+      "seq": 22,
+      "type": "player_connected"
+    },
+    {
+      "seq": 23,
+      "type": "player.joined"
+    },
+    {
+      "seq": 24,
+      "type": "player_connected"
+    },
+    {
+      "seq": 25,
+      "type": "player.joined"
+    },
+    {
+      "seq": 26,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 27,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 28,
+      "type": "chat_message"
+    },
+    {
+      "seq": 29,
+      "type": "going_live"
+    },
+    {
+      "seq": 30,
+      "type": "backup_written"
+    },
+    {
+      "seq": 31,
+      "type": "round_start"
+    },
+    {
+      "seq": 32,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 33,
+      "type": "player_death"
+    },
+    {
+      "seq": 34,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 35,
+      "type": "player_death"
+    },
+    {
+      "seq": 36,
+      "type": "player_death"
+    },
+    {
+      "seq": 37,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 38,
+      "type": "player_death"
+    },
+    {
+      "seq": 39,
+      "type": "player_death"
+    },
+    {
+      "seq": 40,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 41,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 42,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 43,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 44,
+      "type": "player_death"
+    },
+    {
+      "seq": 45,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 46,
+      "type": "round_end"
+    },
+    {
+      "seq": 47,
+      "type": "chat_message"
+    },
+    {
+      "seq": 48,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 49,
+      "type": "side_swap"
+    },
+    {
+      "seq": 50,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 51,
+      "type": "backup_written"
+    },
+    {
+      "seq": 52,
+      "type": "round_start"
+    },
+    {
+      "seq": 53,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 54,
+      "type": "player_death"
+    },
+    {
+      "seq": 55,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 56,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 57,
+      "type": "player_death"
+    },
+    {
+      "seq": 58,
+      "type": "player_death"
+    },
+    {
+      "seq": 59,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 60,
+      "type": "player_death"
+    },
+    {
+      "seq": 61,
+      "type": "player_death"
+    },
+    {
+      "seq": 62,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 63,
+      "type": "player_death"
+    },
+    {
+      "seq": 64,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 65,
+      "type": "player_death"
+    },
+    {
+      "seq": 66,
+      "type": "player_death"
+    },
+    {
+      "seq": 67,
+      "type": "player_death"
+    },
+    {
+      "seq": 68,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 69,
+      "type": "round_end"
+    },
+    {
+      "seq": 70,
+      "type": "chat_message"
+    },
+    {
+      "seq": 71,
+      "type": "map_end"
+    },
+    {
+      "seq": 72,
+      "type": "demo_available"
+    },
+    {
+      "seq": 73,
+      "type": "demo.uploaded"
+    },
+    {
+      "seq": 74,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 75,
+      "type": "series_end"
+    },
+    {
+      "seq": 76,
+      "type": "match.ended"
+    }
+  ],
+  "frames": []
+}

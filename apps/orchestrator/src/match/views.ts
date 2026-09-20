@@ -10,8 +10,11 @@ import type { MatchEventRow, MatchRow, ServerRow } from './store'
 
 const iso = (date: Date | null): string | null => (date ? date.toISOString() : null)
 
-/** A match, as `GET /v1/matches/:id` answers it. `connect` is shown from `ready` on. */
-export function matchView(row: MatchRow, sim: SimStatus | null): Match {
+/**
+ * A match, as `GET /v1/matches/:id` answers it. `connect` is shown from
+ * `ready` on; `simulated` is whether the request asked for puppets (PRD-03 T4).
+ */
+export function matchView(row: MatchRow, sim: SimStatus | null, simulated: boolean): Match {
   const before = row.readyAt === null
   return {
     id: row.id,
@@ -33,6 +36,7 @@ export function matchView(row: MatchRow, sim: SimStatus | null): Match {
     expiresAt: row.expiresAt.toISOString(),
     endedReason: row.endedReason,
     sim,
+    simulated,
   }
 }
 

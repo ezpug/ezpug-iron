@@ -1,5 +1,5 @@
 import { createFakeClock, type FakeClock } from '@ezpug/core'
-import { SHIPPED_GAMEMODES, type WebhookEnvelope } from '@ezpug/match-api'
+import { type MatchApiScope, SHIPPED_GAMEMODES, type WebhookEnvelope } from '@ezpug/match-api'
 import type { SimPlan } from '@ezpug/sim'
 import { createApp } from '../app'
 import { type Budgets, createBudgets } from '../budget/service'
@@ -413,7 +413,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
  * use a free provider, which is true of the sim and not of a stub with a
  * price.
  */
-export function keyRequest(name: string, scopes: ('matches' | 'fleet' | 'admin')[] = ['matches']) {
+export function keyRequest(name: string, scopes: MatchApiScope[] = ['matches']) {
   return {
     name,
     scopes,

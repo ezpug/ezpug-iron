@@ -1,7 +1,8 @@
 import { z } from 'zod'
 
 /**
- * **What an API key may do** (decision 7, 12). Three scopes, one per audience:
+ * **What an API key may do** (decision 7, 12). Three route scopes, one per
+ * audience, and one body scope:
  *
  * - `matches` — the platform's match pipeline: create, read, command and
  *   cancel matches, mint player tokens, read the gamemode catalog and capacity.
@@ -9,14 +10,23 @@ import { z } from 'zod'
  *   GSLT pool, console and RCON on a server. Reads *and* drains — a fleet key
  *   can take capacity away, never create a match.
  * - `admin` — keys themselves: mint, list, revoke, set budgets and webhook
- *   secrets. `admin` implies the other two ({@link scopeAllows}), so the one
- *   admin key an operator holds is not also three keys to rotate.
+ *   secrets. `admin` implies the other three ({@link scopeAllows}), so the one
+ *   admin key an operator holds is not also four keys to rotate.
+ * - `simulation` — **puppets** (PRD-03 T4): a match request may carry a
+ *   `simulation` block, and the server plays it with simulated players in
+ *   the roster's seats. No route requires it; `POST /v1/matches` still needs
+ *   `matches`, and this one is checked against the *body*
+ *   ({@link matchRequestScopes}) — a request that carries the block on a key
+ *   without the scope is `forbidden`, with `details.scope` naming it. A
+ *   production platform key does not hold it, which is how a real match can
+ *   never be a simulated one by accident: the lane's key and an operator's
+ *   rehearsal key do.
  *
  * Every route declares exactly one required scope (`rpc.ts`'s `defineRoute`
  * refuses one without), and the orchestrator decides from the declaration —
  * there is no second table.
  */
-export const MATCH_API_SCOPES = ['matches', 'fleet', 'admin'] as const
+export const MATCH_API_SCOPES = ['matches', 'fleet', 'admin', 'simulation'] as const
 export const matchApiScopeSchema = z.enum(MATCH_API_SCOPES)
 export type MatchApiScope = z.infer<typeof matchApiScopeSchema>
 
@@ -29,4 +39,16 @@ export const matchApiScopesSchema = z
 /** True when a key holding `held` may call a route that requires `required`. */
 export function scopeAllows(held: readonly MatchApiScope[], required: MatchApiScope): boolean {
   return held.includes('admin') || held.includes(required)
+}
+
+/**
+ * **The scopes a match request's body needs on top of the route's** — today
+ * `simulation` when the request carries a `simulation` block, and nothing
+ * otherwise. Decided here so the orchestrator and the fake refuse the same
+ * bodies with the same `forbidden`, in the same order: body scopes are
+ * checked before anything about the request is validated, because an
+ * unauthorised request is not owed a diagnosis.
+ */
+export function matchRequestScopes(request: { simulation?: unknown }): MatchApiScope[] {
+  return request.simulation === undefined ? [] : ['simulation']
 }

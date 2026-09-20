@@ -65,7 +65,9 @@ import {
   isTerminalMatchState,
   matchDemoOutcome,
   matchFormatProblem,
+  matchSimulationProblem,
 } from '../resources'
+import { matchRequestScopes, scopeAllows } from '../scopes'
 import type { StreamCloseCode, StreamFrame } from '../stream/frames'
 import { STREAM_CLOSE_CODES } from '../stream/frames'
 import type { GameserverEvent, GameserverPlayer } from '../vocabulary/gameserver'
@@ -554,8 +556,20 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     }
   }
 
+  /**
+   * A puppets match says so on every gameserver event's `source`, whatever
+   * the server put there (PRD-03 T4) — stamped at the one place a fact is
+   * recorded, as the orchestrator does at its ingest, so no consumer has to
+   * read the request to know nobody on the server was a person.
+   */
+  const stamped = (record: MatchRecord, payload: WebhookPayload): WebhookPayload =>
+    record.match.simulated && 'source' in payload
+      ? { ...payload, source: { ...payload.source, simulated: true } }
+      : payload
+
   /** Record one durable fact: the envelope, the stream frame, the webhook. */
-  const emit = (record: MatchRecord, payload: WebhookPayload): WebhookEnvelope => {
+  const emit = (record: MatchRecord, fact: WebhookPayload): WebhookEnvelope => {
+    const payload = stamped(record, fact)
     const seq = record.envelopes.length + 1
     const envelope: WebhookEnvelope = {
       deliveryId: id(),
@@ -813,9 +827,15 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
   }
 
   const planFor = (request: MatchRequest): SimPlan => {
-    let scenario = findScenario(request.sim?.scenario ?? 'happy-path')
+    // One scenario language (PRD-03 T4): a puppets request names its story in
+    // `simulation.scenario`, from the same catalog `sim.scenario` reads, and
+    // the two were already checked to agree where both are said.
+    const named = request.sim?.scenario ?? request.simulation?.scenario
+    let scenario = findScenario(named ?? 'happy-path')
     if (!scenario)
-      throw refuse('validation_failed', `unknown sim scenario ${request.sim?.scenario}`)
+      throw refuse('validation_failed', `unknown sim scenario ${named}`, {
+        field: request.sim?.scenario !== undefined ? 'sim.scenario' : 'simulation.scenario',
+      })
     if (faults.bootNeverEnds) scenario = { ...scenario, name: 'never-ready', neverReady: true }
     if (faults.crash)
       scenario = { ...scenario, name: 'server-crash', crashAfterRound: faults.crash.afterRound }
@@ -823,7 +843,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       scenario,
       ...(request.sim?.seed !== undefined && { seed: request.sim.seed }),
       mode: request.sim?.mode ?? 'auto',
-      timeScale: request.sim?.timeScale ?? 1,
+      timeScale: request.sim?.timeScale ?? request.simulation?.timeScale ?? 1,
       chaos: request.sim?.chaos ?? null,
       bootDelayMs: sim.bootDelayMs,
       heartbeatIntervalMs: sim.heartbeatIntervalMs,
@@ -842,6 +862,14 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
         `clientMatchId ${request.clientMatchId} was used with a different body`,
       )
     }
+    // A body that asks for more than the route's scope is refused before it
+    // is diagnosed (PRD-03 T4): puppets need the `simulation` scope.
+    for (const scope of matchRequestScopes(request))
+      if (!scopeAllows(key.key.scopes, scope))
+        throw refuse('forbidden', `${scope} on a match request needs the ${scope} scope`, {
+          scope,
+          field: scope,
+        })
     if (!key.webhookSecrets.has(request.callbacks.webhookSecretId))
       throw refuse('validation_failed', 'callbacks.webhookSecretId is not registered on this key', {
         field: 'callbacks.webhookSecretId',
@@ -860,6 +888,12 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     const formatProblem = matchFormatProblem(request, manifest)
     if (formatProblem)
       throw refuse('validation_failed', formatProblem.message, { field: formatProblem.field })
+    // Puppets, by the same rule the orchestrator uses (PRD-03 T4).
+    const simulationProblem = matchSimulationProblem(request, manifest)
+    if (simulationProblem)
+      throw refuse('validation_failed', simulationProblem.message, {
+        field: simulationProblem.field,
+      })
     for (const plan of request.maps) {
       if (!gamemodeAllowsMap(manifest.maps, plan.map))
         throw refuse('map_not_allowed', `${manifest.id} does not play ${plan.map}`, {
@@ -905,6 +939,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
         expiresAt: new Date(now() + request.ttlMinutes * 60_000).toISOString(),
         endedReason: null,
         sim: null,
+        simulated: request.simulation !== undefined,
       },
       request,
       key,

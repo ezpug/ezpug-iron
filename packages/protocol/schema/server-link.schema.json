@@ -99,6 +99,9 @@
         "serverId": {
           "type": "string",
           "minLength": 1
+        },
+        "simulated": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -2128,6 +2131,10 @@
         },
         "scoreboardRating": {
           "type": "boolean"
+        },
+        "simulation": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "required": [
@@ -2136,7 +2143,8 @@
         "playerCommands",
         "widget",
         "backups",
-        "scoreboardRating"
+        "scoreboardRating",
+        "simulation"
       ],
       "additionalProperties": false
     },
@@ -2233,7 +2241,8 @@
         "playerCommands",
         "widget",
         "backups",
-        "scoreboardRating"
+        "scoreboardRating",
+        "simulation"
       ]
     },
     "ServerVersions": {

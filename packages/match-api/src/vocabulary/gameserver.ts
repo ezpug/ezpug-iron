@@ -64,6 +64,17 @@ export const gameserverSourceSchema = z.object({
   /** Provider adapter id — `simulator`, `dathost`, `lan-node`. */
   provider: kebabNameSchema,
   serverId: z.string().min(1),
+  /**
+   * **Present, and true, when the players are puppets** (PRD-03 T4): the
+   * request carried `simulation`, so nobody on this server is a person and
+   * nothing it says may count for a rating, a board or a drop. Stamped by the
+   * orchestrator on every event of such a match, whatever the server said,
+   * so a consumer reads one field and never a request. Absent on a real
+   * match — and absent on a `sim`-provider match that did not ask for it,
+   * whose players are the simulator's own inventions and whose `provider`
+   * has always said so.
+   */
+  simulated: z.boolean().optional(),
 })
 export type GameserverSource = z.infer<typeof gameserverSourceSchema>
 

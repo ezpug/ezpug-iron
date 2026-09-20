@@ -290,6 +290,88 @@ export const matchSimOptionsSchema = z.object({
 export type MatchSimOptions = z.infer<typeof matchSimOptionsSchema>
 
 /**
+ * What a real engine's `host_timescale` can honestly be asked for — MatchZy-
+ * Enhanced clamps a match file's `simulation_timescale` to exactly this
+ * range (`src/MatchLogic.cs`), and a number outside it would be silently
+ * clamped rather than played, which is the one thing a contract must not do.
+ * Deliberately not {@link simTimeScaleSchema}'s range: the simulator engine
+ * runs a story on a clock and can do six hundred, a game server cannot.
+ */
+export const SIMULATION_TIME_SCALE_MIN = 0.1
+export const SIMULATION_TIME_SCALE_MAX = 10
+
+/**
+ * **Puppets** (PRD-03 T4): the match is played by simulated players. Every
+ * rostered player gets one — a body on the server carrying that entry's
+ * SteamID and name, connecting, readying up and playing through the doors a
+ * human takes — so a client sees exactly the facts a real match would send,
+ * about exactly the players it rostered. There is no half measure this
+ * round: the match software fills every roster seat or none
+ * (`references/MatchZy-Enhanced/src/SimulationMode.cs` spawns one bot per
+ * configured player), so a request that wants some humans and some puppets
+ * is a request for a later contract, not a quietly different match.
+ *
+ * Needs the `simulation` scope on the key ({@link matchRequestScopes}) and
+ * `capabilities.simulation` on the gamemode ({@link matchSimulationProblem});
+ * every gameserver event of the match then carries `source.simulated: true`
+ * and the `Match` says `simulated: true`, so no consumer can count it as
+ * real. It is **not** {@link matchSimOptionsSchema}: that block steers the
+ * simulator *provider*, where no server exists; this one asks a real
+ * server — rented, LAN or the simulator alike — to play without people, and
+ * costs what a real server costs.
+ */
+export const matchSimulationSchema = z.object({
+  /**
+   * A scenario from `GET /v1/sim/scenarios`, the same catalog the simulator
+   * plays: what the puppets do beyond playing the match out. Unsaid is the
+   * catalog's default. A knob a real server cannot execute is listed as
+   * sim-only in `docs/gamemodes.md`, never silently ignored. Saying it here
+   * *and* in `sim.scenario` is fine when the two agree and
+   * `validation_failed` when they do not.
+   */
+  scenario: kebabNameSchema.optional(),
+  /**
+   * The engine's `host_timescale` for the match, `1` when unsaid. The lane's
+   * knob: a real match never asks for it, and a server puts the clock back
+   * at series end.
+   */
+  timeScale: z.number().min(SIMULATION_TIME_SCALE_MIN).max(SIMULATION_TIME_SCALE_MAX).optional(),
+})
+export type MatchSimulation = z.infer<typeof matchSimulationSchema>
+
+/**
+ * **Whether a gamemode can play this request with puppets**, decided once
+ * here so an orchestrator and the fake refuse the same requests for the same
+ * reasons (PRD-03 T4). `undefined` means play it; anything else is a
+ * `validation_failed` with the field that has to change. The scope is not
+ * judged here — that is {@link matchRequestScopes}' business and comes first.
+ *
+ * Three refusals: the mode does not claim `capabilities.simulation` (its
+ * match software cannot seat a puppet, so the request would wait in warmup
+ * for people who are never coming); nobody is rostered (a puppet is a roster
+ * entry made flesh, and a match with no entries has nobody to simulate);
+ * and `sim.scenario` names a different story than `simulation.scenario`.
+ */
+export function matchSimulationProblem(
+  request: Pick<MatchRequest, 'simulation' | 'sim' | 'teams'>,
+  mode: { id: string; capabilities: { simulation: boolean } },
+): { message: string; field: string } | undefined {
+  const simulation = request.simulation
+  if (simulation === undefined) return undefined
+  if (!mode.capabilities.simulation)
+    return { message: `${mode.id} cannot play with simulated players`, field: 'simulation' }
+  if (request.teams.teamA.players.length + request.teams.teamB.players.length === 0)
+    return { message: 'a simulated match needs at least one rostered player', field: 'teams' }
+  const other = request.sim?.scenario
+  if (simulation.scenario !== undefined && other !== undefined && other !== simulation.scenario)
+    return {
+      message: `simulation.scenario says ${simulation.scenario} and sim.scenario says ${other}`,
+      field: 'simulation.scenario',
+    }
+  return undefined
+}
+
+/**
  * **Whether a gamemode can play the format a request asks for**, decided once
  * here so an orchestrator and the fake refuse the same requests for the same
  * reasons (PRD-03 T3b). `undefined` means play it; anything else is a
@@ -343,6 +425,12 @@ export const matchRequestSchema = z.object({
   warmupLines: z.array(z.string().min(1).max(SERVER_CHAT_TEXT_MAX)).max(20).optional(),
   branding: matchBrandingSchema.optional(),
   sim: matchSimOptionsSchema.optional(),
+  /**
+   * Play it with puppets ({@link matchSimulationSchema}). Needs the
+   * `simulation` scope; absent is a real match, which is what every request
+   * written before this field existed meant.
+   */
+  simulation: matchSimulationSchema.optional(),
   /**
    * How long the server may live from allocation, whatever happens; the
    * reaper ends it past this (decision 7). Never above the key's ceiling.

@@ -56,6 +56,8 @@ export interface FakeConformanceTarget extends ConformanceTarget {
   platform: ApiKeyCreated
   /** The second `matches` key, with a lower lifetime ceiling — the budget flow's. */
   thrifty: ApiKeyCreated
+  /** The `matches` + `simulation` key — the puppets flow's (PRD-03 T4). Minted on first read. */
+  readonly puppeteer: ApiKeyCreated
   /** Every demo `PUT` the fake made. */
   uploads: { url: string; bytes: number }[]
   /** Deliveries whose signature or body did not verify. Always empty, or the fake is broken. */
@@ -121,12 +123,28 @@ export function createFakeConformanceTarget(
     budget: { ...budget, maxServerLifetimeMinutes: FAKE_CONFORMANCE_THRIFTY_MINUTES },
     webhookSecrets,
   })
+  // Minted on first use, not here: a mint draws from the fake's one PRNG, and
+  // a third key minted up front would hand every other flow a different
+  // story — thirteen goldens re-recorded for a key twelve of them never touch.
+  let puppeteerKey: ApiKeyCreated | undefined
+  const puppeteer = (): ApiKeyCreated => {
+    puppeteerKey ??= fake.mintKey({
+      name: 'conformance-puppeteer',
+      scopes: ['matches', 'simulation'],
+      budget,
+      webhookSecrets,
+    })
+    return puppeteerKey
+  }
 
   return {
     fake,
     clock,
     platform,
     thrifty,
+    get puppeteer() {
+      return puppeteer()
+    },
     uploads,
     unverified,
     client: fake.client(platform.secret),
@@ -164,6 +182,11 @@ export function createFakeConformanceTarget(
     budget: {
       client: fake.client(thrifty.secret),
       maxServerLifetimeMinutes: FAKE_CONFORMANCE_THRIFTY_MINUTES,
+    },
+    simulation: {
+      get client() {
+        return fake.client(puppeteer().secret)
+      },
     },
     close: () => {
       fake.close()

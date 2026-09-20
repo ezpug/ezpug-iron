@@ -1,5 +1,6 @@
 import { ApiError } from '../../errors'
 import type { MatchEndedReason, MatchRules, WebhookEnvelope } from '../../index'
+import { isTerminalMatchState } from '../../resources'
 import { deepEqual } from './recording'
 import type { ConformanceContext, ConformanceFlow } from './types'
 
@@ -944,6 +945,120 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         'the refusal names the roster that is too long',
         tooMany.code === 'validation_failed' && tooMany.details?.field === 'teams.teamA.players',
         `${tooMany.code} ${JSON.stringify(tooMany.details)}`,
+      )
+    },
+  },
+
+  {
+    id: 'simulation-switch',
+    title: 'puppets play a match behind a scope, and every fact says nobody was real',
+    needs: ['simulation'],
+    async run(ctx) {
+      // The door first: the suite's own key holds `matches` and not
+      // `simulation`, so the same request it plays everywhere else is
+      // refused by name the moment it carries the block — before anything
+      // about the body is diagnosed, which is why the refusal is `forbidden`
+      // and not a validation report.
+      const withoutScope = await refusal(
+        ctx,
+        'a puppets request on a key without the scope is refused',
+        ctx.api.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-simulation-switch-scope',
+            simulation: {},
+          }),
+        }),
+      )
+      ctx.check(
+        'the refusal is forbidden and names the scope',
+        withoutScope.code === 'forbidden' && withoutScope.details?.scope === 'simulation',
+        `${withoutScope.code} ${JSON.stringify(withoutScope.details)}`,
+      )
+      ctx.check(
+        'the scope answers 403, like every scope',
+        withoutScope.status === 403,
+        String(withoutScope.status),
+      )
+
+      const target = ctx.target.simulation as NonNullable<typeof ctx.target.simulation>
+      const puppeteer = ctx.recorded(target.client)
+
+      // A mode whose match software cannot seat a puppet says so at the
+      // door, by the field to change, rather than waiting in warmup for
+      // players who are never coming. `flying-scoutsman` runs no plugin.
+      const incapable = await refusal(
+        ctx,
+        'a mode without the capability refuses puppets',
+        puppeteer.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-simulation-switch-capability',
+            gamemode: 'flying-scoutsman',
+            simulation: {},
+          }),
+        }),
+      )
+      ctx.check(
+        'the refusal is validation_failed on simulation',
+        incapable.code === 'validation_failed' && incapable.details?.field === 'simulation',
+        `${incapable.code} ${JSON.stringify(incapable.details)}`,
+      )
+
+      // One scenario language: the name comes from `GET /v1/sim/scenarios`,
+      // and one nobody defined is refused on the field that named it.
+      const unknown = await refusal(
+        ctx,
+        'a scenario nobody defined is refused',
+        puppeteer.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-simulation-switch-scenario',
+            simulation: { scenario: 'no-such-story' },
+          }),
+        }),
+      )
+      ctx.check(
+        'the refusal names simulation.scenario',
+        unknown.code === 'validation_failed' && unknown.details?.field === 'simulation.scenario',
+        `${unknown.code} ${JSON.stringify(unknown.details)}`,
+      )
+
+      // Then the match: the same Bo1 every other flow plays, with puppets in
+      // the ten seats, and the marker on the resource and on every event. A
+      // match belongs to the key that made it, so the puppeteer's own client
+      // — unrecorded, as every polling loop is — reads it back.
+      const body = ctx.request({ simulation: { scenario: 'happy-path', timeScale: 4 } })
+      const created = await puppeteer.matches.create({ body })
+      ctx.require('a puppets pug is accepted', UUID.test(created.id), created.id)
+      ctx.check('the match says it is simulated', created.simulated === true)
+      const params = { matchId: created.id }
+      const final = await ctx.waitFor('the puppets match to end', async () => {
+        const match = await target.client.matches.get({ params })
+        return isTerminalMatchState(match.state) ? match : null
+      })
+      await ctx.settle()
+      const envelopes: WebhookEnvelope[] = []
+      let cursor = '0'
+      for (let guard = 0; guard < 1_000; guard += 1) {
+        const page = await target.client.matches.events({ params, query: { cursor, limit: 200 } })
+        envelopes.push(...page.items)
+        if (page.nextCursor === null) break
+        cursor = page.nextCursor
+      }
+      ctx.require('the match ends', final.state === 'ended', terminal(final))
+      ctx.check('the ended match still says so', final.simulated === true)
+      const events = envelopes.filter(envelope => 'source' in envelope.payload)
+      ctx.check('the server spoke', events.length > 0, String(events.length))
+      const unmarked = events.filter(
+        envelope => !('source' in envelope.payload && envelope.payload.source.simulated === true),
+      )
+      ctx.check(
+        'every gameserver event carries source.simulated',
+        unmarked.length === 0,
+        unmarked.map(envelope => envelope.payload.type).join(', '),
+      )
+      ctx.check(
+        'the completed match reads completed, like a real one',
+        final.endedReason?.kind === 'completed',
+        terminal(final),
       )
     },
   },

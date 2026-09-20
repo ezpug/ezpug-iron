@@ -29,7 +29,10 @@ import {
   MATCH_API_ERROR_STATUS,
   matchDemoOutcome,
   matchFormatProblem,
+  matchRequestScopes,
+  matchSimulationProblem,
   STREAM_CLOSE_CODES,
+  scopeAllows,
 } from '@ezpug/match-api'
 import {
   BACKUP_RESTORED_EVENT,
@@ -319,6 +322,34 @@ function assertFormatIsPlayable(request: MatchRequest, manifest: GamemodeManifes
   if (problem) throw refuse('validation_failed', problem.message, { field: problem.field })
 }
 
+/**
+ * Puppets, by the package's one rule (PRD-03 T4): the mode claims
+ * `capabilities.simulation`, somebody is rostered, and the two scenario
+ * fields agree. The scope was judged before anything else about the body.
+ */
+function assertSimulationIsPlayable(request: MatchRequest, manifest: GamemodeManifest): void {
+  const problem = matchSimulationProblem(request, manifest)
+  if (problem) throw refuse('validation_failed', problem.message, { field: problem.field })
+}
+
+/**
+ * The scopes a body needs on top of the route's — `simulation` for a puppets
+ * request — refused `forbidden` with the scope named, before the body is
+ * diagnosed: an unauthorised request is not owed a validation report.
+ */
+function assertBodyScopes(key: AuthenticatedKey, request: MatchRequest): void {
+  for (const scope of matchRequestScopes(request))
+    if (!scopeAllows(key.key.scopes, scope))
+      throw refuse('forbidden', `${scope} on a match request needs the ${scope} scope`, {
+        scope,
+        field: scope,
+      })
+}
+
+/** Whether every player of this match is a puppet — what `source.simulated` and `Match.simulated` say. */
+const isSimulated = (row: Pick<MatchRow, 'requestJson'>): boolean =>
+  row.requestJson.simulation !== undefined
+
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys)
   if (value && typeof value === 'object')
@@ -555,7 +586,7 @@ export function createMatches(options: MatchesOptions): Matches {
   const simOf = (row: MatchRow) =>
     (row.provider && row.serverId && providers.get(row.provider)?.sim?.(row.serverId)) || row.sim
 
-  const view = (row: MatchRow): Match => matchView(row, simOf(row))
+  const view = (row: MatchRow): Match => matchView(row, simOf(row), isSimulated(row))
 
   const currentServer = async (row: MatchRow): Promise<ServerRow | undefined> =>
     row.fleetServerId ? store.findServer(row.fleetServerId) : undefined
@@ -1161,11 +1192,18 @@ export function createMatches(options: MatchesOptions): Matches {
   const onServerEvent = async (
     row: MatchRow,
     source: ServerRef,
-    event: GameserverEvent,
+    said: GameserverEvent,
   ): Promise<IngestStatus> => {
     if (isTerminalMatchState(row.state)) return 'rejected'
     if (row.provider !== source.provider || row.serverId !== source.serverId) return 'rejected'
-    if (event.matchId !== row.id) return 'rejected'
+    if (said.matchId !== row.id) return 'rejected'
+    // A puppets match says so on every event, whatever the server stamped
+    // (PRD-03 T4): this is the one funnel every server's events pass — the
+    // link, MatchZy's door, the simulator's channel — so it is stamped here
+    // and a consumer never has to read the request to know nobody was real.
+    const event: GameserverEvent = isSimulated(row)
+      ? { ...said, source: { ...said.source, simulated: true } }
+      : said
     const runtime = runtimeOf(row)
     if (event.seq !== undefined) {
       const mark = `${serverKey(source)}#${event.seq}`
@@ -1403,6 +1441,7 @@ export function createMatches(options: MatchesOptions): Matches {
         `clientMatchId ${request.clientMatchId} was used with a different body`,
       )
     }
+    assertBodyScopes(key, request)
     if (!key.webhookSecrets.has(request.callbacks.webhookSecretId))
       throw refuse('validation_failed', 'callbacks.webhookSecretId is not registered on this key', {
         field: 'callbacks.webhookSecretId',
@@ -1412,7 +1451,7 @@ export function createMatches(options: MatchesOptions): Matches {
       simPlanFor(request)
     } catch (error) {
       if (error instanceof SimPlanError)
-        throw refuse('validation_failed', error.message, { field: 'sim.scenario' })
+        throw refuse('validation_failed', error.message, { field: error.field })
       throw error
     }
     const manifest = gamemodes.find(m => m.id === request.gamemode)
@@ -1430,6 +1469,7 @@ export function createMatches(options: MatchesOptions): Matches {
     if (manifest.game !== request.game)
       throw refuse('game_unsupported', `${manifest.id} plays ${manifest.game}, not ${request.game}`)
     assertFormatIsPlayable(request, manifest)
+    assertSimulationIsPlayable(request, manifest)
     for (const plan of request.maps) {
       if (!gamemodeAllowsMap(manifest.maps, plan.map))
         throw refuse('map_not_allowed', `${manifest.id} does not play ${plan.map}`, {

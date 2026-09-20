@@ -218,6 +218,35 @@ it here.
     from the one image on demand and keeps N idle warm instances. The orchestrator treats a
     node exactly like Dathost: a provider with capacity and a price of zero. During a live
     event the platform asks for `lan` and nodes win.
+25. **Puppets are a per-match switch behind a scope, and every fact of theirs says so.**
+    (PRD-03 T4, 2026-09-20.) A match request may carry `simulation: { scenario?, timeScale? }`
+    and the server plays it with simulated players in every roster entry's seat — bodies
+    that carry the rostered SteamIDs, connect, ready up through the match plugin's own
+    ready system, play and leave by the doors a human takes — so the path the owner's
+    bugs sat on is the path a test takes. Five rules: **who may ask is a key scope**,
+    `simulation`, that no route requires and `POST /v1/matches` checks against the body
+    before anything else about it; a production platform key never holds it, so a real
+    match cannot become a simulated one by accident, and asking without it is `forbidden`
+    with the scope named. **Whether a mode can is a manifest capability**,
+    `capabilities.simulation`, refused `validation_failed` at the door rather than a server
+    waiting in warmup for people who are never coming; `pug` claims it because
+    MatchZy-Enhanced reads the switch from the match file (decision 19: one binary, a
+    per-match switch), the SDK modes claim it when the SDK seats a puppet (T7). **A
+    simulated match is still money**: the same ledger row, budget check and reaper as a
+    real one, on Dathost as on a node. **Every fact says so**: `Match.simulated` and
+    `source.simulated: true` on every gameserver event, stamped by the orchestrator at its
+    one ingest funnel whatever the server said, so a consumer reads one field and never
+    the request; a `sim`-provider match that did not ask carries neither — its players are
+    the simulator's inventions and its `provider` has always said so. **One scenario
+    language**: `simulation.scenario` names a story from the same catalog the simulator
+    plays, so a scenario is one thing with one name on the sim and on a real server, and a
+    knob a real server cannot execute is listed as sim-only rather than ignored. What was
+    not chosen: a list of the humans among the puppets — the fork fills every seat or none,
+    and a contract field a server cannot honour is a lie; a separate scenario catalog for
+    real servers — two names for one story is how the two drift; marking every
+    `sim`-provider match `simulated` — the platform's dev world plays its boards on those,
+    and a flag that changed what they count would be this repo deciding the platform's
+    bookkeeping.
 
 ## How the rounds run
 

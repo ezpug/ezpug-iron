@@ -76,6 +76,7 @@ function missingCapabilities(flow: ConformanceFlow, target: ConformanceTarget): 
     budget: target.budget !== undefined,
     demoUpload: target.callbacks.demoUploadUrl !== undefined,
     demoUploadPerMap: target.demoUploadUrls !== undefined,
+    simulation: target.simulation !== undefined,
   }
   return flow.needs.filter(need => !has[need])
 }

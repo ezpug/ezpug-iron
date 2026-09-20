@@ -33,7 +33,7 @@
         "flow": "matchzy",
         "records": "demo",
         "ranked": false,
-        "version": "0.2.0",
+        "version": "0.3.0",
         "plugins": [
           "MatchZy"
         ],
@@ -53,7 +53,8 @@
           "playerCommands": false,
           "widget": false,
           "backups": true,
-          "scoreboardRating": true
+          "scoreboardRating": true,
+          "simulation": true
         },
         "commands": [],
         "sdkVersion": "0.1.0"

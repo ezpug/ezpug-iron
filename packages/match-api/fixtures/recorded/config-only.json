@@ -45,7 +45,8 @@
           "playerCommands": false,
           "widget": false,
           "backups": false,
-          "scoreboardRating": false
+          "scoreboardRating": false,
+          "simulation": false
         },
         "commands": [],
         "sdkVersion": "0.1.0"
@@ -159,7 +160,8 @@
         "endedAt": null,
         "expiresAt": "2026-09-05T20:00:00.000Z",
         "endedReason": null,
-        "sim": null
+        "sim": null,
+        "simulated": false
       }
     }
   ],

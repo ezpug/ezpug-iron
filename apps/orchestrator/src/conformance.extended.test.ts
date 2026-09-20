@@ -326,6 +326,12 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
     budget: { ...budget, maxServerLifetimeMinutes: 60 },
     webhookSecrets,
   })
+  const puppeteer = await o.keys.mint({
+    name: `${namespace}-${flow.id}-${mints}-puppeteer`,
+    scopes: ['matches', 'simulation'],
+    budget,
+    webhookSecrets,
+  })
   const options = {
     baseUrl: url,
     clock: systemClock,
@@ -336,6 +342,7 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
   }
   const client = createMatchApiClient({ ...options, apiKey: platform.secret })
   const budgetClient = createMatchApiClient({ ...options, apiKey: thrifty.secret })
+  const puppeteerClient = createMatchApiClient({ ...options, apiKey: puppeteer.secret })
   // Deliveries for this target only, by the path its own requests name.
   const path = `/hooks/${flow.id}-${mints}`
   const inbox = new Set<(envelope: WebhookEnvelope) => void>()
@@ -385,6 +392,7 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
       return () => handle.close()
     },
     budget: { client: budgetClient, maxServerLifetimeMinutes: 60 },
+    simulation: { client: puppeteerClient },
     // The widget's tap over the real `/v1/widget` socket, as a browser would.
     playerCommand: command =>
       tapOverWidgetSocket(`${url.replace(/^http/, 'ws')}/v1/widget`, command, {

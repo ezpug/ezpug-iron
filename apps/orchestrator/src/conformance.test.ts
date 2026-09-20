@@ -57,6 +57,12 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
     budget: { ...budget, maxServerLifetimeMinutes: 60 },
     webhookSecrets,
   })
+  const puppeteer = await app.keys.mint({
+    name: 'conformance-puppeteer',
+    scopes: ['matches', 'simulation'],
+    budget,
+    webhookSecrets,
+  })
   // The endpoint: a consumer that verifies, then acts. Verification hashes
   // on Web Crypto, whose promise settles on a macrotask; the worker's own
   // attempt timeout is on the fake clock, so the two never race here.
@@ -74,6 +80,7 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
   }
   const client = createMatchApiClient({ ...clientOptions, apiKey: platform.secret })
   const budgetClient = createMatchApiClient({ ...clientOptions, apiKey: thrifty.secret })
+  const puppeteerClient = createMatchApiClient({ ...clientOptions, apiKey: puppeteer.secret })
   const close = async (): Promise<void> => {
     await app.close()
   }
@@ -154,6 +161,7 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
     // was applied — for the `plugin_event` the tap left in the log.
     playerCommand: command => tapThroughWidget(app.widgets, command),
     budget: { client: budgetClient, maxServerLifetimeMinutes: 60 },
+    simulation: { client: puppeteerClient },
     close,
   }
 }

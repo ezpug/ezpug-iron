@@ -56,6 +56,16 @@ describe('the normalized gameserver event union', () => {
     expect(() => gameserverEventSchema.parse(rest)).toThrow()
   })
 
+  it('carries the puppets marker on source, absent on a real match (PRD-03 T4)', () => {
+    const real = gameserverEventSchema.parse(fixtures.round_end)
+    expect(real.source.simulated).toBeUndefined()
+    const puppets = gameserverEventSchema.parse({
+      ...fixtures.round_end,
+      source: { ...fixtures.round_end.source, simulated: true },
+    })
+    expect(puppets.source.simulated).toBe(true)
+  })
+
   it('rejects a numeric SteamID64 — JSON rounds it into a different person', () => {
     expect(() =>
       gameserverEventSchema.parse({

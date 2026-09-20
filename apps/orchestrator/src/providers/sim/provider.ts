@@ -161,19 +161,40 @@ export function simAssignmentFor(
 
 export class SimPlanError extends Error {
   override readonly name = 'SimPlanError'
+  constructor(
+    message: string,
+    /** The request field that has to change — `sim.scenario` or `simulation.scenario`. */
+    readonly field: 'sim.scenario' | 'simulation.scenario',
+  ) {
+    super(message)
+  }
 }
 
-/** The engine's plan from the request's `sim` block over the provider's defaults. */
+/**
+ * The engine's plan from the request's `sim` block over the provider's
+ * defaults. A puppets request (PRD-03 T4) names its story in
+ * `simulation.scenario` from the same catalog, and its `simulation.timeScale`
+ * is the engine's when `sim.timeScale` says nothing — one scenario language,
+ * so a name that runs on the simulator is a name a real server is asked for
+ * too. Where both blocks name a scenario the door has already made them
+ * agree; the `sim` block is read first only so its field is the one named
+ * when the name is unknown.
+ */
 export function simPlanFor(request: MatchRequest, defaults: SimPlan = {}): SimPlan {
-  const name = request.sim?.scenario
+  const name = request.sim?.scenario ?? request.simulation?.scenario
   const scenario = name === undefined ? undefined : findScenario(name)
-  if (name !== undefined && !scenario) throw new SimPlanError(`unknown sim scenario ${name}`)
+  if (name !== undefined && !scenario)
+    throw new SimPlanError(
+      `unknown sim scenario ${name}`,
+      request.sim?.scenario !== undefined ? 'sim.scenario' : 'simulation.scenario',
+    )
+  const timeScale = request.sim?.timeScale ?? request.simulation?.timeScale
   return {
     ...defaults,
     ...(scenario && { scenario }),
     ...(request.sim?.seed !== undefined && { seed: request.sim.seed }),
     ...(request.sim?.mode !== undefined && { mode: request.sim.mode }),
-    ...(request.sim?.timeScale !== undefined && { timeScale: request.sim.timeScale }),
+    ...(timeScale !== undefined && { timeScale }),
     ...(request.sim?.chaos !== undefined && { chaos: request.sim.chaos }),
   }
 }

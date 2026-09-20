@@ -21,7 +21,10 @@ import {
   MATCH_TTL_MINUTES_MAX,
   type MatchRequestInput,
   matchRequestSchema,
+  matchSimulationProblem,
   rosterEntrySchema,
+  SIMULATION_TIME_SCALE_MAX,
+  SIMULATION_TIME_SCALE_MIN,
 } from './match-request'
 import { playerTokenRequestSchema } from './player-token'
 
@@ -176,6 +179,55 @@ describe('MatchRequest', () => {
     expect(matchRequestSchema.parse(pugRequest({ game: 'csgo' })).game).toBe('csgo')
   })
 
+  // Puppets (PRD-03 T4): one optional block, absent on every request written
+  // before it, bounded to what a real engine's `host_timescale` can be.
+  it('takes a simulation block with a scenario and an engine timescale, or none at all', () => {
+    expect(matchRequestSchema.parse(pugRequest()).simulation).toBeUndefined()
+    const bare = matchRequestSchema.parse(pugRequest({ simulation: {} }))
+    expect(bare.simulation).toEqual({})
+    const asked = matchRequestSchema.parse(
+      pugRequest({ simulation: { scenario: 'happy-path', timeScale: 4 } }),
+    )
+    expect(asked.simulation).toEqual({ scenario: 'happy-path', timeScale: 4 })
+    expect(SIMULATION_TIME_SCALE_MIN).toBe(0.1)
+    expect(SIMULATION_TIME_SCALE_MAX).toBe(10)
+    expect(() => matchRequestSchema.parse(pugRequest({ simulation: { timeScale: 0 } }))).toThrow()
+    expect(() => matchRequestSchema.parse(pugRequest({ simulation: { timeScale: 11 } }))).toThrow()
+    expect(() =>
+      matchRequestSchema.parse(pugRequest({ simulation: { scenario: 'Not Kebab' } })),
+    ).toThrow()
+  })
+
+  it('judges whether a mode can seat puppets once, for the orchestrator and the fake alike', () => {
+    const capable = { id: 'pug', capabilities: { simulation: true } }
+    const incapable = { id: 'flying-scoutsman', capabilities: { simulation: false } }
+    const plain = matchRequestSchema.parse(pugRequest())
+    const puppets = matchRequestSchema.parse(pugRequest({ simulation: {} }))
+    // A real match is nobody's problem, whatever the mode can do.
+    expect(matchSimulationProblem(plain, incapable)).toBeUndefined()
+    expect(matchSimulationProblem(puppets, capable)).toBeUndefined()
+    expect(matchSimulationProblem(puppets, incapable)).toMatchObject({ field: 'simulation' })
+    // A puppet is a roster entry made flesh; no entries, nobody to simulate.
+    const nobody = matchRequestSchema.parse(
+      pugRequest({
+        simulation: {},
+        teams: { teamA: { name: 'A', players: [] }, teamB: { name: 'B', players: [] } },
+      }),
+    )
+    expect(matchSimulationProblem(nobody, capable)).toMatchObject({ field: 'teams' })
+    // One scenario language: the two blocks may agree, never disagree.
+    const agreeing = matchRequestSchema.parse(
+      pugRequest({ simulation: { scenario: 'happy-path' }, sim: { scenario: 'happy-path' } }),
+    )
+    expect(matchSimulationProblem(agreeing, capable)).toBeUndefined()
+    const disagreeing = matchRequestSchema.parse(
+      pugRequest({ simulation: { scenario: 'happy-path' }, sim: { scenario: 'server-crash' } }),
+    )
+    expect(matchSimulationProblem(disagreeing, capable)).toMatchObject({
+      field: 'simulation.scenario',
+    })
+  })
+
   it('carries what the server shows about a person and nothing the platform owns', () => {
     const entry = rosterEntrySchema.parse({
       steamId64: '76561198279375306',
@@ -284,6 +336,8 @@ describe('Match', () => {
     })
     expect(match.connect?.password).toBe('apfel')
     expect(match.sim?.remainingBeats).toBe(140)
+    // A Match read from an orchestrator older than the puppets field is a real match.
+    expect(match.simulated).toBe(false)
   })
 })
 

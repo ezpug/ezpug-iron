@@ -185,6 +185,11 @@ export type GamemodeCvars = z.infer<typeof gamemodeCvarsSchema>
  * 17; implies `playerCommands`). `backups` — round backups are written and
  * `restore` works, so a crashed server can be recovered mid-match.
  * `scoreboardRating` — EZ Rating shows on the scoreboard (decision 21).
+ * `simulation` — the mode's match software can seat a puppet in every
+ * roster entry's place (PRD-03 T4), so a request with `simulation` plays
+ * without people; `false` (the default, and what every manifest written
+ * before the field said) refuses such a request `validation_failed` at the
+ * door rather than waiting in warmup for players who are never coming.
  */
 export const gamemodeCapabilitiesSchema = z.object({
   positions: z.boolean(),
@@ -193,6 +198,7 @@ export const gamemodeCapabilitiesSchema = z.object({
   widget: z.boolean(),
   backups: z.boolean(),
   scoreboardRating: z.boolean(),
+  simulation: z.boolean().default(false),
 })
 export type GamemodeCapabilities = z.infer<typeof gamemodeCapabilitiesSchema>
 export type GamemodeCapability = keyof GamemodeCapabilities
@@ -203,6 +209,7 @@ export const GAMEMODE_CAPABILITIES = [
   'widget',
   'backups',
   'scoreboardRating',
+  'simulation',
 ] as const satisfies readonly GamemodeCapability[]
 
 /**
@@ -379,6 +386,8 @@ function checkManifestConsistency(
     refuse('capabilities', 'a widget needs player commands to tap')
   if (capabilities.backups && manifest.flow === 'none')
     refuse('capabilities', 'a round backup needs a flow owner to restore into')
+  if (capabilities.simulation && manifest.flow === 'none')
+    refuse('capabilities', 'a puppet needs a plugin to seat it; a config-only mode has none')
 }
 
 /**

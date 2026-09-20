@@ -109,7 +109,8 @@
         "endedAt": null,
         "expiresAt": "2026-09-05T20:00:00.000Z",
         "endedReason": null,
-        "sim": null
+        "sim": null,
+        "simulated": false
       }
     }
   ],

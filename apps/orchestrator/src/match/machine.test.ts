@@ -278,6 +278,115 @@ describe('the format the engine plays', () => {
   })
 })
 
+/**
+ * **Puppets are behind a scope, a capability and a marker** (PRD-03 T4). The
+ * scope is judged first and by name, so a production key can never ask for a
+ * simulated match by accident; the mode's capability is judged at the door,
+ * so a request never waits in warmup for players who are not coming; and
+ * every fact of the match says `source.simulated`, stamped at the machine's
+ * one ingest funnel whatever the server put there.
+ */
+describe('the simulation switch', () => {
+  async function puppeteerKey(app: TestApp, budget?: { maxServerLifetimeMinutes: number }) {
+    const minted = await app.keys.mint({
+      name: 'puppeteer',
+      scopes: ['matches', 'simulation'],
+      budget: {
+        maxConcurrentServers: 4,
+        maxServerLifetimeMinutes: budget?.maxServerLifetimeMinutes ?? 240,
+        monthlyCents: 0,
+      },
+      webhookSecrets: [{ id: SECRET_ID, secret: SECRET }],
+    })
+    return (await app.keys.get(minted.key.id)) as AuthenticatedKey
+  }
+
+  it('refuses a puppets request on a key without the scope, by name, before the body is read', async () => {
+    const app = createTestApp()
+    const { key } = await platformKey(app)
+    // The webhook secret is wrong too; the scope is still what is named,
+    // because an unauthorised request is not owed a diagnosis.
+    const error = await refused(
+      app.matches.create(
+        key,
+        request({ simulation: {}, callbacks: { ...request().callbacks, webhookSecretId: 'x' } }),
+      ),
+    )
+    expect(error.code).toBe('forbidden')
+    expect(error.details).toEqual({ scope: 'simulation', field: 'simulation' })
+    expect(app.store.rows.matches).toHaveLength(0)
+    await app.close()
+  })
+
+  it('refuses a mode that cannot seat puppets, naming the field', async () => {
+    const app = createTestApp()
+    const key = await puppeteerKey(app)
+    const error = await refused(
+      app.matches.create(key, request({ gamemode: 'flying-scoutsman', simulation: {} })),
+    )
+    expect(error.code).toBe('validation_failed')
+    expect(error.details).toEqual({ field: 'simulation' })
+    expect(app.store.rows.matches).toHaveLength(0)
+    await app.close()
+  })
+
+  it('refuses a scenario nobody defined on the field that named it', async () => {
+    const app = createTestApp()
+    const key = await puppeteerKey(app)
+    const error = await refused(
+      app.matches.create(key, request({ simulation: { scenario: 'no-such-story' } })),
+    )
+    expect(error.code).toBe('validation_failed')
+    expect(error.details).toEqual({ field: 'simulation.scenario' })
+    await app.close()
+  })
+
+  it('is still money: the ledger caps a simulated match like any other', async () => {
+    const app = createTestApp()
+    const key = await puppeteerKey(app, { maxServerLifetimeMinutes: 60 })
+    const error = await refused(
+      app.matches.create(key, request({ simulation: {}, ttlMinutes: 120 })),
+    )
+    expect(error.code).toBe('budget_exceeded')
+    expect(app.store.rows.matches).toHaveLength(0)
+    await app.close()
+  })
+
+  it('plays it, says so on the resource and stamps every gameserver event', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const key = await puppeteerKey(app)
+    const { match } = await app.matches.create(
+      key,
+      request({ simulation: { scenario: 'happy-path', timeScale: 4 } }),
+    )
+    expect(match.simulated).toBe(true)
+    await app.settle()
+    await app.advance(60 * 60_000)
+    await app.settle()
+    const ended = await app.matches.get(key, match.id)
+    expect(ended.state).toBe('ended')
+    expect(ended.simulated).toBe(true)
+    // The engine took the puppets' timescale where `sim` said nothing.
+    expect(ended.sim?.timeScale).toBe(4)
+    const facts = app.store.rows.events.filter(e => e.matchId === match.id).map(e => e.payload)
+    const events = facts.filter(f => 'source' in f)
+    expect(events.length).toBeGreaterThan(5)
+    for (const event of events)
+      expect((event as { source: { simulated?: boolean } }).source.simulated).toBe(true)
+    // A real match beside it carries no marker at all.
+    const { key: platform } = await platformKey(app, 'platform-2')
+    const real = await app.matches.create(platform, request({ clientMatchId: 'real-1' }))
+    expect(real.match.simulated).toBe(false)
+    await app.settle()
+    const realFacts = app.store.rows.events
+      .filter(e => e.matchId === real.match.id)
+      .map(e => e.payload)
+    for (const fact of realFacts.filter(f => 'source' in f))
+      expect((fact as { source: { simulated?: boolean } }).source).not.toHaveProperty('simulated')
+    await app.close()
+  })
+})
+
 describe('deadlines', () => {
   it('fails provider_error when the server never boots', async () => {
     const app = createTestApp({ sim: { scenario: 'never-ready', positionTickIntervalMs: null } })

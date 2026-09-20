@@ -59,7 +59,7 @@ same data.
 | `plugins` | folder names under `addons/counterstrikesharp/plugins/`, enabled in this order. Empty for a config mode, non-empty otherwise |
 | `cfg` | files under the server's `cfg/`, exec'd in this order after the map loads and — a second later, in a console frame of their own, because the engine reconciles a cvar once per frame and two writes in one net out (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a) — before the flat cvars and the match's own rules. A config mode's whole truth is its cfg |
 | `cvars` | at most 64 name → string pairs the mode sets after its cfg. Applied over a request's `rules.cvars` and under what the rules derive (`mp_maxrounds`, overtime, warmup): neither side can undo what the other needs. Twelve are protected and refused at parse time, below |
-| `capabilities` | six booleans, below |
+| `capabilities` | seven booleans, below |
 | `commands` | the player-scoped verbs an `sdk` mode accepts, below. Empty otherwise |
 | `widget` | `{ entry, needs }` for an `sdk` mode with a phone widget, below. Absent otherwise |
 | `version` | the manifest's own semver, bumped with any change to the file |
@@ -83,6 +83,7 @@ same data.
 | `widget` | a phone widget exists. True exactly when the `widget` block does; implies `playerCommands` |
 | `backups` | round backups cross the link as they are written (`backup_written`), so a crashed server can be recovered mid-match (PRD-02 T14). Needs a flow owner (`flow` is not `none`); the core plugin honours it for `matchzy` |
 | `scoreboardRating` | EZ Rating shows on the scoreboard Premier-style from the roster's `rating`, and an arriving player gets one bilingual connect line naming it (decision 21, `docs/sdk.md`). A player with no profile is left alone; nothing else in-game says a rating |
+| `simulation` | the mode's match software can seat a **puppet** in every roster entry's place (PRD-03 T4, decision 25): a request carrying `simulation` — on a key with the `simulation` scope — is played by simulated players that connect, ready up and play through the doors a human takes, and every fact of it says `source.simulated`. `false` (the default, and what every manifest written before the field said) refuses such a request `validation_failed` at the door rather than waiting in warmup for players who are never coming. `pug` claims it: MatchZy-Enhanced's simulation mode reads the switch from the match file. The SDK modes claim it the day the SDK seats a puppet (PRD-03 T7) |
 
 ### Player commands
 
@@ -276,6 +277,7 @@ command is the mode's job.
 | only an `sdk` mode has `commands` or a `widget` | the SDK relays taps; a community plugin has no seam for them |
 | `capabilities.playerCommands` ⇔ `commands` non-empty; `capabilities.widget` ⇔ `widget` present; `widget` ⇒ `playerCommands` | a capability is a claim about a block that exists |
 | `capabilities.backups` needs `flow` other than `none` | a backup restores into a match someone is running |
+| `capabilities.simulation` needs `flow` other than `none` | a puppet needs a plugin to seat it; a config-only mode has none |
 | an allow-list names at least one map | say `"any"` instead of an empty list |
 | `ranked` is `false` | see above |
 

@@ -20,11 +20,17 @@ An API key holds one or more **scopes**:
 | --------- | --------------------------------------------------------------------------- |
 | `matches` | create, read, command and cancel matches; mint player tokens; read the catalog and capacity |
 | `fleet`   | read the ledger, providers, nodes, budget and GSLT pool; release, drain, undrain; console and RCON |
-| `admin`   | mint, list and revoke keys; set webhook secrets. Implies `matches` and `fleet` |
+| `admin`   | mint, list and revoke keys; set webhook secrets. Implies `matches`, `fleet` and `simulation` |
+| `simulation` | send a match request that carries `simulation` — a match played by **puppets** (PRD-03 T4). Not a route scope: `POST /v1/matches` still needs `matches`, and this one is checked against the body |
 
 Every route declares the scope it needs (`scope` in the route table). A key without it
 gets `forbidden`. One command, `rcon`, needs `admin` on top of the `matches` route it
-travels on.
+travels on; one body field, `simulation`, needs the `simulation` scope on top of it, and a
+request that carries it on a key without the scope is `forbidden` with `details.scope:
+"simulation"` — judged before anything about the body, because an unauthorised request is
+not owed a diagnosis. A production platform key holds `matches` and never `simulation`,
+which is how a real match can never be a simulated one by accident; the lane's key and an
+operator's rehearsal key hold both.
 
 ## Errors
 
@@ -69,7 +75,9 @@ transient.
 `bomb_planted`, `bomb_defused`, `bomb_exploded`, `position_tick`, `backup_written`,
 `demo_available`, `chat_command`, `chat_message`, `plugin_event`.
 `GAMESERVER_EVENT_CONTRACT_VERSION = 1`, `position_tick` ephemeral. `source.provider` on
-an event is the provider badge (`sim`, `dathost`, a node's provider id). The platform
+an event is the provider badge (`sim`, `dathost`, a node's provider id); `source.simulated`
+is present, and `true`, on every event of a match played by puppets (`MatchRequest.simulation`,
+PRD-03 T4) and absent on a real one. The platform
 re-exports these from the package; its fixtures parse unchanged (a test in this package
 proves it against the platform's own recorded files).
 
@@ -113,6 +121,7 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `warmupLines?` | string[] ≤20                                           | printed in warmup, one every eight seconds, in order and cycling; rendered by the client (one line everybody reads cannot be four languages), relayed unbranded, sanitized to one chat line |
 | `branding?`    | `{ hostname?, eventName? }`                            | decision 22 |
 | `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos? }`      | honoured on the `sim` provider only |
+| `simulation?`  | `{ scenario?, timeScale? }`                            | **puppets**: every rostered player is played by a simulated one. Needs the `simulation` scope (else `forbidden`) and `capabilities.simulation` on the mode (else `validation_failed` on `simulation`); `scenario` is a name from `GET /v1/sim/scenarios`, `timeScale` the engine's `host_timescale`, 0.1…10. Absent is a real match |
 | `ttlMinutes`   | int, 1…1440                                            | the reaper's deadline; never above the key's ceiling |
 
 **`rules.format` is which game the engine plays**, and there are two (PRD-03 T3b, owner
@@ -126,6 +135,40 @@ decision 2026-09-19).
   of `live.cfg`, so **the map is loaded again** when the server was not already in that
   mode: a wingman match costs one map change before warmup. Your `rules` still win over
   that cfg — they are re-applied after it — so send the rounds you mean.
+
+**`simulation` is a match played by puppets** (PRD-03 T4, decision 25): a body on the
+server for every roster entry, carrying that entry's SteamID and name, that connects,
+readies up through the match plugin's own ready system, plays and leaves by the paths a
+human takes — so a client sees exactly the facts a real match sends about exactly the
+players it rostered, with nobody at a keyboard. It is not the `sim` block: `sim` steers
+the simulator *provider*, where no server exists at all; `simulation` asks a real server —
+rented, LAN or the simulator alike — to play without people, and **costs what a real
+server costs**: the ledger row, the budget check and the reaper are exactly a real match's.
+Four things a consumer needs to know:
+
+- **Every fact says so.** `Match.simulated` is `true` and every gameserver event of the
+  match carries `source.simulated: true`, stamped by the orchestrator whatever the server
+  said — so a stats pipe, a board or a drop reads one field and never a request. A real
+  match carries neither; nor does a match on the `sim` provider that did not ask for it,
+  whose players are the simulator's own inventions and whose `source.provider` has
+  always said so.
+- **It is all or nothing this round.** MatchZy-Enhanced fills every roster seat with a
+  puppet or none, so there is no field for "these two are humans" — a request that wants
+  a mixed room is a request for a later contract, not a quietly different match. A roster
+  with nobody on it is refused (`validation_failed` on `teams`): a puppet is a roster entry
+  made flesh.
+- **One scenario language.** `simulation.scenario` takes a name from `GET /v1/sim/scenarios`,
+  the same catalog `sim.scenario` reads — what the puppets do beyond playing the match
+  out. On the simulator it *is* the scenario played (and `simulation.timeScale` the
+  story's speed where `sim.timeScale` says nothing); on a real server it is what the
+  puppets are scripted to do, knob by knob, and a knob a real server cannot execute is
+  listed as sim-only in `docs/gamemodes.md`, never silently ignored. Naming a story in both
+  blocks is fine when they agree and `validation_failed` on `simulation.scenario` when they
+  do not; a name nobody defined is refused on whichever field named it.
+- **Who may ask** is the `simulation` scope, above. The mode has to be able to: only a
+  manifest with `capabilities.simulation` seats a puppet (`pug` does), and a request to any
+  other is `validation_failed` on `simulation` at the door rather than a server waiting in
+  warmup for players who are never coming.
 
 **Wingman seats two a side, and the map is yours to name.** A roster with a third player
 on a side is refused `validation_failed` on `teams.<side>.players`, because the engine's
@@ -216,6 +259,7 @@ stickers (≤5 of { id, schema, x, y, wear, scale, rotation }), keychain? { id, 
 | `createdAt`, `updatedAt`, `readyAt`, `liveAt`, `endedAt`, `expiresAt` | ISO timestamps | nullable where not yet reached |
 | `endedReason`   | `{ kind, detail? }` \| null | `kind ∈ completed, force_ended, cancelled, ttl_expired, server_lost, allocation_failed, provider_error` |
 | `sim`           | SimStatus \| null | `{ scenario, seed, mode, timeScale, remainingBeats, finished, outcome, chaos }` on the `sim` provider only |
+| `simulated`     | boolean | the players are puppets — the request carried `simulation` — and every gameserver event of the match carries `source.simulated: true`. The badge an admin page shows; `false` for a real match, and for a `Match` read from an orchestrator older than the field |
 
 ### MatchCommand and MatchCommandResult
 
@@ -266,7 +310,7 @@ serves it. `docs/gamemodes.md` explains every field; the wire shape is:
   records: demo | events | none, ranked: false,
   maps: 'any' | { catalog: mapName[], workshop: workshopId[] },
   plugins: string[], cfg: string[], cvars: { [name]: string },
-  capabilities: { positions, chat, playerCommands, widget, backups, scoreboardRating },
+  capabilities: { positions, chat, playerCommands, widget, backups, scoreboardRating, simulation },
   commands: [{ name, title: {de, en}, description?: {de, en}, cooldownMs, charges: { count,
     per: life | round | map | match } | null, args?: <JSON Schema, type object> }],
   widget?: { entry, needs: (tokens | locale | playerToken)[], url? },
@@ -347,7 +391,9 @@ simulator can play, and the one a `sim` block without a `scenario` gets. A `SimS
 knobs spelled out, so a console renders facts rather than a hard-coded list. Served whether
 or not the `sim` provider is registered — this is what the build knows how to play, and
 `GET /v1/capacity` is what says whether it could. `MatchRequest.sim.scenario` takes a
-`name` from here; one that is not is `validation_failed` on the match.
+`name` from here, and so does `MatchRequest.simulation.scenario` — one scenario language,
+whether the simulator plays it or puppets on a real server do; one that is not is
+`validation_failed` on the match, on whichever field named it.
 
 ### `POST /v1/matches`
 
@@ -965,7 +1011,8 @@ implementation made *for this key*, verified, returning the unsubscribe) and `ca
 an optional `demoUploadUrl`). Everything else narrows what can be asked of it: `clock`,
 `advance(ms)` (let the implementation's time pass — a fake clock advances, a real one
 sleeps), `settle()`, `faults()`, `playerCommand()`, `stream()`, `budget` (a second key with
-a lower lifetime ceiling), `pollIntervalMs`, `maxWaitMs`, `close()`. A flow that needs a
+a lower lifetime ceiling), `simulation` (a key holding the `simulation` scope beside
+`matches`, while `client` must not), `pollIntervalMs`, `maxWaitMs`, `close()`. A flow that needs a
 capability the target does not offer is **skipped with a reason**, never failed — a
 production orchestrator has no crash knob.
 
@@ -974,10 +1021,13 @@ facts, live, an announce replayed by its `correlationId`, a pause and an unpause
 `match.ended`), `config-only` (`flying-scoutsman`: a `config`-tier mode plays and uploads no
 demo), `open-join` (`retakes` with empty rosters: `player.joined` with `rostered: false`),
 `player-command` (`powerup-dm`: a player token, a widget's tap, the `plugin_event` back),
-`cancel-allocating`, `crash-restore`, `crash-lost`, `csgo-refused`, `budget-refused`,
-`webhook-replay` (the cursor walked to the end equals the tail) and `stream-hello` (the
-`hello.seq` agrees with the events route, and every `event` frame is an envelope the route
-also has).
+`cancel-allocating`, `crash-restore`, `crash-lost`, `csgo-refused`, `wingman-format`,
+`simulation-switch` (a puppets request is `forbidden` by scope name on the suite's own key,
+`validation_failed` on a mode without the capability and on a scenario nobody defined, and
+on the scoped key plays a Bo1 whose `Match.simulated` and every `source.simulated` are
+`true`), `budget-refused`, `webhook-replay` (the cursor walked to the end equals the tail)
+and `stream-hello` (the `hello.seq` agrees with the events route, and every `event` frame is
+an envelope the route also has).
 
 **The report** is data, not a test framework: `{ ok, results, passed, failed, skipped }`
 with a named check list per flow. `formatConformanceReport` prints it, `assertConformance`

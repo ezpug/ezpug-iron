@@ -86,6 +86,17 @@ export interface MatchZyMatchConfig {
   skip_veto: boolean
   clinch_series: boolean
   wingman: boolean
+  /**
+   * **Puppets** (PRD-03 T4): MatchZy-Enhanced spawns one bot per roster
+   * entry, maps it to that entry's SteamID, readies it through its own ready
+   * system and rewrites every event's stats to the configured id
+   * (`references/MatchZy-Enhanced/src/SimulationMode.cs`). Present only when
+   * the request asked — absent reads as `false` in `MatchConfig.cs`, and a
+   * real match's file is byte for byte what it was before the field existed.
+   */
+  simulation?: true
+  /** The engine's `host_timescale` for a simulated match, clamped by the fork to 0.1–10. */
+  simulation_timescale?: number
   players_per_team: number
   min_players_to_ready: number
   min_spectators_to_ready: number
@@ -272,6 +283,21 @@ function common(input: MatchConfigInput) {
   }
 }
 
+/**
+ * The puppets switch, only when the request asked (PRD-03 T4): `simulation`
+ * turns the fork's simulation mode on for this match and this match alone —
+ * the per-match switch decision 19 wants, never a second binary — and
+ * `simulation_timescale` is the engine clock it plays at, `1` when unsaid
+ * because that is the fork's own default and a real server's only honest
+ * speed.
+ */
+function simulation(
+  request: MatchRequest,
+): Pick<MatchZyMatchConfig, 'simulation' | 'simulation_timescale'> {
+  if (request.simulation === undefined) return {}
+  return { simulation: true, simulation_timescale: request.simulation.timeScale ?? 1 }
+}
+
 /** Build the CS2 (MatchZy) match file. */
 export function buildMatchZyConfig(input: MatchConfigInput): MatchZyMatchConfig {
   const shared = common(input)
@@ -284,6 +310,7 @@ export function buildMatchZyConfig(input: MatchConfigInput): MatchZyMatchConfig 
     // Bo1 makes this moot; a Bo3 ends at 2–0 rather than playing a dead map.
     clinch_series: true,
     wingman: isWingman(input.request),
+    ...simulation(input.request),
     players_per_team: shared.players_per_team,
     min_players_to_ready: shared.min_players_to_ready,
     min_spectators_to_ready: shared.min_spectators_to_ready,

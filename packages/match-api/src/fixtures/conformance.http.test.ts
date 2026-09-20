@@ -45,6 +45,7 @@ async function httpTarget(): Promise<ConformanceTarget> {
   }
   const client = createMatchApiClient({ ...options, apiKey: base.platform.secret })
   const thrifty = createMatchApiClient({ ...options, apiKey: base.thrifty.secret })
+  const puppeteer = createMatchApiClient({ ...options, apiKey: base.puppeteer.secret })
   // The runner closes a factory's target itself; `afterEach` is the safety
   // net for a run that threw before it got there, so closing twice is normal.
   let closed = false
@@ -63,6 +64,7 @@ async function httpTarget(): Promise<ConformanceTarget> {
       client: thrifty,
       maxServerLifetimeMinutes: base.budget?.maxServerLifetimeMinutes ?? 60,
     },
+    simulation: { client: puppeteer },
     // A socket arrives on the event loop, not on the clock: give it a turn.
     advance: async ms => {
       await base.clock.advance(ms)
