@@ -1990,7 +1990,7 @@
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-config-only",
       "seq": 72,
-      "occurredAt": "2026-09-05T18:04:35.000Z",
+      "occurredAt": "2026-09-05T18:04:31.439Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
         "source": {
@@ -1998,42 +1998,6 @@
           "serverId": "sim-1"
         },
         "seq": 97,
-        "type": "heartbeat",
-        "playerCount": 10
-      }
-    },
-    {
-      "deliveryId": "bc327f8d-accb-4385-b8a2-a5342a40fe51",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-config-only",
-      "seq": 73,
-      "occurredAt": "2026-09-05T18:04:35.439Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 98,
-        "mapNumber": 1,
-        "type": "demo_available",
-        "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_mirage.ezpug-sim.json",
-        "sizeBytes": 11079
-      }
-    },
-    {
-      "deliveryId": "062002bf-db6c-4714-94f4-c57f1920c711",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-config-only",
-      "seq": 74,
-      "occurredAt": "2026-09-05T18:04:37.439Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 99,
         "type": "series_end",
         "seriesScore": {
           "teamA": 1,
@@ -2043,11 +2007,11 @@
       }
     },
     {
-      "deliveryId": "835febf6-fed2-471a-99a5-e4971f365724",
+      "deliveryId": "bc327f8d-accb-4385-b8a2-a5342a40fe51",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-config-only",
-      "seq": 75,
-      "occurredAt": "2026-09-05T18:04:37.439Z",
+      "seq": 73,
+      "occurredAt": "2026-09-05T18:04:31.439Z",
       "payload": {
         "type": "match.ended",
         "state": "ended",
@@ -2348,18 +2312,10 @@
     },
     {
       "seq": 72,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 73,
-      "type": "demo_available"
-    },
-    {
-      "seq": 74,
       "type": "series_end"
     },
     {
-      "seq": 75,
+      "seq": 73,
       "type": "match.ended"
     }
   ],

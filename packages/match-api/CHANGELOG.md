@@ -6,6 +6,29 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.18.2 — 2026-09-20
+
+**A mode that records events announces no demo** (PRD-03 T9c, for the platform's PRD-10 T6
+and T11). No schema moved; the fake and the `sim` provider stop saying one thing a real
+server of that mode never says.
+
+- **`demo_available` is a `records: "demo"` mode's fact and nobody else's.** The simulator
+  told every mode the same story, so a `powerup-dm`, `flying-scoutsman` or `retakes` match
+  on the fake or on the `sim` provider announced a demo per map. The orchestrator gated
+  the *upload* on the manifest all along, so `demo.uploaded` never followed and
+  `match.ended` said `skipped: "not_recorded"` — but the announcement travelled, and a
+  consumer that opens a demo pipeline on one (the platform's does: it registers the
+  expected upload and waits out its secured timeout before calling the demo missing) waited
+  for a file no server of that mode was ever going to write.
+- **What changes for you.** Three of the four bundled manifests record `events`, so a
+  dev-world deathmatch, retakes or flying-scoutsman match is now one envelope shorter and
+  its `series_end` follows `map_end` by two seconds rather than eight — there is no GOTV to
+  wait out where there is no demo. `pug` is untouched, announcement, `PUT` and
+  `demo.uploaded` alike. The recorded fixtures `config-only`, `open-join` and
+  `player-command` carry the new shape; `demo-per-map` is byte for byte what it was.
+- **The conformance suite says it out loud**: the `config-only` flow now checks that a mode
+  which records events announces no demo as well as uploading none.
+
 ## 0.18.1 — 2026-09-20
 
 **The fake reads a minted key against the contract** (PRD-03 T9b). No schema moved; the

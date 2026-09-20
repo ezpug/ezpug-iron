@@ -781,6 +781,12 @@ relays a fact about what landed:
 3. `match.ended` carries `demo`: `uploaded`, how many maps' demos landed, and `skipped`,
    why there were not more (`no_upload_url`, `not_recorded`, `no_demo`, `upload_failed`).
 
+**Only a `records: demo` gamemode ever says `demo_available`.** A `powerup-dm` or a
+`flying-scoutsman` server keeps its durable events and writes no file, so nothing is
+announced, no match holds its server open waiting for one, and `match.ended` says
+`skipped: "not_recorded"`. That is true of real hardware, of the `sim` provider and of the
+fake alike — a mode's `records` is what decides, never the provider.
+
 **A series without a URL per map keeps only its first map's demo.** A presigned URL
 addresses one object, so a second PUT at the same one would overwrite what is already
 there; the plugin refuses to and says so in its log, and `match.ended` counts the demo it

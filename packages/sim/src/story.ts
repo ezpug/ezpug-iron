@@ -397,6 +397,51 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     return { beats, outcome: 'completed', demos }
   }
 
+  /**
+   * **This map's demo, if this mode makes one at all** (PRD-03 T9c). Only a
+   * manifest that `records: "demo"` produces a file: a `powerup-dm` or a
+   * `flying-scoutsman` server records its events and hands over nothing, so
+   * there is no `demo_available` to say and no GOTV to wait for either — the
+   * orchestrator's demo window (`machine.ts` `demoPending`) is not armed for
+   * such a match and its `match.ended` already says `skipped: "not_recorded"`.
+   * Absent, as a match config read off a MatchZy handoff is: a demo.
+   *
+   * The recording itself is the honest one, not a plausible 90 MB of fake
+   * demo: this map's own normalized events, minus the ephemeral tier, which is
+   * what the parse pipeline produces this match's stats and replay from.
+   * `sizeBytes` is the real length of the bytes `record()` will hand the
+   * storage pipe.
+   */
+  const announceDemo = (mapNumber: number, map: string, fromIndex: number): void => {
+    if ((assignment.records ?? 'demo') !== 'demo') return
+    t += 6_000
+    const demo = simulatedRecording({
+      matchId,
+      serverId: source.serverId,
+      scenario: scenario.name,
+      mapNumber,
+      map,
+      players: players.map(state => ({
+        steamId64: state.player.steamId64,
+        name: state.player.name,
+        team: state.team,
+      })),
+      events: beats
+        .slice(fromIndex)
+        .map(beat => beat.event)
+        .filter(event => !isEphemeralGameserverEvent(event.type)),
+    })
+    demos.push(demo)
+    emit(t, {
+      type: 'demo_available',
+      matchId,
+      source,
+      mapNumber,
+      filename: demo.filename,
+      sizeBytes: demo.sizeBytes,
+    })
+  }
+
   const absentCount = Math.min(scenario.absentPlayers ?? 0, players.length - 1)
   const absent = new Set(prng.sample(players, absentCount).map(p => p.player.steamId64))
   const arrivals = players
@@ -494,32 +539,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
       winner: winnerOf(assignment, score.teamA, score.teamB),
       reason: played.reason,
     })
-    t += 6_000
-    const demo = simulatedRecording({
-      matchId,
-      serverId: source.serverId,
-      scenario: scenario.name,
-      mapNumber: 1,
-      map: firstMap.map,
-      players: players.map(state => ({
-        steamId64: state.player.steamId64,
-        name: state.player.name,
-        team: state.team,
-      })),
-      events: beats
-        .slice(mapStartIndex)
-        .map(beat => beat.event)
-        .filter(event => !isEphemeralGameserverEvent(event.type)),
-    })
-    demos.push(demo)
-    emit(t, {
-      type: 'demo_available',
-      matchId,
-      source,
-      mapNumber: 1,
-      filename: demo.filename,
-      sizeBytes: demo.sizeBytes,
-    })
+    announceDemo(1, firstMap.map, mapStartIndex)
     t += 2_000
     // A length is the *match's*, not a map's: the series ends with it however
     // many maps the request planned (`GenericFlow.End`, `seriesOver: true`).
@@ -713,36 +733,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
       // SDK's rule — a one-team mode names nobody (PRD-03 T9a/T10).
       winner: winnerOf(assignment, score.teamA, score.teamB),
     })
-    t += 6_000
-    // The honest recording, not a plausible 90 MB of fake demo: this map's own
-    // normalized events, minus the ephemeral tier, which is what the parse
-    // pipeline produces this match's stats and replay from. `sizeBytes`
-    // is the real length of the bytes `record()` will hand the storage pipe.
-    const demo = simulatedRecording({
-      matchId,
-      serverId: source.serverId,
-      scenario: scenario.name,
-      mapNumber,
-      map: decidedMap.map,
-      players: players.map(state => ({
-        steamId64: state.player.steamId64,
-        name: state.player.name,
-        team: state.team,
-      })),
-      events: beats
-        .slice(mapStartIndex)
-        .map(beat => beat.event)
-        .filter(event => !isEphemeralGameserverEvent(event.type)),
-    })
-    demos.push(demo)
-    emit(t, {
-      type: 'demo_available',
-      matchId,
-      source,
-      mapNumber,
-      filename: demo.filename,
-      sizeBytes: demo.sizeBytes,
-    })
+    announceDemo(mapNumber, decidedMap.map, mapStartIndex)
     if (mapWinner === 'team_a') seriesScore.teamA++
     else seriesScore.teamB++
   }

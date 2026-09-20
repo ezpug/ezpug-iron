@@ -1635,7 +1635,7 @@
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-open-join",
       "seq": 60,
-      "occurredAt": "2026-09-05T18:03:35.000Z",
+      "occurredAt": "2026-09-05T18:03:32.757Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
         "source": {
@@ -1643,42 +1643,6 @@
           "serverId": "sim-1"
         },
         "seq": 78,
-        "type": "heartbeat",
-        "playerCount": 6
-      }
-    },
-    {
-      "deliveryId": "7aad7028-82d3-4f8e-a726-541b74843130",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-open-join",
-      "seq": 61,
-      "occurredAt": "2026-09-05T18:03:36.757Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 79,
-        "mapNumber": 1,
-        "type": "demo_available",
-        "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_ancient.ezpug-sim.json",
-        "sizeBytes": 9832
-      }
-    },
-    {
-      "deliveryId": "8a7e082f-0785-4973-8c9b-d77615ad34b6",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-open-join",
-      "seq": 62,
-      "occurredAt": "2026-09-05T18:03:38.757Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 80,
         "type": "series_end",
         "seriesScore": {
           "teamA": 1,
@@ -1688,11 +1652,11 @@
       }
     },
     {
-      "deliveryId": "3e907cdf-ebe1-41a6-94e8-acba9548c092",
+      "deliveryId": "7aad7028-82d3-4f8e-a726-541b74843130",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-open-join",
-      "seq": 63,
-      "occurredAt": "2026-09-05T18:03:38.757Z",
+      "seq": 61,
+      "occurredAt": "2026-09-05T18:03:32.757Z",
       "payload": {
         "type": "match.ended",
         "state": "ended",
@@ -1945,18 +1909,10 @@
     },
     {
       "seq": 60,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 61,
-      "type": "demo_available"
-    },
-    {
-      "seq": 62,
       "type": "series_end"
     },
     {
-      "seq": 63,
+      "seq": 61,
       "type": "match.ended"
     }
   ],

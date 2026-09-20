@@ -1016,6 +1016,8 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       // anybody can have won it (PRD-03 T9a).
       teamCount: record.manifest.slots.teams,
       ...(record.manifest.length && { length: record.manifest.length }),
+      // What the server keeps: only a `demo` mode announces one (T9c).
+      records: record.manifest.records,
       // Said out loud while the simulated server waits, exactly as a plugin
       // would print them (T30).
       ...(request.warmupLines && { warmupLines: request.warmupLines }),

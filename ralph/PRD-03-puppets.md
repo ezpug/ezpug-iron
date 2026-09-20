@@ -487,13 +487,26 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   carry (name, scopes, budget), a test says so, and the bootstrap and node-enrolment mints
   are checked for the same reach.
 
-- [ ] **T9c: a mode that records events is handed a demo it never made.** The simulator
+- [x] **T9c: a mode that records events is handed a demo it never made.** The simulator
   emits `demo_available` for every map of every mode, `records: "events"` included — the
   orchestrator gates the *upload* on `records` (`providers/sim/provider.ts`) but the fact
   travels, and a real `powerup-dm` or `flying-scoutsman` server produces none. Thread the
   manifest's `records` into the assignment as T9a threaded `length` and `teamCount`, and
   say it only where a demo exists. T11 compares sim and real by the classes of fact they
   emit, so this is a diff it would otherwise find.
+
+    > **The real server was never the liar** — `DemoFlow.cs` has read
+    > `Gamemode.Records == Demo` since it was written, and MatchZy only records for a
+    > `matchzy` mode, all of which record demos. The simulator was the one place that told
+    > every mode the same story, so this is a one-sided fix and the lane had nothing to
+    > prove: no `EZPUG_CS2_TESTS` run, and T11's comparison loses a diff rather than
+    > gaining one.
+    >
+    > **The demo took its GOTV wait with it.** A story's `series_end` used to follow
+    > `map_end` by eight seconds — six of them the file being written — and for a mode that
+    > writes none it now follows by two, which also cost the `config-only` and `open-join`
+    > goldens a heartbeat that no longer fits. That is the honest shape: the orchestrator's
+    > demo window (`machine.ts` `demoPending`) was never armed for such a match either.
 
 - [ ] **T10: retakes is one team** (owner decision, 2026-09-19).
   - Manifest `slots.teams: 1` with `teamSize: 10`, since `retakes.ts:60` multiplies.

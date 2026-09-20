@@ -377,8 +377,10 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       const order = types(envelopes)
       ctx.check('rounds were played', order.includes('round_end'))
       ctx.check(
-        'a mode that records events only uploads no demo',
-        manifest.records !== 'demo' ? !order.includes('demo.uploaded') : true,
+        'a mode that records events only announces no demo and uploads none',
+        manifest.records !== 'demo'
+          ? !order.includes('demo.uploaded') && !order.includes('demo_available')
+          : true,
         order.filter(t => t.startsWith('demo')).join(','),
       )
       const ended = payload(envelopes, 'match.ended')

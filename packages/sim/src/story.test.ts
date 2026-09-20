@@ -674,3 +674,52 @@ describe('the idle scenario (PRD-03 T9a)', () => {
     expect(ofType(story, 'player_connected')).toHaveLength(0)
   })
 })
+
+describe('what the mode records (PRD-03 T9c)', () => {
+  it('announces no demo for a mode that records events only', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'records-a', {
+      records: 'events',
+    })
+    expect(ofType(story, 'round_end').length).toBeGreaterThan(0)
+    expect(ofType(story, 'demo_available')).toHaveLength(0)
+    // And there are no bytes to hand out either: a server that makes no demo
+    // has no recording of one, so nothing can be PUT where the request said.
+    expect(story.demos).toHaveLength(0)
+    // The map still ends and the series still ends — only the file is missing.
+    expect(story.outcome).toBe('completed')
+    expect(story.beats[story.beats.length - 1]?.event.type).toBe('series_end')
+  })
+
+  it('announces no demo for a length story either, which is where the deathmatches are', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'records-b', {
+      ...DEATHMATCH,
+      records: 'events',
+    })
+    expect(ofType(story, 'map_end')[0]?.reason).toBe('time_limit')
+    expect(ofType(story, 'demo_available')).toHaveLength(0)
+    expect(story.demos).toHaveLength(0)
+    // The demo also took the story's GOTV wait with it: `series_end` follows
+    // `map_end` by the two seconds and not by eight.
+    const at = (type: 'map_end' | 'series_end') =>
+      story.beats.find(beat => beat.event.type === type)?.atMs ?? 0
+    expect(at('series_end') - at('map_end')).toBe(2_000)
+  })
+
+  it('records none for a mode that keeps nothing', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'records-c', { records: 'none' })
+    expect(ofType(story, 'demo_available')).toHaveLength(0)
+    expect(story.demos).toHaveLength(0)
+  })
+
+  it('still makes one per map for a mode that records a demo, said or unsaid', () => {
+    const said = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'records-d', { records: 'demo' })
+    const unsaid = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'records-d')
+    // Absent is `demo`: a match config read off a MatchZy handoff says nothing
+    // about a manifest and that server records one.
+    expect(JSON.stringify(said)).toBe(JSON.stringify(unsaid))
+    expect(ofType(said, 'demo_available').length).toBe(ofType(said, 'map_end').length)
+    expect(said.demos.map(demo => demo.mapNumber)).toEqual(
+      ofType(said, 'demo_available').map(event => event.mapNumber),
+    )
+  })
+})

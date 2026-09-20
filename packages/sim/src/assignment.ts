@@ -21,6 +21,7 @@
 import type {
   Game,
   GamemodeLength,
+  GamemodeRecords,
   Locale,
   MapPlan,
   MatchRules,
@@ -97,6 +98,15 @@ export interface MatchAssignment {
    * mode's, whose length is MatchZy's: the round-based story, as before.
    */
   length?: GamemodeLength
+  /**
+   * **What the server keeps of this match** (PRD-03 T9c): the manifest's
+   * `records`. Only `demo` produces a demo, so only a `demo` mode announces
+   * one — a `powerup-dm` or `flying-scoutsman` server records its events and
+   * hands over no file, and a story that said `demo_available` anyway was
+   * promising bytes no real server of that mode has. Absent: `demo`, which is
+   * what a match config read off a MatchZy handoff always is.
+   */
+  records?: GamemodeRecords
   /**
    * The lines the client wrote for warmup, already rendered in the roster's
    * majority locale — what a real server prints one every few seconds while it
@@ -226,6 +236,8 @@ export interface MatchRequestHandoff {
   teamCount?: number
   /** The manifest's `length`, for a flow the SDK tells the story of. */
   length?: GamemodeLength
+  /** The manifest's `records` — only `demo` announces a demo. */
+  records?: GamemodeRecords
   /** The request's `warmupLines`, verbatim — the platform rendered them, the server prints them. */
   warmupLines?: readonly string[]
 }
@@ -258,6 +270,7 @@ export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchA
     ...(handoff.openJoin !== undefined && { openJoin: handoff.openJoin }),
     ...(handoff.teamCount !== undefined && { teamCount: handoff.teamCount }),
     ...(handoff.length !== undefined && { length: handoff.length }),
+    ...(handoff.records !== undefined && { records: handoff.records }),
     ...(handoff.warmupLines !== undefined && { warmupLines: [...handoff.warmupLines] }),
   })
 }

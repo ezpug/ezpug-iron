@@ -155,6 +155,8 @@ export function simAssignmentFor(
       // anybody can have won it (PRD-03 T9a).
       teamCount: gamemode.slots.teams,
       ...(gamemode.length && { length: gamemode.length }),
+      // What the server keeps: only a `demo` mode announces one (T9c).
+      records: gamemode.records,
       // Said out loud while the simulated server waits, exactly as a plugin
       // would print them (T30).
       ...(request.warmupLines && { warmupLines: request.warmupLines }),
