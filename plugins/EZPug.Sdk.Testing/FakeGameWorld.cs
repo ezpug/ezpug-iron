@@ -89,6 +89,41 @@ public sealed class FakeGameWorld : IGameWorld
 
     public IGamePlayer? Find(ulong steamId64) => _players.FirstOrDefault(player => player.SteamId64 == steamId64);
 
+    /// <summary>
+    /// A bot already seated turns out to be a rostered player (PRD-03 T7a): a new
+    /// <see cref="FakePlayer"/> over the same slot, announced, with the one it replaces
+    /// seen out first only when that one was a puppet too — a plain bot was never
+    /// announced and owes no disconnect.
+    /// </summary>
+    public bool Recast(int slot, PuppetRole role)
+    {
+        if (_players.FirstOrDefault(player => player.Slot == slot) is not { IsBot: true } held)
+        {
+            return false;
+        }
+
+        if (held.IsPuppet && held.SteamId64 == role.SteamId64)
+        {
+            return true;
+        }
+
+        _players.Remove(held);
+        if (held.IsPuppet)
+        {
+            PlayerDisconnected?.Invoke(held);
+        }
+
+        Seat(new FakePlayer(role.SteamId64, role.Name, slot)
+        {
+            Team = held.Team,
+            IsAlive = held.IsAlive,
+            Position = held.Position,
+            IsBot = true,
+            IsPuppet = true,
+        });
+        return true;
+    }
+
     // ------------------------------------------------------------------ verbs
 
     public void Say(string text)

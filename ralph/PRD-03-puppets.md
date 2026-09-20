@@ -364,7 +364,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > refuses a delivery that says `unrostered`. Nothing in production sends it before T16
     > deploys; the platform's pin has to move first, and T16 must check that it has.
 
-- [ ] **T7a: a puppet in a pug is announced too.** T7 seats and announces puppets for the
+- [x] **T7a: a puppet in a pug is announced too.** T7 seats and announces puppets for the
   flows the SDK owns. Under `matchzy` the fork seats them and keeps which bot is which
   roster entry in a private dictionary (`SimulationMode.cs` `simulationPlayersByUserId`),
   so the core plugin still sees ten plain bots: no `player_connected`, an empty presence
@@ -375,6 +375,28 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   lines say `Assigned bot <name> … to simulated player …`), cast the world's bots from
   it, and turn the lane's `drop` row into the front-door case: the two refusals it pins
   today go red, `rcon` goes to zero.
+
+    > **The mapping is read off the fork's console, because that is the only place it is.**
+    > Its `player_connect` payloads carry the rostered SteamID and the roster's *name*, not
+    > the bot's (`BuildPlayerInfo` returns the identity whole in simulation), so they name
+    > nobody's body; and they reach the orchestrator, not a plugin beside it. The log lines
+    > do carry both, CounterStrikeSharp runs both plugins in one process and therefore one
+    > `Console.Out`, and `matchzy_debug_console` is now an invariant of the image with its
+    > own line in the cfg check.
+    >
+    > **The cast arrives after the body does**, which the SDK's seam could not express:
+    > `IGameWorld.Casting` is asked at the door and the fork decides seconds later. Hence
+    > `IGameWorld.Recast`.
+    >
+    > **What the `drop` row deliberately stopped asserting is the gate.** The kick now lands
+    > the moment the room is announced, which is before either side has crossed it; the fork
+    > refills with `bot_join_team <side>; bot_quota n+1` and the engine is free to put that
+    > body on the *other* side while the fork maps it onto the empty roster slot anyway. Its
+    > `IsTeamReady` counts per CT/T side, so the emptied team then never passes, no
+    > `all_players_ready` is sent, and the fork force-readies both sides to get live — ten
+    > `team_ready` on the wire, every one `team2`. Which side the replacement lands on is
+    > the engine's lottery, so the row pins one `player_ready` per puppet and leaves the
+    > whole gate to the other nine. A vendor property recorded, not filed.
 
 - [ ] **T8: a puppet taps the phone.**
   - Mint a widget token for a puppet's SteamID and drive `powerup-dm`'s widget socket

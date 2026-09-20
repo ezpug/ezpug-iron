@@ -285,6 +285,10 @@ describe('the CS2 server image', () => {
         'matchzy_gg_enabled false',
         'matchzy_ffw_enabled false',
         'matchzy_autoready_enabled false',
+        // PRD-03 T7a: the mapping from a bot to the roster entry it plays is
+        // said on this console and offered nowhere else, so the verbose log is
+        // an invariant of the image and not a debugging convenience.
+        'matchzy_debug_console true',
       ])
         expect(repo('docker/cs2/cfg/MatchZy/ezpug.cfg')).toContain(name)
     })
@@ -329,6 +333,11 @@ describe('the CS2 server image', () => {
       const gg = run(scratch('config.cfg', `${base}\nmatchzy_gg_enabled true\n`))
       expect(gg.status).toBe(1)
       expect(gg.stdout).toContain('leaves matchzy_gg_enabled at "true"')
+      // A quiet console is a room of anonymous bots: the core plugin reads who
+      // each puppet plays off simulation mode's own lines (PRD-03 T7a).
+      const quiet = run(scratch('config.cfg', `${base}\nmatchzy_debug_console false\n`))
+      expect(quiet.status).toBe(1)
+      expect(quiet.stdout).toContain('leaves matchzy_debug_console at "false"')
       // The stats database is the SQLite file beside the plugin, never MySQL.
       const mysql = run(ours, scratch('database.json', '{ "DatabaseType": "MySQL" }'))
       expect(mysql.status).toBe(1)

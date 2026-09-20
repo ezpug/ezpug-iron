@@ -346,6 +346,18 @@ asked again after five seconds if it never arrives — and casts each as it arri
   the engine getting round to it, and `World.ArriveBot("BOT Cliff")` is a bot nobody asked
   for. `PuppetTests.cs` is the worked example.
 
+**Under `matchzy` the fork seats them and the cast arrives late** (PRD-03 T7a). MatchZy-Enhanced's
+simulation mode spawns one bot per roster entry itself and decides which is which seconds
+afterwards, so there is nothing to answer at the door: the body is already a plain bot by
+the time anybody knows who it plays. `IGameWorld.Recast(slot, role)` is the seam for that —
+it rebuilds the player over the same controller and raises `PlayerConnected`, which is the
+first word anything said about that body, since a plain bot is never announced. A body
+handed a *different* roster entry sees the person it was out first; a slot already cast as
+the same person is left alone. The core plugin's `MatchZyPuppets` is the one caller, and
+what it reads is the fork's own console lines rather than a guess of its own — see
+`docs/operations.md`, "Puppets". A mode never calls either seam; `FakeGameWorld.Recast` is
+how a test drives it.
+
 **A player's team is the roster's word** (`Facts.SlotOf`): `team_a`/`team_b` for a rostered
 player wherever they stand, `unrostered` for a body the request never named while it plays
 on a side, `spec` while it is on none.

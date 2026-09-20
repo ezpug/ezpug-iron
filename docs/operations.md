@@ -1382,6 +1382,30 @@ uneven match: `--bots 3` is a 2v1), and `--timescale <n>` is the engine clock th
 The run's own key is minted with the `simulation` scope, which production's platform key
 does not hold.
 
+**A puppet in a pug is a person on the wire** (PRD-03 T7a). The fork seats the bodies and
+keeps which bot plays which roster entry to itself — `simulationPlayersByUserId`, a private
+dictionary; its `player_connect` payloads carry the rostered SteamID but not the body, and
+its remote log leaves the process over HTTP to the orchestrator rather than to a plugin
+beside it. Left at that the core plugin sees ten plain bots: nothing announced, an empty
+presence map, `kick` and a widget tap refused `player_not_in_match`, and deaths over the
+link under synthetic ids (`BotIdentity`) while MatchZy's own stats carry the rostered ones —
+one match, two opinions about who is on the server.
+
+So the core plugin reads the fork's mapping **in the fork's own words**. CounterStrikeSharp
+runs both plugins in one process and therefore one `Console.Out`; `ConsoleTap` sits in front
+of it and passes everything through, `SimulationLog` reads the three lines simulation mode
+writes when it decides ("Assigned bot … to simulated player …", the reconcile pass's remap,
+and a freed roster slot), and `MatchZyPuppets` casts the body each one names
+(`IGameWorld.Recast`). From then on that bot *is* the roster entry to everything
+downstream, and the `player_connected` the world raises is the first word anything said
+about it. A SteamID the request never rostered is refused rather than invented.
+
+Two consequences an operator should know. **`matchzy_debug_console` is load-bearing** — it
+is upstream's default, the image writes it anyway, and `matchzy-cfg-check.sh` fails a cfg
+that turns it off, because a quiet console is a room of anonymous bots. And **the cast
+arrives late**: the fork maps its bots some seconds after they spawn, so a puppet is a plain
+bot for that moment and is announced when the mapping lands, not when the body does.
+
 **`--ready-gate <n>`** is `rules.warmup.minPlayersToReady` across both teams, `0` by
 default. The builder halves it per side, so `--bots 10 --ready-gate 8` is a five whose
 gate is four and is how the floor above is played on hardware. It never starts a match
@@ -1399,52 +1423,48 @@ the facts are the **core plugin's** `match_paused` / `match_unpaused` (MatchZy's
 events are dropped at the door because the plugin already says it).
 
 **`--drop-puppet`** takes one puppet off the server while it is still in warmup and waits
-for the engine to put a body back — the only thing that ever holds a loaded match at the
-gate, because the fork wants every rostered SteamID connected and on its side before it
-goes live. It knocks on the front door twice and **is refused twice**: `kick` by the
-rostered SteamID, the only id a client ever holds, and `kick` by the synthetic one
-(`BotIdentity`) a position tick hands back. Neither reaches the plugin. The orchestrator
-gates `kick` on its own presence map, and that map is filled from `player_connected` /
-`player_disconnected`, which the core plugin emits **for humans only** — so for a room of
-puppets it is empty and **no player command can reach any of them**. That pair of
-refusals is what this flag measures. PRD-03 T7 closed the gap for the modes the SDK seats
-(below); under MatchZy the fork keeps its own private map of which bot is who, and T7a is
-what closes it there.
+for a body to be put back — the only thing that ever holds a loaded match at the gate,
+because the fork wants every rostered SteamID connected and on its side before it goes
+live. **It takes the front door, whatever the flow** (PRD-03 T7 and T7a): one `kick` for
+the SteamID the request rostered, which is the only id a client ever holds, `applied`, and
+nothing typed at the server. Both flows reach it the same way now — the SDK's puppeteer
+announces the puppets it seats itself, and under MatchZy the core plugin announces the ones
+the fork seats (below) — so the orchestrator's presence map holds them and a player command
+has somebody to find.
 
-**Outside MatchZy the same flag takes the front door** (PRD-03 T7). In `powerup-dm` and
-`flying-scoutsman` the SDK's puppeteer seats the roster and announces each puppet like a
-person, so the presence map holds them: `--drop-puppet` sends one `kick` for the rostered
-SteamID, it is `applied`, and nothing is typed at the server. The room is read off the
-stream's `presence` frames — the player gone, then back — and the durable log carries one
-`player_disconnected` and one `player_connected` more than there are puppets. Measured on
-the dev node, three puppets in `powerup-dm`: `commands.rcon: 0`, the seat refilled five
-seconds after the kick.
+It used to be the one thing in the matrix that typed at a match. Under a `matchzy` flow the
+fork seats the bodies and keeps which bot plays which roster entry in a private dictionary,
+so the core plugin saw plain bots, nothing was announced, the presence map was empty and
+**both** knocks on `kick` — the rostered id and the synthetic one a position tick hands back
+— came back `player_not_in_match`. `bot_kick ct` over RCON was what was left. T7a took that
+away.
 
-So the stimulus is `bot_kick ct` over RCON, and `--drop-puppet` is the **one** thing in the
-matrix that types at a match. Team A opens CT (`maps[0].sides`), so in a 1v1 of puppets
-that is one body and not a room. A bot's own name would be narrower and cannot be had: the
-fork leaves the engine's name on a bot and maps it to the roster underneath
-(`SimulationMode.cs`), and **RCON runs a command without answering one** — `status`
-through `POST /v1/fleet/servers/:id/rcon` comes back with an empty `output`, and
-`GET /v1/fleet/servers/:id/console` carries the core plugin's console lines rather than the
-engine's or MatchZy's, so nothing outside the box can read the roster.
+**When it fires matters, and it waits on the stream for it.** The window is the warmup: once
+a match is live the fork's reconcile pass no longer runs (`isMatchSetup && readyAvailable &&
+!matchStarted`) and nothing puts the body back. Under simulation that window is seconds
+wide, because the fork maps its bots — which is what puts them in the presence map at all —
+readies each about two seconds later and counts down five. So the flag waits on the
+`presence` frames for the whole room rather than on the script's own five-second poll; a
+first cut that polled dropped a puppet at `state: live` and the room stayed one short.
 
-How the run knows the body left and came back: a **position tick** is built from the
-players that are alive and have a position, so GOTV is never in it and every id in it is a
-body playing the match. The room goes one short and then whole again — **both halves are
-watched**, because a room that filled up without ever emptying is a room nothing happened
-to. The go-live is the second proof: the fork will not start a loaded match while a
-rostered SteamID is absent.
+The room is then read off the same `presence` frames — the player gone, then back — and
+**both halves are watched**, because a room that filled up without ever emptying is a room
+nothing happened to. The go-live is the second proof: the fork will not start a loaded match
+while a rostered SteamID is absent. Measured on the dev node, a 1v1 of puppets: the kick
+`applied` at `state: ready`, the room 2 → 1 → 2, three `player_connected` and three
+`player_disconnected` in the durable log, each puppet `player_ready` exactly once, six
+minutes end to end.
 
-It has to be measured that way because **nothing announces it**. The core plugin emits
-`player_connected` for humans only, so the durable log is silent; and MatchZy-Enhanced
-synthesises its own `player_connect` only on the `bot_quota` walk that first fills the
-room — a body its reconcile pass adds later is mapped onto the free slot and re-readied
-but never announced, so its wire is silent too. Measured on the dev node: a 1v1 that lost
-and regained a body sent two `player_connect` and two `player_disconnect`, and three
-`player_ready` for two puppets. A vendor property recorded rather than filed; PRD-03 T7a
-is what gives the durable log a puppet's coming and going under MatchZy (T7 did it for the
-SDK's own modes).
+**What this row deliberately does not pin is the gate.** The kick lands the moment the room
+is announced, before either side has crossed it; the fork refills with `bot_join_team
+<side>; bot_quota n+1` and the engine is free to put that body on the *other* side while
+the fork maps it onto the empty roster slot regardless. Its `IsTeamReady` counts bodies per
+CT/T side, so when that happens the emptied team never passes the gate, no
+`all_players_ready` is sent, and the fork force-readies both sides to get live. Measured:
+ten `team_ready` on the wire, every one of them `team2`, and `player_ready` for team1's
+player carrying team2's label. Which side the replacement lands on is the engine's lottery,
+so this row asserts one `player_ready` per puppet and leaves the whole gate to the other
+nine rows. A vendor property recorded rather than filed.
 
 **`--force-start` is the escape hatch**, and it is the only thing that sends RCON at a
 match: `bot_kick; bot_quota 0`, `css_start`, the quota back, `mp_warmup_end`. It exists
@@ -1602,18 +1622,18 @@ of:
 | `wingman` | `rules.format: wingman` | `game_mode 2`, `live_wingman.cfg` and the map reload — **two `server_ready`**, because the reload re-announces the server |
 | `knife` | `maps[0].sides: knife` | the side-selection timer, because puppets never type `.stay` |
 | `pause` | a pause and an unpause through the Match API | `match_paused` / `match_unpaused` are the **core plugin's**, not MatchZy's |
-| `drop` | one puppet leaves in warmup and comes back | the gate that holds a loaded match while a rostered SteamID is absent |
+| `drop` | one puppet leaves in warmup to a `kick` for its rostered id, and comes back | the gate that holds a loaded match while a rostered SteamID is absent — and the front door reaching a puppet at all |
 
 `pug-5v5` is the one that also asserts the demo, because it is the match the owner
 actually plays. **Every case is held to `match.server_ready` exactly once** — the durable
 fact a client reads — while the raw `server_ready` off the link is only `>= 1`, because a
 map reload re-announces the server and wingman needs one to switch `game_mode`. That
-second announcement is pinned as the wingman row's own fact rather than smoothed away. **Nine of the ten rows type nothing at the match**: each asserts its own
-`commands.rcon`, so a match that went live went live because players readied. The tenth is
-`drop`, which declares one — it knocks on the Match API's `kick` twice, is refused both
-times with `player_not_in_match` (the orchestrator's presence map holds no puppet until
-PRD-03 T7a announces one like a human under MatchZy), and then uses `bot_kick ct`. The
-refusals are that row's real assertion and are meant to go red the day T7a lands.
+second announcement is pinned as the wingman row's own fact rather than smoothed away.
+**No row types anything at the match**: each asserts its own `commands.rcon`, so a match
+that went live went live because players readied, and each takes its stimulus through the
+Match API. `drop` was the last row that could not — it had to reach for `bot_kick ct`
+because no `kick` could find a puppet the core plugin had never announced — and PRD-03 T7a
+gave it the front door.
 
 **Overtime is counted, not asserted.** The matrix's own note prints the rounds each case
 played: a four-round regulation ends 2–2 often enough to be seen — five of the ten rows did

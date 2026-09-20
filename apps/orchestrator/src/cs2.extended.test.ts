@@ -20,8 +20,10 @@ import { loadRootEnv } from './env'
  * to be four assertions skipped. The escape hatch still exists
  * (`--force-start`) and **no case takes it**: each one asserts its own
  * `commands.rcon`, so "nothing typed at the match" is a measurement of the run
- * rather than a claim about the code. Exactly one row declares a number above
- * zero — `drop`, whose stimulus has no front door until T7a — and it says why.
+ * rather than a claim about the code. **Every row is zero now.** The last one
+ * that was not is `drop`, which had to reach for `bot_kick ct` because no
+ * `kick` could find a puppet; T7a gave it the front door and took the
+ * shortcut away.
  *
  * **The matrix** (T6) is every shape of match the owner's two weeks of bugs
  * came out of, and one row each:
@@ -129,11 +131,9 @@ type Summary = {
   paused?: { pause: unknown; unpause: unknown } | null
   dropped?: {
     rostered: string
-    body: string
     state: string
     standing: number
-    frontDoor: unknown
-    synthetic: unknown
+    frontDoor: { status?: string } | null
     stimulus: string | null
     left: { afterMs: number; standing: number } | null
     back: { afterMs: number; standing: number } | null
@@ -155,10 +155,11 @@ type LaneCase = {
   /** Everything after `--simulate --bots <puppets>`. */
   args: string[]
   /**
-   * How many `rcon` commands this case sends *at the match*. **Zero
-   * everywhere but `drop`**, whose stimulus has no front door until PRD-03 T7a
-   * — the field is how a case that has no other door says so out loud rather
-   * than quietly raising the count.
+   * How many `rcon` commands this case sends *at the match*. **Zero, every
+   * row**, since PRD-03 T7a gave the last one without a front door
+   * (`drop`) one. The field stays because it is how a case that ever needs a
+   * shortcut again would have to say so out loud rather than quietly raising
+   * the count.
    */
   rcon?: number
   /** The facts only this case can produce. The invariants are in {@link play}. */
@@ -270,84 +271,95 @@ const CASES: LaneCase[] = [
     },
   },
   {
-    // **One puppet leaves and comes back.** The window is the warmup, because
-    // that is the only place a missing rostered player changes anything: the
-    // fork holds a loaded match at the gate while any rostered SteamID is
-    // absent (`AreAllConfiguredPlayersConnectedAndOnCorrectTeams`, T3a's
-    // sentence), and once the match is live it stops caring.
+    // **One puppet leaves and comes back, through the front door.** The window
+    // is the warmup, because that is the only place a missing rostered player
+    // changes anything: the fork holds a loaded match at the gate while any
+    // rostered SteamID is absent (`AreAllConfiguredPlayersConnectedAndOnCorrectTeams`,
+    // T3a's sentence), and once the match is live it stops caring.
     //
-    // **This is the one row of the matrix that types at a match, and what it
-    // buys is the measurement of why it has to.** The run knocks on the front
-    // door twice — `kick` by the **rostered** SteamID, the only id a client
-    // ever holds, and `kick` by the **synthetic** one a position tick hands
-    // back — and both are refused with `player_not_in_match`. Neither reaches
-    // the plugin at all: the orchestrator gates `kick` on its own presence
-    // map, and that map is filled from `player_connected` /
-    // `player_disconnected`, which the core plugin emits for humans only. So
-    // for a room of puppets it is empty and **no player command can reach any
-    // of them** — the gap PRD-03 T7a closes, pinned to the orchestrator rather
-    // than to an id, because an id is not where the fix goes. Both assertions
-    // are meant to go red the day T7a lands (T7 closed it for the SDK's own modes only).
+    // **This row used to be the one that typed at a match, and PRD-03 T7a is
+    // why it no longer does.** `kick` is gated on the orchestrator's presence
+    // map; that map is filled from `player_connected` / `player_disconnected`;
+    // and under a `matchzy` flow the core plugin saw ten plain bots, because
+    // MatchZy-Enhanced seats the bodies itself and keeps which bot plays which
+    // roster entry in a private dictionary. So the map was empty, no player
+    // command could reach anybody, and the stimulus had to be `bot_kick ct`
+    // over RCON. T7a reads the fork's mapping off the lines simulation mode
+    // writes to the server console — one process, one `Console.Out` — and
+    // casts each body from it, so every puppet is announced like the person it
+    // plays. The kick below is addressed to the **rostered** SteamID, the only
+    // id a client ever holds, and it lands: `rcon` is zero for every row of
+    // this matrix now.
     //
-    // The stimulus is then `bot_kick ct` over RCON, declared here rather than
-    // smuggled, and the behaviour it provokes is what the case is really for:
-    // the room goes one short, the engine's quota and the fork's reconcile
-    // pass put a body back on the empty side and map it onto the free roster
-    // slot, and the match goes live — which it could not do while a rostered
-    // SteamID was missing.
-    //
-    // **Nothing announces the leaving, and that is a finding.** The core
-    // plugin emits `player_connected` for humans only, so the durable log is
-    // silent; and the fork synthesises its `player_connect` only on the
-    // `bot_quota` walk that first fills the room — a body its **reconcile
-    // pass** adds later is mapped onto the free slot and re-readied
-    // (`SimulationMode.cs`, `Reconcile: adding a bot on …`) but never
-    // announced, so its wire is silent too. Measured here: two
-    // `player_connect` and two `player_disconnect` for a 1v1 that lost and
-    // regained a body, and **three** `player_ready` for two puppets.
-    //
-    // So the leaving and the return are measured off **position ticks** — the
-    // room goes one short and then whole again — and the go-live is the
-    // second proof, because the fork will not start a loaded match while a
-    // rostered SteamID is absent. A vendor property recorded, not filed.
+    // The return is the fork's own reconcile pass: the room goes one short, it
+    // adds a bot on the side whose roster slot is empty, maps it onto that
+    // entry and re-readies it. Both halves are watched, because a `back` that
+    // never saw a `left` is a room that was simply never disturbed, which is
+    // what the first cut of this case recorded — and **the match goes live**,
+    // which it could not do while a rostered SteamID was missing, so the
+    // go-live is the second proof that the replacement was mapped onto the
+    // free slot.
     id: 'drop',
-    what: 'loses a puppet in warmup, gets it back and still goes live',
+    what: 'loses a puppet in warmup to a kick by its rostered id, gets it back and still goes live',
     puppets: 2,
     args: ['--drop-puppet'],
-    rcon: 1,
     facts: summary => {
       expect(summary.dropped, 'nothing was ever taken off the server').not.toBeNull()
-      // The front door, twice, and both refusals are the T7a gap measured
-      // rather than described.
-      for (const [which, answer] of [
-        ['the rostered SteamID', summary.dropped?.frontDoor],
-        ['the synthetic id', summary.dropped?.synthetic],
-      ] as const)
-        expect(
-          JSON.stringify(answer),
-          `${which} was kickable: T7a landed and this case is stale`,
-        ).toContain('player_not_in_match')
-      // The room really went one short, and really filled back up. A `back`
-      // without a `left` is a room that was simply never disturbed, which is
-      // what the first cut of this case recorded.
+      // **The front door, and it opens.** Red before T7a, when the same call
+      // came back `player_not_in_match` because nothing had ever said the
+      // puppet was here.
+      expect(
+        JSON.stringify(summary.dropped?.frontDoor),
+        'the rostered SteamID was not kickable: the puppet is not in the presence map',
+      ).not.toContain('player_not_in_match')
+      expect(summary.dropped?.frontDoor?.status, 'the kick was not applied').toBe('applied')
+      // **In the warmup, which is the only window that proves anything.** Once
+      // a match is live the fork's reconcile pass no longer runs and nothing
+      // puts the body back, so a kick that landed late would record a room
+      // that emptied and stayed that way. The script waits on the stream for
+      // the room to be announced rather than on its own five-second poll.
+      expect(summary.dropped?.state, 'the puppet was dropped out of a live match').toBe('ready')
       expect(summary.dropped?.left, 'nobody ever left the server').not.toBeNull()
       expect(summary.dropped?.back, 'the room never filled back up').not.toBeNull()
-      // The replacement was mapped onto the free roster slot, which is only
-      // visible as a ready the fork sent for a body that had already readied.
-      expect(summary.counts?.matchzyPayloads ?? 0, 'the run recorded no trace').toBeGreaterThan(0)
+      // The room is read off `presence`, which only holds a puppet because the
+      // core plugin announces one — the other half of the same fix.
+      expect(summary.dropped?.standing, 'the presence map never held the room').toBe(2)
+      // **The coming and the going are in the durable log**, which is what
+      // T6 measured as missing: two puppets and a replacement make three
+      // `player_connected`, and the body that was kicked is one of the
+      // `player_disconnected`. Before T7a a room of puppets produced neither,
+      // whatever happened on the server.
       expect(
-        summary.matchzy?.player_ready ?? 0,
-        'the replacement was never mapped onto the free slot',
-      ).toBeGreaterThanOrEqual(2)
+        summary.payloads?.player_connected ?? 0,
+        'the puppets and their replacement were not all announced',
+      ).toBeGreaterThanOrEqual(3)
+      expect(
+        summary.payloads?.player_disconnected ?? 0,
+        'nothing in the durable log says a puppet left',
+      ).toBeGreaterThanOrEqual(1)
       // **And it went live anyway**, which is what the case is really for: the
       // fork holds a loaded match in warmup while any rostered SteamID is
       // absent, so the `going_live` every row of this matrix asserts is the
       // proof the body came back and was mapped onto its roster slot again.
       //
-      // The durable log still says each puppet readied **once**, however many
-      // times the fork said it — the "already said" rule (T5) doing its work
-      // on a real return rather than on a poll.
-      readiedUp(summary, 2)
+      // The durable log says each puppet readied **once**, however many times
+      // the fork said it — the "already said" rule (T5) doing its work on a
+      // real return rather than on a poll.
+      //
+      // **The gate is the one thing this row does not pin, and the reason is a
+      // vendor property.** The kick lands the moment the room is announced,
+      // which is before either side has crossed the gate; the fork then refills
+      // with `bot_join_team <side>; bot_quota n+1`, and the engine is free to
+      // put that body on the *other* side while the fork maps it onto the empty
+      // roster slot regardless. Its `IsTeamReady` counts bodies per CT/T side
+      // (T5's finding), so when that happens the emptied team never passes the
+      // gate, no `all_players_ready` is ever sent, and the fork force-readies
+      // both sides to get live — measured here: ten `team_ready` on the wire,
+      // all of them `team2`, and `player_ready` for team1's player carrying
+      // team2's label. Which side the replacement lands on is the engine's
+      // lottery, so pinning two `team_ready` here would be pinning a coin toss.
+      // Every other row of the matrix asserts the whole gate.
+      expect(summary.payloads?.player_ready, 'not every puppet readied up').toBe(2)
     },
   },
 ]
@@ -575,12 +587,11 @@ describe('the iron-match script', () => {
       'pause',
       'drop',
     ])
-    // **Exactly one row of the matrix types at the match, and it is the one
-    // whose stimulus has no front door yet.** `drop` knocks on `kick` twice
-    // and is refused both times — the orchestrator's presence map holds no
-    // puppet until PRD-03 T7a announces one like a human — so `bot_kick ct` is
-    // what is left. Every other row goes live because players readied and
-    // nothing else, and a row that quietly grew an RCON would be caught here.
-    expect(CASES.filter(lane => (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual(['drop'])
+    // **No row of the matrix types at the match.** Every one goes live because
+    // players readied and nothing else, and every one takes its stimulus
+    // through the Match API — `drop` included, since PRD-03 T7a announced the
+    // puppets MatchZy seats and gave `kick` somebody to find. A row that
+    // quietly grew an RCON would be caught here.
+    expect(CASES.filter(lane => (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual([])
   })
 })

@@ -51,6 +51,12 @@ awk '
     # readies people between matches holds an opinion nobody asked it for.
     must["matchzy_autoready_enabled"] = "false"
 
+    # The verbose console is how the core plugin learns which bot plays which
+    # roster entry in a simulated match (PRD-03 T7a): simulation mode says every
+    # mapping on it and offers it nowhere else. Off, a room of puppets is a room
+    # of anonymous bots — nothing announced, no `kick` that can find one.
+    must["matchzy_debug_console"] = "true"
+
     # Console commands, not cvars: each one *persists* a value in matchzy.db and
     # starts a fetch or a timer with it, so off means never given one. The
     # pinned release writes five of them with `""`, which every one of these

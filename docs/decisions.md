@@ -201,6 +201,26 @@ it here.
     platform's join deadline remains the only thing that gives up on a missing player,
     `.unready` opts a player out until they type `.ready` again, and turning auto-ready on
     loosened no gate.*
+    *Amended by PRD-03 T7a, 2026-09-20: **the fork's own console is a read channel, and
+    the only one it has.** "Neither double-speaks" has a second half nobody had needed yet:
+    neither may hold a *second opinion* about a fact the other owns. Simulation mode decides
+    which bot plays which roster entry and keeps it in a private dictionary
+    (`simulationPlayersByUserId`); its `player_connect` payloads carry the rostered SteamID
+    but not the body, and its remote log leaves the process over HTTP. So the core plugin
+    saw plain bots for a whole `pug`: nothing announced, an empty presence map, `kick` and a
+    widget tap refused `player_not_in_match`, deaths crossing the link under synthetic ids
+    while MatchZy's stats carried the rostered ones. **Inferring the mapping from arrival
+    order was the tempting fix and is exactly the forbidden one** — two plugins holding two
+    opinions about who is on the server, which is the 2026-09-18 stall's shape.
+    CounterStrikeSharp runs both in one process and therefore one `Console.Out`, and the
+    fork says every decision on it, so the plugin reads it there: `ConsoleTap` passes the
+    console through untouched, `SimulationLog` transcribes the three lines that announce or
+    free a mapping, and `MatchZyPuppets` casts the body each one names
+    (`IGameWorld.Recast`, a cast that arrives after the body did). A test renders those
+    format strings out of the pinned clone and parses them, so a release that rewords one is
+    a red test rather than a silent room of anonymous bots, and `matchzy_debug_console` is an
+    invariant of the image with a line in the cfg check. A SteamID the request never rostered
+    is refused rather than invented.*
 20. **Skins travel over the link, no exposed MySQL.** The platform owns loadouts; a match
     request's roster entries carry them; a **data-layer fork of cs2-WeaponPaints** takes
     the in-memory loadout the core plugin hands it instead of querying MySQL. No public
@@ -261,6 +281,13 @@ it here.
     a boolean beside `team` (two fields that can disagree); casting under MatchZy as well —
     the fork keeps a private map of which bot is who, and a second opinion about it would
     be two names for one body (T7a asks how to read theirs instead).
+    **Amended by PRD-03 T7a, 2026-09-20: under MatchZy the fork seats them and the plugin
+    reads its mapping.** The answer T7 left open is not a second opinion but the fork's own
+    words off the shared `Console.Out` (decision 19's last amendment), applied with
+    `IGameWorld.Recast` — a cast that arrives after the body did, because the fork decides
+    seconds after the bot spawns. So a puppet is a rostered player on every flow now: the
+    `drop` row of the CS2 matrix takes a `kick` for the rostered SteamID and no row of it
+    types anything at a match.
 
 ## How the rounds run
 

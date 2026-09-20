@@ -44,6 +44,8 @@ public sealed class CorePlugin : BasePlugin
     private GamemodeRuntime? _runtime;
     private GamemodeLoader? _loader;
     private MatchZyFlow? _flow;
+    private MatchZyPuppets? _puppets;
+    private ConsoleTap? _tap;
     private DemoFlow? _demos;
     private HttpDemoTransport? _demoTransport;
     private RuntimeHost? _host;
@@ -100,6 +102,15 @@ public sealed class CorePlugin : BasePlugin
         _loader.Bind(_runtime);
         _flow = new MatchZyFlow(_world, _runtime, _paths.CsgoDirectory, _log);
         _flow.Bind();
+        // **A puppet in a pug is announced too** (PRD-03 T7a). MatchZy-Enhanced's
+        // simulation mode seats the bodies and keeps who is who to itself; it does say
+        // every mapping on the console, and CounterStrikeSharp runs both plugins in one
+        // process, so the tap in front of `Console.Out` is where the core plugin learns
+        // it. Installed for the plugin's life and listening only while a simulated
+        // `matchzy` match is assigned.
+        _puppets = new MatchZyPuppets(_world, _runtime, SlotOfUserId, SetTapListening, _log);
+        _tap = ConsoleTap.Install(_puppets.Heard);
+        _puppets.Bind();
         // The demo's own upload (decision 10, T21): MatchZy records for its own flow and
         // the SDK records for every other, but the PUT is always this plugin's — a
         // presigned URL takes a body, not MatchZy's multipart form.
@@ -155,6 +166,9 @@ public sealed class CorePlugin : BasePlugin
             _world.MapStarted -= OnMapStarted;
         }
 
+        _tap?.Remove();
+        _tap = null;
+        _puppets = null;
         _runtime?.Dispose();
         _buffer?.Dispose();
         _demoTransport?.Dispose();
@@ -165,6 +179,23 @@ public sealed class CorePlugin : BasePlugin
         _link = null;
         _buffer = null;
         _host = null;
+    }
+
+    /// <summary>
+    /// The engine slot of the body MatchZy knows by <paramref name="userId"/>, or
+    /// <c>null</c> when it has gone (PRD-03 T7a). The fork names bodies by UserId and the
+    /// world by slot; this is the one lookup between them.
+    /// </summary>
+    private static int? SlotOfUserId(int userId) =>
+        Utilities.GetPlayerFromUserid(userId) is { IsValid: true } controller ? controller.Slot : null;
+
+    /// <summary>Only a simulated <c>matchzy</c> match wants the console read; the rest of the time the tap is a forwarding call.</summary>
+    private void SetTapListening(bool listening)
+    {
+        if (_tap is not null)
+        {
+            _tap.Listening = listening;
+        }
     }
 
     /// <summary>The first map the plugin sees is the server standing idle; before that it is booting.</summary>

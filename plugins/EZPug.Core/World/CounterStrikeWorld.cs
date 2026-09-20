@@ -16,7 +16,9 @@ namespace EZPug.Core;
 /// SteamID, so it is named by <see cref="BotIdentity"/> — unless it was cast as a
 /// rostered player (<see cref="IGameWorld.Casting"/>, PRD-03 T7), in which case it is
 /// that player: the roster's SteamID64 and the roster's name, whatever the engine calls
-/// the body.
+/// the body. A cast that arrives after the body did (<see cref="IGameWorld.Recast"/>,
+/// PRD-03 T7a) builds another of these over the same controller rather than moving this
+/// one's identity, so nothing that already holds a player sees it become someone else.
 /// </summary>
 public sealed class CounterStrikePlayer : IGamePlayer
 {
@@ -430,6 +432,44 @@ public sealed class CounterStrikeWorld : IGameWorld
         _bySlot[controller.Slot] = player;
         Snapshot();
         PlayerConnected?.Invoke(player);
+    }
+
+    /// <summary>
+    /// <b>The cast that arrives late</b> (PRD-03 T7a). MatchZy-Enhanced's simulation mode
+    /// spawns its bots first and decides which roster entry each one plays seconds
+    /// afterwards, so there is nothing to ask at the door: the body is already a plain bot
+    /// by the time the fork says who it is. Handing it over here rebuilds the player over
+    /// the same controller and announces it, which is the first word anything has said
+    /// about that body — a plain bot is never announced, so no disconnect is owed for the
+    /// bot it stops being. A body handed a <i>different</i> roster entry is a remap, and
+    /// the person it was is seen out before the new one moves in, the way
+    /// <see cref="Track"/> does it for a slot.
+    /// </summary>
+    public bool Recast(int slot, PuppetRole role)
+    {
+        if (!_bySlot.TryGetValue(slot, out var held) || !held.IsBot || !held.Valid)
+        {
+            return false;
+        }
+
+        if (held.IsPuppet && held.SteamId64 == role.SteamId64)
+        {
+            return true;
+        }
+
+        var controller = held.Controller;
+        if (held.IsPuppet)
+        {
+            _log.Warn($"slot {slot} played {held.Name}, and now plays {role.Name}: seeing the first out");
+            Drop(slot);
+        }
+
+        var player = new CounterStrikePlayer(controller, role);
+        Rename(controller, role.Name);
+        _bySlot[slot] = player;
+        Snapshot();
+        PlayerConnected?.Invoke(player);
+        return true;
     }
 
     private void Drop(int slot)

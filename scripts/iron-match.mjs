@@ -78,14 +78,10 @@ const HELP = `iron-match — run one real match through the Match API and record
                          unpause it two polls later (PRD-03 T6)
   --drop-puppet          take one puppet off the server while it is still in
                          warmup and let it come back, which is the only thing
-                         that ever holds a loaded match at the gate. Knocks on
-                         the Match API's own kick twice — the rostered SteamID
-                         and the synthetic one — and records both refusals,
-                         which is the measurement; the stimulus is then
-                         \`bot_kick ct\` over RCON, the only door a matchzy
-                         mode has (T6). Outside MatchZy the SDK announces its
-                         puppets like people, so there the kick for the
-                         rostered id simply lands and nothing is typed (T7)
+                         that ever holds a loaded match at the gate. The kick
+                         is the Match API's own, addressed to the SteamID the
+                         request rostered — the only id a client ever holds —
+                         and nothing is typed at the server (PRD-03 T7a)
   --ready-gate <n>       rules.warmup.minPlayersToReady across both teams;
                          default 0, which is "everybody connected must ready".
                          The builder halves it per team, and MatchZy-Enhanced
@@ -318,30 +314,34 @@ if (!['ct', 't', 'knife'].includes(SIDES)) die('--sides is `ct`, `t` or `knife`'
  */
 const PAUSE = flags.get('pause') === 'true'
 /**
- * **One puppet leaves and comes back** (PRD-03 T6), while the match is still
- * in warmup — because that is the only window in which a missing rostered
- * player changes anything: `AreAllConfiguredPlayersConnectedAndOnCorrectTeams`
- * holds a loaded match at the gate while any rostered SteamID is absent
- * (T3a's sentence, T5a's note), and nothing else in the fork cares.
+ * **One puppet leaves and comes back, by the front door** (PRD-03 T6, T7a),
+ * while the match is still in warmup — because that is the only window in
+ * which a missing rostered player changes anything:
+ * `AreAllConfiguredPlayersConnectedAndOnCorrectTeams` holds a loaded match at
+ * the gate while any rostered SteamID is absent (T3a's sentence, T5a's note),
+ * and nothing else in the fork cares.
  *
- * **The run knocks on the front door twice and is refused twice**, and that
- * pair of refusals is what the case measures. `kick` by the **rostered**
- * SteamID is the only id a client ever holds; `kick` by the **synthetic** one
- * (`BotIdentity`) is the id the position tick hands back. Neither reaches the
- * plugin: the orchestrator gates `kick` on its own presence map, which is
- * filled from `player_connected` / `player_disconnected` — emitted for humans
- * only — so for a room of puppets it is empty and **no player command can
- * reach any of them**. PRD-03 T7 closed that for the modes the SDK seats;
- * T7a is what closes it under MatchZy, and these two assertions are meant to go red the day it does.
+ * **The stimulus is a `kick` for the SteamID the request rostered**, which is
+ * the only id a client ever holds, and the whole point of the case is that it
+ * lands. It did not used to: `kick` is gated on the orchestrator's presence
+ * map, that map is filled from `player_connected` / `player_disconnected`, and
+ * the core plugin emitted those for humans only — so for a room of puppets it
+ * was empty and no player command could reach any of them. T7 closed that for
+ * the modes the SDK seats itself; **T7a closed it under MatchZy**, by reading
+ * simulation mode's own console lines for which bot plays which roster entry
+ * and casting the bodies from them. So this case types nothing at the server
+ * any more, whatever the flow, and `cs2.extended.test.ts` declares its `rcon`
+ * count as zero.
  *
- * So the stimulus is `bot_kick ct` over RCON, and this is the **one** case in
- * the matrix that types at a match: it declares its own `rcon` count in
- * `cs2.extended.test.ts` rather than quietly raising it, and the assertion it
- * skips — that a client can take a player off a server — is the one made
- * above instead.
+ * The return is the fork's reconcile pass: the room goes one short, it adds a
+ * bot on the side whose roster slot is empty, maps it onto that entry and
+ * re-readies it — and the match goes live, which it could not do while a
+ * rostered SteamID was missing.
  */
 const DROP_PUPPET = flags.get('drop-puppet') === 'true'
 if (DROP_PUPPET && !SIMULATE) die('--drop-puppet needs puppets: pass --simulate')
+/** How long `--drop-puppet` waits on the stream for the whole room to be announced. */
+const ROOM_PATIENCE_MS = 120_000
 /**
  * **`rules.warmup.minPlayersToReady`, and the one way to play the floor**
  * (PRD-03 T5a). On the wire it is the whole match's count; the MatchZy
@@ -1254,24 +1254,6 @@ async function run() {
     }
   }
   /**
-   * **Who is standing on the server, off the stream the run is already
-   * holding** (PRD-03 T6).
-   *
-   * There is no other door. RCON *runs* a command and does not answer one —
-   * `status` over the fleet route comes back with an empty `output`, measured
-   * here — and `GET /v1/fleet/servers/:id/console` carries the **core
-   * plugin's** console lines and not the engine's or MatchZy's, so neither
-   * the engine's roster nor `SimulationMode`'s own mapping log is readable
-   * from outside the box.
-   *
-   * A position tick is, and it is better evidence anyway: the plugin builds
-   * one from the players that are *alive and have a position*
-   * (`Facts.PositionTick`), so GOTV — which is a bot to the engine — is never
-   * in it, and every id in it is a body playing the match. A bot's is
-   * synthetic (`BotIdentity`: 90000000000000000 + slot), which is exactly the
-   * id the Match API's `kick` can find it by.
-   */
-  /**
    * **One command, and what finally became of it.**
    *
    * `POST /v1/matches/:id/commands` answers `applied` or `rejected` only when
@@ -1301,42 +1283,23 @@ async function run() {
     }
     return { ...ack, answer: 'nothing came back on the stream' }
   }
-  const bodies = () => {
-    const last = streamFrames.filter(frame => frame.type === 'tick').at(-1)
-    const ids = (last?.ticks ?? []).flatMap(tick =>
-      (tick.positions ?? []).map(position => position.steamId64),
-    )
-    return [...new Set(ids)].filter(id => BigInt(id) >= BOT_STEAM_ID_BASE)
-  }
   let emptied = false
   let filled = false
   let polls = 0
   /** What `--pause` did, for the summary: the two answers and nothing else. */
   let paused = null
   /**
-   * What `--drop-puppet` did: the front door's two refusals, the body, and
-   * whether the room emptied by one and filled back up.
+   * What `--drop-puppet` did: the kick the Match API answered, and whether the
+   * room emptied by one and filled back up. Read off `presence` frames, which
+   * is the only record of the room there is — RCON *runs* a command and does
+   * not answer one (`status` over the fleet route comes back with an empty
+   * `output`, measured here), and `GET /v1/fleet/servers/:id/console` carries
+   * the **core plugin's** lines and not the engine's or MatchZy's. Simulation
+   * mode's own mapping log is not readable from outside the box at all, which
+   * is exactly why T7a reads it from inside one.
    */
   let dropped = null
   let droppedAt = 0
-  /**
-   * The room, after the stimulus: first one short, then whole again. Called
-   * from both the warmup and the live phase, because a puppet dropped in the
-   * last seconds of warmup comes back after the match is already live.
-   */
-  const watchTheRoom = () => {
-    if (dropped === null || dropped.back !== null) return
-    const standing = bodies()
-    if (dropped.left === null) {
-      if (standing.length >= BOTS) return
-      dropped.left = { afterMs: wall.now() - droppedAt, standing: standing.length }
-      say(`the room is ${standing.length}: a puppet left after ${dropped.left.afterMs} ms`)
-      return
-    }
-    if (standing.length < BOTS) return
-    dropped.back = { afterMs: wall.now() - droppedAt, standing: standing.length }
-    say(`the room is ${standing.length} again after ${dropped.back.afterMs} ms`)
-  }
   let rated = false
   let ratedAt = 0
   let scoreboard = null
@@ -1372,19 +1335,39 @@ async function run() {
     }
     if (now.state !== 'ready' && now.state !== 'live') continue
 
-    // **Outside MatchZy a puppet leaves by the front door** (PRD-03 T7). The
-    // SDK seats these puppets itself and announces each one like a person, so
-    // the orchestrator's presence map holds them and a `kick` for the
-    // **rostered** SteamID — the only id a client ever has — reaches the body
-    // that plays it. No RCON, no synthetic id. The room is read off the
-    // `presence` frame, every one of them since the kick and in order, because
-    // the puppeteer refills a seat faster than this loop polls: the player is
-    // seen gone, then seen back, and the second `player_connected` for the
-    // same SteamID is in the durable log for the summary to count.
-    if (DROP_PUPPET && FLOW !== 'matchzy' && (dropped === null || dropped.back === null)) {
-      const rooms = streamFrames.filter(frame => frame.type === 'presence')
+    // **A puppet leaves by the front door** (PRD-03 T7, T7a). Every puppet is
+    // announced like a person now — the SDK's own for the modes it seats
+    // (T7), and MatchZy's, cast from simulation mode's console lines, for a
+    // `matchzy` flow (T7a) — so the orchestrator's presence map holds them and
+    // a `kick` for the **rostered** SteamID, the only id a client ever has,
+    // reaches the body that plays it. No RCON and no synthetic id, whatever
+    // the flow. The room is read off the `presence` frame, every one of them
+    // since the kick and in order, because a seat is refilled faster than this
+    // loop polls: the player is seen gone, then seen back, and the second
+    // `player_connected` for the same SteamID is in the durable log for the
+    // summary to count.
+    if (DROP_PUPPET && (dropped === null || dropped.back === null)) {
+      let rooms = streamFrames.filter(frame => frame.type === 'presence')
       if (dropped === null) {
-        if ((rooms.at(-1)?.players ?? []).length < BOTS) continue
+        // **Waited for on the stream, not on the next poll.** The window this
+        // case needs is the warmup, and under simulation it is seconds wide:
+        // the fork maps its bots onto the roster (which is what puts them in
+        // the presence map at all), readies each about two seconds later and
+        // counts down five. A five-second poll walks straight past it and
+        // kicks a puppet out of a match that is already live, where the fork's
+        // reconcile pass no longer runs (`isMatchSetup && readyAvailable &&
+        // !matchStarted`) and nothing puts the body back. Measured: a first cut
+        // of this dropped at `state: live` and the room never filled again.
+        const until = wall.now() + ROOM_PATIENCE_MS
+        while (wall.now() < until && (rooms.at(-1)?.players ?? []).length < BOTS) {
+          await wall.sleep(250)
+          rooms = streamFrames.filter(frame => frame.type === 'presence')
+        }
+        if ((rooms.at(-1)?.players ?? []).length < BOTS) {
+          die(
+            `no room of ${BOTS} in the presence map after ${ROOM_PATIENCE_MS / 1000} s: nothing announced the puppets`,
+          )
+        }
         const rostered = String(PUPPET_STEAM_ID_BASE)
         const frontDoor = await command({
           correlationId: `${RUN_ID}-kick-rostered`,
@@ -1396,11 +1379,9 @@ async function run() {
         droppedAt = wall.now()
         dropped = {
           rostered,
-          body: rostered,
-          state: now.state,
+          state: (await api('GET', `/v1/matches/${matchId}`)).state,
           standing: BOTS,
           frontDoor,
-          synthetic: null,
           stimulus: 'kick',
           left: null,
           back: null,
@@ -1501,86 +1482,6 @@ async function run() {
     // bots are in. A `mp_warmup_end` outside warmup does nothing, which is what
     // makes it safe to send unconditionally.
     if (now.state === 'ready') {
-      // **One puppet leaves, and comes back** (PRD-03 T6, `--drop-puppet`).
-      // Tried on every warmup poll until it lands, because the warmup of a
-      // room that readies itself is under a minute wide.
-      if (DROP_PUPPET && dropped === null) {
-        const standing = bodies()
-        if (standing.length < BOTS) continue
-        // **The front door is knocked on twice, and both knocks are refused.**
-        // That refusal is what this case measures; the stimulus below is only
-        // how it gets a body to leave once the door will not.
-        //
-        // First by the SteamID the request **rostered**, which is the only id
-        // a client ever holds — the platform never sees any other. Then by the
-        // **synthetic** id the position tick just handed back
-        // (`BotIdentity`: a base plus the slot), on the theory that the
-        // plugin at least knows the body by that.
-        //
-        // Neither reaches the plugin at all. `kick` is gated on the
-        // orchestrator's own presence map (`match/machine.ts`), and that map
-        // is filled from `player_connected` / `player_disconnected`, which the
-        // core plugin emits **for humans only** — so for a room of puppets it
-        // is empty, and no player command can reach any of them. That is the
-        // gap PRD-03 T7a closes, and it is worth pinning to the orchestrator
-        // rather than to the id, because an id is not where the fix goes.
-        const rostered = String(PUPPET_STEAM_ID_BASE)
-        const frontDoor = await command({
-          correlationId: `${RUN_ID}-kick-rostered`,
-          type: 'kick',
-          steamId64: rostered,
-          reason: 'the lane is taking one puppet off the server',
-        })
-        say(`kick ${rostered} (the rostered id): ${stringify(frontDoor).replace(/\s+/g, ' ')}`)
-        const body = standing[0]
-        const synthetic = await command({
-          correlationId: `${RUN_ID}-kick-body`,
-          type: 'kick',
-          steamId64: body,
-          reason: 'the lane is taking one puppet off the server',
-        })
-        say(`kick ${body} (the synthetic id): ${stringify(synthetic).replace(/\s+/g, ' ')}`)
-        // **So the stimulus is RCON, and this run says so out loud** — it is
-        // the one case in the matrix that types at a match, the lane case
-        // declares its own `rcon` count, and `docs/operations.md` carries the
-        // reason. `bot_kick ct` takes the CT side's bodies off; team A opens
-        // CT (`maps[0].sides`), and a 1v1 of puppets has exactly one there,
-        // so it is one puppet and not a room. A bot's *name* would be the
-        // narrower command and cannot be had: the fork leaves the engine's
-        // own name on a bot and maps it to the roster underneath
-        // (`SimulationMode.cs`), and RCON runs a command without answering
-        // one, so there is nothing outside the box that can read the roster.
-        const stimulus = await rcon('bot_kick ct', 'drop-puppet')
-        droppedAt = wall.now()
-        dropped = {
-          rostered,
-          body,
-          state: now.state,
-          standing: standing.length,
-          frontDoor,
-          synthetic,
-          stimulus: stimulus?.status ?? null,
-          left: null,
-          back: null,
-        }
-        say(`bot_kick ct, with ${standing.length} standing`)
-        continue
-      }
-      // **It left, and then it came back.** Both halves are watched and both
-      // are asserted, because a `back` that never saw a `left` is what the
-      // first cut of this case recorded: nothing had gone anywhere and the
-      // room was simply still full.
-      //
-      // The engine refills because simulation mode leaves `bot_quota_mode
-      // normal` and the quota it walked up to, and the fork's reconcile pass
-      // then adds a bot on the side whose slot is empty and maps it onto that
-      // roster entry (`SimulationMode.cs`, `Reconcile: adding a bot on …`).
-      // **The replacement takes the freed slot, so it comes back under the
-      // same synthetic id** — which is why the count is what is watched here,
-      // and why the leaving is read off MatchZy's own wire as well: one more
-      // `player_connect` than there are puppets, each carrying the rostered
-      // SteamID the fork maps it to.
-      if (dropped !== null && dropped.back === null) watchTheRoom()
       // A mode whose flow is nobody's plugin starts itself and fills itself: the
       // loader set the request's `bot_quota` a beat after the mode's cfg (T22a),
       // so the bots are already standing, and the SDK's generic emitter ends the
@@ -1630,10 +1531,6 @@ async function run() {
       say('unpaused')
       continue
     }
-    // A puppet dropped in the last seconds of warmup leaves and comes back
-    // after the match is already live; the room is still watched, once.
-    watchTheRoom()
-
     // The bots, then the warmup, one poll apart — MatchZy's order, and
     // only its. Another flow already had both before it went live, and a
     // puppet match had them from its own simulation mode.

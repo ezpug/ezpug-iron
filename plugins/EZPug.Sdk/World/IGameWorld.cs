@@ -161,6 +161,20 @@ public interface IGameWorld
     /// </summary>
     Func<BotArrival, PuppetRole?>? Casting { get; set; }
 
+    /// <summary>
+    /// <b>A body already here turns out to be somebody</b> (PRD-03 T7a). <see cref="Casting"/>
+    /// answers at the door, which is where the SDK's own <see cref="Puppeteer"/> knows who
+    /// it asked for. Under a <c>matchzy</c> flow MatchZy-Enhanced seats the bodies itself
+    /// and decides who each one is seconds later, so the cast arrives after the world has
+    /// already named the bot: this hands it over then. The body in <paramref name="slot"/>
+    /// becomes that rostered player — id, name, <see cref="IGamePlayer.IsPuppet"/> — and is
+    /// announced through <see cref="PlayerConnected"/>, because until now nothing had said
+    /// it was here at all. A slot already cast as the same person is left alone and answers
+    /// <c>true</c>; one cast as somebody else sees that person out first. <c>false</c> when
+    /// the slot holds nobody, or holds a person rather than a bot.
+    /// </summary>
+    bool Recast(int slot, PuppetRole role);
+
     /// <summary>The engine's match state right now, or <c>null</c> between maps. A snapshot: read it again to see a change.</summary>
     GameRules? Rules { get; }
 
