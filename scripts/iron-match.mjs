@@ -64,6 +64,12 @@ const HELP = `iron-match — run one real match through the Match API and record
                          readies up through the ready system a human types into
   --timescale <n>        simulation.timeScale — the engine clock the puppets
                          play at, 0.1 to 10; only with --simulate
+  --scenario <name>      simulation.scenario (PRD-03 T11) — what the puppets do
+                         beyond playing the match out, from the catalog
+                         GET /v1/sim/scenarios lists and the simulator plays.
+                         no-show leaves roster entries without a body, idle
+                         seats nobody at all; a scenario a real server cannot
+                         execute is refused at the door. Only with --simulate
   --force-start          the escape hatch (PRD-03, Attitude 2): empty the
                          server, css_start over RCON and end the warmup by
                          hand, because an unrostered bot never readies up. An
@@ -250,6 +256,16 @@ const SIMULATE = flags.get('simulate') === 'true'
  */
 const TIMESCALE = flags.has('timescale') ? Number(flags.get('timescale')) : null
 /**
+ * **`simulation.scenario`** (PRD-03 T11): one scenario language, so the name
+ * a request sends here is the one the simulator plays on the `sim` provider —
+ * which is how this script proves the two tell the same story about the same
+ * scenario (`--provider sim` beside a run on the dev node). The knobs are
+ * resolved by the orchestrator and travel to the server as `assign.puppets`;
+ * a scenario whose knobs no real server can execute is `validation_failed` on
+ * this field rather than a knob that quietly did nothing.
+ */
+const SCENARIO = flags.get('scenario') ?? null
+/**
  * **The escape hatch, named** (PRD-03, Attitude 2). An unrostered bot never
  * types `.ready`, so a `matchzy` match with nobody on the roster can only be
  * started over RCON — `bot_kick; bot_quota 0`, `css_start`, the quota back,
@@ -265,6 +281,7 @@ if (TIMESCALE !== null && !(TIMESCALE >= 0.1 && TIMESCALE <= 10))
 if (SIMULATE && FORCE_START)
   die('--simulate and --force-start are two answers to the same question: puppets ready themselves')
 if (SIMULATE && BOTS < 1) die('--simulate needs bodies: --bots 1 or more')
+if (SCENARIO !== null && !SIMULATE) die('--scenario is simulation’s: pass --simulate')
 /**
  * The puppets' identities, from the fixtures' own
  * (`@ezpug/match-api/fixtures`): tk and maex, then their neighbours. They are
@@ -1219,7 +1236,12 @@ async function run() {
       },
       teamB: { name: 'EZPug B', players: PUPPETS?.teamB ?? [] },
     },
-    ...(SIMULATE && { simulation: TIMESCALE === null ? {} : { timeScale: TIMESCALE } }),
+    ...(SIMULATE && {
+      simulation: {
+        ...(TIMESCALE === null ? {} : { timeScale: TIMESCALE }),
+        ...(SCENARIO === null ? {} : { scenario: SCENARIO }),
+      },
+    }),
     maps: [{ map: MAP, sides: SIDES }],
     rules: {
       format: FORMAT,
@@ -2021,6 +2043,10 @@ function write(result) {
             result.request.teams.teamA.players.length + result.request.teams.teamB.players.length,
           timeScale: result.request.simulation.timeScale ?? 1,
           simulated: result.match.simulated === true,
+          /** The story the puppets were asked to play (PRD-03 T11), or null for "just play it". */
+          scenario: result.request.simulation.scenario ?? null,
+          /** Which provider actually played it — the same scenario runs on both (T11). */
+          provider: result.match.provider ?? null,
         }
       : null,
     demoTarget: result.demoTarget,
@@ -2126,6 +2152,17 @@ function write(result) {
         }, {}),
       ).sort(([a], [b]) => (a < b ? -1 : 1)),
     ),
+    /**
+     * **The classes of fact this match produced, in order**, with a run of the
+     * same class collapsed to one (PRD-03 T11). `payloads` counts; this is the
+     * *shape* of the story, which is the only thing two engines as different
+     * as a story builder and a CS2 server can honestly be held to. It is what
+     * a scenario played on the simulator and on a real server are compared by,
+     * and the diff between them is a bug in one of the two.
+     */
+    story: result.envelopes
+      .map(envelope => envelope.payload.type)
+      .filter((type, index, all) => type !== all[index - 1]),
     counts: {
       calls: calls.length,
       envelopes: result.envelopes.length,

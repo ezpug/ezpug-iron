@@ -128,7 +128,7 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.18.3`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.18.4`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -166,7 +166,11 @@ same three, and that half needs no pin to move. **0.18.2** and **0.18.3** are ca
 `sim` only (PRD-03 T9c and T10): a mode that records `events` announces no demo, and
 `retakes` is one group of ten that claims `capabilities.simulation` — which the platform's
 PRD-10 T5 is waiting on, and which changes what a retakes room and a finished retakes map
-look like over there.
+look like over there. **0.18.4** moves no schema either (PRD-03 T11): a
+`simulation.scenario` whose knobs no real server can execute is `validation_failed` at the
+door instead of a knob that quietly did nothing, so a console offering the catalog as a
+dropdown for a simulated match (PRD-10 T8) can now be told which entries a room of puppets
+will actually play.
 
 ## Bumping one
 

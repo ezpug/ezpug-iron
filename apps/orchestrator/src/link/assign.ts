@@ -4,8 +4,10 @@ import {
   assignedGamemodeSchema,
   assignOrchestratorFrameSchema,
   type OrchestratorFrameOf,
+  type PuppetScript,
   type RoundBackup,
 } from '@ezpug/protocol'
+import { findScenario, puppetScriptFor } from '@ezpug/sim'
 import { mergeCvars } from '../match-config/cvars'
 import { buildMatchZyConfig } from '../match-config/matchzy'
 import { pluginConfigsFor } from '../match-config/retakes'
@@ -87,11 +89,28 @@ export function missingPlugins(manifest: GamemodeManifest, installed: readonly s
   return manifest.plugins.filter(plugin => !installed.includes(plugin))
 }
 
+/**
+ * **The scenario, resolved into what a puppet does** (PRD-03 T11): the
+ * request names a story from the catalog `GET /v1/sim/scenarios` lists and the
+ * server is handed its knobs, so no plugin holds a second copy of a table the
+ * orchestrator owns. Absent for a scenario that asks for nothing beyond
+ * playing the match out — which is every match that names none — and for a
+ * name the door would have refused. A scenario whose knobs no real server can
+ * execute never reaches here at all (`assertScenarioIsPlayable`).
+ */
+function puppets(request: MatchRequest): PuppetScript | undefined {
+  const named = request.simulation?.scenario
+  if (named === undefined) return undefined
+  const scenario = findScenario(named)
+  return (scenario && puppetScriptFor(scenario)) ?? undefined
+}
+
 export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'> {
   const { matchId, request, manifest, installed, restore } = input
   const teams = withProfiles(request.teams, input.profiles)
   const plugins = pluginsFor(manifest, teams, installed)
   const pluginConfigs = pluginConfigsFor(manifest, plugins)
+  const script = puppets(request)
   return assignOrchestratorFrameSchema.parse({
     type: 'assign',
     matchId,
@@ -113,5 +132,6 @@ export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'>
     ...(request.callbacks.demoUploadUrls && { demoUploadUrls: request.callbacks.demoUploadUrls }),
     ...(restore && { restore }),
     ...(request.simulation && { simulation: request.simulation }),
+    ...(script && { puppets: script }),
   })
 }

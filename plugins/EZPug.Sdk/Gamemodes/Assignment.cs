@@ -59,6 +59,9 @@ public sealed class Assignment
     /// <summary>The request's <c>simulation</c> block: present means every roster entry is played by a puppet (PRD-03 T7). Who seats them is <see cref="Puppeteer.Seats"/>'s question.</summary>
     public MatchSimulation? Simulation => Frame.Simulation;
 
+    /// <summary>What the puppets do beyond playing the match out (PRD-03 T11): the scenario the request named, resolved into knobs by the orchestrator. Absent is "just play it".</summary>
+    public PuppetScript? Puppets => Frame.Puppets;
+
     /// <summary>
     /// Where map <paramref name="mapNumber"/>'s demo goes: its own presigned PUT when the
     /// request drew one, else the single <see cref="DemoUploadUrl"/>, else nowhere. The same

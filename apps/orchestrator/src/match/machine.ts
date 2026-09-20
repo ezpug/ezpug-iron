@@ -41,7 +41,7 @@ import {
   type RoundBackup,
   SERVER_LINK_PATH,
 } from '@ezpug/protocol'
-import { SIM_PROVIDER_ID } from '@ezpug/sim'
+import { findScenario, SIM_PROVIDER_ID, scenarioPuppetProblem } from '@ezpug/sim'
 import type { BudgetGate } from '../budget/service'
 import type { AuthenticatedKey, Keys } from '../keys/service'
 import { composeAssign, missingPlugins } from '../link/assign'
@@ -330,6 +330,28 @@ function assertFormatIsPlayable(request: MatchRequest, manifest: GamemodeManifes
 function assertSimulationIsPlayable(request: MatchRequest, manifest: GamemodeManifest): void {
   const problem = matchSimulationProblem(request, manifest)
   if (problem) throw refuse('validation_failed', problem.message, { field: problem.field })
+  assertScenarioIsPlayable(request, manifest)
+}
+
+/**
+ * **And the scenario the puppets were asked to play** (PRD-03 T11). One
+ * scenario language, so a puppets request names a story from the same catalog
+ * the simulator plays — and the knobs a box full of bots cannot execute (a
+ * forced overtime, a scripted comeback, a server that dies on cue) are
+ * refused here rather than quietly doing nothing on a real server. The name
+ * itself was checked at the door before the manifest was even looked up
+ * (`simPlanFor`); this is about what it *asks for*, which depends on who
+ * seats the bodies and therefore on the manifest's flow. `sim.scenario` is
+ * never judged here: that block steers the simulator, where every knob is
+ * executable by definition.
+ */
+function assertScenarioIsPlayable(request: MatchRequest, manifest: GamemodeManifest): void {
+  const named = request.simulation?.scenario
+  if (named === undefined) return
+  const scenario = findScenario(named)
+  if (!scenario) return
+  const problem = scenarioPuppetProblem(scenario, manifest.flow)
+  if (problem) throw refuse('validation_failed', problem, { field: 'simulation.scenario' })
 }
 
 /**

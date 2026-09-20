@@ -195,10 +195,18 @@ Four things a consumer needs to know:
   the same catalog `sim.scenario` reads — what the puppets do beyond playing the match
   out. On the simulator it *is* the scenario played (and `simulation.timeScale` the
   story's speed where `sim.timeScale` says nothing); on a real server it is what the
-  puppets are scripted to do, knob by knob, and a knob a real server cannot execute is
-  listed as sim-only in `docs/gamemodes.md`, never silently ignored. Naming a story in both
+  puppets are scripted to do, knob by knob. **A knob a real server cannot execute is
+  refused, never silently ignored** (PRD-03 T11): a forced overtime, a scripted comeback,
+  a box that dies on cue and a player who never readies are all `validation_failed` on
+  `simulation.scenario`, and so is a knob the *mode's* match software cannot do — under a
+  `matchzy` flow the bodies are MatchZy-Enhanced's and it seats and readies every
+  configured entry itself. What a puppet does do: `absentPlayers` (a roster entry with no
+  body, which the join deadline then gives up on) and `idle` (nobody is seated, and the
+  mode's `length` or the join deadline ends it). `docs/sdk.md` has the table, knob by knob,
+  and it is the table the refusal is read from. Naming a story in both
   blocks is fine when they agree and `validation_failed` on `simulation.scenario` when they
-  do not; a name nobody defined is refused on whichever field named it.
+  do not; a name nobody defined is refused on whichever field named it. `sim.scenario` is
+  never judged this way — that block steers the simulator, where every knob is executable.
 - **Who may ask** is the `simulation` scope, above. The mode has to be able to: only a
   manifest with `capabilities.simulation` seats a puppet, and a request to any
   other is `validation_failed` on `simulation` at the door rather than a server waiting in

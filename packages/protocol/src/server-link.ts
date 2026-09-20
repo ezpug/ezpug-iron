@@ -475,6 +475,24 @@ export const welcomeOrchestratorFrameSchema = z.object({
 })
 
 /**
+ * **A scenario as instructions** (PRD-03 T11): what the SDK's puppeteer does
+ * with the roster it was handed, resolved by the orchestrator from the
+ * scenario the request named (`@ezpug/sim`'s `puppetScriptFor`). One scenario
+ * language — the name is the client's and the same one the simulator plays —
+ * but a server is told the knobs, so nothing on a gameserver has an opinion
+ * about what `no-show` means.
+ */
+export const puppetScriptSchema = z.object({
+  /** The scenario this was resolved from, for the server's log line. */
+  scenario: kebabNameSchema,
+  /** How many roster entries get no puppet — the last ones, so the teams keep their shape. */
+  absentPlayers: z.number().int().nonnegative().default(0),
+  /** Nobody is seated at all: a server that boots, waits and is never joined. */
+  idle: z.boolean().default(false),
+})
+export type PuppetScript = z.infer<typeof puppetScriptSchema>
+
+/**
  * Everything a server needs to play one match, composed by the orchestrator
  * from the request, the manifest and the ledger (PRD-02 T6). The core plugin
  * writes each of `pluginConfigs` where CounterStrikeSharp reads it, enables
@@ -545,9 +563,20 @@ export const assignOrchestratorFrameSchema = z.object({
    * it is MatchZy's simulation mode, switched on inside `matchzyConfig`, and
    * the SDK leaves the bodies alone; for every other flow it is the SDK's
    * puppeteer. `timeScale` is the engine's `host_timescale`; `scenario` is
-   * carried for the scripts a real server will execute (T11).
+   * the name of the story, whose knobs arrive resolved in {@link
+   * puppetScriptSchema}.
    */
   simulation: matchSimulationSchema.optional(),
+  /**
+   * **What the puppets do beyond playing the match out** (PRD-03 T11), the
+   * request's `simulation.scenario` already resolved: absent when the
+   * scenario asks for nothing a puppet must do differently, which is every
+   * match that says no scenario at all. The knobs travel, never the catalog —
+   * the plugin holds no second copy of a table the orchestrator owns, and a
+   * scenario whose knobs no real server can execute never gets this far (the
+   * door refuses it on `simulation.scenario`).
+   */
+  puppets: puppetScriptSchema.optional(),
 })
 
 /** A command for the server, answered by a `command_result` (or a `console` frame) with its `correlationId`. */

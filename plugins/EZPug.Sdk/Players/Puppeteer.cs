@@ -19,6 +19,16 @@ namespace EZPug.Sdk;
 /// first hook — which is why the bots a mode's cfg brought before the map was ready are
 /// sent home first: they were named before anybody could cast them.</para>
 ///
+/// <para><b>A scenario is a seating plan</b> (PRD-03 T11). The assignment may carry a
+/// <see cref="PuppetScript"/> — the story the request named, resolved into knobs by the
+/// orchestrator, so nothing here holds a second opinion about what <c>no-show</c> means.
+/// <c>absentPlayers</c> leaves that many roster entries without a body, from the end of the
+/// seating order, which takes one side then the other by turns; <c>idle</c> seats nobody at
+/// all and the server waits on an empty map, which is the mode's <c>length</c> or the
+/// orchestrator's join deadline to end (PRD-03 T9). Everything else a scenario can ask for
+/// is refused at the door, because a knob that quietly did nothing here would be a lie
+/// about a match somebody ran.</para>
+///
 /// <para><b>One seat at a time.</b> The engine adds a bot some frames after it is asked
 /// and says nothing when it will not (a full server), so a seat is asked for, waited on
 /// for <see cref="ArrivalPatienceMs"/>, and asked for again. A puppet that leaves — a
@@ -85,7 +95,25 @@ public sealed class Puppeteer
             }
         }
 
+        Script(assignment.Puppets);
         _world.Casting = Cast;
+    }
+
+    /// <summary>The scenario's seating: nobody at all, or everybody but the last few of the seating order (PRD-03 T11).</summary>
+    private void Script(PuppetScript? script)
+    {
+        if (script is null)
+        {
+            return;
+        }
+
+        var absent = script.Idle ? _seats.Count : (int)Math.Min(script.AbsentPlayers, _seats.Count);
+        if (absent > 0)
+        {
+            _seats.RemoveRange(_seats.Count - absent, absent);
+        }
+
+        _log.Info($"puppets: scenario {script.Scenario} leaves {absent} roster entry(s) without a body");
     }
 
     private void Add(RosterEntry entry, MatchTeam team)

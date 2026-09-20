@@ -165,6 +165,51 @@ public class PuppetTests
         Assert.Null(Source(real.Link.Events[0]).Simulated);
     }
 
+    /// <summary>
+    /// <b>A scenario is a seating plan</b> (PRD-03 T11): the orchestrator resolves the
+    /// story the request named into knobs and the puppeteer seats by them, so the two
+    /// knobs a real server can honestly execute — a roster entry with no body, and a
+    /// server nobody ever joins — are the room this class ends up with. Everything else
+    /// a scenario can ask for is refused at the door, which is why there is nothing else
+    /// to pin here.
+    /// </summary>
+    [Fact]
+    public void AScenarioLeavesRosterEntriesWithoutABody()
+    {
+        using var host = new GamemodeTestHost(new PowerupDemo());
+        host.Start(Simulated(Manifest("powerup-dm")) with
+        {
+            Puppets = new PuppetScript { Scenario = "no-show", AbsentPlayers = 1 },
+        });
+        Fill(host);
+
+        // Two of the three seats: the last of the seating order goes without, and the
+        // seating order is team A and team B by turns, so a 2v1 becomes tk and maex.
+        Assert.Equal(2, host.Runtime.Puppets.Seated);
+        Assert.Equal([Tk, Maex], host.World.Players.Select(player => player.SteamId64));
+        Assert.Equal(["tk", "maex"], host.Link.EventsOf<PlayerConnectedEvent>().Select(fact => fact.Player.Name));
+    }
+
+    [Fact]
+    public void AnIdleScenarioSeatsNobodyAtAll()
+    {
+        using var host = new GamemodeTestHost(new PowerupDemo());
+        host.Start(Simulated(Manifest("powerup-dm")) with
+        {
+            Puppets = new PuppetScript { Scenario = "idle", Idle = true },
+        });
+        Fill(host);
+
+        // The match is still a puppets match — it is the *room* that is empty, which is
+        // what the mode's idle timeout is there to end (PRD-03 T9).
+        Assert.True(host.Runtime.Puppets.Active);
+        Assert.Equal(0, host.Runtime.Puppets.Seated);
+        Assert.Empty(host.World.Players);
+        Assert.DoesNotContain(host.World.Actions, action => action.Verb == "add_bot");
+        Assert.Empty(host.Link.EventsOf<PlayerConnectedEvent>());
+        Assert.True(host.Runtime.Length.Idling);
+    }
+
     private static GameserverSource Source(GameserverEvent fact) =>
         (GameserverSource)fact.GetType().GetProperty("Source")!.GetValue(fact)!;
 }

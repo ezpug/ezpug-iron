@@ -65,6 +65,7 @@ import {
   linkServerStateSchema,
   orchestratorFrameSchema,
   playerCommandRefusalSchema,
+  puppetScriptSchema,
   roundBackupSchema,
   sequencedEventSchema,
   serverFrameSchema,
@@ -223,6 +224,12 @@ const SHARED_NAMES: readonly Named[] = [
     schema: matchSimulationSchema,
     id: 'MatchSimulation',
     description: 'Puppets: the match is played by simulated players (PRD-03 T4, T7).',
+  },
+  {
+    schema: puppetScriptSchema,
+    id: 'PuppetScript',
+    description:
+      'What the puppets do beyond playing the match out — a scenario resolved into knobs (PRD-03 T11).',
   },
   {
     schema: matchBrandingSchema,

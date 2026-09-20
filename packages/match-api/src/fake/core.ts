@@ -25,6 +25,7 @@ import {
   SIM_PLAYER_COMMAND_EVENT,
   SIM_PROVIDER_ID,
   SIMULATED_MATCH_RECORD_CONTENT_TYPE,
+  scenarioPuppetProblem,
 } from '@ezpug/sim'
 import type { ZodType } from 'zod'
 import { ApiError, MATCH_API_ERROR_STATUS, type MatchApiErrorCode } from '../errors'
@@ -916,6 +917,17 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       throw refuse('validation_failed', simulationProblem.message, {
         field: simulationProblem.field,
       })
+    // And the story they were asked to play (PRD-03 T11): one scenario
+    // language, so a knob a real server cannot execute — a forced overtime, a
+    // scripted comeback, a box that dies on cue — is refused on the field
+    // that named it instead of quietly doing nothing wherever the match
+    // lands. `sim.scenario` is never judged: that block steers the simulator,
+    // where every knob is executable by definition.
+    const scenarioNamed = request.simulation?.scenario
+    const scenarioAsked = scenarioNamed === undefined ? null : findScenario(scenarioNamed)
+    const scenarioProblem = scenarioAsked && scenarioPuppetProblem(scenarioAsked, manifest.flow)
+    if (scenarioProblem)
+      throw refuse('validation_failed', scenarioProblem, { field: 'simulation.scenario' })
     for (const plan of request.maps) {
       if (!gamemodeAllowsMap(manifest.maps, plan.map))
         throw refuse('map_not_allowed', `${manifest.id} does not play ${plan.map}`, {

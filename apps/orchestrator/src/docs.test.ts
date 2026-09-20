@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { flattenRoutes, matchApiRoutes, matchRoutePath } from '@ezpug/match-api'
+import { SCENARIO_KNOB_REACH } from '@ezpug/sim'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -184,6 +185,21 @@ describe('every version a doc states', () => {
       `## ${version} —`,
     )
     expect(repo('README.md'), 'the README quotes the version it ships').toContain(version)
+  })
+
+  /**
+   * **The scenario table is printed, not paraphrased** (PRD-03 T11). Which
+   * knob a real server's puppets can execute is decided in
+   * `packages/sim/src/scenario.ts` and enforced by the orchestrator's door; a
+   * reader who takes `docs/sdk.md` at its word has to be reading the same
+   * table, so each knob appears there with the sentence the refusal uses.
+   */
+  it('is every scenario knob, with the reason the door gives, where `docs/sdk.md` tabulates them', () => {
+    const sdk = repo('docs/sdk.md')
+    for (const reach of SCENARIO_KNOB_REACH) {
+      expect(sdk, `docs/sdk.md names the ${reach.knob} knob`).toContain(`\`${reach.knob}\``)
+      expect(sdk, `docs/sdk.md gives the reason for ${reach.knob}`).toContain(reach.reason)
+    }
   })
 
   it('is a tag the release pipeline knows, where `CHANGELOG.md` lists one', () => {

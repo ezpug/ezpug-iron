@@ -49,6 +49,34 @@ describe('the assignment of a match of puppets', () => {
     expect('simulation' in compose('powerup-dm')).toBe(false)
   })
 
+  /**
+   * **A scenario reaches the server as knobs, never as a name to look up**
+   * (PRD-03 T11): one language on the wire, one table — `@ezpug/sim`'s — and
+   * the plugin holds no second copy of it.
+   */
+  it('resolves the scenario into what the puppets do', () => {
+    expect(compose('powerup-dm', { simulation: { scenario: 'no-show' } }).puppets).toEqual({
+      scenario: 'no-show',
+      absentPlayers: 2,
+      idle: false,
+    })
+    expect(compose('powerup-dm', { simulation: { scenario: 'idle' } }).puppets).toEqual({
+      scenario: 'idle',
+      absentPlayers: 0,
+      idle: true,
+    })
+  })
+
+  it('says nothing about puppets for a story that asks for nothing extra', () => {
+    // `happy-path` is "play the match out", which is what a room of puppets
+    // does anyway — so the frame of every match before T11 is unchanged.
+    expect('puppets' in compose('powerup-dm', { simulation: { scenario: 'happy-path' } })).toBe(
+      false,
+    )
+    expect('puppets' in compose('powerup-dm', { simulation: {} })).toBe(false)
+    expect('puppets' in compose('pug', { simulation: {} })).toBe(false)
+  })
+
   it('is claimed by every mode this repo ships', () => {
     // **`retakes` was the last holdout and PRD-03 T10 closed it.** cs2-retakes
     // keeps bots out of its *queue* (`QueueManager.AddConnectingPlayer`), which

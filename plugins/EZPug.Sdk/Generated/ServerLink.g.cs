@@ -1880,6 +1880,22 @@ public sealed record MatchSimulation
     public double? TimeScale { get; init; }
 }
 
+/// <summary>What the puppets do beyond playing the match out — a scenario resolved into knobs (PRD-03 T11).</summary>
+public sealed record PuppetScript
+{
+    [JsonPropertyName("scenario")]
+    [JsonPropertyOrder(0)]
+    public required string Scenario { get; init; }
+
+    [JsonPropertyName("absentPlayers")]
+    [JsonPropertyOrder(1)]
+    public long AbsentPlayers { get; init; } = 0;
+
+    [JsonPropertyName("idle")]
+    [JsonPropertyOrder(2)]
+    public bool Idle { get; init; } = false;
+}
+
 /// <summary>Hostname and event name (decision 22).</summary>
 public sealed record MatchBranding
 {
@@ -2966,6 +2982,11 @@ public sealed record AssignOrchestratorFrame : OrchestratorFrame
     [JsonPropertyOrder(17)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public MatchSimulation? Simulation { get; init; }
+
+    [JsonPropertyName("puppets")]
+    [JsonPropertyOrder(18)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PuppetScript? Puppets { get; init; }
 }
 
 /// <summary>The <c>demoUploadUrl</c> block of <see cref="AssignOrchestratorFrame"/>.</summary>

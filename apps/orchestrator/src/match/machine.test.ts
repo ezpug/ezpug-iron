@@ -353,6 +353,62 @@ describe('the simulation switch', () => {
     await app.close()
   })
 
+  /**
+   * **One scenario language, and no knob that quietly does nothing** (PRD-03
+   * T11, Attitude 3). A puppets request names a story from the catalog the
+   * simulator plays; the knobs a box full of bots cannot execute are refused
+   * on the field that named them, and the two a puppet *can* do depend on who
+   * seats the bodies — under `matchzy` they are the fork's, and it seats one
+   * per configured player and force-readies them.
+   */
+  it('refuses a scenario a real server cannot play, on simulation.scenario', async () => {
+    const app = createTestApp()
+    const key = await puppeteerKey(app)
+    const simOnly = await refused(
+      app.matches.create(key, request({ simulation: { scenario: 'overtime' } })),
+    )
+    expect(simOnly.code).toBe('validation_failed')
+    expect(simOnly.message).toContain('overtime asks for overtimes')
+    expect(simOnly.details).toEqual({ field: 'simulation.scenario' })
+
+    // The same story asked of the *simulator* is a simulator match and legal:
+    // `sim.scenario` steers the engine, where every knob is executable.
+    const played = await app.matches.create(
+      key,
+      request({ clientMatchId: 'sim-overtime', sim: { scenario: 'overtime' } }),
+    )
+    expect(played.match.simulated).toBe(false)
+
+    // And a knob the SDK's puppeteer does, asked of a match whose bodies are
+    // MatchZy-Enhanced's.
+    const forkSeated = await refused(
+      app.matches.create(
+        key,
+        request({ clientMatchId: 'pug-no-show', simulation: { scenario: 'no-show' } }),
+      ),
+    )
+    expect(forkSeated.code).toBe('validation_failed')
+    expect(forkSeated.message).toContain('a matchzy match cannot do')
+    expect(forkSeated.details).toEqual({ field: 'simulation.scenario' })
+    await app.close()
+  })
+
+  it('plays one the SDK seats for: nobody ever connects, and the mode ends it', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const key = await puppeteerKey(app)
+    const { match } = await app.matches.create(
+      key,
+      request({ gamemode: 'powerup-dm', simulation: { scenario: 'idle' } }),
+    )
+    await app.settle()
+    await app.advance(60 * 60_000)
+    await app.settle()
+    const ended = await app.matches.get(key, match.id)
+    expect(ended.state).toBe('ended')
+    expect(ended.simulated).toBe(true)
+    await app.close()
+  })
+
   it('is still money: the ledger caps a simulated match like any other', async () => {
     const app = createTestApp()
     const key = await puppeteerKey(app, { maxServerLifetimeMinutes: 60 })

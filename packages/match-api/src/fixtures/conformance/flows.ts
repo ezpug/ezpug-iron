@@ -1065,6 +1065,29 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         `${unknown.code} ${JSON.stringify(unknown.details)}`,
       )
 
+      // **And a scenario no real server can execute** (PRD-03 T11). The
+      // catalog is one language for the simulator and for a room of puppets,
+      // and the knobs that only a story engine can honour — a forced
+      // overtime, here — are refused on the field that named them rather than
+      // quietly doing nothing on hardware. The same story through
+      // `sim.scenario` is a simulator match and stays legal.
+      const impossible = await refusal(
+        ctx,
+        'a scenario a real server cannot play is refused for puppets',
+        puppeteer.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-simulation-switch-sim-only',
+            simulation: { scenario: 'overtime' },
+          }),
+        }),
+      )
+      ctx.check(
+        'that refusal names simulation.scenario too',
+        impossible.code === 'validation_failed' &&
+          impossible.details?.field === 'simulation.scenario',
+        `${impossible.code} ${JSON.stringify(impossible.details)}`,
+      )
+
       // Then the match: the same Bo1 every other flow plays, with puppets in
       // the ten seats, and the marker on the resource and on every event. A
       // match belongs to the key that made it, so the puppeteer's own client

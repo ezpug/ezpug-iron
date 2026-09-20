@@ -138,6 +138,8 @@ type Summary = {
   endedReason?: { kind?: string } | null
   ledger?: { rows: number; open: number }
   payloads?: Record<string, number>
+  /** The classes of fact the match produced, in order, a run of the same class collapsed (PRD-03 T11). */
+  story?: string[]
   counts?: Record<string, number>
   commands?: { rcon: number; total: number }
   paused?: { pause: unknown; unpause: unknown } | null
@@ -183,7 +185,13 @@ type Summary = {
   pluginEvents?: Record<string, number>
   demoTarget?: string | null
   demo?: { uploaded: number; skipped?: string } | null
-  simulation?: { puppets: number; timeScale: number; simulated: boolean } | null
+  simulation?: {
+    puppets: number
+    timeScale: number
+    simulated: boolean
+    scenario?: string | null
+    provider?: string | null
+  } | null
 }
 
 /** One row of the matrix. */
@@ -204,6 +212,13 @@ type LaneCase = {
    * the count.
    */
   rcon?: number
+  /**
+   * **A match nobody is ever seated for** (PRD-03 T11, the `idle` scenario):
+   * the puppets are rostered and the scenario leaves every seat empty, so
+   * there is no connect and no death. Declared, so a row whose room quietly
+   * filled cannot pass as this one.
+   */
+  empty?: true
   /**
    * **A match that is one round nobody wins** (PRD-03 T9). A free-for-all's
    * single round outlasts the match on purpose — the mode's `length` ends it
@@ -553,6 +568,91 @@ const CASES: LaneCase[] = [
       expect(summary.length?.winner, 'a free-for-all named a winning team').toBeNull()
     },
   },
+  {
+    // **A scenario, executed by a real server** (PRD-03 T11), and the row that
+    // holds the two engines to each other. `idle` is one of the two knobs a
+    // puppet can honestly do — nobody is seated at all — and the same name
+    // plays on the simulator, so this row runs it **twice**: once on the dev
+    // node and once on the `sim` provider, and compares the classes and order
+    // of the facts each produced.
+    //
+    // What the comparison is *for* is the diff. Everything up to the end is
+    // the same story told by two engines; what differs is measured below and
+    // named in the progress note rather than smoothed away here.
+    id: 'idle',
+    what: 'plays the idle scenario on the dev node, and the simulator tells it too',
+    puppets: 2,
+    empty: true,
+    roundless: true,
+    args: [
+      '--gamemode',
+      'powerup-dm',
+      '--scenario',
+      'idle',
+      '--no-demo',
+      '--max-live-minutes',
+      '12',
+    ],
+    facts: summary => {
+      // **The room was never seated, and the mode ended the match anyway**
+      // (PRD-03 T9's idle timeout, reached for the first time on hardware by
+      // a scenario rather than by a run somebody forgot about).
+      expect(summary.simulation?.scenario, 'the run asked for no scenario').toBe('idle')
+      expect(summary.length?.mapEnd, 'the map was not ended by the idle clock').toBe('idle')
+      expect(summary.length?.seriesEnd, 'the series was not ended by the idle clock').toBe('idle')
+      expect(summary.length?.winner, 'a free-for-all named a winning team').toBeNull()
+
+      // **The same scenario on the simulator**, through the same script and
+      // the same Match API — the provider is the only thing that changes.
+      const sim = spawn(2, [
+        '--gamemode',
+        'powerup-dm',
+        '--scenario',
+        'idle',
+        '--no-demo',
+        '--provider',
+        'sim',
+        '--lan',
+        'false',
+      ])
+      expect(sim.simulation?.provider, 'the second leg did not land on the simulator').toBe('sim')
+      expect(sim.finalState, 'the simulated leg did not end').toBe('ended')
+      expect(sim.length?.seriesEnd, 'the simulator did not end it on the idle clock').toBe('idle')
+      expect(sim.payloads?.player_connected ?? 0, 'the simulator seated somebody').toBe(0)
+
+      // **The classes and the order.** `heartbeat` is a server's pulse and not
+      // a beat of any story, so it is dropped from both; everything else is
+      // compared as it came.
+      const classes = (of: Summary): string[] =>
+        (of.story ?? []).filter(type => type !== 'heartbeat')
+      expect(classes(sim), 'the simulator’s idle story changed shape').toEqual([
+        'match.allocated',
+        'server_ready',
+        'match.server_ready',
+        'series_end',
+        'match.ended',
+      ])
+      // **And the diff, pinned rather than hidden.** A real server that the
+      // SDK tells the story of ends its warmup itself twenty seconds after the
+      // map is up (`GenericFlow.GoLiveDelayMs`) whether or not anybody came —
+      // which is right for a drop-in mode, where people join a *live* server —
+      // so the real leg goes live, starts a round and ends on `map_end` +
+      // `series_end`. The simulator tells every mode MatchZy's story instead:
+      // an empty server stays in warmup and ends with `series_end` alone. The
+      // simulator is the one that is wrong, and PRD-03 T11a is where it is put
+      // right; until then this row is the record of it.
+      expect(classes(summary), 'the real leg’s idle story changed shape').toEqual([
+        'match.allocated',
+        'server_ready',
+        'match.server_ready',
+        'going_live',
+        'round_start',
+        'map_end',
+        'series_end',
+        'match.ended',
+      ])
+    },
+  },
 ]
 
 /**
@@ -601,8 +701,7 @@ if (reason !== null && !DEMANDED)
  * it to everything that is true of **every** match on this lane. The case's
  * own {@link LaneCase.facts} are the part only it can prove.
  */
-function play(lane: LaneCase): Summary {
-  const startedAt = performance.now()
+function spawn(puppets: number, args: readonly string[]): Summary {
   const run = spawnSync(
     'node',
     [
@@ -610,12 +709,12 @@ function play(lane: LaneCase): Summary {
       '--json',
       '--simulate',
       '--bots',
-      String(lane.puppets),
+      String(puppets),
       '--timescale',
       TIMESCALE,
       '--timeout-minutes',
       String(SCRIPT_MINUTES),
-      ...lane.args,
+      ...args,
     ],
     { cwd: REPO, encoding: 'utf8', timeout: BUDGET_MS },
   )
@@ -624,7 +723,12 @@ function play(lane: LaneCase): Summary {
   expect(run.status, `iron-match exited ${run.status}\n${run.stderr.slice(-6_000)}`).toBe(0)
   // Everything the script says to a human goes to stderr; stdout under
   // `--json` is the summary and nothing else.
-  const summary = JSON.parse(run.stdout.trim() || '{}') as Summary
+  return JSON.parse(run.stdout.trim() || '{}') as Summary
+}
+
+function play(lane: LaneCase): Summary {
+  const startedAt = performance.now()
+  const summary = spawn(lane.puppets, lane.args)
   const rounds = summary.payloads?.round_end ?? 0
 
   // **Puppets, and the marker every consumer reads** (T4): the resource said
@@ -641,7 +745,7 @@ function play(lane: LaneCase): Summary {
 
   // The match played itself out: MatchZy said so and the machine agreed.
   expect(summary.finalState).toBe('ended')
-  expect(summary.payloads?.going_live, 'MatchZy never went live').toBe(1)
+  expect(summary.payloads?.going_live, 'the match never went live').toBe(1)
   if (lane.roundless) {
     expect(summary.payloads?.round_start, 'the one round never started').toBeGreaterThanOrEqual(1)
     expect(rounds, 'a round ended in a match whose length outlasts its round').toBe(0)
@@ -684,7 +788,14 @@ function play(lane: LaneCase): Summary {
     summary.payloads?.server_ready ?? 0,
     'the plugin never said it was ready',
   ).toBeGreaterThanOrEqual(1)
-  expect(summary.payloads?.player_death ?? 0, 'nobody died: no link events').toBeGreaterThan(0)
+  if (lane.empty) {
+    // **The scenario's whole claim**: every seat was left empty, and the
+    // facts the lane counts on a room of puppets are therefore absent.
+    expect(summary.payloads?.player_connected ?? 0, 'somebody was seated after all').toBe(0)
+    expect(summary.payloads?.player_death ?? 0, 'somebody died on an empty server').toBe(0)
+  } else {
+    expect(summary.payloads?.player_death ?? 0, 'nobody died: no link events').toBeGreaterThan(0)
+  }
 
   lane.facts?.(summary)
 
@@ -789,6 +900,10 @@ describe('the iron-match script', () => {
       // `powerup-dm`, the SDK's own flow and the SDK's own puppets, tapped
       // from a phone.
       'widget',
+      // **T11**'s: a scenario the simulator plays, executed by a real server,
+      // and run a second time on the simulator inside the row so the two can
+      // be compared by the classes and order of their facts.
+      'idle',
     ])
     // **No row of the matrix types at the match.** Every one goes live because
     // players readied and nothing else, and every one takes its stimulus

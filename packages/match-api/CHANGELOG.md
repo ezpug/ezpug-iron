@@ -6,6 +6,38 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.18.4 — 2026-09-20
+
+**A scenario a real server cannot play is refused, never silently ignored** (PRD-03 T11,
+for the platform's PRD-10 T8 and T9). No schema, route, event, error code or state moved;
+what changed is what the fake — and the orchestrator beside it — does with
+`simulation.scenario`, and the conformance suite says so.
+
+- **`simulation.scenario` is now judged by what it asks for.** One scenario language has
+  always meant that a puppets request names a story from the same catalog
+  `GET /v1/sim/scenarios` lists; what was missing is that a knob no room of bots can
+  execute did nothing at all when the match landed on a real server. It is now
+  `validation_failed` on `simulation.scenario`, with the knob named in the message.
+  **What a real server's puppets can do**: `absentPlayers` (a roster entry with no body,
+  which the join deadline then gives up on) and `idle` (nobody is seated at all, and the
+  mode's `length` or the join deadline ends it). **What is refused**: `overtimes` (two
+  even sides of bots cannot be made to draw), `comeback` (nothing scripts a bot's aim),
+  `pauses` (a pause is the Match API's own admin verb — use `POST
+  /v1/matches/:id/commands`), `crashAfterRound` and `neverReady` (a request cannot ask a
+  box to die, or not to boot). **What is refused for a `matchzy` mode whatever the knob**:
+  its bodies are MatchZy-Enhanced's, which seats one bot per configured player and
+  force-readies them, so `no-show` and `idle` are a `powerup-dm`, `retakes` or
+  `flying-scoutsman` request's. `docs/sdk.md` tabulates all seven, knob by knob, and the
+  refusal reads its sentence from that same table.
+- **`sim.scenario` is untouched**: that block steers the simulator, where every knob is
+  executable by definition, so `sim: { scenario: 'overtime' }` still plays an overtime.
+  Only `simulation`, the block that asks a *real* server to play without people, is
+  judged this way.
+- **What you may need to change**: nothing, unless you were sending a scenario to a
+  puppets match and reading nothing back from it. A console offering the catalog as a
+  dropdown for a simulated match should now offer `happy-path`, `no-show` and `idle` for
+  the modes the SDK seats, and `happy-path` alone for `pug`.
+
 ## 0.18.3 — 2026-09-20
 
 **`retakes` is one team of ten, and every bundled mode seats puppets** (PRD-03 T10, for

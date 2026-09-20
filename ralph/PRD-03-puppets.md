@@ -541,7 +541,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > **zero** on a live server, and which of the two candidate causes it is needs a human
     > or a human-played retakes match to settle.
 
-- [ ] **T11: the simulator's scenarios, executed by a real server.**
+- [x] **T11: the simulator's scenarios, executed by a real server.**
   - For each knob in `packages/sim/src/scenario.ts:88-112`, make it a puppet behaviour
     where the server can honestly do it:
     - `absentPlayers`: a roster entry with no puppet;
@@ -554,6 +554,43 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - Proof: one scenario run twice, on the sim and on the dev server, compared by the
     classes and order of facts. The diff between them is a bug in one of the two, and
     the note says which.
+
+    > **Two of the seven knobs are a puppet's, and the other five are refused rather
+    > than listed.** `absentPlayers` (a roster entry with no body) and `idle` (nobody
+    > seated at all) are what the SDK's puppeteer can honestly do, and it is handed the
+    > *knobs* — the orchestrator resolves the scenario into `assign.puppets`, so no
+    > plugin holds a second copy of the catalog. The rest are `validation_failed` on
+    > `simulation.scenario` with the knob named: `neverReady` is the **server** that
+    > never boots (the knob was never about a silent player, which is what the task
+    > summary read into it) and so is the fault suite's, `crashAfterRound` is a request
+    > asking a box to die, `pauses` is the Match API's own admin verb — the matrix's
+    > `pause` row already takes it through the front door — and `overtimes`/`comeback`
+    > are outside anything that can be asked of a bot's aim. Under a `matchzy` flow
+    > even the two are refused: the fork seats one bot per configured player and
+    > force-readies both teams from its watchdog. The table is
+    > `packages/sim/src/scenario.ts`, `docs/sdk.md` prints it and a test holds the doc
+    > to it, which is what "never silently ignored" had to become to be worth anything.
+    >
+    > **The diff is the simulator's** (`idle`, played twice at timescale 2, 5.5 minutes
+    > for both legs). Real: `server_ready`, `going_live`, `round_start`, `map_end`,
+    > `series_end` — a mode the SDK tells the story of ends its own warmup twenty
+    > seconds after the map is up whether or not anybody came, which is right for a
+    > drop-in mode where people join a *live* server. Sim: `server_ready`, `series_end`
+    > and nothing between, because the simulator tells every mode MatchZy's story, where
+    > an empty server stays in warmup. Both end on the mode's idle timeout and name
+    > nobody. T11a is the fix.
+
+- [ ] **T11a: the simulator's empty server never goes live** (found by T11, 2026-09-21).
+  The `idle` and `no-show` stories hold an empty (or short-handed) server in warmup and
+  end with `series_end` alone, which is MatchZy's behaviour and not the SDK's: a real
+  `powerup-dm`, `retakes` or `flying-scoutsman` server ends its warmup itself
+  (`GenericFlow.GoLiveDelayMs`) and ends on `map_end` + `series_end`. Measured side by
+  side on the dev node and the `sim` provider in the lane's `idle` row, whose two
+  assertions are the record of it. Thread the manifest's `flow` into the sim assignment
+  as T9a threaded `length` and T9c threaded `records`, and tell the SDK-told flows the
+  story a real one of them tells. The platform's dev world draws its `powerup-dm`
+  matches from here (PRD-10 T6), so until then it is rehearsing against a match that
+  cannot happen.
 
 - [ ] **T12: movement that looks like a match** (radar; spike first, may end as a
   finding).

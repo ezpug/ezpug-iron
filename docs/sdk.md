@@ -378,6 +378,36 @@ asked again after five seconds if it never arrives — and casts each as it arri
   the engine getting round to it, and `World.ArriveBot("BOT Cliff")` is a bot nobody asked
   for. `PuppetTests.cs` is the worked example.
 
+### Scenarios: one language, and no knob that quietly does nothing
+
+A puppets request may name a **scenario** (`simulation.scenario`) from the catalog
+`GET /v1/sim/scenarios` lists — the same table the simulator plays, so a story a loop
+watched on the `sim` provider is a story a real server is asked for by the same name
+(PRD-03 T11). The orchestrator resolves the name into knobs and the assignment carries
+those (`assign.puppets`); no plugin holds a second copy of the table, and the puppeteer
+reads a seating plan rather than a word it has to interpret.
+
+A knob nobody on hardware can execute is **refused at the door**, `validation_failed` on
+`simulation.scenario`, rather than silently doing nothing on a match somebody ran. Which
+is which lives in one place, `packages/sim/src/scenario.ts`, and this table is that table:
+
+| Knob | On a real server | |
+| --- | --- | --- |
+| `absentPlayers` | **the puppets** | a roster entry with no puppet: the puppeteer seats every entry but the last few, and the orchestrator’s join deadline is what gives up on them |
+| `idle` | **the puppets** | nobody is seated at all, on a server that is otherwise a normal one: the mode’s `length.idleTimeoutSeconds` ends the match, or the join deadline does |
+| `neverReady` | refused | it is the *server* that never boots, not a player who never readies — a provider failure, armed on the provider by the fault-injection suite rather than asked for by a match |
+| `crashAfterRound` | refused | a request cannot ask a box to die: the recovery window it opens is driven from outside the match, by the fault suite on the simulator or by a hand on the container |
+| `pauses` | refused | nothing pauses a stock server but an admin, and that admin is the Match API’s own `pause` command — the lane pauses a live match through the front door instead (PRD-03 T6) |
+| `overtimes` | refused | two even sides of bots cannot be made to draw on demand — PRD-03 T6 counted an overtime in five of the matrix’s ten maps and could force none of them |
+| `comeback` | refused | nothing scripts a bot’s aim, so no real server can be told who trails at the half |
+
+Two more things follow from who holds the bodies. **Under a `matchzy` flow even the two
+knobs a puppet can do are refused**: MatchZy-Enhanced's simulation mode seats one bot per
+*configured* player, re-readies whatever its reconcile pass finds and force-readies both
+teams from its warmup watchdog, so neither an absent puppet nor a silent one can be
+expressed without patching the fork. And a scenario's `winner` never travels at all — no
+named scenario sets it, and nothing on a server could honour it.
+
 **Under `matchzy` the fork seats them and the cast arrives late** (PRD-03 T7a). MatchZy-Enhanced's
 simulation mode spawns one bot per roster entry itself and decides which is which seconds
 afterwards, so there is nothing to answer at the door: the body is already a plain bot by

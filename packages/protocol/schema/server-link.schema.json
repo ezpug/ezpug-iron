@@ -2093,6 +2093,32 @@
       },
       "additionalProperties": false
     },
+    "PuppetScript": {
+      "description": "What the puppets do beyond playing the match out — a scenario resolved into knobs (PRD-03 T11).",
+      "type": "object",
+      "properties": {
+        "scenario": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "absentPlayers": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "idle": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scenario",
+        "absentPlayers",
+        "idle"
+      ],
+      "additionalProperties": false
+    },
     "MatchBranding": {
       "description": "Hostname and event name (decision 22).",
       "type": "object",
@@ -3348,6 +3374,9 @@
             },
             "simulation": {
               "$ref": "#/$defs/MatchSimulation"
+            },
+            "puppets": {
+              "$ref": "#/$defs/PuppetScript"
             }
           },
           "required": [
