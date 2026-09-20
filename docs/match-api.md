@@ -81,6 +81,12 @@ PRD-03 T4) and absent on a real one. The platform
 re-exports these from the package; its fixtures parse unchanged (a test in this package
 proves it against the platform's own recorded files).
 
+**A player's `team` is the roster's word.** `team_a` and `team_b` belong to the players the
+request named — a puppet is one — wherever they stand; a body the request never named is
+`unrostered` while it plays on a side (an open-join guest, a plain bot) and `spec` while it
+is on none (since 0.16.0, PRD-03 T7). An `unrostered` player belongs to neither team: draw
+it in a guest list and attribute nothing by team to it.
+
 **The ready gate is the server's arithmetic, never the client's.** `player_ready`,
 `player_unready` and `team_ready` each carry a `tally`: `ready` is the ready player count
 per team, in team order, and `expected` is how many the server is waiting for across both
@@ -181,9 +187,16 @@ Four things a consumer needs to know:
   blocks is fine when they agree and `validation_failed` on `simulation.scenario` when they
   do not; a name nobody defined is refused on whichever field named it.
 - **Who may ask** is the `simulation` scope, above. The mode has to be able to: only a
-  manifest with `capabilities.simulation` seats a puppet (`pug` does), and a request to any
+  manifest with `capabilities.simulation` seats a puppet, and a request to any
   other is `validation_failed` on `simulation` at the door rather than a server waiting in
   warmup for players who are never coming.
+- **Who seats them** depends on the mode and is nothing a client has to know: under `pug`
+  it is MatchZy's simulation mode, under `powerup-dm` and `flying-scoutsman` the SDK
+  (PRD-03 T7). Either way a puppet is the roster entry on the wire — its SteamID64, its
+  name, its team — and in an SDK mode it is announced (`player_connected`, `player.joined`
+  with `rostered: true`, the `presence` frame), reachable by `kick` and by a player token
+  minted for the rostered id, and announced again when its seat is refilled. A plain bot
+  is never announced and is `unrostered`. `retakes` does not claim the capability yet.
 
 **Wingman seats two a side, and the map is yours to name.** A roster with a third player
 on a side is refused `validation_failed` on `teams.<side>.players`, because the engine's
@@ -1047,7 +1060,7 @@ demo), `open-join` (`retakes` with empty rosters: `player.joined` with `rostered
 `player-command` (`powerup-dm`: a player token, a widget's tap, the `plugin_event` back),
 `cancel-allocating`, `crash-restore`, `crash-lost`, `csgo-refused`, `wingman-format`,
 `simulation-switch` (a puppets request is `forbidden` by scope name on the suite's own key,
-`validation_failed` on a mode without the capability and on a scenario nobody defined, and
+`validation_failed` on a mode the catalog says cannot seat them and on a scenario nobody defined, and
 on the scoped key plays a Bo1 whose `Match.simulated` and every `source.simulated` are
 `true`), `budget-refused`, `webhook-replay` (the cursor walked to the end equals the tail)
 and `stream-hello` (the `hello.seq` agrees with the events route, and every `event` frame is

@@ -82,8 +82,10 @@ const HELP = `iron-match — run one real match through the Match API and record
                          the Match API's own kick twice — the rostered SteamID
                          and the synthetic one — and records both refusals,
                          which is the measurement; the stimulus is then
-                         \`bot_kick ct\` over RCON, the only door left until
-                         PRD-03 T7 announces a puppet like a human (T6)
+                         \`bot_kick ct\` over RCON, the only door a matchzy
+                         mode has (T6). Outside MatchZy the SDK announces its
+                         puppets like people, so there the kick for the
+                         rostered id simply lands and nothing is typed (T7)
   --ready-gate <n>       rules.warmup.minPlayersToReady across both teams;
                          default 0, which is "everybody connected must ready".
                          The builder halves it per team, and MatchZy-Enhanced
@@ -329,8 +331,8 @@ const PAUSE = flags.get('pause') === 'true'
  * plugin: the orchestrator gates `kick` on its own presence map, which is
  * filled from `player_connected` / `player_disconnected` — emitted for humans
  * only — so for a room of puppets it is empty and **no player command can
- * reach any of them**. PRD-03 T7 is what closes that, and these two
- * assertions are meant to go red the day it does.
+ * reach any of them**. PRD-03 T7 closed that for the modes the SDK seats;
+ * T7a is what closes it under MatchZy, and these two assertions are meant to go red the day it does.
  *
  * So the stimulus is `bot_kick ct` over RCON, and this is the **one** case in
  * the matrix that types at a match: it declares its own `rcon` count in
@@ -1370,6 +1372,54 @@ async function run() {
     }
     if (now.state !== 'ready' && now.state !== 'live') continue
 
+    // **Outside MatchZy a puppet leaves by the front door** (PRD-03 T7). The
+    // SDK seats these puppets itself and announces each one like a person, so
+    // the orchestrator's presence map holds them and a `kick` for the
+    // **rostered** SteamID — the only id a client ever has — reaches the body
+    // that plays it. No RCON, no synthetic id. The room is read off the
+    // `presence` frame, every one of them since the kick and in order, because
+    // the puppeteer refills a seat faster than this loop polls: the player is
+    // seen gone, then seen back, and the second `player_connected` for the
+    // same SteamID is in the durable log for the summary to count.
+    if (DROP_PUPPET && FLOW !== 'matchzy' && (dropped === null || dropped.back === null)) {
+      const rooms = streamFrames.filter(frame => frame.type === 'presence')
+      if (dropped === null) {
+        if ((rooms.at(-1)?.players ?? []).length < BOTS) continue
+        const rostered = String(PUPPET_STEAM_ID_BASE)
+        const frontDoor = await command({
+          correlationId: `${RUN_ID}-kick-rostered`,
+          type: 'kick',
+          steamId64: rostered,
+          reason: 'the lane is taking one puppet off the server',
+        })
+        say(`kick ${rostered} (the rostered id): ${stringify(frontDoor).replace(/\s+/g, ' ')}`)
+        droppedAt = wall.now()
+        dropped = {
+          rostered,
+          body: rostered,
+          state: now.state,
+          standing: BOTS,
+          frontDoor,
+          synthetic: null,
+          stimulus: 'kick',
+          left: null,
+          back: null,
+          roomsBefore: rooms.length,
+        }
+        continue
+      }
+      for (const room of rooms.slice(dropped.roomsBefore)) {
+        const here = room.players.some(player => player.steamId64 === dropped.rostered)
+        if (dropped.left === null && !here) {
+          dropped.left = { afterMs: wall.now() - droppedAt, standing: room.players.length }
+          say(`the room is ${room.players.length}: ${dropped.rostered} left by the front door`)
+        } else if (dropped.left !== null && dropped.back === null && here) {
+          dropped.back = { afterMs: wall.now() - droppedAt, standing: room.players.length }
+          say(`the room is ${room.players.length} again: ${dropped.rostered} is back`)
+        }
+      }
+    }
+
     // **EZ Rating on the scoreboard** (PRD-02 T27), on real hardware, without a
     // human: a bot has no Steam account but it does have a SteamID64 the whole
     // tree agrees on (`BotIdentity`, slot + 90000000000000000), so the platform
@@ -1472,7 +1522,7 @@ async function run() {
         // is filled from `player_connected` / `player_disconnected`, which the
         // core plugin emits **for humans only** — so for a room of puppets it
         // is empty, and no player command can reach any of them. That is the
-        // gap PRD-03 T7 closes, and it is worth pinning to the orchestrator
+        // gap PRD-03 T7a closes, and it is worth pinning to the orchestrator
         // rather than to the id, because an id is not where the fix goes.
         const rostered = String(PUPPET_STEAM_ID_BASE)
         const frontDoor = await command({
@@ -1809,7 +1859,7 @@ function write(result) {
      * side say what the door dropped and why it was right to.
      *
      * It is also the only place a puppet's *leaving* is visible: the core
-     * plugin announces connections for humans only (T7 is what changes that),
+     * plugin announces connections for humans only (T7 changed that outside MatchZy, T7a is what changes it here),
      * while the fork synthesises a `player_connect` and a `player_disconnect`
      * per bot, each carrying the rostered SteamID it maps to. Empty when the
      * run recorded no trace.

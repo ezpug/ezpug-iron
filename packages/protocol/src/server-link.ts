@@ -17,6 +17,7 @@ import {
   matchCommandSchema,
   matchIdSchema,
   matchRulesSchema,
+  matchSimulationSchema,
   matchTeamsSchema,
   type ORCHESTRATOR_COMMAND_TYPES,
   playerCommandNameSchema,
@@ -537,6 +538,16 @@ export const assignOrchestratorFrameSchema = z.object({
     .max(DEMO_UPLOAD_URLS_MAX)
     .optional(),
   restore: roundBackupSchema.optional(),
+  /**
+   * **Puppets** (PRD-03 T7): the request's own `simulation` block, as it was
+   * asked. Present means every roster entry is played by a bot that carries
+   * that entry's SteamID. Who seats them depends on the flow: for `matchzy`
+   * it is MatchZy's simulation mode, switched on inside `matchzyConfig`, and
+   * the SDK leaves the bodies alone; for every other flow it is the SDK's
+   * puppeteer. `timeScale` is the engine's `host_timescale`; `scenario` is
+   * carried for the scripts a real server will execute (T11).
+   */
+  simulation: matchSimulationSchema.optional(),
 })
 
 /** A command for the server, answered by a `command_result` (or a `console` frame) with its `correlationId`. */

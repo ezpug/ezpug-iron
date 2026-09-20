@@ -86,8 +86,16 @@ export type MatchTeam = z.infer<typeof matchTeamSchema>
 export const teamSideSchema = z.enum(['ct', 't'])
 export type TeamSide = z.infer<typeof teamSideSchema>
 
-/** Where a connected human sits on the server. */
-export const serverSlotSchema = z.enum(['team_a', 'team_b', 'spec'])
+/**
+ * Where a body sits on the server. `team_a` and `team_b` are **the roster's
+ * word**: a rostered player carries their team wherever they stand, and a
+ * puppet is a rostered player. `unrostered` is a body the request never named
+ * that is *playing* — on a side, scoring and dying: an open-join guest, a
+ * plain bot filling a seat (PRD-03 T7). It belongs to neither team, so it
+ * never counts towards one. `spec` is a body the request never named that is
+ * on no side: a caster, somebody still choosing.
+ */
+export const serverSlotSchema = z.enum(['team_a', 'team_b', 'spec', 'unrostered'])
 export type ServerSlot = z.infer<typeof serverSlotSchema>
 
 /**

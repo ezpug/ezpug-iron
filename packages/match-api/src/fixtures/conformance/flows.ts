@@ -983,25 +983,34 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       const target = ctx.target.simulation as NonNullable<typeof ctx.target.simulation>
       const puppeteer = ctx.recorded(target.client)
 
-      // A mode whose match software cannot seat a puppet says so at the
-      // door, by the field to change, rather than waiting in warmup for
-      // players who are never coming. `flying-scoutsman` runs no plugin.
-      const incapable = await refusal(
-        ctx,
-        'a mode without the capability refuses puppets',
-        puppeteer.matches.create({
-          body: ctx.request({
-            clientMatchId: 'conformance-simulation-switch-capability',
-            gamemode: 'flying-scoutsman',
-            simulation: {},
+      // A mode that cannot seat a puppet says so at the door, by the field to
+      // change, rather than waiting in warmup for players who are never
+      // coming. Which mode that is comes from the catalog and not from a name
+      // written here: the SDK seats puppets for its own modes since PRD-03 T7,
+      // and the day every mode claims the capability there is nobody left to
+      // refuse, which is a fact about the catalog and not a failure.
+      const catalog = await puppeteer.gamemodes.list()
+      const incapableMode = catalog.gamemodes.find(mode => !mode.capabilities.simulation)
+      if (incapableMode === undefined) {
+        ctx.check('every mode in the catalog seats puppets, so none can refuse them', true, '')
+      } else {
+        const incapable = await refusal(
+          ctx,
+          'a mode without the capability refuses puppets',
+          puppeteer.matches.create({
+            body: ctx.request({
+              clientMatchId: 'conformance-simulation-switch-capability',
+              gamemode: incapableMode.id,
+              simulation: {},
+            }),
           }),
-        }),
-      )
-      ctx.check(
-        'the refusal is validation_failed on simulation',
-        incapable.code === 'validation_failed' && incapable.details?.field === 'simulation',
-        `${incapable.code} ${JSON.stringify(incapable.details)}`,
-      )
+        )
+        ctx.check(
+          'the refusal is validation_failed on simulation',
+          incapable.code === 'validation_failed' && incapable.details?.field === 'simulation',
+          `${incapable.code} ${JSON.stringify(incapable.details)}`,
+        )
+      }
 
       // One scenario language: the name comes from `GET /v1/sim/scenarios`,
       // and one nobody defined is refused on the field that named it.

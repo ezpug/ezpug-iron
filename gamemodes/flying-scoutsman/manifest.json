@@ -21,9 +21,10 @@
     "playerCommands": false,
     "widget": false,
     "backups": false,
-    "scoreboardRating": false
+    "scoreboardRating": false,
+    "simulation": true
   },
   "commands": [],
-  "version": "0.2.0",
+  "version": "0.3.0",
   "sdkVersion": "0.1.0"
 }

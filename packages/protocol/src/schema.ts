@@ -18,6 +18,7 @@ import {
   matchApiErrorCodeSchema,
   matchBrandingSchema,
   matchRulesSchema,
+  matchSimulationSchema,
   matchTeamSchema,
   matchTeamsSchema,
   pauseKindSchema,
@@ -205,6 +206,11 @@ const SHARED_NAMES: readonly Named[] = [
     description: 'One map to be played and how sides are decided.',
   },
   { schema: matchRulesSchema, id: 'MatchRules', description: 'The rules a context decided.' },
+  {
+    schema: matchSimulationSchema,
+    id: 'MatchSimulation',
+    description: 'Puppets: the match is played by simulated players (PRD-03 T4, T7).',
+  },
   {
     schema: matchBrandingSchema,
     id: 'MatchBranding',

@@ -112,5 +112,6 @@ export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'>
     ...(request.callbacks.demoUploadUrl && { demoUploadUrl: request.callbacks.demoUploadUrl }),
     ...(request.callbacks.demoUploadUrls && { demoUploadUrls: request.callbacks.demoUploadUrls }),
     ...(restore && { restore }),
+    ...(request.simulation && { simulation: request.simulation }),
   })
 }

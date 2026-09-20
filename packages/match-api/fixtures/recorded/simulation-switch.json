@@ -96,12 +96,276 @@
       "message": "simulation on a match request needs the simulation scope"
     },
     {
+      "route": "gamemodes.list",
+      "ok": true,
+      "response": {
+        "gamemodes": [
+          {
+            "id": "pug",
+            "game": "cs2",
+            "tier": "plugin",
+            "title": {
+              "de": "5v5 Wettkampf",
+              "en": "5v5 competitive"
+            },
+            "description": {
+              "de": "Das Spiel der Warteschlange: fünf gegen fünf, Messerrunde, Overtime, Demo und Rundenbackups – MatchZy führt das Match.",
+              "en": "The queue's game: five against five, a knife round, overtime, a demo and round backups – MatchZy runs the match."
+            },
+            "slots": {
+              "teamSize": 5,
+              "teams": 2,
+              "openJoin": false
+            },
+            "formats": [
+              "competitive",
+              "wingman"
+            ],
+            "flow": "matchzy",
+            "records": "demo",
+            "ranked": false,
+            "version": "0.3.0",
+            "maps": "any",
+            "plugins": [
+              "MatchZy"
+            ],
+            "cfg": [
+              "ezpug/pug.cfg"
+            ],
+            "cvars": {
+              "matchzy_kick_when_no_match_loaded": "false",
+              "matchzy_demo_recording_enabled": "true",
+              "matchzy_enable_tech_pause": "1",
+              "matchzy_stop_command_available": "true",
+              "matchzy_reset_cvars_on_series_end": "true"
+            },
+            "capabilities": {
+              "positions": true,
+              "chat": true,
+              "playerCommands": false,
+              "widget": false,
+              "backups": true,
+              "scoreboardRating": true,
+              "simulation": true
+            },
+            "commands": [],
+            "sdkVersion": "0.1.0"
+          },
+          {
+            "id": "flying-scoutsman",
+            "game": "cs2",
+            "tier": "config",
+            "title": {
+              "de": "Flying Scoutsman",
+              "en": "Flying Scoutsman"
+            },
+            "description": {
+              "de": "CS2s Modus mit Scout und wenig Schwerkraft auf den normalen Karten. Nur Konfiguration, kein Plugin: den Matchablauf – live, Runden, Seitenwechsel, Kartenende – erzählt das SDK aus den Ereignissen der Engine.",
+              "en": "CS2's low-gravity Scout mode on the normal maps. Configuration only, no plugin: the match flow – live, rounds, the side swap, the end of the map – is told by the SDK from the engine's own events."
+            },
+            "slots": {
+              "teamSize": 5,
+              "teams": 2,
+              "openJoin": true
+            },
+            "formats": [
+              "competitive"
+            ],
+            "flow": "none",
+            "records": "events",
+            "ranked": false,
+            "version": "0.3.0",
+            "maps": "any",
+            "plugins": [],
+            "cfg": [
+              "ezpug/flying-scoutsman.cfg"
+            ],
+            "cvars": {},
+            "capabilities": {
+              "positions": true,
+              "chat": true,
+              "playerCommands": false,
+              "widget": false,
+              "backups": false,
+              "scoreboardRating": false,
+              "simulation": true
+            },
+            "commands": [],
+            "sdkVersion": "0.1.0"
+          },
+          {
+            "id": "retakes",
+            "game": "cs2",
+            "tier": "plugin",
+            "title": {
+              "de": "Retakes",
+              "en": "Retakes"
+            },
+            "description": {
+              "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, die Teams stellt das Plugin zusammen. Waffen verteilt der Allocator, den Spielablauf erzählt das SDK aus den Ereignissen der Engine. Ereignisse ohne Demo.",
+              "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, teams put together by the plugin. The allocator hands out the guns and the SDK tells the match flow from the engine's own events. Events, no demo."
+            },
+            "slots": {
+              "teamSize": 5,
+              "teams": 2,
+              "openJoin": true
+            },
+            "formats": [
+              "competitive"
+            ],
+            "flow": "plugin",
+            "records": "events",
+            "ranked": false,
+            "version": "0.2.0",
+            "maps": {
+              "catalog": [
+                "de_ancient",
+                "de_anubis",
+                "de_dust2",
+                "de_inferno",
+                "de_mirage",
+                "de_nuke",
+                "de_overpass",
+                "de_train",
+                "de_vertigo"
+              ],
+              "workshop": []
+            },
+            "plugins": [
+              "RetakesPlugin",
+              "RetakesAllocator"
+            ],
+            "cfg": [
+              "ezpug/retakes.cfg"
+            ],
+            "cvars": {
+              "bot_quota_mode": "normal",
+              "bot_join_after_player": "0"
+            },
+            "capabilities": {
+              "positions": true,
+              "chat": true,
+              "playerCommands": false,
+              "widget": false,
+              "backups": false,
+              "scoreboardRating": true,
+              "simulation": false
+            },
+            "commands": [],
+            "sdkVersion": "0.1.0"
+          },
+          {
+            "id": "powerup-dm",
+            "game": "cs2",
+            "tier": "sdk",
+            "title": {
+              "de": "Power-up Deathmatch",
+              "en": "Power-up deathmatch"
+            },
+            "description": {
+              "de": "Deathmatch mit einem Knopf auf dem Handy: einmal pro Leben ein Power-up. Jeder gegen jeden, offener Beitritt, Ereignisse ohne Demo.",
+              "en": "Deathmatch with a button on your phone: one power-up per life. Free for all, open join, events without a demo."
+            },
+            "slots": {
+              "teamSize": 12,
+              "teams": 1,
+              "openJoin": true
+            },
+            "formats": [
+              "competitive"
+            ],
+            "flow": "plugin",
+            "records": "events",
+            "ranked": false,
+            "version": "0.3.0",
+            "maps": {
+              "catalog": [
+                "de_ancient",
+                "de_anubis",
+                "de_dust2",
+                "de_inferno",
+                "de_mirage",
+                "de_nuke",
+                "de_overpass",
+                "de_train",
+                "de_vertigo"
+              ],
+              "workshop": []
+            },
+            "plugins": [
+              "EZPug.PowerupDm"
+            ],
+            "cfg": [
+              "ezpug/powerup-dm.cfg"
+            ],
+            "cvars": {
+              "mp_respawn_on_death_ct": "1",
+              "mp_respawn_on_death_t": "1",
+              "mp_respawn_immunitytime": "2",
+              "mp_buy_anywhere": "1",
+              "mp_teammates_are_enemies": "1"
+            },
+            "capabilities": {
+              "positions": true,
+              "chat": true,
+              "playerCommands": true,
+              "widget": true,
+              "backups": false,
+              "scoreboardRating": false,
+              "simulation": true
+            },
+            "commands": [
+              {
+                "name": "powerup",
+                "title": {
+                  "de": "Power-up",
+                  "en": "Power-up"
+                },
+                "description": {
+                  "de": "Ein Power-up für dieses Leben: Tempo, Rüstung oder ein Blick auf die Gegner.",
+                  "en": "One power-up for this life: speed, armor, or a look at the enemy."
+                },
+                "cooldownMs": 0,
+                "charges": {
+                  "count": 1,
+                  "per": "life"
+                },
+                "args": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "speed",
+                        "armor",
+                        "radar_peek"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            ],
+            "widget": {
+              "entry": "dist/widget.js",
+              "needs": [
+                "tokens",
+                "locale",
+                "playerToken"
+              ]
+            },
+            "sdkVersion": "0.1.0"
+          }
+        ]
+      }
+    },
+    {
       "route": "matches.create",
       "input": {
         "body": {
           "clientMatchId": "conformance-simulation-switch-capability",
           "game": "cs2",
-          "gamemode": "flying-scoutsman",
+          "gamemode": "retakes",
           "teams": {
             "teamA": {
               "name": "Team hunzR",
@@ -187,7 +451,7 @@
       "ok": false,
       "status": 400,
       "code": "validation_failed",
-      "message": "flying-scoutsman cannot play with simulated players"
+      "message": "retakes cannot play with simulated players"
     },
     {
       "route": "matches.create",

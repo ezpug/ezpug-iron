@@ -32,7 +32,7 @@
         "flow": "plugin",
         "records": "events",
         "ranked": false,
-        "version": "0.2.0",
+        "version": "0.3.0",
         "maps": {
           "catalog": [
             "de_ancient",
@@ -67,7 +67,7 @@
           "widget": true,
           "backups": false,
           "scoreboardRating": false,
-          "simulation": false
+          "simulation": true
         },
         "commands": [
           {

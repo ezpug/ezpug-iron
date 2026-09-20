@@ -85,7 +85,8 @@
       "enum": [
         "team_a",
         "team_b",
-        "spec"
+        "spec",
+        "unrostered"
       ]
     },
     "GameserverSource": {
@@ -2041,6 +2042,22 @@
       ],
       "additionalProperties": false
     },
+    "MatchSimulation": {
+      "description": "Puppets: the match is played by simulated players (PRD-03 T4, T7).",
+      "type": "object",
+      "properties": {
+        "scenario": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "timeScale": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    },
     "MatchBranding": {
       "description": "Hostname and event name (decision 22).",
       "type": "object",
@@ -3268,6 +3285,9 @@
             },
             "restore": {
               "$ref": "#/$defs/RoundBackup"
+            },
+            "simulation": {
+              "$ref": "#/$defs/MatchSimulation"
             }
           },
           "required": [

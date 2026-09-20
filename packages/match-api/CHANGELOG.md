@@ -6,6 +6,39 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.16.0 — 2026-09-20
+
+**A body the request never named, and puppets outside MatchZy** (PRD-03 T7, for the
+platform's PRD-10 T4 and T8; it closes the platform's half of `OPEN-POINTS` §2 too).
+
+- **`team: "unrostered"`** — a fourth value of `ServerSlot`, the `team` of every
+  `GameserverPlayer` (`player_connected`, `player_death`, chat, bombs, the `presence`
+  frame). The rule is now one sentence: **`team_a` and `team_b` are the roster's word and
+  nobody else's; a body the request never named is `unrostered` while it plays on a side and
+  `spec` while it is on none.** An open-join guest in `powerup-dm` or `retakes` and a plain
+  bot filling a seat are `unrostered` — they used to be given whichever team owned the side
+  they happened to spawn on, which put strangers on a team's sheet. A rostered player is
+  their team wherever they stand. **This is a new value in an enum you parse strictly**: a
+  client on ≤ 0.15.0 refuses a delivery that carries it, so **move the pin before the
+  orchestrator you talk to is deployed with this round** (PRD-03 T16 deploys; nothing in
+  production sends it before then). What to draw: an `unrostered` player belongs in a guest
+  list, never in a team column, and never in a stat that is attributed by team.
+- The `spec` production showed on 2026-09-09 (a bot that scored fourteen kills as a
+  spectator) was **not** this rule but a server bug, fixed in the same round: a kicked
+  bot's slot kept its player, and the next body in that slot played under the dead one's
+  name with no side to read. Nothing to change on your side; it stops.
+- **`capabilities.simulation` may be claimed by any flow.** `powerup-dm` and
+  `flying-scoutsman` claim it at manifest `0.3.0`: the SDK seats the puppets there (a bot
+  per roster entry, carrying that entry's SteamID64 and name, announced with
+  `player_connected` like a person, reachable by `kick` and by a widget tap addressed to
+  the rostered id, and announced again when it comes back). The manifest rule that refused
+  the capability for `flow: none` is gone — the core plugin is on every server. `retakes`
+  does not claim it yet. Offer the puppets switch (PRD-10 T8) wherever the catalog says so;
+  a plain bot is still never announced and never rostered.
+- The conformance flow `simulation-switch` picks the mode that must refuse puppets from the
+  catalog instead of naming `flying-scoutsman`, and passes with a note when every mode
+  seats them.
+
 ## 0.15.0 — 2026-09-20
 
 **Puppets** (PRD-03 T4, for the platform's PRD-10 T7 and T8): a match request may ask to

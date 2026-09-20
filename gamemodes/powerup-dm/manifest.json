@@ -40,7 +40,8 @@
     "playerCommands": true,
     "widget": true,
     "backups": false,
-    "scoreboardRating": false
+    "scoreboardRating": false,
+    "simulation": true
   },
   "commands": [
     {
@@ -62,6 +63,6 @@
     }
   ],
   "widget": { "entry": "dist/widget.js", "needs": ["tokens", "locale", "playerToken"] },
-  "version": "0.2.0",
+  "version": "0.3.0",
   "sdkVersion": "0.1.0"
 }

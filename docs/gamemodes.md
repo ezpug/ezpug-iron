@@ -83,7 +83,7 @@ same data.
 | `widget` | a phone widget exists. True exactly when the `widget` block does; implies `playerCommands` |
 | `backups` | round backups cross the link as they are written (`backup_written`), so a crashed server can be recovered mid-match (PRD-02 T14). Needs a flow owner (`flow` is not `none`); the core plugin honours it for `matchzy` |
 | `scoreboardRating` | EZ Rating shows on the scoreboard Premier-style from the roster's `rating`, and an arriving player gets one bilingual connect line naming it (decision 21, `docs/sdk.md`). A player with no profile is left alone; nothing else in-game says a rating |
-| `simulation` | the mode's match software can seat a **puppet** in every roster entry's place (PRD-03 T4, decision 25): a request carrying `simulation` — on a key with the `simulation` scope — is played by simulated players that connect, ready up and play through the doors a human takes, and every fact of it says `source.simulated`. `false` (the default, and what every manifest written before the field said) refuses such a request `validation_failed` at the door rather than waiting in warmup for players who are never coming. `pug` claims it: MatchZy-Enhanced's simulation mode reads the switch from the match file. The SDK modes claim it the day the SDK seats a puppet (PRD-03 T7) |
+| `simulation` | the mode's match software can seat a **puppet** in every roster entry's place (PRD-03 T4, decision 25): a request carrying `simulation` — on a key with the `simulation` scope — is played by simulated players that connect, ready up and play through the doors a human takes, and every fact of it says `source.simulated`. `false` (the default, and what every manifest written before the field said) refuses such a request `validation_failed` at the door rather than waiting in warmup for players who are never coming. `pug` claims it: MatchZy-Enhanced's simulation mode reads the switch from the match file. `powerup-dm` and `flying-scoutsman` claim it since PRD-03 T7: outside a `matchzy` flow the SDK's puppeteer seats the roster, and because the core plugin is on every server a config-only mode may claim it too. `retakes` does not yet — cs2-retakes keeps bots out of its queue, and the claim waits for a lane run that proves what a puppet does there (T10) |
 
 ### Player commands
 
@@ -288,7 +288,6 @@ command is the mode's job.
 | only an `sdk` mode has `commands` or a `widget` | the SDK relays taps; a community plugin has no seam for them |
 | `capabilities.playerCommands` ⇔ `commands` non-empty; `capabilities.widget` ⇔ `widget` present; `widget` ⇒ `playerCommands` | a capability is a claim about a block that exists |
 | `capabilities.backups` needs `flow` other than `none` | a backup restores into a match someone is running |
-| `capabilities.simulation` needs `flow` other than `none` | a puppet needs a plugin to seat it; a config-only mode has none |
 | an allow-list names at least one map | say `"any"` instead of an empty list |
 | `ranked` is `false` | see above |
 

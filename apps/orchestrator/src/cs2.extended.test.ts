@@ -21,7 +21,7 @@ import { loadRootEnv } from './env'
  * (`--force-start`) and **no case takes it**: each one asserts its own
  * `commands.rcon`, so "nothing typed at the match" is a measurement of the run
  * rather than a claim about the code. Exactly one row declares a number above
- * zero — `drop`, whose stimulus has no front door until T7 — and it says why.
+ * zero — `drop`, whose stimulus has no front door until T7a — and it says why.
  *
  * **The matrix** (T6) is every shape of match the owner's two weeks of bugs
  * came out of, and one row each:
@@ -156,7 +156,7 @@ type LaneCase = {
   args: string[]
   /**
    * How many `rcon` commands this case sends *at the match*. **Zero
-   * everywhere but `drop`**, whose stimulus has no front door until PRD-03 T7
+   * everywhere but `drop`**, whose stimulus has no front door until PRD-03 T7a
    * — the field is how a case that has no other door says so out loud rather
    * than quietly raising the count.
    */
@@ -285,9 +285,9 @@ const CASES: LaneCase[] = [
     // map, and that map is filled from `player_connected` /
     // `player_disconnected`, which the core plugin emits for humans only. So
     // for a room of puppets it is empty and **no player command can reach any
-    // of them** — the gap PRD-03 T7 closes, pinned to the orchestrator rather
+    // of them** — the gap PRD-03 T7a closes, pinned to the orchestrator rather
     // than to an id, because an id is not where the fix goes. Both assertions
-    // are meant to go red the day T7 lands.
+    // are meant to go red the day T7a lands (T7 closed it for the SDK's own modes only).
     //
     // The stimulus is then `bot_kick ct` over RCON, declared here rather than
     // smuggled, and the behaviour it provokes is what the case is really for:
@@ -317,7 +317,7 @@ const CASES: LaneCase[] = [
     rcon: 1,
     facts: summary => {
       expect(summary.dropped, 'nothing was ever taken off the server').not.toBeNull()
-      // The front door, twice, and both refusals are the T7 gap measured
+      // The front door, twice, and both refusals are the T7a gap measured
       // rather than described.
       for (const [which, answer] of [
         ['the rostered SteamID', summary.dropped?.frontDoor],
@@ -325,7 +325,7 @@ const CASES: LaneCase[] = [
       ] as const)
         expect(
           JSON.stringify(answer),
-          `${which} was kickable: T7 landed and this case is stale`,
+          `${which} was kickable: T7a landed and this case is stale`,
         ).toContain('player_not_in_match')
       // The room really went one short, and really filled back up. A `back`
       // without a `left` is a room that was simply never disturbed, which is
@@ -578,7 +578,7 @@ describe('the iron-match script', () => {
     // **Exactly one row of the matrix types at the match, and it is the one
     // whose stimulus has no front door yet.** `drop` knocks on `kick` twice
     // and is refused both times — the orchestrator's presence map holds no
-    // puppet until PRD-03 T7 announces one like a human — so `bot_kick ct` is
+    // puppet until PRD-03 T7a announces one like a human — so `bot_kick ct` is
     // what is left. Every other row goes live because players readied and
     // nothing else, and a row that quietly grew an RCON would be caught here.
     expect(CASES.filter(lane => (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual(['drop'])

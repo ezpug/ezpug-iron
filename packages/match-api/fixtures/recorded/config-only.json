@@ -32,7 +32,7 @@
         "flow": "none",
         "records": "events",
         "ranked": false,
-        "version": "0.2.0",
+        "version": "0.3.0",
         "maps": "any",
         "plugins": [],
         "cfg": [
@@ -46,7 +46,7 @@
           "widget": false,
           "backups": false,
           "scoreboardRating": false,
-          "simulation": false
+          "simulation": true
         },
         "commands": [],
         "sdkVersion": "0.1.0"

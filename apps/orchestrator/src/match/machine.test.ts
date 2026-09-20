@@ -322,7 +322,7 @@ describe('the simulation switch', () => {
     const app = createTestApp()
     const key = await puppeteerKey(app)
     const error = await refused(
-      app.matches.create(key, request({ gamemode: 'flying-scoutsman', simulation: {} })),
+      app.matches.create(key, request({ gamemode: 'retakes', simulation: {} })),
     )
     expect(error.code).toBe('validation_failed')
     expect(error.details).toEqual({ field: 'simulation' })

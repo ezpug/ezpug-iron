@@ -247,6 +247,20 @@ it here.
     `sim`-provider match `simulated` — the platform's dev world plays its boards on those,
     and a flag that changed what they count would be this repo deciding the platform's
     bookkeeping.
+    **Amended by PRD-03 T7, 2026-09-20: outside MatchZy the SDK seats the puppets, and a
+    team is the roster's word.** For every flow but `matchzy` the runtime's puppeteer asks
+    the engine for one bot per roster entry and casts each *before* the SDK first names it
+    (`IGameWorld.Casting`), because a player's identity is fixed at its first hook; the bot
+    then is that roster entry on the wire — SteamID64, name, team, announced, kickable,
+    tappable. A plain bot is never rostered and never announced, and the two are never
+    converted into each other. The capability is therefore any flow's to claim
+    (`powerup-dm` and `flying-scoutsman` do; `retakes` waits for T10). With it, `ServerSlot`
+    gained `unrostered`: `team_a`/`team_b` are the roster's word, a body the request never
+    named is `unrostered` on a side and `spec` on none. Not chosen: keeping the guess by side
+    (it put a stranger on a team's sheet, and in a one-team mode called everybody `team_a`);
+    a boolean beside `team` (two fields that can disagree); casting under MatchZy as well —
+    the fork keeps a private map of which bot is who, and a second opinion about it would
+    be two names for one body (T7a asks how to read theirs instead).
 
 ## How the rounds run
 

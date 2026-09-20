@@ -12,7 +12,7 @@ namespace EZPug.Sdk;
 /// <c>Emit(Facts.RoundEnd(…))</c> and never a match id. The generated records are the
 /// wire truth; this only saves the typing. Players are described through
 /// <see cref="Player(IGamePlayer)"/>, which turns an engine team into <c>team_a</c>/
-/// <c>team_b</c>/<c>spec</c> by the roster first and the sides in effect second.
+/// <c>team_b</c> by the roster, and <c>unrostered</c>/<c>spec</c> for a body it never named.
 /// </summary>
 public sealed class Facts
 {
@@ -35,26 +35,22 @@ public sealed class Facts
     public GameserverPlayer Player(IGamePlayer player) =>
         new() { SteamId64 = player.SteamId64.ToString(), Name = player.Name, Team = SlotOf(player) };
 
-    /// <summary>The vocabulary's slot for a player: the roster's team when rostered, else by the sides in effect, <c>spec</c> off a team.</summary>
+    /// <summary>
+    /// The vocabulary's slot for a player. <c>team_a</c> and <c>team_b</c> are the
+    /// roster's word and nobody else's: a rostered player — a puppet is one — carries
+    /// their team wherever they stand. A body the request never named is
+    /// <c>unrostered</c> while it plays on a side (an open-join guest, a plain bot) and
+    /// <c>spec</c> while it is on none (PRD-03 T7, <c>OPEN-POINTS</c> §2): guessing a team
+    /// from the side it happened to spawn on put strangers on a team's sheet.
+    /// </summary>
     public ServerSlot SlotOf(IGamePlayer player)
     {
-        var rostered = _assignment()?.RosteredTeamOf(player.SteamId64);
-        if (rostered is { } team)
+        if (_assignment()?.RosteredTeamOf(player.SteamId64) is { } team)
         {
             return team == MatchTeam.TeamA ? ServerSlot.TeamA : ServerSlot.TeamB;
         }
 
-        if (_assignment()?.Gamemode.Slots.Teams == 1 && player.Team is PlayerTeam.Terrorist or PlayerTeam.CounterTerrorist)
-        {
-            return ServerSlot.TeamA;
-        }
-
-        return Context.TeamOf(player.Team) switch
-        {
-            MatchTeam.TeamA => ServerSlot.TeamA,
-            MatchTeam.TeamB => ServerSlot.TeamB,
-            _ => ServerSlot.Spec,
-        };
+        return player.Team is PlayerTeam.Terrorist or PlayerTeam.CounterTerrorist ? ServerSlot.Unrostered : ServerSlot.Spec;
     }
 
     public ServerReadyEvent ServerReady(string map) =>

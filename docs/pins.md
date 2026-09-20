@@ -128,7 +128,7 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.15.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.16.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -149,7 +149,11 @@ six gameserver event types (PRD-03 T3), `rules.warmup.autoReady` (T3a), `rules.f
 tasks want them: PRD-10 T4 for the ready board (which cannot draw the gate without the
 first, nor say the right empty state without the second), PRD-10 T2a for the `wingman`
 preset, whose wire meaning is the third, and PRD-10 T7 and T8, which cannot skip a
-simulated match nor start one without the fourth. The platform's PRD-10 T3 is the task
+simulated match nor start one without the fourth. **0.16.0 is the first of the round a
+consumer cannot stand still for** (PRD-03 T7): `team: "unrostered"` is a new value in an
+enum the published verifier parses strictly, so a client on ≤ 0.15.0 refuses any delivery
+that names an open-join guest or a plain bot. Nothing in production sends it until this
+round deploys (T16), and the pin moves before that. The platform's PRD-10 T3 is the task
 that moves this pin.
 
 ## Bumping one

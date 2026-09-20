@@ -98,6 +98,8 @@ public enum ServerSlot
     TeamB,
     [JsonStringEnumMemberName("spec")]
     Spec,
+    [JsonStringEnumMemberName("unrostered")]
+    Unrostered,
 }
 
 /// <summary>Which provider and which server an event came from.</summary>
@@ -1824,6 +1826,20 @@ public sealed record MatchRulesWarmup
     public bool AutoReady { get; init; } = true;
 }
 
+/// <summary>Puppets: the match is played by simulated players (PRD-03 T4, T7).</summary>
+public sealed record MatchSimulation
+{
+    [JsonPropertyName("scenario")]
+    [JsonPropertyOrder(0)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Scenario { get; init; }
+
+    [JsonPropertyName("timeScale")]
+    [JsonPropertyOrder(1)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? TimeScale { get; init; }
+}
+
 /// <summary>Hostname and event name (decision 22).</summary>
 public sealed record MatchBranding
 {
@@ -2881,6 +2897,11 @@ public sealed record AssignOrchestratorFrame : OrchestratorFrame
     [JsonPropertyOrder(16)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public RoundBackup? Restore { get; init; }
+
+    [JsonPropertyName("simulation")]
+    [JsonPropertyOrder(17)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MatchSimulation? Simulation { get; init; }
 }
 
 /// <summary>The <c>demoUploadUrl</c> block of <see cref="AssignOrchestratorFrame"/>.</summary>

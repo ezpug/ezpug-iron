@@ -185,9 +185,11 @@ export type GamemodeCvars = z.infer<typeof gamemodeCvarsSchema>
  * 17; implies `playerCommands`). `backups` — round backups are written and
  * `restore` works, so a crashed server can be recovered mid-match.
  * `scoreboardRating` — EZ Rating shows on the scoreboard (decision 21).
- * `simulation` — the mode's match software can seat a puppet in every
- * roster entry's place (PRD-03 T4), so a request with `simulation` plays
- * without people; `false` (the default, and what every manifest written
+ * `simulation` — a puppet can be seated in every roster entry's place
+ * (PRD-03 T4), so a request with `simulation` plays without people: by
+ * MatchZy's simulation mode under a `matchzy` flow, by the SDK's puppeteer
+ * under any other (T7) — the core plugin is on every server, so a
+ * config-only mode may claim it too; `false` (the default, and what every manifest written
  * before the field said) refuses such a request `validation_failed` at the
  * door rather than waiting in warmup for players who are never coming.
  */
@@ -386,8 +388,6 @@ function checkManifestConsistency(
     refuse('capabilities', 'a widget needs player commands to tap')
   if (capabilities.backups && manifest.flow === 'none')
     refuse('capabilities', 'a round backup needs a flow owner to restore into')
-  if (capabilities.simulation && manifest.flow === 'none')
-    refuse('capabilities', 'a puppet needs a plugin to seat it; a config-only mode has none')
 }
 
 /**

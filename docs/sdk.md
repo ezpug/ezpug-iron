@@ -104,7 +104,7 @@ own test for its lines, and a mode should assert the same for its pair.
 | ---- | ---- | ----- |
 | `OnAssigned(Assignment)` | the orchestrator assigned a match | the host has enabled the plugins and asked for the map, which is still loading; the cfg and cvars land when the map is up, before `OnStart`. `Assignment` holds the manifest, the map plan, the rules, the roster with profiles and loadouts, warmup lines, branding, the demo URL, and `Restore` when the match resumes here |
 | `OnStart()` | the first map is up; the host's cfg and cvars are applied; `server_ready` was emitted | go |
-| `OnPlayerJoined/Left(IGamePlayer)` | a connect / disconnect, bots included | the vocabulary event is emitted for humans by the runtime |
+| `OnPlayerJoined/Left(IGamePlayer)` | a connect / disconnect, bots included | the vocabulary event is emitted for humans and puppets by the runtime, never for a plain bot |
 | `OnPlayerSpawned(IGamePlayer)` | a spawn | `life` charges refill here |
 | `OnPlayerDied(PlayerDeath)` | a death | `player_death` is emitted by the runtime |
 | `OnRoundStart(long)` / `OnRoundEnd(RoundEnd)` | the engine's round events | the round number is 1-based and in `Match.RoundNumber`; `round` charges refill on start |
@@ -321,6 +321,34 @@ names a bot `90000000000000000 + slot`, stable for its connection and outside an
 issues; `BotIdentity.IsBot(id)` reads it back. The core plugin applies it, the harness may
 (`World.Connect(BotIdentity.SteamId64Of(1), "Bot Cliff", bot: true)`), and a bot's death is a
 real `player_death`.
+
+**Puppets** are the other kind of body the engine plays (PRD-03 T7), and the two are never
+mixed up: a plain bot is never rostered and never announced, a puppet is a roster entry made
+flesh. When the assignment carries `simulation` and the flow is not `matchzy` (MatchZy seats
+its own), the runtime's `Puppeteer` sends home whatever bots the mode's cfg brought, then
+asks the engine for one bot per roster entry — one at a time, team A and team B by turns,
+asked again after five seconds if it never arrives — and casts each as it arrives.
+
+- **Identity is decided before the first hook.** `IGameWorld.Casting` is asked about every
+  bot the engine adds; one that comes back with a `PuppetRole` is `IsBot` *and* `IsPuppet`,
+  and its `SteamId64` and `Name` are the roster's from then on. Everything that speaks about
+  a player needs no special case: the death, the position, `World.Find` for a `kick` or a
+  widget tap addressed to the rostered id, `Assignment.ProfileOf`, the player's team.
+- **Announced like a person.** `player_connected` and `player_disconnected` are emitted for
+  a puppet; a seat that empties (a kick, a map change) is filled again and announced again.
+  What stays a bot's is what only a client could read: the connect card, the rating greeting,
+  `SayAll`.
+- **Sides.** A two-team mode gets each puppet on its team's side (`bot_add_ct` / `bot_add_t`
+  by the sides in effect); a one-team mode leaves it to the engine or the mode's own balancer.
+- **The clock.** `simulation.timeScale` is applied as `host_timescale` under `sv_cheats 1`
+  when the map is ready and put back at release.
+- **On the harness**, `World.AddBot` only records the asking; `World.ArriveAskedBots()` is
+  the engine getting round to it, and `World.ArriveBot("BOT Cliff")` is a bot nobody asked
+  for. `PuppetTests.cs` is the worked example.
+
+**A player's team is the roster's word** (`Facts.SlotOf`): `team_a`/`team_b` for a rostered
+player wherever they stand, `unrostered` for a body the request never named while it plays
+on a side, `spec` while it is on none.
 
 ## Player commands
 

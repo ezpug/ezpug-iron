@@ -177,8 +177,11 @@ public class GamemodeHarnessTests
         var runtime = host.Runtime;
         Assert.Equal(TeamSide.T, runtime.Match.TeamASide);
 
+        // A team is the roster's word: a body the request never named is `unrostered`
+        // while it plays on a side and `spec` on none, whichever side that is (PRD-03 T7).
         var open = host.World.Connect(Maex, "maex", PlayerTeam.CounterTerrorist);
-        Assert.Equal(ServerSlot.TeamB, runtime.Facts.SlotOf(open));
+        Assert.Equal(ServerSlot.Unrostered, runtime.Facts.SlotOf(open));
+        Assert.Equal(ServerSlot.Spec, runtime.Facts.SlotOf(host.World.Connect(76561198279375399, "caster", PlayerTeam.Spectator)));
         Assert.Equal(ServerSlot.TeamA, runtime.Facts.SlotOf(host.World.Connect(Tk, "tk", PlayerTeam.CounterTerrorist)));
 
         runtime.Emit(runtime.Facts.GoingLive("de_mirage"));
@@ -187,10 +190,10 @@ public class GamemodeHarnessTests
         host.World.StartRound();
         Assert.Equal(2, runtime.Match.RoundNumber);
         runtime.Emit(runtime.Facts.SideSwap(TeamSide.Ct));
-        Assert.Equal(ServerSlot.TeamA, runtime.Facts.SlotOf(open));
+        Assert.Equal(ServerSlot.Unrostered, runtime.Facts.SlotOf(open));
         runtime.Emit(runtime.Facts.MapEnd(new TeamScore { TeamA = 13, TeamB = 7 }, MatchTeam.TeamA));
         Assert.Equal((2L, 0L, false), (runtime.Match.MapNumber, runtime.Match.RoundNumber, runtime.Match.Live));
-        Assert.Equal(["server_ready", "player_connected", "player_connected", "going_live", "side_swap", "map_end"], host.Link.EventTypes);
+        Assert.Equal(["server_ready", "player_connected", "player_connected", "player_connected", "going_live", "side_swap", "map_end"], host.Link.EventTypes);
     }
 
     [Fact]

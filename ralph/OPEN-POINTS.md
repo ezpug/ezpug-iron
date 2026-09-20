@@ -34,12 +34,3 @@ every future creative mode inherits. An empty server that nobody has been on for
 ending itself is probably the general answer, and it is the SDK's to own rather than each
 mode's. Whatever it is, the **phone and the match page need something to count down or
 count up**, or the mode will keep reading as broken while working perfectly.
-
-## 2. An unrostered body reports as `team: "spec"`
-
-The same match: a third player (`Krikey`, `90000000000000002`) appears in `player_death`
-events as killer and victim with `team: "spec"`, because the roster does not name it and
-the mode is `openJoin`. The SDK reports what the server knows, which is honest; whether
-"a body the request never named" deserves its own team value rather than the spectator one
-is a wire-shape question, and the platform's half of it is in that repo's
-`ralph/OPEN-POINTS.md`. Answer both together — it is one sentence in `match-api` either way.

@@ -333,7 +333,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > T3a's two lane cases are satisfied by **every** row: no ready command is ever sent
     > and each asserts its own `commands.rcon`.
 
-- [ ] **T7 (fable): puppets in the SDK.** For the modes MatchZy does not run
+- [x] **T7 (fable): puppets in the SDK.** For the modes MatchZy does not run
   (`powerup-dm`, `retakes`, `flying-scoutsman`):
   - A roster-driven puppet identity replaces the slot-based `BotIdentity`. A bot takes a
     rostered SteamID, is announced like a human, and carries the `simulated` marker from
@@ -344,6 +344,37 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     value rather than `spec`. One sentence in `match-api`, released; the platform's half
     of the open point closes with it.
   - The same request field switches it on.
+
+    > **The `spec` of §2 was not the wire's shape but a bug in the world.** The recorded
+    > `powerup-dm` run has one bot that is `spec` in all 219 of its appearances and wears
+    > another bot's name: a kicked bot's disconnect named a controller that was already
+    > gone, the slot kept its player, and the next body in that slot played the match as
+    > the dead one, with no side to read. Production's "Krikey" was the same body. Fixed in
+    > `CounterStrikeWorld` (the slot-named disconnect listener, and a newcomer to a held
+    > slot sees the stale player out first). The team value was still answered, because
+    > the rule underneath was a guess: `unrostered` for a body the request never named
+    > while it plays on a side, `spec` on none, `team_a`/`team_b` the roster's word only.
+    >
+    > **`retakes` does not claim the capability here.** cs2-retakes keeps bots out of its
+    > queue, so what a puppet does there is unproven; T10 turns the mode into one team and
+    > owns the lane case, and claims it with the proof. `powerup-dm` and `flying-scoutsman`
+    > claim it and were each played on the dev node.
+    >
+    > **A new enum value is not additive for a strict parser.** A platform on ≤ 0.15.0
+    > refuses a delivery that says `unrostered`. Nothing in production sends it before T16
+    > deploys; the platform's pin has to move first, and T16 must check that it has.
+
+- [ ] **T7a: a puppet in a pug is announced too.** T7 seats and announces puppets for the
+  flows the SDK owns. Under `matchzy` the fork seats them and keeps which bot is which
+  roster entry in a private dictionary (`SimulationMode.cs` `simulationPlayersByUserId`),
+  so the core plugin still sees ten plain bots: no `player_connected`, an empty presence
+  map, `kick` and a widget tap refused `player_not_in_match`, and deaths over the link
+  under synthetic ids while MatchZy's stats carry the rostered ones. Find a way to read
+  the fork's mapping rather than hold a second opinion about it (its `player_connect`
+  payloads carry the rostered SteamID and the bot's name in order of arrival; its log
+  lines say `Assigned bot <name> … to simulated player …`), cast the world's bots from
+  it, and turn the lane's `drop` row into the front-door case: the two refusals it pins
+  today go red, `rcon` goes to zero.
 
 - [ ] **T8: a puppet taps the phone.**
   - Mint a widget token for a puppet's SteamID and drive `powerup-dm`'s widget socket
@@ -370,6 +401,11 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - Bump the manifest version; the package bundles the manifests.
   - Record the decision.
   - A lane case: three puppets in `retakes` play and end.
+  - Claim `capabilities.simulation` for `retakes` with that proof (T7 left it unclaimed:
+    cs2-retakes keeps bots out of its queue, so read what a puppet does there first). The
+    conformance flow `simulation-switch` already copes with a catalog in which every mode
+    seats puppets; `machine.test.ts` and `assign.test.ts` name `retakes` as the mode that
+    refuses and need another answer.
 
 - [ ] **T11: the simulator's scenarios, executed by a real server.**
   - For each knob in `packages/sim/src/scenario.ts:88-112`, make it a puppet behaviour

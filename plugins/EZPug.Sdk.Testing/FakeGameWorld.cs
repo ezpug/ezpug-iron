@@ -19,6 +19,7 @@ public sealed class FakePlayer : IGamePlayer
     public PlayerTeam Team { get; set; } = PlayerTeam.None;
     public bool IsAlive { get; set; }
     public bool IsBot { get; set; }
+    public bool IsPuppet { get; set; }
     public Vector3? Position { get; set; }
     public int Health { get; set; } = 100;
     public int Armor { get; set; }
@@ -47,6 +48,8 @@ public sealed class FakeGameWorld : IGameWorld
 {
     private readonly List<FakePlayer> _players = [];
     private readonly Dictionary<string, string> _cvars = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Queue<PlayerTeam?> _askedBots = new();
+    private int _botsNamed = 1;
 
     public FakeGameWorld(FakeClock? clock = null, string map = "de_mirage")
     {
@@ -81,6 +84,8 @@ public sealed class FakeGameWorld : IGameWorld
         Actions.Add(action);
         Acted?.Invoke(action);
     }
+
+    public Func<BotArrival, PuppetRole?>? Casting { get; set; }
 
     public IGamePlayer? Find(ulong steamId64) => _players.FirstOrDefault(player => player.SteamId64 == steamId64);
 
@@ -166,6 +171,23 @@ public sealed class FakeGameWorld : IGameWorld
         Disconnect(player);
     }
 
+    /// <summary>Recorded, and queued for <see cref="ArriveAskedBots"/>: asking is not arriving.</summary>
+    public void AddBot(PlayerTeam? side = null)
+    {
+        Record(new WorldAction("add_bot", null, side?.ToString() ?? "any"));
+        _askedBots.Enqueue(side);
+    }
+
+    public void KickBots()
+    {
+        Record(new WorldAction("kick_bots", null, ""));
+        _askedBots.Clear();
+        foreach (var bot in _players.Where(player => player.IsBot).ToList())
+        {
+            Disconnect(bot);
+        }
+    }
+
     public void ExecCfg(string file) => Record(new WorldAction("exec", null, file));
 
     public void ExecCommand(string line) => Record(new WorldAction("command", null, line));
@@ -222,12 +244,18 @@ public sealed class FakeGameWorld : IGameWorld
 
     public FakePlayer Connect(ulong steamId64, string name, PlayerTeam team = PlayerTeam.None, bool bot = false)
     {
-        var slot = Enumerable.Range(0, 64).First(candidate => _players.All(player => player.Slot != candidate));
-        var player = new FakePlayer(steamId64, name, slot) { Team = team, IsBot = bot };
+        var player = new FakePlayer(steamId64, name, FreeSlot()) { Team = team, IsBot = bot };
+        Seat(player);
+        return player;
+    }
+
+    private int FreeSlot() => Enumerable.Range(0, 64).First(candidate => _players.All(player => player.Slot != candidate));
+
+    private void Seat(FakePlayer player)
+    {
         _players.Add(player);
         _players.Sort((a, b) => a.Slot.CompareTo(b.Slot));
         PlayerConnected?.Invoke(player);
-        return player;
     }
 
     public void Disconnect(IGamePlayer player)
@@ -253,6 +281,38 @@ public sealed class FakeGameWorld : IGameWorld
         fake.IsAlive = false;
         fake.Health = 0;
         PlayerDied?.Invoke(new PlayerDeath(victim, killer, assists ?? [], weapon, headshot));
+    }
+
+    /// <summary>
+    /// The engine adds a bot: offered to <see cref="Casting"/> first, the way the real
+    /// world does it, so what connects is a puppet with a roster entry's identity or a
+    /// plain bot named by <see cref="BotIdentity"/>. <see cref="AddBot"/> only records the
+    /// asking — the engine takes its time, and a test says when (or whether) it arrives.
+    /// </summary>
+    public FakePlayer ArriveBot(string name = "BOT", PlayerTeam team = PlayerTeam.None)
+    {
+        var slot = FreeSlot();
+        var role = Casting?.Invoke(new BotArrival(slot, name));
+        var player = new FakePlayer(role?.SteamId64 ?? BotIdentity.SteamId64Of(slot), role?.Name ?? name, slot)
+        {
+            Team = team,
+            IsBot = true,
+            IsPuppet = role is not null,
+        };
+        Seat(player);
+        return player;
+    }
+
+    /// <summary>Every bot asked for and not yet arrived does: each takes the side it was asked onto.</summary>
+    public IReadOnlyList<FakePlayer> ArriveAskedBots()
+    {
+        var arrived = new List<FakePlayer>();
+        while (_askedBots.Count > 0)
+        {
+            arrived.Add(ArriveBot($"BOT {_botsNamed++}", _askedBots.Dequeue() ?? PlayerTeam.CounterTerrorist));
+        }
+
+        return arrived;
     }
 
     public void StartRound() => RoundStarted?.Invoke();

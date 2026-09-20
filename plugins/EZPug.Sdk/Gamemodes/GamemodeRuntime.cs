@@ -55,7 +55,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Link = link;
         _log = log ?? NullLinkLog.Instance;
         Localizer = new Localizer();
-        Facts = new Facts(() => Match, () => Link.Source ?? new GameserverSource { Provider = "unknown", ServerId = "unknown" }, () => Assignment);
+        Facts = new Facts(() => Match, Source, () => Assignment);
+        Puppets = new Puppeteer(world, Match, _log);
         Flow = new GenericFlow(world, this, _log);
         Brand = new Branding(world, () => Localizer, Match);
         Ratings = new RatingBoard(world, () => Localizer, Brand);
@@ -76,6 +77,13 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         world.Tick += OnTick;
     }
 
+    /// <summary>Who this server is on the wire — and, for a match of puppets, that it is one (PRD-03 T4): the orchestrator stamps the marker whatever a server says, and a server that knows says so itself.</summary>
+    private GameserverSource Source()
+    {
+        var source = Link.Source ?? new GameserverSource { Provider = "unknown", ServerId = "unknown" };
+        return Assignment?.Simulation is null ? source : source with { Simulated = true };
+    }
+
     public IGameWorld World { get; }
     public IPlatformLink Link { get; }
     public Localizer Localizer { get; private set; }
@@ -93,6 +101,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>The assignment's warmup lines, printed one every few seconds while the server waits (PRD-02 T30).</summary>
     public WarmupChat Warmup { get; }
+
+    /// <summary>The roster played by bots, when the assignment asks for <c>simulation</c> and MatchZy is not the one seating them (PRD-03 T7).</summary>
+    public Puppeteer Puppets { get; }
 
     public Assignment? Assignment { get; private set; }
     public CommandTable? Commands { get; private set; }
@@ -329,6 +340,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Brand.OnAssigned(assignment);
         Ratings.OnAssigned(assignment);
         Warmup.OnAssigned(assignment);
+        Puppets.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
         {
@@ -393,6 +405,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Flow.OnReleased();
             Ratings.OnReleased();
             Warmup.OnReleased();
+            Puppets.OnReleased();
             Brand.OnReleased();
             Assignment = null;
             Match.Clear();
@@ -569,6 +582,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Warmup.OnMapReady();
         Emit(Facts.ServerReady(map));
         Active?.OnStart();
+        Puppets.OnReady();
     }
 
     private void CancelSettle()
@@ -585,7 +599,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
-        if (!player.IsBot)
+        // A plain bot is never announced; a puppet is a rostered player and is (T7).
+        if (!player.IsBot || player.IsPuppet)
         {
             Emit(Facts.PlayerConnected(player));
         }
@@ -602,11 +617,12 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
-        if (!player.IsBot)
+        if (!player.IsBot || player.IsPuppet)
         {
             Emit(Facts.PlayerDisconnected(player));
         }
 
+        Puppets.OnPlayerDisconnected(player);
         Ratings.OnPlayerDisconnected(player);
         Brand.OnPlayerDisconnected(player);
         Active?.OnPlayerLeft(player);
@@ -779,6 +795,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Detach();
         CancelSettle();
         Warmup.Stop();
+        Puppets.OnReleased();
         _positionTicker?.Cancel();
         _positionTicker = null;
         _stateClearers.Clear();

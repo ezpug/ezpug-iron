@@ -1407,7 +1407,18 @@ rostered SteamID, the only id a client ever holds, and `kick` by the synthetic o
 gates `kick` on its own presence map, and that map is filled from `player_connected` /
 `player_disconnected`, which the core plugin emits **for humans only** — so for a room of
 puppets it is empty and **no player command can reach any of them**. That pair of
-refusals is what this flag measures, and PRD-03 T7 is what closes the gap.
+refusals is what this flag measures. PRD-03 T7 closed the gap for the modes the SDK seats
+(below); under MatchZy the fork keeps its own private map of which bot is who, and T7a is
+what closes it there.
+
+**Outside MatchZy the same flag takes the front door** (PRD-03 T7). In `powerup-dm` and
+`flying-scoutsman` the SDK's puppeteer seats the roster and announces each puppet like a
+person, so the presence map holds them: `--drop-puppet` sends one `kick` for the rostered
+SteamID, it is `applied`, and nothing is typed at the server. The room is read off the
+stream's `presence` frames — the player gone, then back — and the durable log carries one
+`player_disconnected` and one `player_connected` more than there are puppets. Measured on
+the dev node, three puppets in `powerup-dm`: `commands.rcon: 0`, the seat refilled five
+seconds after the kick.
 
 So the stimulus is `bot_kick ct` over RCON, and `--drop-puppet` is the **one** thing in the
 matrix that types at a match. Team A opens CT (`maps[0].sides`), so in a 1v1 of puppets
@@ -1431,8 +1442,9 @@ synthesises its own `player_connect` only on the `bot_quota` walk that first fil
 room — a body its reconcile pass adds later is mapped onto the free slot and re-readied
 but never announced, so its wire is silent too. Measured on the dev node: a 1v1 that lost
 and regained a body sent two `player_connect` and two `player_disconnect`, and three
-`player_ready` for two puppets. A vendor property recorded rather than filed; PRD-03 T7 is
-what gives the durable log a puppet's coming and going.
+`player_ready` for two puppets. A vendor property recorded rather than filed; PRD-03 T7a
+is what gives the durable log a puppet's coming and going under MatchZy (T7 did it for the
+SDK's own modes).
 
 **`--force-start` is the escape hatch**, and it is the only thing that sends RCON at a
 match: `bot_kick; bot_quota 0`, `css_start`, the quota back, `mp_warmup_end`. It exists
@@ -1600,8 +1612,8 @@ second announcement is pinned as the wingman row's own fact rather than smoothed
 `commands.rcon`, so a match that went live went live because players readied. The tenth is
 `drop`, which declares one — it knocks on the Match API's `kick` twice, is refused both
 times with `player_not_in_match` (the orchestrator's presence map holds no puppet until
-PRD-03 T7 announces one like a human), and then uses `bot_kick ct`. The refusals are that
-row's real assertion and are meant to go red the day T7 lands.
+PRD-03 T7a announces one like a human under MatchZy), and then uses `bot_kick ct`. The
+refusals are that row's real assertion and are meant to go red the day T7a lands.
 
 **Overtime is counted, not asserted.** The matrix's own note prints the rounds each case
 played: a four-round regulation ends 2–2 often enough to be seen — five of the ten rows did

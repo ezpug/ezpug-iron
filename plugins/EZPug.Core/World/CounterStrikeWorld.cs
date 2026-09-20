@@ -13,25 +13,36 @@ namespace EZPug.Core;
 /// A player as the SDK sees one, over a CounterStrikeSharp controller. Identity (SteamID64,
 /// slot) is fixed at connect; everything else is read from the controller on the game
 /// thread when asked, and answers safely when the controller has gone. A bot has no
-/// SteamID, so it is named by <see cref="BotIdentity"/>.
+/// SteamID, so it is named by <see cref="BotIdentity"/> — unless it was cast as a
+/// rostered player (<see cref="IGameWorld.Casting"/>, PRD-03 T7), in which case it is
+/// that player: the roster's SteamID64 and the roster's name, whatever the engine calls
+/// the body.
 /// </summary>
 public sealed class CounterStrikePlayer : IGamePlayer
 {
     private readonly CCSPlayerController _controller;
     private string _name;
 
-    public CounterStrikePlayer(CCSPlayerController controller)
+    public CounterStrikePlayer(CCSPlayerController controller, PuppetRole? role = null)
     {
         _controller = controller;
         Slot = controller.Slot;
         IsBot = controller.IsBot;
-        SteamId64 = IsBot ? BotIdentity.SteamId64Of(Slot) : controller.SteamID;
-        _name = controller.PlayerName;
+        IsPuppet = IsBot && role is not null;
+        SteamId64 = IsPuppet ? role!.SteamId64 : IsBot ? BotIdentity.SteamId64Of(Slot) : controller.SteamID;
+        _name = IsPuppet ? role!.Name : controller.PlayerName;
     }
 
     internal CCSPlayerController Controller => _controller;
 
     internal bool Valid => _controller.IsValid;
+
+    /// <summary>Whether <paramref name="controller"/> is the body this player was made for: the same live entity, the same kind of client and, for a person, the same account.</summary>
+    internal bool Holds(CCSPlayerController controller) =>
+        Valid
+        && _controller.Handle == controller.Handle
+        && IsBot == controller.IsBot
+        && (IsBot || SteamId64 == controller.SteamID);
 
     public ulong SteamId64 { get; }
 
@@ -39,11 +50,14 @@ public sealed class CounterStrikePlayer : IGamePlayer
 
     public bool IsBot { get; }
 
+    public bool IsPuppet { get; }
+
     public string Name
     {
         get
         {
-            if (Valid && _controller.PlayerName is { Length: > 0 } name)
+            // A puppet goes by the roster's name even where the engine would not take it.
+            if (!IsPuppet && Valid && _controller.PlayerName is { Length: > 0 } name)
             {
                 _name = name;
             }
@@ -173,6 +187,8 @@ public sealed class CounterStrikeWorld : IGameWorld
     /// <summary>An immutable snapshot rebuilt on connect and disconnect; its count is safe off the game thread.</summary>
     public IReadOnlyList<IGamePlayer> Players => Volatile.Read(ref _players);
 
+    public Func<BotArrival, PuppetRole?>? Casting { get; set; }
+
     public IGamePlayer? Find(ulong steamId64) => Players.FirstOrDefault(player => player.SteamId64 == steamId64);
 
     /// <summary>The <c>cs_gamerules</c> entity's state, read on the game thread; <c>null</c> when there is none (between maps) or the read fails.</summary>
@@ -256,14 +272,19 @@ public sealed class CounterStrikeWorld : IGameWorld
 
         _plugin.RegisterEventHandler<EventPlayerDisconnect>((gameEvent, _) =>
         {
-            if (gameEvent.Userid is { IsValid: true } controller && _bySlot.Remove(controller.Slot, out var player))
+            if (gameEvent.Userid is { IsValid: true } controller)
             {
-                Snapshot();
-                PlayerDisconnected?.Invoke(player);
+                Drop(controller.Slot);
             }
 
             return HookResult.Continue;
         });
+
+        // The event above names a controller, and a kicked bot's is often gone by the
+        // time it fires — the slot then kept a player nobody was (PRD-03 T7, see Track).
+        // The listener names the slot, which is all a drop needs; whichever comes first
+        // does it and the other finds nothing.
+        _plugin.RegisterListener<Listeners.OnClientDisconnect>(Drop);
 
         _plugin.RegisterEventHandler<EventPlayerSpawn>((gameEvent, _) =>
         {
@@ -377,17 +398,61 @@ public sealed class CounterStrikeWorld : IGameWorld
         return HookResult.Continue;
     }
 
+    /// <summary>
+    /// A slot is held by whoever is standing in it <i>now</i>. It used to be held by
+    /// whoever got there first: a bot kicked without a disconnect this world heard left
+    /// its player behind, and the next body in that slot played the whole match under the
+    /// dead one's name with no team to read — <c>real-powerup-dm-bo1.json</c> has one bot
+    /// that is <c>spec</c> in all of its 219 appearances and shares a name with another,
+    /// and production's <c>OPEN-POINTS</c> §2 was the same body. So a newcomer to a held
+    /// slot first sees the stale player out, announced, and then moves in.
+    /// </summary>
     private void Track(CCSPlayerController controller)
     {
-        if (_bySlot.ContainsKey(controller.Slot))
+        if (_bySlot.TryGetValue(controller.Slot, out var held))
         {
-            return;
+            if (held.Holds(controller))
+            {
+                return;
+            }
+
+            _log.Warn($"slot {controller.Slot} still held {held.Name}, who is gone; seeing them out before {controller.PlayerName} moves in");
+            Drop(controller.Slot);
         }
 
-        var player = new CounterStrikePlayer(controller);
+        var role = controller.IsBot ? Casting?.Invoke(new BotArrival(controller.Slot, controller.PlayerName)) : null;
+        var player = new CounterStrikePlayer(controller, role);
+        if (role is not null)
+        {
+            Rename(controller, role.Name);
+        }
+
         _bySlot[controller.Slot] = player;
         Snapshot();
         PlayerConnected?.Invoke(player);
+    }
+
+    private void Drop(int slot)
+    {
+        if (_bySlot.Remove(slot, out var player))
+        {
+            Snapshot();
+            PlayerDisconnected?.Invoke(player);
+        }
+    }
+
+    /// <summary>The scoreboard's name for a puppet. Cosmetic, so a refusal is a line in the log and not a fault: the wire says the roster's name either way.</summary>
+    private void Rename(CCSPlayerController controller, string name)
+    {
+        try
+        {
+            controller.PlayerName = name;
+            Utilities.SetStateChanged(controller, "CBasePlayerController", "m_iszPlayerName");
+        }
+        catch (Exception error)
+        {
+            _log.Warn($"renaming the bot in slot {controller.Slot} to {name} failed: {error.Message}");
+        }
     }
 
     private void Snapshot() =>
@@ -524,6 +589,17 @@ public sealed class CounterStrikeWorld : IGameWorld
                 Server.ExecuteCommand($"kickid {userId} \"{Sanitize(reason)}\"");
             }
         });
+
+    /// <summary><c>bot_add_ct</c> / <c>bot_add_t</c> / <c>bot_add</c>: each raises <c>bot_quota</c> by the one it adds, so the engine keeps the body.</summary>
+    public void AddBot(PlayerTeam? side = null) =>
+        Server.ExecuteCommand(side switch
+        {
+            PlayerTeam.CounterTerrorist => "bot_add_ct",
+            PlayerTeam.Terrorist => "bot_add_t",
+            _ => "bot_add",
+        });
+
+    public void KickBots() => Server.ExecuteCommand("bot_kick");
 
     // ------------------------------------------------------------------ server verbs
 

@@ -26,7 +26,16 @@ public interface IGamePlayer
     string Name { get; }
     PlayerTeam Team { get; }
     bool IsAlive { get; }
+    /// <summary>The engine plays this body. True for a plain bot <i>and</i> for a puppet — see <see cref="IsPuppet"/> for which.</summary>
     bool IsBot { get; }
+    /// <summary>
+    /// A bot cast as a rostered player (PRD-03 T7): <see cref="SteamId64"/> and
+    /// <see cref="Name"/> are the roster entry's, and everything that speaks about a
+    /// player — the announcement, a death, a position, a command's target — treats it as
+    /// that person. What stays a bot's is what only a client could read: the connect card, the
+    /// rating greeting, a line said to everybody.
+    /// </summary>
+    bool IsPuppet { get; }
     /// <summary>Engine world units, or <c>null</c> without a pawn (dead, connecting).</summary>
     Vector3? Position { get; }
     int Health { get; }
@@ -41,6 +50,12 @@ public interface IGamePlayer
     /// </summary>
     int? ScoreboardRating { get; }
 }
+
+/// <summary>A bot the engine just put on the server, before the SDK has a player for it: the slot it took and the name the engine gave it.</summary>
+public sealed record BotArrival(int Slot, string Name);
+
+/// <summary>Who a bot is cast as: a roster entry's SteamID64 and the name it goes by.</summary>
+public sealed record PuppetRole(ulong SteamId64, string Name);
 
 /// <summary>What the engine said when somebody died.</summary>
 public sealed record PlayerDeath(
@@ -135,6 +150,17 @@ public interface IGameWorld
 
     IGamePlayer? Find(ulong steamId64);
 
+    /// <summary>
+    /// <b>Who an arriving bot is</b> (PRD-03 T7). A player's identity is fixed the moment
+    /// the world first names it, so the question is asked <i>before</i> that: every bot
+    /// the engine adds is offered here first, and one that comes back with a role is a
+    /// puppet — that SteamID64, that name, <see cref="IGamePlayer.IsPuppet"/> — from its
+    /// very first hook. <c>null</c> (the answer, or no casting at all) leaves a plain bot,
+    /// named by <see cref="BotIdentity"/>. The runtime's <see cref="Puppeteer"/> is the
+    /// one caller; a mode never sets this.
+    /// </summary>
+    Func<BotArrival, PuppetRole?>? Casting { get; set; }
+
     /// <summary>The engine's match state right now, or <c>null</c> between maps. A snapshot: read it again to see a change.</summary>
     GameRules? Rules { get; }
 
@@ -164,6 +190,10 @@ public interface IGameWorld
     void SetScoreboardRating(IGamePlayer player, int? rating);
     void SetTeam(IGamePlayer player, PlayerTeam team);
     void Kick(IGamePlayer player, string reason);
+    /// <summary>Ask the engine for one more bot, on <paramref name="side"/> or wherever it puts one. It arrives through <see cref="PlayerConnected"/> a moment later, or not at all (a full server): nothing here promises it.</summary>
+    void AddBot(PlayerTeam? side = null);
+    /// <summary>Take every bot off the server, puppets included.</summary>
+    void KickBots();
 
     // Server verbs
     /// <summary>Run <c>exec &lt;file&gt;</c> for a file under <c>cfg/</c>.</summary>
