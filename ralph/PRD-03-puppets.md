@@ -247,7 +247,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - **1v1** needs no engine mode, only T1's roster-derived gate and short rules.
   - Released, with the PRD-10 task named in the changelog.
 
-- [ ] **T4 (fable): the simulation switch in the contract.**
+- [x] **T4 (fable): the simulation switch in the contract.**
   - A match request may ask for simulated players. Decide the shape: which roster
     entries get a puppet (all, or all but the ones the request names as human), an
     optional scenario name, an optional timescale.
@@ -262,6 +262,12 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
 - [ ] **T5: ten puppets ready up for a pug.**
   - The MatchZy config builder emits `simulation` and `simulation_timescale` when the
     request asks.
+
+    > Landed in T4, because `pug` claims `capabilities.simulation` there and a capability
+    > the builder did not honour would have been a lie for one iteration: `simulation: true`
+    > and `simulation_timescale` (the request's `timeScale`, `1` unsaid) are in the match
+    > file exactly when the request carries `simulation`, and a real match's file is byte
+    > for byte what it was. Unproven on hardware until this task plays it.
   - The dev lane plays a 5v5 `pug` in which every puppet readies through MatchZy's own
     ready system: `player_ready` ×10, `going_live`, rounds, `map_result`, `series_end`, a
     demo uploaded. No RCON touches the flow.
