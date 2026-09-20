@@ -3,7 +3,7 @@
   "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
   "note": "The other half of the fork’s recorder pair; the core plugin’s demo_available is the fact.",
   "payload": {
-    "filename": "2026-09-19_20-42-48_1830351630_de_dust2_EZPug_A_vs_EZPug_B.dem",
+    "filename": "2026-09-20_04-24-58_776902524_de_dust2_EZPug_A_vs_EZPug_B.dem",
     "map_number": 0,
     "matchid": 1083740696,
     "event": "demo_recording_stop"

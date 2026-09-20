@@ -5,16 +5,25 @@ import { describe, expect, it } from 'vitest'
 import { loadRootEnv } from './env'
 
 /**
- * **The `EZPUG_CS2_TESTS` lane** (PRD-02 T13): a whole `pug` on real hardware,
- * asserted. Bots play four rounds on a CS2 container an `ezpug-node` on this
- * box started, MatchZy runs the match, the core plugin speaks the vocabulary
- * over its link, and the client — `scripts/iron-match.mjs`, the same script an
- * operator runs — watches it through nothing but the Match API.
+ * **The `EZPUG_CS2_TESTS` lane** (PRD-02 T13, re-pointed at the front door by
+ * PRD-03 T5): a whole `pug` on real hardware, asserted. **Ten puppets** play
+ * four rounds on a CS2 container an `ezpug-node` on this box started, MatchZy
+ * runs the match, the core plugin speaks the vocabulary over its link, and the
+ * client — `scripts/iron-match.mjs`, the same script an operator runs —
+ * watches it through nothing but the Match API.
+ *
+ * **Nobody types `css_start` any more.** The match is `--simulate`: every
+ * roster entry is a SteamID a MatchZy-Enhanced bot answers for, and the ten of
+ * them ready up through `OnPlayerReady` — the handler `.ready` calls. So the
+ * ready gate T1 fixed, the ready events T3 gave the vocabulary and the
+ * switches T3a turned on are all on the path of this run, where an RCON
+ * shortcut used to be four assertions skipped. The escape hatch still exists
+ * (`--force-start`) and no green run takes it.
  *
  * **It shells out to that script on purpose.** The flow is one thing, not two:
- * a test that reimplemented "create a match, fill the bots, force the start,
- * wait" would be a second answer to how a match is played, and the two would
- * drift. The script prints its summary as JSON; this file is the assertions.
+ * a test that reimplemented "create a match, roster the puppets, wait" would
+ * be a second answer to how a match is played, and the two would drift. The
+ * script prints its summary as JSON; this file is the assertions.
  *
  * The demo rides along: the script mints a presigned PUT into the platform's
  * dev MinIO on this box and the core plugin uploads to it, so `demo.uploaded`
@@ -27,8 +36,8 @@ import { loadRootEnv } from './env'
  * that skip a failure.
  *
  * The lane costs fifteen to twenty-five minutes of wall clock and one CS2
- * container — bots draw a four-round map more often than they win it, and the
- * overtime that follows is most of the spread — which is why it is never part
+ * container — puppets draw a four-round map more often than they win it, and
+ * the overtime that follows is most of the spread — which is why it is never part
  * of `pnpm verify` and is opt-in even in the extended tier. The script releases its server in a `finally` and on a signal, and the
  * summary it returns carries the ledger — an open row here is a red test, not
  * a note for later.
@@ -58,6 +67,8 @@ const DEMANDED = LANE === 'required'
  */
 const SCRIPT_MINUTES = 45
 const BUDGET_MS = (SCRIPT_MINUTES + 5) * 60_000
+/** A full pug: five a side, one puppet per roster entry (PRD-03 T5). */
+const PUPPETS = 10
 
 async function why(): Promise<string | null> {
   if (LANE === '') return 'EZPUG_CS2_TESTS is not set'
@@ -84,7 +95,7 @@ if (reason !== null && !DEMANDED)
       '               demand it with EZPUG_CS2_TESTS=required once the dev node is up.\n\n',
   )
 
-describe.skipIf(reason !== null && !DEMANDED)('bots play a real match on the dev node', () => {
+describe.skipIf(reason !== null && !DEMANDED)('puppets play a real match on the dev node', () => {
   if (reason !== null) {
     it('is demanded but its world is absent', () => {
       expect.fail(`EZPUG_CS2_TESTS=required: ${reason}`)
@@ -93,11 +104,19 @@ describe.skipIf(reason !== null && !DEMANDED)('bots play a real match on the dev
   }
 
   it(
-    'plays a pug end to end and closes its ledger row',
+    'readies ten puppets up, plays a pug end to end and closes its ledger row',
     async () => {
       const run = spawnSync(
         'node',
-        ['scripts/iron-match.mjs', '--json', '--timeout-minutes', String(SCRIPT_MINUTES)],
+        [
+          'scripts/iron-match.mjs',
+          '--json',
+          '--simulate',
+          '--bots',
+          String(PUPPETS),
+          '--timeout-minutes',
+          String(SCRIPT_MINUTES),
+        ],
         { cwd: REPO, encoding: 'utf8', timeout: BUDGET_MS },
       )
       // The exit code first: a run that died has no summary to parse, and its
@@ -114,9 +133,24 @@ describe.skipIf(reason !== null && !DEMANDED)('bots play a real match on the dev
         counts?: Record<string, number>
         demoTarget?: string | null
         demo?: { uploaded: number; skipped?: string } | null
+        simulation?: { puppets: number; timeScale: number; simulated: boolean } | null
       }
 
+      // **The room readied up** (PRD-03 T5), which is the whole reason this
+      // lane exists in this shape. Ten puppets, ten `player_ready`; then each
+      // team through the gate once — MatchZy re-announces a team that is
+      // already through on every later ready and the door says each fact once
+      // (`matchzy/translate.ts`) — and then everybody, with a countdown.
+      expect(summary.simulation, 'the run did not ask for puppets').toMatchObject({
+        puppets: PUPPETS,
+        simulated: true,
+      })
+      expect(summary.payloads?.player_ready, 'not every puppet readied up').toBe(PUPPETS)
+      expect(summary.payloads?.team_ready, 'the two teams did not pass the gate').toBe(2)
+      expect(summary.payloads?.all_ready, 'the room was never all ready').toBe(1)
+
       // The match played itself out: MatchZy said so and the machine agreed.
+      // Nothing typed `css_start` — the gate let it through.
       expect(summary.finalState).toBe('ended')
       expect(summary.payloads?.going_live, 'MatchZy never went live').toBe(1)
       expect(summary.payloads?.round_end ?? 0, 'no round was played').toBeGreaterThanOrEqual(1)

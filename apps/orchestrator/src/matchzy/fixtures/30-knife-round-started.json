@@ -4,7 +4,8 @@
   "note": "Only a map whose sides are knifed for has one, and the recorded pug’s map plan is ct — so no run has produced it yet.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "knife_round_started",

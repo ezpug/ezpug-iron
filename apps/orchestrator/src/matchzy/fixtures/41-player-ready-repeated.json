@@ -1,0 +1,22 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "The same puppet, readied a second time by the reconcile pass with nothing in between — already ready, and dropped. Ten puppets sent eleven and twelve of these on the two recorded runs.",
+  "payload": {
+    "player": {
+      "steamid": "76561198279375312",
+      "name": "puppet-7",
+      "team": "team1"
+    },
+    "team": "EZPug A",
+    "ready_count_team1": 5,
+    "ready_count_team2": 5,
+    "total_ready": 10,
+    "expected_total": 10,
+    "matchid": 1083740696,
+    "event": "player_ready"
+  },
+  "expect": {
+    "dropped": "puppet-7 was already ready"
+  }
+}

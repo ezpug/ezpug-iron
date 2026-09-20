@@ -1354,11 +1354,32 @@ What it does, in order: mints an admin key from the box (`keys:mint`), mints the
 key with a webhook secret nobody else holds, opens a webhook endpoint on loopback that
 **verifies every delivery with the published verifier** before writing it down, mints a
 presigned PUT into the platform's dev MinIO for `callbacks.demoUploadUrl`, `POST`s a `pug`
-with `requirements.lan`, subscribes to the match's stream, fills the server with bots,
-forces the start, waits for a terminal state, replays the events route page by page, reads
-the ledger, and writes the run to `.cache/iron-match/<run>/`. Its key is revoked and its
-server released in a `finally` **and on a signal** — a Ctrl-C does not leave a container
-running.
+with `requirements.lan` and a roster of puppets, subscribes to the match's stream, watches
+the ten of them ready up, waits for a terminal state, replays the events route page by
+page, reads the ledger, and writes the run to `.cache/iron-match/<run>/`. Its key is
+revoked and its server released in a `finally` **and on a signal** — a Ctrl-C does not
+leave a container running.
+
+### Puppets, and the escape hatch (PRD-03 T5)
+
+**`--simulate` is how a `matchzy` match starts itself.** Every roster entry becomes a
+SteamID a MatchZy-Enhanced bot answers for: the request carries `simulation`, the
+orchestrator writes `simulation: true` into the match file, the fork spawns one bot per
+entry, maps it to that SteamID, and readies each of them through `OnPlayerReady` — the
+handler `.ready` calls. `--bots <n>` is how many bodies, split a side (an odd number is an
+uneven match: `--bots 3` is a 2v1), and `--timescale <n>` is the engine clock they play at.
+The run's own key is minted with the `simulation` scope, which production's platform key
+does not hold.
+
+**`--force-start` is the escape hatch**, and it is the only thing that sends RCON at a
+match: `bot_kick; bot_quota 0`, `css_start`, the quota back, `mp_warmup_end`. It exists
+because an anonymous bot never types `.ready`, and it is four assertions skipped — the
+ready gate, the ready events, the countdown, the go-live. Use it to prove a cfg, a map or
+a cvar; never to prove a flow. **A `matchzy` match with neither flag is refused before it
+allocates anything**, because it would sit in warmup until the timeout gave up.
+
+A `plugin` or `none` flow needs neither: the SDK's generic emitter reads the flow off the
+engine and the mode's own cfg decides when warmup ends.
 
 Three things it learned on this box that are not in anybody's documentation, and that the
 script and the plugin now encode:
@@ -1488,10 +1509,12 @@ and the count of servers still standing, and both being zero is what "it is over
 
 ### The `EZPUG_CS2_TESTS` lane
 
-`apps/orchestrator/src/cs2.extended.test.ts` runs that script and asserts the summary:
-the match reached `ended`, MatchZy went live, rounds were played, `series_end` and
-`match.ended` reached the client, the link and the door both carried the match, **and the
-ledger row is closed with no server left running**. It is opt-in twice over — nothing
+`apps/orchestrator/src/cs2.extended.test.ts` runs that script — with `--simulate`, ten
+puppets — and asserts the summary: **ten `player_ready`, each team through the gate once,
+one `all_ready`**, the match reached `ended`, MatchZy went live, rounds were played,
+`series_end` and `match.ended` reached the client, the link and the door both carried the
+match, **and the ledger row is closed with no server left running**. Nothing in a green
+run types `css_start`. It is opt-in twice over — nothing
 happens unless `EZPUG_CS2_TESTS` is set, and `EZPUG_CS2_TESTS=required` turns "there is no
 dev node" from a printed skip into a failure. It is never part of `pnpm verify`.
 

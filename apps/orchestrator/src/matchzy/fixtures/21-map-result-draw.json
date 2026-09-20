@@ -9,12 +9,13 @@
         "team2": 2
       }
     },
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "winner": {
       "side": "3",
-      "team": "team2"
+      "team": "team1"
     },
     "team1": {
       "series_score": 0,

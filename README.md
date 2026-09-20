@@ -192,15 +192,18 @@ wrong on an offline afternoon.
 With a node up, one command plays a whole match on it and writes down everything it said:
 
 ```sh
-pnpm iron:match                  # a pug with bots, four rounds, through the Match API
-pnpm iron:match --write-fixtures # …and update the recorded fixtures from this run
+pnpm iron:match --simulate                  # a 5v5 pug of puppets, four rounds
+pnpm iron:match --simulate --write-fixtures # …and update the recorded fixtures from it
 ```
 
 It is a client and nothing more — it holds an API key, POSTs a match, listens on a webhook
-endpoint of its own and on the match's stream, forces the start (a bot never types
-`.ready`), and releases its server in a `finally` and on a Ctrl-C. Roughly ten minutes and
-one CS2 container; `docs/operations.md`, "One real match, recorded", is the long version,
-and `EZPUG_CS2_TESTS=required` turns it into a test.
+endpoint of its own and on the match's stream, and releases its server in a `finally` and
+on a Ctrl-C. **Nothing starts the match but the players**: under `--simulate` every roster
+entry is a SteamID a MatchZy-Enhanced bot answers for, and the ten of them ready up
+through the same handler `.ready` calls (PRD-03 T5). `--force-start` is the RCON escape
+hatch for a match nobody is rostered on, and no green run takes it. Roughly ten minutes
+and one CS2 container; `docs/operations.md`, "One real match, recorded", is the long
+version, and `EZPUG_CS2_TESTS=required` turns it into a test.
 
 ## `ezpug-iron`, the command
 

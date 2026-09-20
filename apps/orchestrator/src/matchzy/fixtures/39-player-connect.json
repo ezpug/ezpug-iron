@@ -4,7 +4,8 @@
   "note": "New in the fork, synthesised because EventPlayerConnectFull is unreliable for bots. The core plugin reads the engine and emits player_connected; nobody double-speaks.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "player_connect",

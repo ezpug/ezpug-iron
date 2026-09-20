@@ -4,7 +4,8 @@
   "note": "MatchZy writes \"none\" when reverseTeamSides holds no entry for the winning side. The fact still travels — the knife happened — with nobody credited, and a log line.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "knife_round_ended",

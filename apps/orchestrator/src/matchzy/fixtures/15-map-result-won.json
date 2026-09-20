@@ -5,11 +5,11 @@
   "payload": {
     "winner": {
       "side": "3",
-      "team": "team2"
+      "team": "team1"
     },
     "team1": {
-      "series_score": 0,
-      "score": 0,
+      "series_score": 1,
+      "score": 6,
       "score_ct": 0,
       "score_t": 0,
       "players": [],
@@ -17,8 +17,8 @@
       "name": "EZPug A"
     },
     "team2": {
-      "series_score": 1,
-      "score": 3,
+      "series_score": 0,
+      "score": 2,
       "score_ct": 0,
       "score_t": 0,
       "players": [],
@@ -41,10 +41,10 @@
         "mapNumber": 1,
         "map": "de_dust2",
         "score": {
-          "teamA": 0,
-          "teamB": 3
+          "teamA": 6,
+          "teamB": 2
         },
-        "winner": "team_b"
+        "winner": "team_a"
       }
     ]
   }

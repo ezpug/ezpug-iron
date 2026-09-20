@@ -25,9 +25,11 @@ import { describe, expect, it } from 'vitest'
  *   never quietly become an invented one. Some are dropped whatever they
  *   hold (the veto trio, the demo events, the pause pair, `player_connect`,
  *   the server-level pair); PRD-03 T3 added the ones the door **translates**,
- *   because the dev lane force-starts and so no run has ever readied up or
- *   knifed. Those are owed a recording — PRD-03 T5 plays a pug whose puppets
- *   ready up through MatchZy's own ready system.
+ *   because the dev lane force-started and so no run had ever readied up or
+ *   knifed. **PRD-03 T5 recorded the ready gate** — ten puppets through it on
+ *   the dev node — and what is still upstream-shaped is the unready nobody
+ *   has typed, a bot's ready from outside simulation mode, and the knife,
+ *   whose map plan the recorded pug does not have.
  *
  * `schema` is gone and may not come back: T13 is ticked in the PRD, and this
  * test reads that checkbox so the rule cannot quietly lapse.

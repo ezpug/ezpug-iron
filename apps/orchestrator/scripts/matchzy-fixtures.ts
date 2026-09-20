@@ -47,6 +47,17 @@ const recorded = (
 /** The two rostered SteamIDs the whole fixture set uses (`@ezpug/match-api/fixtures`). */
 const TK = '76561198279375306'
 const MAEX = '76561198279375307'
+/**
+ * **The roster the recorded pug was played with** (PRD-03 T5): ten puppets,
+ * `scripts/iron-match.mjs`'s own, counted out from tk and maex alternately so
+ * team A opens with tk and team B with maex. The door holds a `team_ready`
+ * against this — MatchZy calls a team through the gate while its bots are
+ * still being mapped — so the fixtures' context has to be the ten the
+ * recording had, not a stand-in.
+ */
+const PUPPETS = Array.from({ length: 10 }, (_, index) => String(76561198279375306n + BigInt(index)))
+const TEAM_A = PUPPETS.filter((_, index) => index % 2 === 0)
+const TEAM_B = PUPPETS.filter((_, index) => index % 2 === 1)
 
 const context: MatchZyContext = {
   matchId: FIXTURE_MATCH_ID,
@@ -56,8 +67,8 @@ const context: MatchZyContext = {
   // The names the recorded run's config carried, and a roster of one a side
   // so a ready event's SteamID resolves without leaning on those names.
   teams: {
-    teamA: { name: 'EZPug A', players: [TK] },
-    teamB: { name: 'EZPug B', players: [MAEX] },
+    teamA: { name: 'EZPug A', players: TEAM_A },
+    teamB: { name: 'EZPug B', players: TEAM_B },
   },
 }
 
@@ -74,6 +85,43 @@ interface Plan {
   state?: MatchZyState
 }
 
+/** The first payload under `name` that answers `pick` — the SteamID, usually. */
+function where(
+  name: string,
+  pick: (payload: Record<string, unknown>) => boolean,
+): Record<string, unknown> {
+  const entry = recorded.filter(item => item.name === name).find(item => pick(item.payload))
+  if (!entry)
+    throw new Error(
+      `no ${name} payload in the recording answers that — re-record and revisit the plan`,
+    )
+  return entry.payload
+}
+
+/** The SteamID a ready payload names, however the fork spelled the player. */
+function readySteamId(payload: Record<string, unknown>): string {
+  return String((payload.player as { steamid?: unknown } | undefined)?.steamid ?? '')
+}
+
+/**
+ * **The two payloads of a player who readied twice.** The fork's reconcile
+ * pass re-readies a slot whose bot was remapped, so a pug of ten puppets sends
+ * eleven or twelve `player_ready` (PRD-03 T5, measured twice on the dev node).
+ * The pair is what pins the door saying where one person stands exactly once.
+ */
+function readiedTwice(): [Record<string, unknown>, Record<string, unknown>] {
+  const readies = recorded.filter(item => item.name === 'player_ready').map(item => item.payload)
+  for (const [index, payload] of readies.entries()) {
+    const again = readies
+      .slice(index + 1)
+      .find(other => readySteamId(other) === readySteamId(payload))
+    if (again) return [payload, again]
+  }
+  throw new Error(
+    'no puppet readied twice in this recording — drop 40/41 from the plan, or record a run where one did',
+  )
+}
+
 /** The `nth` payload the recording holds under `name` — never a bare index. */
 function at(name: string, nth = 0): Record<string, unknown> {
   const matches = recorded.filter(entry => entry.name === name)
@@ -88,6 +136,7 @@ function at(name: string, nth = 0): Record<string, unknown> {
 const scores = (team1: number, team2: number): MatchZyState => ({
   scores: { 1: { team1, team2 } },
   starts: {},
+  ready: {},
 })
 const fresh = (): MatchZyState => initialMatchZyState()
 
@@ -240,7 +289,7 @@ const plan: Plan[] = [
     source: 'derived',
     from: '13-round-start-third.json',
     note: 'A backup restored to round 3 at a different score. The repeat rule keys on the round number *and* the score, so a restore is not mistaken for a go-live restart.',
-    state: { scores: {}, starts: { 1: { roundNumber: 3, team1: 0, team2: 2 } } },
+    state: { scores: {}, starts: { 1: { roundNumber: 3, team1: 0, team2: 2 } }, ready: {} },
     payload: { ...at('round_started', 4), team1_score: 1, team2_score: 1 },
   },
   {
@@ -288,26 +337,16 @@ const plan: Plan[] = [
   // ----------- the fork's own events, shaped from its source (PRD-03 T3/T5)
   {
     file: '25-player-ready.json',
-    source: 'upstream',
-    from: `${ENHANCED}/ReadyEventHelpers.cs`,
-    note: 'The dev lane force-starts, so no recorded run has ever readied up; PRD-03 T5 replays this from puppets and it becomes recorded. The team comes from the roster’s SteamID, never from the free team name beside it.',
-    state: fresh(),
-    payload: {
-      event: 'player_ready',
-      matchid: SERIAL,
-      player: { steamid: TK, name: 'tk', team: 'EZPug A' },
-      team: 'EZPug A',
-      ready_count_team1: 1,
-      ready_count_team2: 0,
-      total_ready: 1,
-      expected_total: 2,
-    },
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'A puppet readying up through MatchZy’s own ready system (PRD-03 T5) — tk’s, of the ten, because the SteamID the request named is what the team comes from, never the free team name beside it.',
+    payload: where('player_ready', payload => readySteamId(payload) === TK),
   },
   {
     file: '26-player-unready.json',
     source: 'upstream',
     from: `${ENHANCED}/ReadyEventHelpers.cs`,
-    note: 'Somebody took their ready back; the tally is the whole gate as of that moment.',
+    note: 'Somebody took their ready back; the tally is the whole gate as of that moment. Still upstream-shaped: puppets ready up and never change their mind, so no recorded run has produced one.',
     state: fresh(),
     payload: {
       event: 'player_unready',
@@ -339,33 +378,17 @@ const plan: Plan[] = [
   },
   {
     file: '28-team-ready.json',
-    source: 'upstream',
-    from: `${ENHANCED}/ReadyEventHelpers.cs`,
-    note: 'Here the team really is "team1"/"team2". MatchZy sends this team’s count and the total, so the other team’s is the difference — and whether a team has passed the gate is MatchZy’s judgement, never a number a client recomputes (the 2026-09-18 stall, T1).',
-    state: fresh(),
-    payload: {
-      event: 'team_ready',
-      matchid: SERIAL,
-      team: 'team2',
-      ready_count: 1,
-      total_ready: 2,
-      expected_total: 2,
-    },
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'Here the team really is "team1"/"team2". MatchZy sends this team’s count and the total, so the other team’s is the difference — and whether a team has passed the gate is MatchZy’s judgement, never a number a client recomputes (the 2026-09-18 stall, T1). The first the recorded pug sent with anybody ready on the team; 42 and 44 are the two that say nothing.',
+    payload: where('team_ready', payload => Number(payload.ready_count) === 5),
   },
   {
     file: '29-all-players-ready.json',
-    source: 'upstream',
-    from: `${ENHANCED}/ReadyEventHelpers.cs`,
-    note: 'Both teams through the gate. countdown_started is what a lobby turns into a countdown; going_live still follows, after the knife round where there is one.',
-    state: fresh(),
-    payload: {
-      event: 'all_players_ready',
-      matchid: SERIAL,
-      ready_count_team1: 1,
-      ready_count_team2: 1,
-      total_ready: 2,
-      countdown_started: true,
-    },
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'Both teams through the gate, ten of ten. countdown_started is what a lobby turns into a countdown; going_live still follows, after the knife round where there is one.',
+    payload: at('all_players_ready', 0),
   },
   {
     file: '30-knife-round-started.json',
@@ -489,6 +512,47 @@ const plan: Plan[] = [
       matchid: SERIAL,
       player: { steamid: TK, name: 'tk', team: 'EZPug A' },
     },
+  },
+  // ------------------------------- what the gate says twice, and the door once
+  //
+  // These four carry the state the four above left, which is the point: the
+  // fork re-checks the ready gate after every single ready and re-POSTs what
+  // still holds, and its reconcile pass readies a slot whose bot was remapped.
+  // A durable log holds facts (PRD-03 T5, `matchzy/translate.ts`).
+  {
+    file: '40-player-ready-remapped.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'The puppet whose bot the reconcile pass remapped, readying the first time.',
+    payload: readiedTwice()[0],
+  },
+  {
+    file: '41-player-ready-repeated.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'The same puppet, readied a second time by the reconcile pass with nothing in between — already ready, and dropped. Ten puppets sent eleven and twelve of these on the two recorded runs.',
+    payload: readiedTwice()[1],
+  },
+  {
+    file: '42-team-ready-repeated.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: '28 again, byte for byte: the fork re-announces every team still through the gate on every later ready, twice over from two call sites. A team passes the gate once.',
+    payload: where('team_ready', payload => Number(payload.ready_count) === 5),
+  },
+  {
+    file: '43-all-players-ready-repeated.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: '29 again: the same counts, already said. The counts as they move are player_ready’s, which carries the whole tally on every single ready.',
+    payload: at('all_players_ready', 0),
+  },
+  {
+    file: '44-team-ready-half-filled.json',
+    source: 'recorded',
+    from: RECORDING_PATH,
+    note: 'The first team_ready of every recorded puppet pug, before a single player_ready: the fork decides IsTeamReady from the CT/T side and counts from the logical team slots, and while the bots are still being spawned and mapped the two disagree — here at none of five. A team nobody on it has readied for has passed nothing, and forwarding it would spend the edge on a transient so the real passage is dropped.',
+    payload: at('team_ready', 0),
   },
 ]
 

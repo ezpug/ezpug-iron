@@ -1,0 +1,16 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "29 again: the same counts, already said. The counts as they move are player_ready’s, which carries the whole tally on every single ready.",
+  "payload": {
+    "ready_count_team1": 5,
+    "ready_count_team2": 5,
+    "total_ready": 10,
+    "countdown_started": true,
+    "matchid": 1083740696,
+    "event": "all_players_ready"
+  },
+  "expect": {
+    "dropped": "everybody is already ready at 5/5 counting down"
+  }
+}

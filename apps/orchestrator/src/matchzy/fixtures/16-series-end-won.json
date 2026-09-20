@@ -6,10 +6,10 @@
     "time_until_restore": 10,
     "winner": {
       "side": "3",
-      "team": "team2"
+      "team": "team1"
     },
-    "team1_series_score": 0,
-    "team2_series_score": 1,
+    "team1_series_score": 1,
+    "team2_series_score": 0,
     "matchid": 1083740696,
     "event": "series_end"
   },
@@ -23,10 +23,10 @@
           "serverId": "devbox-1"
         },
         "seriesScore": {
-          "teamA": 0,
-          "teamB": 1
+          "teamA": 1,
+          "teamB": 0
         },
-        "winner": "team_b"
+        "winner": "team_a"
       }
     ]
   }

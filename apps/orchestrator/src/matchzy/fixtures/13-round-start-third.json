@@ -3,9 +3,9 @@
   "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
   "note": "Round 3, after the swap.",
   "payload": {
-    "team1_score": 0,
+    "team1_score": 1,
     "team2_score": 2,
-    "round_number": 3,
+    "round_number": 4,
     "map_number": 0,
     "matchid": 1083740696,
     "event": "round_started"
@@ -20,9 +20,9 @@
           "serverId": "devbox-1"
         },
         "mapNumber": 1,
-        "roundNumber": 3,
+        "roundNumber": 4,
         "score": {
-          "teamA": 0,
+          "teamA": 1,
           "teamB": 2
         }
       }

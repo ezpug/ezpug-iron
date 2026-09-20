@@ -259,7 +259,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     for a real one. The platform's PRD-10 T7 relies on this.
   - The fake and the sim honour it. Additive release.
 
-- [ ] **T5: ten puppets ready up for a pug.**
+- [x] **T5: ten puppets ready up for a pug.**
   - The MatchZy config builder emits `simulation` and `simulation_timescale` when the
     request asks.
 
@@ -273,6 +273,15 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     demo uploaded. No RCON touches the flow.
   - `iron-match.mjs`'s force-start becomes an explicit `--force-start` flag, documented
     as the escape hatch.
+
+- [ ] **T5a: the ready floor the door does not know.** `team_ready` only travels when
+  MatchZy's count for that team matches the roster the request named
+  (`matchzy/translate.ts`, T5): the fork calls a team through the gate from one player
+  ready upwards while its bots are still being mapped, and forwarding that put "team A is
+  ready" in a durable log with one of five. The filter costs the one case MatchZy really
+  means it — a team let through on `min_players_to_ready` with somebody still missing.
+  Teach the door that floor (it is the request's `warmup.minPlayersToReady`, halved by the
+  builder) and play the case: a 5v5 whose gate is four a side, one player never connecting.
 
 - [ ] **T6: the regression matrix, on real hardware.** Lane cases that each assert their
   fact sequence:

@@ -1,0 +1,16 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "The first team_ready of every recorded puppet pug, before a single player_ready: the fork decides IsTeamReady from the CT/T side and counts from the logical team slots, and while the bots are still being spawned and mapped the two disagree — here at none of five. A team nobody on it has readied for has passed nothing, and forwarding it would spend the edge on a transient so the real passage is dropped.",
+  "payload": {
+    "team": "team2",
+    "ready_count": 0,
+    "total_ready": 0,
+    "expected_total": 10,
+    "matchid": 1083740696,
+    "event": "team_ready"
+  },
+  "expect": {
+    "dropped": "team_b is called through the gate with 0 of its 5 rostered ready — the sides are still being filled"
+  }
+}

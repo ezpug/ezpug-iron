@@ -1,0 +1,16 @@
+{
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "28 again, byte for byte: the fork re-announces every team still through the gate on every later ready, twice over from two call sites. A team passes the gate once.",
+  "payload": {
+    "team": "team1",
+    "ready_count": 5,
+    "total_ready": 6,
+    "expected_total": 10,
+    "matchid": 1083740696,
+    "event": "team_ready"
+  },
+  "expect": {
+    "dropped": "team_a was already through the gate before this"
+  }
+}

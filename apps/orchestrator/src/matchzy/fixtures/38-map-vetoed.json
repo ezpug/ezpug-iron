@@ -4,7 +4,8 @@
   "note": "The veto is the platform’s; the three veto events are dropped. The fork has no MapVeto.cs at all, so it cannot send one — the name stays in the table because a cfg can never bring it back.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "map_vetoed",

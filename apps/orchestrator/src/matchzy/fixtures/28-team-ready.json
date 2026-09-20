@@ -1,18 +1,14 @@
 {
-  "source": "upstream",
-  "from": "references/MatchZy-Enhanced/src/ReadyEventHelpers.cs",
-  "note": "Here the team really is \"team1\"/\"team2\". MatchZy sends this team’s count and the total, so the other team’s is the difference — and whether a team has passed the gate is MatchZy’s judgement, never a number a client recomputes (the 2026-09-18 stall, T1).",
-  "state": {
-    "scores": {},
-    "starts": {}
-  },
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "Here the team really is \"team1\"/\"team2\". MatchZy sends this team’s count and the total, so the other team’s is the difference — and whether a team has passed the gate is MatchZy’s judgement, never a number a client recomputes (the 2026-09-18 stall, T1). The first the recorded pug sent with anybody ready on the team; 42 and 44 are the two that say nothing.",
   "payload": {
-    "event": "team_ready",
+    "team": "team1",
+    "ready_count": 5,
+    "total_ready": 6,
+    "expected_total": 10,
     "matchid": 1083740696,
-    "team": "team2",
-    "ready_count": 1,
-    "total_ready": 2,
-    "expected_total": 2
+    "event": "team_ready"
   },
   "expect": {
     "events": [
@@ -23,13 +19,13 @@
           "provider": "nodes",
           "serverId": "devbox-1"
         },
-        "team": "team_b",
+        "team": "team_a",
         "tally": {
           "ready": {
-            "teamA": 1,
+            "teamA": 5,
             "teamB": 1
           },
-          "expected": 2
+          "expected": 10
         }
       }
     ]

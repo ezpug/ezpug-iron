@@ -10,12 +10,13 @@
         "team1": 0,
         "team2": 2
       }
-    }
+    },
+    "ready": {}
   },
   "payload": {
     "team1_score": 1,
     "team2_score": 1,
-    "round_number": 3,
+    "round_number": 4,
     "map_number": 0,
     "matchid": 1083740696,
     "event": "round_started"
@@ -30,7 +31,7 @@
           "serverId": "devbox-1"
         },
         "mapNumber": 1,
-        "roundNumber": 3,
+        "roundNumber": 4,
         "score": {
           "teamA": 1,
           "teamB": 1

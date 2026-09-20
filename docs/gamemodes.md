@@ -171,14 +171,25 @@ is:
   as a `backup` frame plus `backup_written`, the token scrubbed out of it first.
 
 Everything the plugin does here is on the SDK harness (`plugins/EZPug.Core.Tests`), and the
-translation's fixtures are no longer guesses: `scripts/iron-match.mjs` played a `pug` with
-bots on the dev node and the payloads a real MatchZy sent are kept whole in
+translation's fixtures are no longer guesses: `scripts/iron-match.mjs` played a `pug` of
+**ten puppets** on the dev node and the payloads a real MatchZy sent are kept whole in
 `packages/protocol/fixtures/recorded/real-pug-matchzy.json`; the door's fixtures are those
 bytes, the cases they cannot produce edited from them, and the events that run never
 produced read off MatchZy's own source. `apps/orchestrator/src/matchzy/fixtures.test.ts`
-holds each file to saying which it is. The dev lane force-starts, so **no recorded run has
-ever readied up or knifed** — the ready and knife fixtures are shaped from the fork's own
-serialisers until PRD-03 T5 plays a pug whose puppets ready up for real.
+holds each file to saying which it is. **The ready gate is recorded** since PRD-03 T5 —
+ten `player_ready`, both teams through, the countdown — and what is still shaped from the
+fork's own serialisers is the unready nobody has typed, a bot's ready from outside
+simulation mode, and the knife, which the recorded pug's map plan never calls for.
+
+**A third rule the puppets added.** The fork re-checks the ready gate after every single
+ready and re-POSTs a `team_ready` for each team still through it — twice, from two call
+sites, and from one player ready upwards while its bots are still being mapped — while its
+reconcile pass readies a slot whose bot was remapped: 44 `team_ready`, four
+`all_players_ready` and eleven `player_ready` on the recorded puppet pug, for two teams
+that passed the gate once and ten puppets who readied once. The door says each of those
+once (`matchzy/translate.ts`), holds a `team_ready`'s count against the roster the request
+named, puts a team and the room back in play on an unready, and spends the gate when the
+map goes live.
 
 **Two rules the recordings added.** A `round_end` whose score has not moved since the last
 one is a repeat and is dropped: MatchZy sent round 1 twice, a second apart, with two

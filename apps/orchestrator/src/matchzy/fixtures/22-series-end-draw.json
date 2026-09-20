@@ -9,7 +9,8 @@
         "team2": 2
       }
     },
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "time_until_restore": 10,

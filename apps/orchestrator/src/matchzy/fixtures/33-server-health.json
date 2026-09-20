@@ -4,7 +4,8 @@
   "note": "Server-level, not a match fact. The door reads it for the log: sqlite and db_ok is the shape T2’s cfg check exists to guarantee.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "server_health",

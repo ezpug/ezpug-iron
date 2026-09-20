@@ -1,18 +1,14 @@
 {
-  "source": "upstream",
-  "from": "references/MatchZy-Enhanced/src/ReadyEventHelpers.cs",
-  "note": "Both teams through the gate. countdown_started is what a lobby turns into a countdown; going_live still follows, after the knife round where there is one.",
-  "state": {
-    "scores": {},
-    "starts": {}
-  },
+  "source": "recorded",
+  "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
+  "note": "Both teams through the gate, ten of ten. countdown_started is what a lobby turns into a countdown; going_live still follows, after the knife round where there is one.",
   "payload": {
-    "event": "all_players_ready",
+    "ready_count_team1": 5,
+    "ready_count_team2": 5,
+    "total_ready": 10,
+    "countdown_started": true,
     "matchid": 1083740696,
-    "ready_count_team1": 1,
-    "ready_count_team2": 1,
-    "total_ready": 2,
-    "countdown_started": true
+    "event": "all_players_ready"
   },
   "expect": {
     "events": [
@@ -24,8 +20,8 @@
           "serverId": "devbox-1"
         },
         "ready": {
-          "teamA": 1,
-          "teamB": 1
+          "teamA": 5,
+          "teamB": 5
         },
         "countdown": true
       }

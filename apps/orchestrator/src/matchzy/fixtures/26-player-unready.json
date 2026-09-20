@@ -1,10 +1,11 @@
 {
   "source": "upstream",
   "from": "references/MatchZy-Enhanced/src/ReadyEventHelpers.cs",
-  "note": "Somebody took their ready back; the tally is the whole gate as of that moment.",
+  "note": "Somebody took their ready back; the tally is the whole gate as of that moment. Still upstream-shaped: puppets ready up and never change their mind, so no recorded run has produced one.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "player_unready",

@@ -4,8 +4,8 @@
   "note": "Round 2, carrying the score it starts from — what the vocabulary’s optional round_start score is for.",
   "payload": {
     "team1_score": 0,
-    "team2_score": 1,
-    "round_number": 2,
+    "team2_score": 2,
+    "round_number": 3,
     "map_number": 0,
     "matchid": 1083740696,
     "event": "round_started"
@@ -20,10 +20,10 @@
           "serverId": "devbox-1"
         },
         "mapNumber": 1,
-        "roundNumber": 2,
+        "roundNumber": 3,
         "score": {
           "teamA": 0,
-          "teamB": 1
+          "teamB": 2
         }
       }
     ]

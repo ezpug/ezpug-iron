@@ -302,7 +302,10 @@ with ten bots each. What it changed in this file is above; what it measured is h
   that waits for players to ready up, so a run with nobody in it goes
   `bot_kick; bot_quota 0` → `css_start` at `ready`, then `bot_quota <n>` → `mp_warmup_end`
   once live (the order is `scripts/iron-match.mjs`'s and its reasons are written there).
-  Every other flow starts and fills itself. A real LAN night types none of this.
+  Every other flow starts and fills itself. A real LAN night types none of this — and
+  **neither does the lane any more**: `--simulate` rosters puppets that ready up through
+  MatchZy's own ready system (PRD-03 T5), and those four lines live behind
+  `--force-start`, which no green run passes.
 - **Drain does what it says.** `ezpug-iron nodes drain <id>` leaves the live match alone
   and refuses the next `lan` request `no_capable_server: no LAN node has free capacity`
   (exit 1); `nodes list` reads `drained yes` and the agent's own `status` agrees;

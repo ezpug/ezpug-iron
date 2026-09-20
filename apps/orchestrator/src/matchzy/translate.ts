@@ -69,7 +69,14 @@ import { z } from 'zod'
  *   `all_ready`) and the knife (`knife_round_started`, `knife_round_ended`).
  *   A client must not recompute the gate — whether a team has passed it is
  *   the match plugin's own judgement, which is the whole lesson of the
- *   2026-09-18 stall (T1).
+ *   2026-09-18 stall (T1). **A team says it once, and only when its own
+ *   roster is through**: the fork re-checks the gate after every single ready
+ *   and POSTs a `team_ready` for each team still through it, twice over and
+ *   from one player ready upwards — 44 of them, four `all_players_ready` and
+ *   eleven `player_ready` in the recorded pug of ten puppets (T5), for two
+ *   teams that passed the gate once and ten puppets who readied once.
+ *   {@link MatchZyState.ready} is the memory that makes the log facts rather
+ *   than polls.
  * - **`round_started` too, and this was a hole.** `MatchZyFlow` (the core
  *   plugin) emits `match_paused`, `side_swap` and `backup_written` for a
  *   matchzy flow and deliberately nothing else; `GenericFlow` — the plugin
@@ -140,10 +147,35 @@ export interface MatchZyState {
    * score is dropped. A backup restore moves the score, so it still passes.
    */
   starts: Record<number, { roundNumber: number; team1: number; team2: number }>
+  /**
+   * **What the ready gate has already said** (PRD-03 T5): `team_a`, `team_b`
+   * and `all` for the gate itself, `p:<steamId64>` for where one person
+   * stands.
+   *
+   * MatchZy-Enhanced re-checks the gate after every single ready and POSTs a
+   * `team_ready` for *each* team that holds it — twice, from two call sites,
+   * and with a fresh `total_ready` every time because the other team is still
+   * readying up. Its reconcile pass re-readies a slot whose bot was remapped.
+   * The four puppet pugs measured on the dev node sent 42 to 46 `team_ready`,
+   * two to four `all_players_ready`, and ten to twelve `player_ready` — for
+   * two teams that passed the gate once and ten puppets who readied once.
+   *
+   * A durable log holds facts and not polls: a team already through the gate
+   * says nothing more until it leaves, a player already ready says nothing
+   * more until they unready, and an `all_ready` repeating counts already said
+   * says nothing. The counts as they move are `player_ready`'s, which carries
+   * the whole tally on every single ready.
+   *
+   * An **unready is news**, and it takes its own team and `all` back out with
+   * it: a team that fell out of the gate and came back through it is a fact a
+   * client drawing a lobby has to see. **Going live spends the gate**, so a
+   * map that runs one of its own starts from nothing.
+   */
+  ready: Record<string, string>
 }
 
 export function initialMatchZyState(): MatchZyState {
-  return { scores: {}, starts: {} }
+  return { scores: {}, starts: {}, ready: {} }
 }
 
 export interface TranslationResult {
@@ -619,7 +651,10 @@ export function translateMatchZyEvent(
         events: [
           { type: 'going_live', matchId, source, mapNumber: event.map_number + 1, map: plan.map },
         ],
-        state,
+        // The gate is behind this map: whatever it said is spent, and a map
+        // that runs its own ready phase gets a fresh one
+        // ({@link MatchZyState.ready}).
+        state: { ...state, ready: {} },
         name,
       }
     }
@@ -672,6 +707,14 @@ export function translateMatchZyEvent(
         return drop(
           `a ready from "${event.player.name}" with no SteamID64 — a bot outside simulation mode`,
         )
+      // **Where this person stands, said once.** The fork's reconcile pass
+      // re-readies a slot whose bot was remapped — the recorded puppet pug had
+      // eleven `player_ready` for ten puppets, `puppet-7` among those twice
+      // (T5, measured) — and a durable log that holds a player readying
+      // twice without unreadying in between is one a client cannot count with.
+      const stands = `p:${player.steamId64}`
+      const now = event.event === 'player_ready' ? 'ready' : 'unready'
+      if (state.ready[stands] === now) return drop(`${player.name} was already ${now}`)
       return {
         events: [
           {
@@ -685,48 +728,94 @@ export function translateMatchZyEvent(
             },
           },
         ],
-        state,
+        // An unready takes this player's team back out of the gate: whatever
+        // was said about it being through no longer holds, so saying it again
+        // is a fact. Whose team it is comes from the roster (`playerOf`), and
+        // from nobody when the roster does not know them.
+        state: {
+          ...state,
+          ready: {
+            ...state.ready,
+            [stands]: now,
+            ...(now === 'unready' && {
+              all: '',
+              ...(player.team && { [player.team]: '' }),
+            }),
+          },
+        },
         name,
       }
     }
     case 'team_ready': {
       const team = teamOf(event.team)
       if (!team) return drop(`team "${event.team}" is neither team1 nor team2`)
+      // **A team is through the gate when its own roster is through it.** The
+      // fork decides `IsTeamReady` from the CT/T *side* while it reports the
+      // count from the logical team slots, and in simulation mode the two
+      // disagree for as long as its bots are being spawned and mapped: every
+      // recorded puppet pug opens with a `team_ready` for each team at
+      // `ready_count: 0`, before a single `player_ready`, and announces team1
+      // again at one of five (`EnsureSimulationBotsMappedAndAnnounced` marks a
+      // bot ready by default while `readyAvailable` is false). Forwarding
+      // those would put "team A is ready" in a durable log with one player
+      // ready, and — worse — spend the edge below on a transient so the real
+      // passage is dropped.
+      //
+      // So the count MatchZy sends is held against **the roster the request
+      // named**, which is the only per-team expectation the door has and a
+      // number this repo wrote into the match config itself
+      // (`match-config/matchzy.ts`, `players_per_team`). A match that rosters
+      // nobody on this team — the `--force-start` lane's — has nothing to
+      // hold it against and the first one through stands.
+      //
+      // The one thing this filters that MatchZy meant: a team let through on
+      // `min_players_to_ready` with somebody still missing. `all_ready` and
+      // `going_live` still say the match started, and PRD-03 has a line for
+      // teaching the door that floor.
+      const rostered = (team === 'team_a' ? context.teams.teamA : context.teams.teamB).players
+        .length
+      if (rostered > 0 && event.ready_count !== rostered)
+        return drop(
+          `${team} is called through the gate with ${event.ready_count} of its ${rostered} rostered ready — the sides are still being filled`,
+        )
       // MatchZy sends this team's count and the total; the other team's is
       // the difference, and never below zero however the two were counted.
       const other = Math.max(0, event.total_ready - event.ready_count)
+      const tally = {
+        ready:
+          team === 'team_a' ? scoreOf(event.ready_count, other) : scoreOf(other, event.ready_count),
+        expected: event.expected_total,
+      }
+      // **`team_ready` is an edge, not a tally** (see {@link MatchZyState.ready}).
+      // The gate is re-checked after every single ready, and every team still
+      // through it POSTs again — twice, and with a new `total_ready` each
+      // time, because the *other* team is still readying up. That a team
+      // passed the gate happens once; the counts as they move are what
+      // `player_ready` carries, on every one of them. So the key is the team,
+      // and the tally rides along as the snapshot at the moment of passage.
+      if (state.ready[team] === 'through')
+        return drop(`${team} was already through the gate before this`)
       return {
-        events: [
-          {
-            type: 'team_ready',
-            matchId,
-            source,
-            team,
-            tally: {
-              ready:
-                team === 'team_a'
-                  ? scoreOf(event.ready_count, other)
-                  : scoreOf(other, event.ready_count),
-              expected: event.expected_total,
-            },
-          },
-        ],
-        state,
+        events: [{ type: 'team_ready', matchId, source, team, tally }],
+        state: { ...state, ready: { ...state.ready, [team]: 'through' } },
         name,
       }
     }
     case 'all_players_ready': {
+      const ready = scoreOf(event.ready_count_team1, event.ready_count_team2)
+      const said = `${ready.teamA}/${ready.teamB}${event.countdown_started ? ' counting down' : ''}`
+      if (state.ready.all === said) return drop(`everybody is already ready at ${said}`)
       return {
         events: [
           {
             type: 'all_ready',
             matchId,
             source,
-            ready: scoreOf(event.ready_count_team1, event.ready_count_team2),
+            ready,
             countdown: event.countdown_started,
           },
         ],
-        state,
+        state: { ...state, ready: { ...state.ready, all: said } },
         name,
       }
     }

@@ -56,7 +56,18 @@ const HELP = `iron-match — run one real match through the Match API and record
   --gamemode <id>        default pug
   --map <name>           default de_dust2
   --rounds <n>           mp_maxrounds; even, default 4
-  --bots <n>             bot_quota, default 10; 0 leaves the server empty
+  --bots <n>             how many bodies; default 10. Anonymous bots without
+                         --simulate, puppets with it. 0 leaves the server empty
+  --simulate             play it with puppets (PRD-03 T5): --bots bodies are
+                         rostered, split a side, and MatchZy-Enhanced's
+                         simulation mode gives each rostered SteamID a bot that
+                         readies up through the ready system a human types into
+  --timescale <n>        simulation.timeScale — the engine clock the puppets
+                         play at, 0.1 to 10; only with --simulate
+  --force-start          the escape hatch (PRD-03, Attitude 2): empty the
+                         server, css_start over RCON and end the warmup by
+                         hand, because an unrostered bot never readies up. An
+                         assertion skipped — no green run may depend on it
   --format <name>        rules.format: competitive (default) or wingman, the
                          two-a-side game — use it with --bots 4
   --no-overtime          allow a drawn map — MatchZy then replays it, so the run hangs
@@ -189,6 +200,70 @@ const ROUNDS = Number(flags.get('rounds') ?? 4)
  * the interesting part and lives down in the poll loop.
  */
 const BOTS = Number(flags.get('bots') ?? 10)
+/**
+ * **Puppets** (PRD-03 T5). `--simulate` turns {@link BOTS} anonymous bodies
+ * into {@link BOTS} *rostered* ones: the request carries a roster of that many
+ * SteamIDs and `simulation`, the orchestrator writes `simulation: true` into
+ * the match file, and MatchZy-Enhanced's simulation mode spawns one bot per
+ * roster entry, maps it to that SteamID and readies it up through
+ * `OnPlayerReady` — the same handler `.ready` calls
+ * (`references/MatchZy-Enhanced/src/SimulationMode.cs` `StartSimulationReadyFlow`).
+ *
+ * That is the whole point of the flag: the match goes live because ten players
+ * readied, not because this script typed `css_start` at a server full of
+ * strangers. Everything on the path — the ready gate T1 fixed, the auto-ready
+ * and the side timer T3a turned on, the ready events T3 gave the vocabulary —
+ * is only ever exercised here.
+ */
+const SIMULATE = flags.get('simulate') === 'true'
+/**
+ * `simulation.timeScale`, unsaid by default. The fork applies it as
+ * `host_timescale` under `sv_cheats 1` and clamps it to 0.1–10
+ * (`MatchLogic.cs`), which is where the contract's bounds come from; the
+ * lane's own speed is PRD-03 T13's to choose, and a first recording is worth
+ * more at the speed a human would watch.
+ */
+const TIMESCALE = flags.has('timescale') ? Number(flags.get('timescale')) : null
+/**
+ * **The escape hatch, named** (PRD-03, Attitude 2). An unrostered bot never
+ * types `.ready`, so a `matchzy` match with nobody on the roster can only be
+ * started over RCON — `bot_kick; bot_quota 0`, `css_start`, the quota back,
+ * `mp_warmup_end`. That is four assertions skipped, and it used to be what
+ * every recording on this box was made of. It still has its uses (a mode's
+ * cfg, a map, a cvar, with nothing to prove about ready-up), so it stays —
+ * behind a flag nobody passes by accident.
+ */
+const FORCE_START = flags.get('force-start') === 'true'
+if (TIMESCALE !== null && !SIMULATE) die('--timescale is simulation’s: pass --simulate')
+if (TIMESCALE !== null && !(TIMESCALE >= 0.1 && TIMESCALE <= 10))
+  die('--timescale is between 0.1 and 10 (what the fork clamps host_timescale to)')
+if (SIMULATE && FORCE_START)
+  die('--simulate and --force-start are two answers to the same question: puppets ready themselves')
+if (SIMULATE && BOTS < 1) die('--simulate needs bodies: --bots 1 or more')
+/**
+ * The puppets' identities, from the fixtures' own
+ * (`@ezpug/match-api/fixtures`): tk and maex, then their neighbours. They are
+ * rostered alternately so team A always opens with tk and team B with maex —
+ * which is what lets a recording of this run be read straight into the
+ * MatchZy door's fixtures, whose context rosters exactly that way, and it
+ * makes an odd `--bots` an uneven match (3 is a 2v1) rather than a refusal.
+ */
+const PUPPET_STEAM_ID_BASE = 76561198279375306n
+const PUPPET_NAMES = ['tk', 'maex']
+function puppetRoster(count) {
+  const teams = { teamA: [], teamB: [] }
+  for (let index = 0; index < count; index++) {
+    const side = index % 2 === 0 ? teams.teamA : teams.teamB
+    side.push({
+      steamId64: String(PUPPET_STEAM_ID_BASE + BigInt(index)),
+      name: PUPPET_NAMES[index] ?? `puppet-${index + 1}`,
+      // Bilingual where a human reads it (CLAUDE.md): half the room is
+      // German, half English, so a warmup line has both to say.
+      locale: index % 2 === 0 ? 'de' : 'en',
+    })
+  }
+  return teams
+}
 /**
  * `rules.format` — the game the engine plays (PRD-03 T3b). `wingman` is
  * `game_mode 2`, which MatchZy sets from the match file and which costs one
@@ -725,7 +800,10 @@ async function run() {
   const webhookSecret = `iron-match-${randomUUID()}`
   const created = await admin('POST', '/v1/keys', {
     name: RUN_ID,
-    scopes: ['matches', 'fleet', 'admin'],
+    // `simulation` only when this run means to ask for puppets (PRD-03 T4):
+    // the scope is what keeps a production key from ever playing one, and a
+    // run that holds it without needing it proves nothing about the door.
+    scopes: ['matches', 'fleet', 'admin', ...(SIMULATE ? ['simulation'] : [])],
     budget: {
       maxConcurrentServers: 2,
       maxServerLifetimeMinutes: 60,
@@ -827,6 +905,26 @@ async function run() {
   // human's. Not on a `matchzy` flow: a rostered player MatchZy waits for would
   // stall a match that `css_start` is meant to start.
   const SKINNED = manifest.slots.openJoin && FLOW !== 'matchzy'
+  // **A `matchzy` match with nobody on it has to say how it means to start**
+  // (PRD-03 T5). MatchZy waits for its roster to ready up; an anonymous bot
+  // never will, so such a match either rosters puppets (`--simulate`) or is
+  // started over RCON with the escape hatch (`--force-start`). Neither, and
+  // the run would sit in warmup until `--timeout-minutes` gave up — twenty
+  // wasted minutes of a CS2 container, which is what this refusal buys back.
+  if (FLOW === 'matchzy' && !SIMULATE && !FORCE_START)
+    die(
+      `${GAMEMODE} is a matchzy mode and nobody on this request readies up: ` +
+        'pass --simulate for puppets that do, or --force-start for the RCON escape hatch',
+    )
+  if (SIMULATE && !manifest.capabilities.simulation)
+    die(`${GAMEMODE} does not claim capabilities.simulation — the door would refuse the request`)
+  /** The puppets, rostered (PRD-03 T5), or nobody. */
+  const PUPPETS = SIMULATE ? puppetRoster(BOTS) : null
+  if (PUPPETS)
+    say(
+      `puppets: ${PUPPETS.teamA.length}v${PUPPETS.teamB.length}` +
+        `${TIMESCALE === null ? '' : ` at ${TIMESCALE}× engine time`}`,
+    )
   /** The loadout every link fixture carries (`packages/protocol/src/fixtures.ts`): tk's karambit. */
   const LOADOUT = {
     t: {
@@ -855,9 +953,11 @@ async function run() {
     `gamemode ${GAMEMODE} v${manifest.version}: flow ${FLOW}, records ${manifest.records}, format ${FORMAT}`,
   )
 
-  // 4. The request. Bots, four rounds, no overtime, nobody rostered — MatchZy
-  //    plays it out and `css_start` is what starts it, because a bot never
-  //    types `.ready`.
+  // 4. The request. Four rounds and overtime; who is on it depends on the run.
+  //    Under `--simulate` it rosters puppets and asks for `simulation`, and
+  //    MatchZy starts it because they ready up; with `--force-start` it rosters
+  //    nobody and `css_start` starts it, because an anonymous bot never types
+  //    `.ready`.
   const request = {
     clientMatchId: RUN_ID,
     game: 'cs2',
@@ -865,22 +965,28 @@ async function run() {
     teams: {
       teamA: {
         name: 'EZPug A',
-        // The one rostered player, with a loadout, so the skins layer is enabled (SKINNED,
-        // above). They never connect: the SteamID is the first bot identity's, which the
-        // profile pushes below carry too, so the core holds exactly one loadout for it.
-        players: SKINNED
-          ? [
-              {
-                steamId64: String(BOT_STEAM_ID_BASE),
-                name: 'EZ Bot 0',
-                locale: 'de',
-                loadout: LOADOUT,
-              },
-            ]
-          : [],
+        // Puppets first (PRD-03 T5): under `--simulate` the roster is the
+        // match, and every entry is a SteamID a bot will answer for.
+        //
+        // Otherwise the one rostered player, with a loadout, so the skins layer is enabled
+        // (SKINNED, above). They never connect: the SteamID is the first bot identity's, which
+        // the profile pushes below carry too, so the core holds exactly one loadout for it.
+        players:
+          PUPPETS?.teamA ??
+          (SKINNED
+            ? [
+                {
+                  steamId64: String(BOT_STEAM_ID_BASE),
+                  name: 'EZ Bot 0',
+                  locale: 'de',
+                  loadout: LOADOUT,
+                },
+              ]
+            : []),
       },
-      teamB: { name: 'EZPug B', players: [] },
+      teamB: { name: 'EZPug B', players: PUPPETS?.teamB ?? [] },
     },
+    ...(SIMULATE && { simulation: TIMESCALE === null ? {} : { timeScale: TIMESCALE } }),
     maps: [{ map: MAP, sides: 'ct' }],
     rules: {
       format: FORMAT,
@@ -919,25 +1025,34 @@ async function run() {
         // been shown to be something else; a shorter round is a change somebody
         // can make later, on a measurement of its own.
         mp_freezetime: '5',
-        ...(BOTS > 0 && {
-          bot_difficulty: '2',
-          bot_join_after_player: '0',
-          // **`bot_quota` travels here for every flow, which is the point of a request's
-          // `rules.cvars`.** It did not always: the loader used to exec the mode's cfg and
-          // set these cvars into the *same* console frame, and the engine reconciles the
-          // bot population once at the end of one — so a `bot_kick` or a `bot_quota_mode`
-          // switch in a mode's cfg evicted whoever was standing and a `bot_quota` beside
-          // it could not bring them back. Measured on the dev node with
-          // `flying-scoutsman`: bots kicked at 1.2 s, `going_live` at 21 s, an empty
-          // server for twenty minutes — then one `bot_quota 10` over RCON and ten bots
-          // inside a second. This script asked over RCON for a while because it could; a
-          // client cannot, and must not have to. The loader gives the cfg a frame of its
-          // own now and everything the assignment asks for the next
-          // (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a), so the quota simply arrives with
-          // the map. A `matchzy` flow still dances in the poll loop below, for a different
-          // reason: MatchZy's own `warmup.cfg` and `live.cfg` move the quota themselves.
-          bot_quota: String(BOTS),
-        }),
+        // **Not under `--simulate`: the bot population is the fork's there**
+        // (PRD-03 T5). Simulation mode sets `bot_join_after_player 0`,
+        // `bot_quota_mode normal` and `bot_difficulty 3` itself and then walks
+        // `bot_quota` up from zero one puppet at a time, never back down,
+        // precisely so a late quota cannot kick the bots it has already mapped
+        // to roster slots (`SimulationMode.cs` `SpawnSimulationBots`). A
+        // `bot_quota` in the match config is re-applied a second after
+        // `live.cfg` and would land in the middle of that.
+        ...(BOTS > 0 &&
+          !SIMULATE && {
+            bot_difficulty: '2',
+            bot_join_after_player: '0',
+            // **`bot_quota` travels here for every flow, which is the point of a request's
+            // `rules.cvars`.** It did not always: the loader used to exec the mode's cfg and
+            // set these cvars into the *same* console frame, and the engine reconciles the
+            // bot population once at the end of one — so a `bot_kick` or a `bot_quota_mode`
+            // switch in a mode's cfg evicted whoever was standing and a `bot_quota` beside
+            // it could not bring them back. Measured on the dev node with
+            // `flying-scoutsman`: bots kicked at 1.2 s, `going_live` at 21 s, an empty
+            // server for twenty minutes — then one `bot_quota 10` over RCON and ten bots
+            // inside a second. This script asked over RCON for a while because it could; a
+            // client cannot, and must not have to. The loader gives the cfg a frame of its
+            // own now and everything the assignment asks for the next
+            // (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a), so the quota simply arrives with
+            // the map. A `matchzy` flow still dances in the poll loop below, for a different
+            // reason: MatchZy's own `warmup.cfg` and `live.cfg` move the quota themselves.
+            bot_quota: String(BOTS),
+          }),
       },
     },
     requirements: { lan: LAN, ...(PROVIDER && { provider: PROVIDER }) },
@@ -986,8 +1101,9 @@ async function run() {
     if (socket.readyState === WebSocket.OPEN) socket.close(1000, 'done')
   })
 
-  // 6. Watch it play. Force-start once the server says it is ready: nobody is
-  //    rostered, so MatchZy waits for a `.ready` that will never come.
+  // 6. Watch it play — and, under `--force-start` and only there, push it:
+  //    nobody is rostered on such a run, so MatchZy waits for a `.ready` that
+  //    will never come. A puppet match is watched and nothing else.
   const TERMINAL = ['ended', 'failed', 'cancelled']
   const rcon = (command, tag) =>
     api('POST', `/v1/matches/${matchId}/commands`, {
@@ -1131,6 +1247,11 @@ async function run() {
       }
     }
 
+    // **Everything from here to `mp_warmup_end` is the escape hatch**
+    // (`--force-start`, PRD-03 T5): four RCON commands that start a match
+    // nobody is rostered on. A puppet run takes none of them, and no green run
+    // depends on them.
+    //
     // **The bots arrive after the match goes live, not before it** — and that
     // order is the whole reason this box records a demo at all (PRD-02 T21a).
     //
@@ -1167,6 +1288,13 @@ async function run() {
       // MatchZy's file and no other flow has one — so there is nothing to do here
       // at all, which is the shape a client should have.
       if (FLOW !== 'matchzy') continue
+      // **And a `matchzy` match of puppets has nothing to do here either**
+      // (PRD-03 T5). Simulation mode clears the base configs' bots, spawns one
+      // of its own per roster entry, readies each of them and ends the warmup
+      // from `CheckLiveRequired` — through the front door, every step. All
+      // four commands below are the escape hatch, and it is taken only when a
+      // run asked for it by name.
+      if (!FORCE_START) continue
       if (BOTS > 0 && !emptied) {
         emptied = true
         say('emptying the server before the start, so `live.cfg` cannot take GOTV with it')
@@ -1182,8 +1310,9 @@ async function run() {
     }
 
     // Live. The bots, then the warmup, one poll apart — MatchZy's order, and
-    // only its. Another flow already had both before it went live.
-    if (FLOW !== 'matchzy') continue
+    // only its. Another flow already had both before it went live, and a
+    // puppet match had them from its own simulation mode.
+    if (FLOW !== 'matchzy' || !FORCE_START) continue
     if (BOTS > 0 && !filled) {
       filled = true
       say(`filling the server with ${BOTS} bots`)
@@ -1354,6 +1483,21 @@ function write(result) {
     endedReason: result.match.endedReason ?? null,
     /** True when the run had to end it rather than MatchZy finishing the series. */
     forcedEnd: result.forced === true,
+    /**
+     * **Puppets, as the request asked and the resource answered** (PRD-03 T4,
+     * T5): how many were rostered, the engine clock they played at, and
+     * whether the orchestrator marked the match simulated — the field every
+     * fact of this match also carries, so a consumer can never mistake it for
+     * a real one. `null` when nobody was simulated.
+     */
+    simulation: result.request.simulation
+      ? {
+          puppets:
+            result.request.teams.teamA.players.length + result.request.teams.teamB.players.length,
+          timeScale: result.request.simulation.timeScale ?? 1,
+          simulated: result.match.simulated === true,
+        }
+      : null,
     demoTarget: result.demoTarget,
     /** What `match.ended` said became of the demos (T21). */
     demo: result.match.endedReason ? (demoOutcome(result.envelopes) ?? null) : null,

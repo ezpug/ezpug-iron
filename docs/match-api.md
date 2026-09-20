@@ -89,7 +89,20 @@ server is counting down rather than starting at once; `going_live` still follows
 the knife round where there is one. A client draws these and does not recompute them —
 whether a team has passed is a judgement the match plugin makes from its own rules, and a
 client that reimplemented it is what made the 2026-09-18 stall invisible to every test we
-had. `knife_start` and `knife_end` bracket a knifed map; `knife_end.winner` is who picks
+had.
+
+**Each of those facts is said once.** A player who is already ready says nothing more
+until they unready, a team already through the gate says nothing more until one of its
+players does, and an `all_ready` repeating counts already said is not repeated — the
+counts as they move are `player_ready`'s, which carries the whole tally on every single
+one. An unready puts its own team and the room back in play, and going live spends the
+gate, so a map that runs a ready phase of its own starts from nothing. (The server side of
+this is arithmetic a match plugin does not do for itself: MatchZy-Enhanced re-checks the
+gate after every ready and re-announces every team still through it, from one player ready
+upwards — 44 `team_ready` for two teams in the recorded puppet pug, which is why a
+`team_ready` only travels when its count matches the roster the request named.)
+
+`knife_start` and `knife_end` bracket a knifed map; `knife_end.winner` is who picks
 the side, `null` when the server could not attribute it, and the pick itself arrives as
 `side_swap` when they swap and as nothing at all when they stay.
 

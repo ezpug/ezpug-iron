@@ -1,17 +1,17 @@
 {
   "source": "recorded",
   "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
-  "note": "A puppet readying up through MatchZy’s own ready system (PRD-03 T5) — tk’s, of the ten, because the SteamID the request named is what the team comes from, never the free team name beside it.",
+  "note": "The puppet whose bot the reconcile pass remapped, readying the first time.",
   "payload": {
     "player": {
-      "steamid": "76561198279375306",
-      "name": "tk",
+      "steamid": "76561198279375312",
+      "name": "puppet-7",
       "team": "team1"
     },
     "team": "EZPug A",
-    "ready_count_team1": 2,
-    "ready_count_team2": 0,
-    "total_ready": 2,
+    "ready_count_team1": 4,
+    "ready_count_team2": 1,
+    "total_ready": 5,
     "expected_total": 10,
     "matchid": 1083740696,
     "event": "player_ready"
@@ -26,14 +26,14 @@
           "serverId": "devbox-1"
         },
         "player": {
-          "steamId64": "76561198279375306",
-          "name": "tk",
+          "steamId64": "76561198279375312",
+          "name": "puppet-7",
           "team": "team_a"
         },
         "tally": {
           "ready": {
-            "teamA": 2,
-            "teamB": 0
+            "teamA": 4,
+            "teamB": 1
           },
           "expected": 10
         }

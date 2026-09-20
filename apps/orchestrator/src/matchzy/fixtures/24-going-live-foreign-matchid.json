@@ -4,7 +4,8 @@
   "note": "A MatchZy still talking about an earlier match on the same server.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "map_number": 0,

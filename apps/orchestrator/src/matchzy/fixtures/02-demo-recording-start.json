@@ -3,7 +3,7 @@
   "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
   "note": "New in the fork. The core plugin owns the demo (decision 10) and says demo_available when the file is there; MatchZy starting its recorder is not a fact of ours.",
   "payload": {
-    "filename": "2026-09-19_20-42-48_1830351630_de_dust2_EZPug_A_vs_EZPug_B.dem",
+    "filename": "2026-09-20_04-24-58_776902524_de_dust2_EZPug_A_vs_EZPug_B.dem",
     "map_number": 0,
     "matchid": 1083740696,
     "event": "demo_recording_start"

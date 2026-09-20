@@ -4,7 +4,8 @@
   "note": "A db_type that is not sqlite means the multi-server database came on, which T2’s off-list forbids. Still not a fact — the log is where an operator meets it.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "server_health",

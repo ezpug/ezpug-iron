@@ -4,7 +4,8 @@
   "note": "The fork announcing which remote log it will POST to. The token rides in a header, never here.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "server_configured",

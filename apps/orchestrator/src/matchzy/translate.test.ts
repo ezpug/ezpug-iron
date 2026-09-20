@@ -54,17 +54,24 @@ export function readFixtures(): Fixture[] {
     }))
 }
 
+/** A puppet's SteamID64 by its last three digits: they only differ there. */
+function puppet(tail: string): string {
+  return `76561198279375${tail}`
+}
+
 const context: MatchZyContext = {
   matchId: FIXTURE_MATCH_ID,
   source: { provider: 'nodes', serverId: 'devbox-1' },
   serial: matchzySerial(FIXTURE_MATCH_ID),
   // The map the recorded match was played on (T13).
   maps: [{ map: 'de_dust2', sides: 'ct' }],
-  // The recorded run's team names, with one rostered SteamID a side so a
-  // ready event resolves through the roster rather than through those names.
+  // The recorded run's team names and its ten puppets — tk and maex among
+  // them, one a side — so a ready event resolves through the roster rather
+  // than through those names, and a `team_ready` has a number to be held
+  // against (`scripts/iron-match.mjs`, PRD-03 T5).
   teams: {
-    teamA: { name: 'EZPug A', players: ['76561198279375306'] },
-    teamB: { name: 'EZPug B', players: ['76561198279375307'] },
+    teamA: { name: 'EZPug A', players: ['306', '308', '310', '312', '314'].map(puppet) },
+    teamB: { name: 'EZPug B', players: ['307', '309', '311', '313', '315'].map(puppet) },
   },
 }
 
@@ -81,7 +88,13 @@ describe('the fixtures, in order', () => {
     let state: MatchZyState = initialMatchZyState()
     for (const fixture of fixtures) {
       const result = translateMatchZyEvent(fixture.payload, context, fixture.state ?? state)
-      state = result.state
+      // **A fixture that declares its own state does not leak into the
+      // story.** It is a case of its own — that is what declaring one means —
+      // and the recorded run either side of it is one match in order. The
+      // generator carries state by exactly this rule; when the two disagreed,
+      // the recorded ready gate's own memory was wiped by the upstream
+      // fixtures sitting between its files (PRD-03 T5).
+      if (fixture.state === undefined) state = result.state
       if (fixture.expect.dropped !== undefined) {
         expect(result.dropped, fixture.name).toBe(fixture.expect.dropped)
         expect(result.events, fixture.name).toEqual([])
@@ -193,6 +206,7 @@ describe('the rules', () => {
     const seventh = translateMatchZyEvent(roundEnd(4, 3, 99), context, {
       scores: { 1: { team1: 3, team2: 3 } },
       starts: {},
+      ready: {},
     })
     expect(seventh.events[0]).toMatchObject({
       type: 'round_end',
@@ -343,6 +357,127 @@ describe('MatchZy-Enhanced, event by event', () => {
     })
     // A total below this team's own count cannot mean a negative other team.
     expect(teamReady('team1', 5, 3)).toMatchObject({ tally: { ready: { teamA: 5, teamB: 0 } } })
+  })
+
+  it('says a team is through the gate once, and again after an unready', () => {
+    // MatchZy-Enhanced re-checks the gate after every single ready and POSTs a
+    // team_ready for each team still through it, twice over from two call
+    // sites and with a fresh total every time: the first pug of ten puppets
+    // sent 42 of them and two all_players_ready, for two teams that passed
+    // the gate once each (PRD-03 T5, measured on the dev node). A durable log
+    // holds facts; the counts as they move are player_ready's.
+    const teamReady = (count: number, total: number) => ({
+      event: 'team_ready',
+      matchid: context.serial,
+      team: 'team1',
+      ready_count: count,
+      total_ready: total,
+      expected_total: 10,
+    })
+    const everybody = {
+      event: 'all_players_ready',
+      matchid: context.serial,
+      ready_count_team1: 5,
+      ready_count_team2: 5,
+      total_ready: 10,
+      countdown_started: true,
+    }
+    let state = initialMatchZyState()
+    const said = translateMatchZyEvent(teamReady(5, 7), context, state)
+    state = said.state
+    expect(said.events[0]).toMatchObject({ type: 'team_ready', team: 'team_a' })
+    const again = translateMatchZyEvent(teamReady(5, 7), context, state)
+    state = again.state
+    expect(again.events).toEqual([])
+    expect(again.dropped).toMatch(/already through the gate/)
+    // The other team readying up moves the total and changes nothing about
+    // this team: it is through, and it was through before.
+    const moved = translateMatchZyEvent(teamReady(5, 9), context, state)
+    state = moved.state
+    expect(moved.events).toEqual([])
+
+    const all = translateMatchZyEvent(everybody, context, state)
+    state = all.state
+    expect(all.events[0]).toMatchObject({ type: 'all_ready', countdown: true })
+    const allAgain = translateMatchZyEvent(everybody, context, state)
+    state = allAgain.state
+    expect(allAgain.events).toEqual([])
+    expect(allAgain.dropped).toMatch(/already ready/)
+
+    // An unready takes its own team back out of the gate — tk is rostered on
+    // team A — and the room with it. Coming back through is news, and a lobby
+    // has to see it.
+    const unready = translateMatchZyEvent(
+      {
+        event: 'player_unready',
+        matchid: context.serial,
+        player: { steamid: '76561198279375306', name: 'tk', team: 'EZPug A' },
+        team: 'EZPug A',
+        ready_count_team1: 4,
+        ready_count_team2: 5,
+        total_ready: 9,
+        expected_total: 10,
+      },
+      context,
+      state,
+    )
+    expect(unready.events[0]).toMatchObject({ type: 'player_unready' })
+    state = unready.state
+    expect(translateMatchZyEvent(teamReady(5, 7), context, state).events).toHaveLength(1)
+    expect(translateMatchZyEvent(everybody, context, state).events).toHaveLength(1)
+  })
+
+  it('says where one player stands once — the reconcile pass readies a slot twice', () => {
+    // The second puppet pug sent eleven player_ready for ten puppets: the
+    // fork's reconcile pass re-readied puppet-9 after its bot was remapped,
+    // with the tally unmoved (PRD-03 T5, measured on the dev node).
+    const ready = (event: 'player_ready' | 'player_unready', total: number) => ({
+      event,
+      matchid: context.serial,
+      player: { steamid: '76561198279375306', name: 'tk', team: 'EZPug A' },
+      team: 'EZPug A',
+      ready_count_team1: total > 5 ? 5 : total,
+      ready_count_team2: total > 5 ? total - 5 : 0,
+      total_ready: total,
+      expected_total: 10,
+    })
+    let state = initialMatchZyState()
+    const first = translateMatchZyEvent(ready('player_ready', 1), context, state)
+    state = first.state
+    expect(first.events[0]).toMatchObject({ type: 'player_ready' })
+    const again = translateMatchZyEvent(ready('player_ready', 7), context, state)
+    state = again.state
+    expect(again.events).toEqual([])
+    expect(again.dropped).toMatch(/already ready/)
+    // Taking it back is a fact, and so is readying up after that.
+    const back = translateMatchZyEvent(ready('player_unready', 6), context, state)
+    state = back.state
+    expect(back.events[0]).toMatchObject({ type: 'player_unready' })
+    expect(translateMatchZyEvent(ready('player_unready', 6), context, state).dropped).toMatch(
+      /already unready/,
+    )
+    expect(translateMatchZyEvent(ready('player_ready', 7), context, state).events).toHaveLength(1)
+  })
+
+  it('spends the gate when the map goes live, so a second map readies up again', () => {
+    const ready = {
+      event: 'player_ready',
+      matchid: context.serial,
+      player: { steamid: '76561198279375306', name: 'tk', team: 'EZPug A' },
+      team: 'EZPug A',
+      ready_count_team1: 1,
+      ready_count_team2: 0,
+      total_ready: 1,
+      expected_total: 2,
+    }
+    let state = translateMatchZyEvent(ready, context, initialMatchZyState()).state
+    expect(translateMatchZyEvent(ready, context, state).events).toEqual([])
+    state = translateMatchZyEvent(
+      { event: 'going_live', matchid: context.serial, map_number: 0 },
+      context,
+      state,
+    ).state
+    expect(translateMatchZyEvent(ready, context, state).events).toHaveLength(1)
   })
 
   it('drops the go-live round restarts but not a round the backup moved back to', () => {

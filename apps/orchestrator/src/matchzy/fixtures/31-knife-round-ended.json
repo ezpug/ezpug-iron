@@ -4,7 +4,8 @@
   "note": "The winner picks the side. The pick itself arrives as the core plugin’s side_swap when they swap, and as nothing at all when they stay.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "knife_round_ended",

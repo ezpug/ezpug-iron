@@ -4,7 +4,8 @@
   "note": "BuildPlayerInfo falls back to the engine’s SteamID, which is \"0\" for a bot outside simulation mode. A ready with no SteamID64 cannot be attributed and is dropped rather than guessed at.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "player_ready",

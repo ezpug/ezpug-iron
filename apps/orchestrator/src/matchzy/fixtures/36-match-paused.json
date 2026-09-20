@@ -4,7 +4,8 @@
   "note": "New in the fork and dropped: MatchZyFlow polls the gamerules and emits match_paused itself, knowing the kind and who asked. Decision 19 — neither double-speaks.",
   "state": {
     "scores": {},
-    "starts": {}
+    "starts": {},
+    "ready": {}
   },
   "payload": {
     "event": "match_paused",
