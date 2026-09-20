@@ -111,12 +111,12 @@
               "en": "Retakes"
             },
             "description": {
-              "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, die Teams stellt das Plugin zusammen. Waffen verteilt der Allocator, den Spielablauf erzählt das SDK aus den Ereignissen der Engine. Ereignisse ohne Demo.",
-              "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, teams put together by the plugin. The allocator hands out the guns and the SDK tells the match flow from the engine's own events. Events, no demo."
+              "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, eine Gruppe statt zweier Teams — die Seiten verteilt das Plugin jede Runde neu. Waffen verteilt der Allocator, den Spielablauf erzählt das SDK aus den Ereignissen der Engine. Ereignisse ohne Demo.",
+              "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, one group rather than two teams — the plugin splits the sides afresh every round. The allocator hands out the guns and the SDK tells the match flow from the engine's own events. Events, no demo."
             },
             "slots": {
-              "teamSize": 5,
-              "teams": 2,
+              "teamSize": 10,
+              "teams": 1,
               "openJoin": true
             },
             "formats": [
@@ -128,7 +128,7 @@
             },
             "records": "events",
             "ranked": false,
-            "version": "0.3.0",
+            "version": "0.4.0",
             "maps": {
               "catalog": [
                 "de_ancient",
@@ -161,7 +161,7 @@
               "widget": false,
               "backups": false,
               "scoreboardRating": true,
-              "simulation": false
+              "simulation": true
             },
             "commands": [],
             "sdkVersion": "0.1.0"

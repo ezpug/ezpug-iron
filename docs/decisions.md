@@ -88,8 +88,8 @@ it here.
     platform's reference data names only the queue's default gamemode (`pug`).
 15. **Three tiers, each proved by a real mode this round.** *Config only* — `flying-scoutsman`
     (stock CS2 mode by cfg on the normal maps, no plugin at all). *Community plugin* —
-    `retakes` (B3none/cs2-retakes under the SDK: its own flow, its own map pool, events
-    without a demo). *Custom SDK mode* — `powerup-dm` (an original deathmatch where a phone
+    `retakes` (B3none/cs2-retakes under the SDK: its own flow, its own map pool, one group
+    of ten rather than two teams since decision 27, events without a demo). *Custom SDK mode* — `powerup-dm` (an original deathmatch where a phone
     button grants one power-up per life), exercising player-scoped commands, per-player
     state and a widget end to end. `pug` (5v5, MatchZy-driven) is the default and the
     queue's only mode.
@@ -274,7 +274,7 @@ it here.
     then is that roster entry on the wire — SteamID64, name, team, announced, kickable,
     tappable. A plain bot is never rostered and never announced, and the two are never
     converted into each other. The capability is therefore any flow's to claim
-    (`powerup-dm` and `flying-scoutsman` do; `retakes` waits for T10). With it, `ServerSlot`
+    (all four bundled modes do, `retakes` since decision 27). With it, `ServerSlot`
     gained `unrostered`: `team_a`/`team_b` are the roster's word, a body the request never
     named is `unrostered` on a side and `spec` on none. Not chosen: keeping the guess by side
     (it put a stranger on a team's sheet, and in a one-team mode called everybody `team_a`);
@@ -305,6 +305,28 @@ it here.
     idle clock, a puppet is somebody; and **a one-team mode names no winner**, whoever
     ended it. It is never MatchZy's match to end (a `matchzy` manifest with a `length` does
     not parse), and `ttlMinutes` stays the backstop it always was, no longer the design.
+
+27. **`retakes` is one team of ten, and every bundled mode seats puppets.** (PRD-03 T10,
+    owner decision 2026-09-19.) The manifest said `teams: 2, teamSize: 5`, which was a
+    guess copied from `pug` and wrong about the mode: cs2-retakes builds an attacking and
+    a defending side out of one pool every round by its own ratio, so no EZPug team
+    survives a round, and the win panel's leading *side* was being reported as the winner
+    of the map — `open-join`'s recorded golden named `team_a` the winner of a retake for
+    as long as it existed. `slots.teams: 1, teamSize: 10` says what the mode is, keeps
+    `openJoin`, and costs the plugin's own head count nothing (`MaxPlayers` is
+    `teamSize × teams`, ten either way, `match-config/retakes.ts`). `GenericFlow.Winner`
+    already named nobody for one team (decision 26), so the manifest was the whole change
+    — a one-team mode is **not** a synonym for a free-for-all, it is "EZPug has one group
+    here and the sides are somebody else's to arrange". With it the mode claims
+    `capabilities.simulation`, the last of the four to do so: the doubt was cs2-retakes
+    keeping bots out of its *queue* (`QueueManager.AddConnectingPlayer` returns at
+    `IsBot`), and the answer is that nothing seats a puppet through that door — the SDK's
+    puppeteer asks the engine, and the plugin's team hook, which has no bot filter, takes
+    the body into its active players like anybody else. Measured, not reasoned: the CS2
+    matrix's `retakes` row is three puppets playing a match out and ending it on
+    `mp_maxrounds`. Not chosen: leaving the shape and special-casing the winner in the
+    flow (two opinions about one mode); `teams: 1, teamSize: 5` (it would have halved the
+    server's head count through `MaxPlayers`).
 
 ## How the rounds run
 

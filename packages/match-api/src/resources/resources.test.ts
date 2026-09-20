@@ -200,7 +200,9 @@ describe('MatchRequest', () => {
 
   it('judges whether a mode can seat puppets once, for the orchestrator and the fake alike', () => {
     const capable = { id: 'pug', capabilities: { simulation: true } }
-    const incapable = { id: 'flying-scoutsman', capabilities: { simulation: false } }
+    // Not a mode this package ships: since PRD-03 T10 all four claim the
+    // capability, and a synthetic one keeps the rule's own test about the rule.
+    const incapable = { id: 'seats-nobody', capabilities: { simulation: false } }
     const plain = matchRequestSchema.parse(pugRequest())
     const puppets = matchRequestSchema.parse(pugRequest({ simulation: {} }))
     // A real match is nobody's problem, whatever the mode can do.

@@ -204,12 +204,14 @@ Four things a consumer needs to know:
   other is `validation_failed` on `simulation` at the door rather than a server waiting in
   warmup for players who are never coming.
 - **Who seats them** depends on the mode and is nothing a client has to know: under `pug`
-  it is MatchZy's simulation mode, under `powerup-dm` and `flying-scoutsman` the SDK
-  (PRD-03 T7). Either way a puppet is the roster entry on the wire — its SteamID64, its
+  it is MatchZy's simulation mode, under every other mode the SDK (PRD-03 T7, T10). Either
+  way a puppet is the roster entry on the wire — its SteamID64, its
   name, its team — and in an SDK mode it is announced (`player_connected`, `player.joined`
   with `rostered: true`, the `presence` frame), reachable by `kick` and by a player token
   minted for the rostered id, and announced again when its seat is refilled. A plain bot
-  is never announced and is `unrostered`. `retakes` does not claim the capability yet.
+  is never announced and is `unrostered`. **All four bundled modes claim the capability**
+  since T10, `retakes` last: what seats a puppet there is the engine's own `bot_add` and
+  not the community plugin's queue, which keeps bots out of it.
 
 **Wingman seats two a side, and the map is yours to name.** A roster with a third player
 on a side is refused `validation_failed` on `teams.<side>.players`, because the engine's

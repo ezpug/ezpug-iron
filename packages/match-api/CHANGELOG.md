@@ -6,6 +6,36 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.18.3 — 2026-09-20
+
+**`retakes` is one team of ten, and every bundled mode seats puppets** (PRD-03 T10, for
+the platform's PRD-10 T5). Catalog only: no schema, route, event, error code or state
+moved, and a client that never renders a room card sees nothing at all.
+
+- **The shipped `retakes` manifest is `0.4.0`, and `slots` is now
+  `{ teamSize: 10, teams: 1, openJoin: true }`** where it was `5 × 2`. The old numbers
+  were copied from `pug` and were wrong about the mode: cs2-retakes builds an attacking
+  and a defending side out of one pool every round by its own ratio, so a team of yours
+  never survives a round. **What changes for you**: a retakes room is one group of up to
+  ten rather than two fives, and `map_end.winner` / `series_end.winner` are `null` for
+  every retakes match — until now the win panel's leading *side* was reported as the
+  winner of a map nobody had won, which the `open-join` recorded fixture shows going from
+  `"team_a"` to `null`. The match's own shape on the wire is unchanged: a request still
+  carries `teamA` and `teamB`, and an open-join mode still lets anybody in.
+- **`capabilities.simulation` is `true` for `retakes`**, the last of the four to claim it,
+  so `simulation` on a key with the scope now plays on every mode this package ships. The
+  claim waited for a run on real hardware because the doubt was real: cs2-retakes keeps
+  bots out of its *queue* (`QueueManager.AddConnectingPlayer` returns at `IsBot`). Nothing
+  seats a puppet through that door — the SDK's puppeteer asks the engine and the plugin's
+  team hook, which has no bot filter, takes the body into its active players like anybody
+  else. Three puppets played a retakes match out on the dev node and ended it on its
+  rounds. **If your conformance run asserted that some mode refuses puppets, there is no
+  longer one**; the suite's `simulation-switch` flow already treats that as a fact about
+  the catalog rather than a failure.
+- **The `sim` provider fills an empty retakes roster with ten invented players** rather
+  than six: it seats `ceil(teamSize / teams)` a side, capped at five, and the manifest's
+  ten now means the mode's full house. `open-join`'s golden carries the new story.
+
 ## 0.18.2 — 2026-09-20
 
 **A mode that records events announces no demo** (PRD-03 T9c, for the platform's PRD-10 T6

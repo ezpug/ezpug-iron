@@ -1,5 +1,10 @@
 import { createFakeClock, type FakeClock } from '@ezpug/core'
-import { type MatchApiScope, SHIPPED_GAMEMODES, type WebhookEnvelope } from '@ezpug/match-api'
+import {
+  type GamemodeManifest,
+  type MatchApiScope,
+  SHIPPED_GAMEMODES,
+  type WebhookEnvelope,
+} from '@ezpug/match-api'
 import type { SimPlan } from '@ezpug/sim'
 import { createApp } from '../app'
 import { type Budgets, createBudgets } from '../budget/service'
@@ -134,6 +139,15 @@ export interface TestAppOptions {
   gsltSweepIntervalMs?: number
   /** The widget bundles to serve and advertise (T25); none by default. */
   widgets?: WidgetBundles
+  /**
+   * The catalog this world serves, instead of the shipped one. **A test that
+   * needs a mode the shipped catalog no longer holds** builds it here rather
+   * than pretending one of the four is something it is not — since PRD-03 T10
+   * every bundled manifest claims `capabilities.simulation`, so the door's
+   * refusal of a mode that cannot seat puppets has no shipped mode left to
+   * refuse.
+   */
+  gamemodes?: readonly GamemodeManifest[]
 }
 
 /** The key the test world's fake Steam expects — obviously not a real one. */
@@ -210,7 +224,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     store,
     providers,
     links,
-    gamemodes: SHIPPED_GAMEMODES,
+    gamemodes: options.gamemodes ?? SHIPPED_GAMEMODES,
     hub,
     webhooks,
     budget: budgets,
@@ -272,7 +286,8 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const rail = (name: keyof typeof rails) => (): Promise<void> =>
     rails[name] ? Promise.resolve() : Promise.reject(new Error(`${name} is down`))
   const health = createHealth({ clock, database: rail('database'), redis: rail('redis') })
-  const catalog = options.widgets ? options.widgets.decorate(SHIPPED_GAMEMODES) : SHIPPED_GAMEMODES
+  const shipped = options.gamemodes ?? SHIPPED_GAMEMODES
+  const catalog = options.widgets ? options.widgets.decorate(shipped) : shipped
   const app = createApp({
     clock,
     log,

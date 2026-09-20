@@ -508,7 +508,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > goldens a heartbeat that no longer fits. That is the honest shape: the orchestrator's
     > demo window (`machine.ts` `demoPending`) was never armed for such a match either.
 
-- [ ] **T10: retakes is one team** (owner decision, 2026-09-19).
+- [x] **T10: retakes is one team** (owner decision, 2026-09-19).
   - Manifest `slots.teams: 1` with `teamSize: 10`, since `retakes.ts:60` multiplies.
     `openJoin` stays.
   - `GenericFlow.cs:229-251` names no winner for one team, which fixes `powerup-dm` too.
@@ -524,6 +524,22 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     conformance flow `simulation-switch` already copes with a catalog in which every mode
     seats puppets; `machine.test.ts` and `assign.test.ts` name `retakes` as the mode that
     refuses and need another answer.
+
+    > **The queue was the wrong door to worry about.** cs2-retakes does keep bots out of
+    > `AddConnectingPlayer` and out of `SyncActivePlayersFromTeams`, but nothing seats a
+    > puppet through either: the SDK's puppeteer asks the engine (`bot_add`), the engine
+    > puts the body on a side, and `PlayerJoinedTeam` — which has no bot filter — takes it
+    > into `ActivePlayers`. `PlayerEventHandlers.OnPlayerSpawn` even force-adds a spawned
+    > bot that is missing from them. Three puppets played four rounds first time out.
+    >
+    > **The lane's rating path had never run before this row**, because `RATED` in
+    > `iron-match.mjs` is `scoreboardRating && openJoin` and `retakes` is the only mode
+    > that is both. Two things fell out: a harness bug fixed here (the profiles were
+    > addressed to `BotIdentity`'s synthetic ids while the bodies carried the roster's, so
+    > three commands reached nobody), and a finding parked in `OPEN-POINTS.md` §3 — the
+    > three puppets are on the board under the roster's names with the number reading
+    > **zero** on a live server, and which of the two candidate causes it is needs a human
+    > or a human-played retakes match to settle.
 
 - [ ] **T11: the simulator's scenarios, executed by a real server.**
   - For each knob in `packages/sim/src/scenario.ts:88-112`, make it a puppet behaviour

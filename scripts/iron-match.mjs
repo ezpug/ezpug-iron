@@ -1684,15 +1684,33 @@ async function run() {
     if (RATED && !rated && polls++ > 0) {
       rated = true
       ratedAt = polls
-      for (let slot = 0; slot < Math.max(BOTS, 2); slot++) {
-        await api('POST', `/v1/matches/${matchId}/commands`, {
-          correlationId: `${RUN_ID}-profile-${slot}`,
-          type: 'profile',
-          player: {
+      // **Whose scoreboard is being written on** (PRD-03 T10). Without
+      // `--simulate` the bodies are anonymous bots and their ids are
+      // `BotIdentity`'s. With it they are **puppets**, and a puppet carries the
+      // roster's SteamID — so the bot identities are ids nobody on that server
+      // answers for, and three profiles pushed at them were accepted by the
+      // door (a `profile` is not gated on presence: the platform may push one
+      // ahead of the person) and reached nobody. Measured on the first retakes
+      // row: `scoreboard: 1 rated: SourceTV 1000`, three puppets and not a
+      // number among them.
+      const profiles = PUPPETS
+        ? [...PUPPETS.teamA, ...PUPPETS.teamB].map(entry => ({
+            steamId64: entry.steamId64,
+            name: entry.name,
+            locale: entry.locale,
+          }))
+        : Array.from({ length: Math.max(BOTS, 2) }, (_, slot) => ({
             steamId64: String(BOT_STEAM_ID_BASE + BigInt(slot)),
             name: `EZ Bot ${slot}`,
             locale: slot % 2 === 0 ? 'de' : 'en',
-            rating: 1000 + slot * 111,
+          }))
+      for (const [index, who] of profiles.entries()) {
+        await api('POST', `/v1/matches/${matchId}/commands`, {
+          correlationId: `${RUN_ID}-profile-${index}`,
+          type: 'profile',
+          player: {
+            ...who,
+            rating: 1000 + index * 111,
             rankName: 'Iron',
             // The loadout travels with the profile the way it would for a person who
             // joined open (T28); the core says `skins:` for each one it is handed.
@@ -1700,7 +1718,9 @@ async function run() {
           },
         })
       }
-      say(`pushed ${Math.max(BOTS, 2)} bot profiles${SKINNED ? ' with loadouts' : ''}`)
+      say(
+        `pushed ${profiles.length} ${PUPPETS ? 'puppet' : 'bot'} profiles${SKINNED ? ' with loadouts' : ''}`,
+      )
       continue
     }
 

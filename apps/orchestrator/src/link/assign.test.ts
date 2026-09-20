@@ -49,10 +49,23 @@ describe('the assignment of a match of puppets', () => {
     expect('simulation' in compose('powerup-dm')).toBe(false)
   })
 
-  it('is claimed by every mode the SDK seats puppets for', () => {
-    for (const id of ['pug', 'powerup-dm', 'flying-scoutsman'] as const)
+  it('is claimed by every mode this repo ships', () => {
+    // **`retakes` was the last holdout and PRD-03 T10 closed it.** cs2-retakes
+    // keeps bots out of its *queue* (`QueueManager.AddConnectingPlayer`), which
+    // is why the claim waited for a lane run rather than being reasoned: what
+    // seats a puppet there is the engine's own `bot_add`, and the plugin's
+    // team hook takes the body into its active players like anybody else.
+    for (const id of ['pug', 'powerup-dm', 'flying-scoutsman', 'retakes'] as const)
       expect(shippedGamemode(id).capabilities.simulation, id).toBe(true)
-    // cs2-retakes keeps bots out of its queue; the claim waits for T10's lane case.
-    expect(shippedGamemode('retakes').capabilities.simulation).toBe(false)
+  })
+
+  it('seats the roster on one team for a mode with one team', () => {
+    // `retakes` is `slots.teams: 1` (T10): the request still has a team A and a
+    // team B — that is the wire's shape — and the puppeteer reads the roster
+    // off both, so three puppets are three bodies whichever side the plugin
+    // puts them on.
+    const frame = compose('retakes', { simulation: {} })
+    expect(frame.gamemode.slots).toMatchObject({ teams: 1, teamSize: 10 })
+    expect(frame.simulation).toEqual({})
   })
 })

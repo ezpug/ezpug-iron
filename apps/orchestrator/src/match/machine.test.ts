@@ -4,6 +4,7 @@ import {
   type MatchRequest,
   type MatchRequestInput,
   matchRequestSchema,
+  SHIPPED_GAMEMODES,
   STREAM_CLOSE_CODES,
   type StreamFrame,
   WEBHOOK_MAX_ATTEMPTS,
@@ -319,7 +320,18 @@ describe('the simulation switch', () => {
   })
 
   it('refuses a mode that cannot seat puppets, naming the field', async () => {
-    const app = createTestApp()
+    // **Every mode this repo ships seats puppets since PRD-03 T10**, `retakes`
+    // last of them, so the door's refusal has no shipped manifest left to
+    // refuse and this world serves one that does not claim the capability.
+    // The rule is the manifest's either way — that is the point of reading it
+    // rather than keeping a list of modes here.
+    const app = createTestApp({
+      gamemodes: SHIPPED_GAMEMODES.map(mode =>
+        mode.id === 'retakes'
+          ? { ...mode, capabilities: { ...mode.capabilities, simulation: false } }
+          : mode,
+      ),
+    })
     const key = await puppeteerKey(app)
     const error = await refused(
       app.matches.create(key, request({ gamemode: 'retakes', simulation: {} })),

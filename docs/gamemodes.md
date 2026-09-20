@@ -34,7 +34,7 @@ Three tiers, each proved by one shipped mode (decision 15), plus the queue's mod
 | Tier     | Mode               | What it is |
 | -------- | ------------------ | ---------- |
 | `config` | `flying-scoutsman` | stock CS2 by cfg alone: no plugin anywhere. The match flow is the SDK's generic emitter, read off the engine ("The generic flow" below) |
-| `plugin` | `retakes`          | two vendored community plugins (B3none/cs2-retakes and a weapon allocator, `docs/pins.md`) under the core plugin: its own rounds and spawns, its own map pool, open join, events without a demo. Its settings arrive as a file, not as cvars ("A vendored plugin's own config file" below), and the SDK's generic emitter tells the match flow |
+| `plugin` | `retakes`          | two vendored community plugins (B3none/cs2-retakes and a weapon allocator, `docs/pins.md`) under the core plugin: its own rounds and spawns, its own map pool, open join, **one group of ten rather than two teams** (T10: the plugin rebuilds an attacking and a defending side out of the pool every round, so no EZPug team survives one and nobody wins the map), events without a demo. Its settings arrive as a file, not as cvars ("A vendored plugin's own config file" below), and the SDK's generic emitter tells the match flow |
 | `plugin` | `pug`              | 5v5 on MatchZy: knife, overtime, demo, round backups — the queue's default and its only mode |
 | `sdk`    | `powerup-dm`       | an original mode on `EZPug.Sdk`: player commands, per-player state and a phone widget |
 
@@ -71,7 +71,7 @@ same data.
 | Field | Meaning |
 | ----- | ------- |
 | `teamSize` | the most one team holds. The platform's room refuses an eleventh player for a `5` |
-| `teams` | `2` for a sided mode, `1` for a free-for-all. A free-for-all request still sends `teamA` and `teamB`, with `teamB.players` empty |
+| `teams` | `2` for a sided mode, `1` for everything else. A one-team request still sends `teamA` and `teamB`, with `teamB.players` empty. **`1` is not only a free-for-all**: `retakes` (T10) is one group of ten that the community plugin splits into an attacking and a defending side afresh every round, so a team of EZPug's never survives a round and no terminal fact names a winner — the same answer `powerup-dm` gets for a different reason |
 | `openJoin` | `true` means people may connect without being rostered: the server lets them in, the orchestrator relays `player.joined` with `rostered: false`, and the platform answers with a `profile` command so the server learns their name, locale, rating and loadout. `false` means the roster is the guest list and nobody else gets past the SteamID check |
 
 ### Length
@@ -97,7 +97,9 @@ score in a free-for-all too, and the side that happened to lead did not win a de
 What ships: `powerup-dm` is ten minutes, or five with nobody there. `retakes` and
 `flying-scoutsman` end on the rounds the request's rules set — cs2-retakes plays
 `mp_maxrounds` like any round-based game, which is the one end its plugin can honestly
-reach — and on five idle minutes. A mode that declares a duration sets the engine's own
+reach — and on five idle minutes. Measured on the dev node for `retakes` in T10: the
+win panel arrives on the request's own `mp_maxrounds`, so `map_end` and `series_end`
+carry no `reason` and (`slots.teams: 1`) no winner. A mode that declares a duration sets the engine's own
 clocks out of its way (`mp_timelimit 0` in `powerup-dm.cfg`, and the comment there says why
 two equal clocks were wrong).
 
@@ -123,7 +125,7 @@ a timeout and nothing at all where it does not.
 | `widget` | a phone widget exists. True exactly when the `widget` block does; implies `playerCommands` |
 | `backups` | round backups cross the link as they are written (`backup_written`), so a crashed server can be recovered mid-match (PRD-02 T14). Needs a flow owner (`flow` is not `none`); the core plugin honours it for `matchzy` |
 | `scoreboardRating` | EZ Rating shows on the scoreboard Premier-style from the roster's `rating`, and an arriving player gets one bilingual connect line naming it (decision 21, `docs/sdk.md`). A player with no profile is left alone; nothing else in-game says a rating |
-| `simulation` | the mode's match software can seat a **puppet** in every roster entry's place (PRD-03 T4, decision 25): a request carrying `simulation` — on a key with the `simulation` scope — is played by simulated players that connect, ready up and play through the doors a human takes, and every fact of it says `source.simulated`. `false` (the default, and what every manifest written before the field said) refuses such a request `validation_failed` at the door rather than waiting in warmup for players who are never coming. `pug` claims it: MatchZy-Enhanced's simulation mode reads the switch from the match file. `powerup-dm` and `flying-scoutsman` claim it since PRD-03 T7: outside a `matchzy` flow the SDK's puppeteer seats the roster, and because the core plugin is on every server a config-only mode may claim it too. `retakes` does not yet — cs2-retakes keeps bots out of its queue, and the claim waits for a lane run that proves what a puppet does there (T10) |
+| `simulation` | the mode's match software can seat a **puppet** in every roster entry's place (PRD-03 T4, decision 25): a request carrying `simulation` — on a key with the `simulation` scope — is played by simulated players that connect, ready up and play through the doors a human takes, and every fact of it says `source.simulated`. `false` (the default, and what every manifest written before the field said) refuses such a request `validation_failed` at the door rather than waiting in warmup for players who are never coming. `pug` claims it: MatchZy-Enhanced's simulation mode reads the switch from the match file. `powerup-dm` and `flying-scoutsman` claim it since PRD-03 T7: outside a `matchzy` flow the SDK's puppeteer seats the roster, and because the core plugin is on every server a config-only mode may claim it too. `retakes` claims it since T10, and it was the one claim that had to be measured rather than reasoned: cs2-retakes keeps bots out of its *queue*, but nothing seats a puppet through that door — the puppeteer asks the engine, and the plugin's team hook takes the body into its active players like anybody else |
 
 ### Player commands
 

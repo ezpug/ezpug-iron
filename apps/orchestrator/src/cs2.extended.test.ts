@@ -41,7 +41,13 @@ import { loadRootEnv } from './env'
  *  - **a puppet leaving and coming back**, the one thing that holds a loaded
  *    match at the gate.
  *
- * **And one row that is not a `matchzy` match at all** (T8): `powerup-dm`,
+ * **And two rows that are not `matchzy` matches at all.** `retakes` (T10) is
+ * three puppets in a mode a *community* plugin runs and the SDK's generic
+ * emitter narrates — the run that decided whether cs2-retakes, which keeps
+ * bots out of its queue, lets a puppet play at all — and the mode whose
+ * manifest T10 turned into one group of ten, so nobody wins it.
+ *
+ * And (T8) `powerup-dm`,
  * whose flow and whose puppets are both the SDK's, played so that a puppet can
  * **tap the phone** — a player token, the widget socket, the mode's verb, the
  * `plugin_event` it leaves behind and the push that comes back. That is the
@@ -407,8 +413,61 @@ const CASES: LaneCase[] = [
     },
   },
   {
-    // **A puppet taps the phone** (PRD-03 T8), and it is the only row that is
-    // not a `matchzy` match: `powerup-dm` is the mode with a widget, its flow
+    // **Three puppets in a retakes match** (PRD-03 T10), and the mode whose
+    // puppet claim this task decided. The doubt was real and it was about the
+    // *queue*: cs2-retakes never auto-joins a bot
+    // (`QueueManager.AddConnectingPlayer` returns at `player.IsBot`) and never
+    // syncs one into its active players, so the reasonable guess was that a
+    // puppet would stand in spectator for the whole match. It does not,
+    // because nothing seats a puppet through that door: the SDK's puppeteer
+    // asks the engine (`bot_add`), the engine puts the body on a side, and the
+    // plugin's *team* hook — which has no bot filter — takes it into
+    // `ActivePlayers` like anybody else.
+    //
+    // **And it is the mode's `slots.teams: 1` on hardware.** A retake has an
+    // attacking and a defending side and the plugin rebuilds both every round
+    // out of one pool, so no EZPug team survives a round; the manifest says
+    // one group of ten now, and the terminal facts below name nobody.
+    //
+    // It ends **on its rounds** — the one end cs2-retakes can honestly reach
+    // (T9) — so its terminal facts carry no reason: the win panel, not a
+    // length.
+    id: 'retakes',
+    what: 'plays a retakes of three puppets and ends it on its rounds, with nobody the winner',
+    puppets: 3,
+    args: ['--gamemode', 'retakes', '--no-demo', '--max-live-minutes', '12'],
+    facts: summary => {
+      // **Nobody readies up here**: a `plugin` flow with an open join has no
+      // ready system at all, and the SDK's generic emitter ends the warmup on
+      // a timer. So the facts T5 asserts for every MatchZy row must be absent,
+      // which is also how a row that quietly became a MatchZy match is caught.
+      expect(summary.payloads?.player_ready ?? 0, 'a plugin flow ran a ready system').toBe(0)
+      // **The puppets are announced like people** (T7): three roster entries,
+      // three bodies, each `player_connected` under its rostered SteamID.
+      expect(
+        summary.payloads?.player_connected ?? 0,
+        'the three puppets were not announced',
+      ).toBeGreaterThanOrEqual(3)
+      // **No winner for one team** (T10, and `GenericFlow.Winner` since T9):
+      // the engine keeps a CT and a T score in a retake too, and the side that
+      // happened to lead did not win anything a client should record.
+      expect(summary.length?.winner, 'a one-team mode named a winning team').toBeNull()
+      // **The game's own end, which is what "ends on its rounds" means**:
+      // `mp_maxrounds` from the request's rules, the win panel, and a terminal
+      // fact with no `reason` — the mode's `length` is an idle timeout only,
+      // and nobody was idle.
+      if (!summary.forcedEnd) {
+        expect(
+          summary.length?.mapEnd,
+          'the map was ended by a length, not by its rounds',
+        ).toBeNull()
+        expect(summary.length?.seriesEnd).toBeNull()
+      }
+    },
+  },
+  {
+    // **A puppet taps the phone** (PRD-03 T8), on the second of the two rows
+    // that are not `matchzy` matches: `powerup-dm` is the mode with a widget, its flow
     // is the SDK's own (`GenericFlow` reads the story off the engine), and its
     // puppets are the SDK's too (T7's `Puppeteer`, not MatchZy-Enhanced's
     // simulation mode). Everything below rides the path **only the owner's
@@ -710,7 +769,7 @@ describe('the iron-match script', () => {
    * be a lane case nobody missed.** Cheap, and it runs in `pnpm verify` where
    * the lane itself never does.
    */
-  it("covers every shape PRD-03 T6 names, and T8's phone", () => {
+  it("covers every shape PRD-03 T6 names, T10's retakes and T8's phone", () => {
     const ids = CASES.map(lane => lane.id)
     expect(ids).toEqual([
       'pug-1v1',
@@ -723,9 +782,12 @@ describe('the iron-match script', () => {
       'knife',
       'pause',
       'drop',
-      // T6's matrix is the ten above. `widget` is **T8**'s, and the only row
-      // that is not a `matchzy` match at all: `powerup-dm`, the SDK's own
-      // flow and the SDK's own puppets, tapped from a phone.
+      // T10's: three puppets in `retakes`, the mode whose one-team shape and
+      // whose puppet claim that task decided.
+      'retakes',
+      // T6's matrix is the ten above `retakes`. `widget` is **T8**'s:
+      // `powerup-dm`, the SDK's own flow and the SDK's own puppets, tapped
+      // from a phone.
       'widget',
     ])
     // **No row of the matrix types at the match.** Every one goes live because
