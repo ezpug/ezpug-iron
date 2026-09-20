@@ -1157,6 +1157,7 @@ describe('the fleet', () => {
     const catalog = await client.sim.scenarios()
     expect(catalog.scenarios.map(s => s.name)).toContain('happy-path')
     expect(catalog.scenarios.map(s => s.name)).toContain('server-crash')
+    expect(catalog.scenarios.map(s => s.name)).toContain('idle')
     expect(catalog.default).toBe('happy-path')
     // Every knob spelled out, so a console renders facts and not a guess.
     expect(catalog.scenarios.find(s => s.name === 'server-crash')).toEqual({
@@ -1165,6 +1166,7 @@ describe('the fleet', () => {
       absentPlayers: 0,
       crashAfterRound: 9,
       pauses: 0,
+      idle: false,
       overtimes: 0,
       comeback: false,
     })

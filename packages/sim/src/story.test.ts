@@ -26,6 +26,7 @@ function storyFor(
   overrides: Partial<MatchAssignment> = {},
   positionTickIntervalMs: number | null = 5_000,
   radars: readonly (MapRadar | null)[] = [],
+  timeScale = 1,
 ): MatchStory {
   return buildMatchStory({
     prng: createPrng(seed),
@@ -35,7 +36,14 @@ function storyFor(
     bootDelayMs: 4_000,
     positionTickIntervalMs,
     radars,
+    timeScale,
   })
+}
+
+/** `powerup-dm`'s own numbers: ten minutes, or five with nobody on the server. */
+const DEATHMATCH: Partial<MatchAssignment> = {
+  teamCount: 1,
+  length: { durationSeconds: 600, idleTimeoutSeconds: 300 },
 }
 
 /** Mirage's own overview numbers — the fixture assignment plays it. */
@@ -513,5 +521,156 @@ describe('resumeStory', () => {
         bootDelayMs: 1_000,
       }),
     ).toThrow(SimulatorRestoreError)
+  })
+})
+
+describe('a mode with a length (PRD-03 T9a)', () => {
+  it('plays one round nobody wins, for as long as the manifest says', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-a', DEATHMATCH)
+    expect(story.outcome).toBe('completed')
+
+    const [live] = ofType(story, 'going_live')
+    // What a client counts down, and at time scale 1 it is the manifest's own.
+    expect(live?.length).toEqual({ durationSeconds: 600 })
+
+    // A round starts and never ends: on hardware the SDK owns the clock
+    // (`mp_timelimit 0`), so the engine counts to nothing.
+    expect(ofType(story, 'round_start')).toHaveLength(1)
+    expect(ofType(story, 'round_end')).toHaveLength(0)
+    expect(ofType(story, 'side_swap')).toHaveLength(0)
+    expect(ofType(story, 'backup_written')).toHaveLength(0)
+
+    const liveAtMs = story.beats.find(beat => beat.event.type === 'going_live')?.atMs as number
+    const deaths = story.beats.filter(beat => beat.event.type === 'player_death')
+    expect(deaths.length).toBeGreaterThan(50)
+    const last = deaths[deaths.length - 1]?.atMs as number
+    expect(last - liveAtMs).toBeLessThanOrEqual(600_000)
+    expect(last - liveAtMs).toBeGreaterThan(550_000)
+
+    const [mapEnd] = ofType(story, 'map_end')
+    expect(mapEnd?.reason).toBe('time_limit')
+    expect(mapEnd?.score).toEqual({ teamA: 0, teamB: 0 })
+    const [seriesEnd] = ofType(story, 'series_end')
+    expect(seriesEnd?.reason).toBe('time_limit')
+    expect(story.beats[story.beats.length - 1]?.event.type).toBe('series_end')
+  })
+
+  it('names no winner for a one-team mode, in the map and in the series', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-b', DEATHMATCH)
+    expect(ofType(story, 'map_end')[0]?.winner).toBeNull()
+    expect(ofType(story, 'series_end')[0]?.winner).toBeNull()
+  })
+
+  it('names no winner for a one-team mode that plays rounds either', () => {
+    const rounds = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-c', { teamCount: 1 })
+    expect(ofType(rounds, 'round_end').length).toBeGreaterThan(0)
+    expect(ofType(rounds, 'map_end')[0]?.winner).toBeNull()
+    expect(ofType(rounds, 'series_end')[0]?.winner).toBeNull()
+    // Two teams still have one, off the same rule.
+    const two = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-c')
+    expect(ofType(two, 'map_end')[0]?.winner).not.toBeNull()
+  })
+
+  it('states the duration in the client’s seconds, the time scale already divided out', () => {
+    const slow = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-d', DEATHMATCH)
+    const fast = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-d', DEATHMATCH, 5_000, [], 20)
+    expect(ofType(fast, 'going_live')[0]?.length).toEqual({ durationSeconds: 30 })
+    // The story itself is match time and does not move: only the number a
+    // client counts down does, exactly as `MatchLength.InForce` computes it.
+    const span = (story: MatchStory) =>
+      (story.beats[story.beats.length - 1]?.atMs ?? 0) -
+      (story.beats.find(beat => beat.event.type === 'going_live')?.atMs ?? 0)
+    expect(span(fast)).toBe(span(slow))
+  })
+
+  it('ends on a frag limit when somebody reaches it first', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-e', {
+      teamCount: 1,
+      length: { durationSeconds: 600, fragLimit: 12 },
+    })
+    const [live] = ofType(story, 'going_live')
+    expect(live?.length).toEqual({ durationSeconds: 600, fragLimit: 12 })
+
+    const kills = new Map<string, number>()
+    for (const death of ofType(story, 'player_death')) {
+      const killer = death.killer?.steamId64
+      if (killer) kills.set(killer, (kills.get(killer) ?? 0) + 1)
+    }
+    expect(Math.max(...kills.values())).toBe(12)
+    expect(ofType(story, 'map_end')[0]?.reason).toBe('frag_limit')
+    expect(ofType(story, 'series_end')[0]?.reason).toBe('frag_limit')
+
+    // A frag limit with nothing else still stops.
+    const bare = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-f', {
+      teamCount: 1,
+      length: { fragLimit: 7 },
+    })
+    expect(ofType(bare, 'going_live')[0]?.length).toEqual({ fragLimit: 7 })
+    expect(ofType(bare, 'series_end')[0]?.reason).toBe('frag_limit')
+  })
+
+  it('nobody kills a teammate where the mode has two teams', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-g', {
+      teamCount: 2,
+      length: { durationSeconds: 120 },
+    })
+    for (const death of ofType(story, 'player_death')) {
+      expect(death.killer?.team).not.toBe(death.victim.team)
+      expect(death.killer?.steamId64).not.toBe(death.victim.steamId64)
+    }
+    // And in a free-for-all somebody eventually kills their own colour.
+    const ffa = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-g', DEATHMATCH)
+    expect(
+      ofType(ffa, 'player_death').some(death => death.killer?.team === death.victim.team),
+    ).toBe(true)
+  })
+
+  it('leaves a mode whose length is only an idle timeout playing rounds', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-h', {
+      length: { idleTimeoutSeconds: 300 },
+    })
+    expect(ofType(story, 'round_end').length).toBeGreaterThan(0)
+    expect(ofType(story, 'going_live')[0]?.length).toBeUndefined()
+    expect(ofType(story, 'map_end')[0]?.reason).toBeUndefined()
+  })
+
+  it('emits only events that parse against the contract, in time order', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-i', DEATHMATCH)
+    let previous = 0
+    for (const beat of story.beats) {
+      gameserverEventSchema.parse(beat.event)
+      expect(beat.atMs).toBeGreaterThanOrEqual(previous)
+      previous = beat.atMs
+    }
+  })
+
+  it('is deterministic under a seed', () => {
+    const one = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-j', DEATHMATCH)
+    const two = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-j', DEATHMATCH)
+    const other = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'length-k', DEATHMATCH)
+    expect(JSON.stringify(one)).toBe(JSON.stringify(two))
+    expect(JSON.stringify(one)).not.toBe(JSON.stringify(other))
+  })
+})
+
+describe('the idle scenario (PRD-03 T9a)', () => {
+  it('ends a mode that names an idle timeout, with no going_live before it', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-a', DEATHMATCH)
+    expect(story.outcome).toBe('completed')
+    expect(story.beats.map(beat => beat.event.type)).toEqual(['server_ready', 'series_end'])
+    const [seriesEnd] = ofType(story, 'series_end')
+    expect(seriesEnd?.reason).toBe('idle')
+    expect(seriesEnd?.winner).toBeNull()
+    expect(seriesEnd?.seriesScore).toEqual({ teamA: 0, teamB: 0 })
+    // Counted in match time from `server_ready`, like every other beat.
+    const [ready, end] = story.beats
+    expect((end?.atMs ?? 0) - (ready?.atMs ?? 0)).toBe(300_000)
+  })
+
+  it('leaves a mode that names none waiting, for the join deadline to decide', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-b')
+    expect(story.outcome).toBe('idle')
+    expect(story.beats.map(beat => beat.event.type)).toEqual(['server_ready'])
+    expect(ofType(story, 'player_connected')).toHaveLength(0)
   })
 })

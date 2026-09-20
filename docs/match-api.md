@@ -437,8 +437,12 @@ Scope `matches`. `Capacity`.
 
 Scope `matches`. `{ scenarios: SimScenario[], default }` — the scripted shapes this build's
 simulator can play, and the one a `sim` block without a `scenario` gets. A `SimScenario` is
-`{ name, neverReady, absentPlayers, crashAfterRound, pauses, overtimes, comeback }`: the
-knobs spelled out, so a console renders facts rather than a hard-coded list. Served whether
+`{ name, neverReady, absentPlayers, crashAfterRound, pauses, idle, overtimes, comeback }`:
+the knobs spelled out, so a console renders facts rather than a hard-coded list. `idle`
+is the story where **nobody ever connects**: a mode whose manifest names a
+`length.idleTimeoutSeconds` ends itself on it — a `series_end` with `reason: "idle"` and
+no `going_live` anywhere before it — and a mode that names none waits for ever, which
+leaves the join deadline the only thing that gives up. Served whether
 or not the `sim` provider is registered — this is what the build knows how to play, and
 `GET /v1/capacity` is what says whether it could. `MatchRequest.sim.scenario` takes a
 `name` from here, and so does `MatchRequest.simulation.scenario` — one scenario language,

@@ -429,6 +429,12 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
       bootDelayMs: current.bootDelayMs,
       positionTickIntervalMs: current.positionTickIntervalMs,
       radars: current.radars,
+      // Read at build time, because `going_live.length` is measured in the
+      // client's seconds rather than the story's (PRD-03 T9a). A `sim.speed`
+      // after the fact moves the beats and not that number — as
+      // `host_timescale` changed under a real server would not move the
+      // countdown its SDK already announced.
+      timeScale,
     })
 
   const requireAssigned = (verb: string): Assigned => {

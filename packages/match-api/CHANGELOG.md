@@ -6,6 +6,34 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.18.0 — 2026-09-20
+
+**The simulator plays a length** (PRD-03 T9a, for the platform's PRD-10 T6). Additive: one
+boolean on a response object you already parse, and one more name in a catalog you already
+read by name.
+
+- **`SimScenario.idle`** — `GET /v1/sim/scenarios` spells out one more knob, and the
+  catalog carries one more scenario, `idle`: **nobody ever connects**. What that does is
+  the *mode's* to say, exactly as on real hardware. A mode whose manifest names a
+  `length.idleTimeoutSeconds` ends itself on it — a `series_end` with `reason: "idle"`,
+  no `going_live` and no `map_end` anywhere before it, while the match is still `ready` —
+  and a mode that names none waits for ever, leaving your join deadline the only thing
+  that gives up. `MatchRequest.sim.scenario` and `.simulation.scenario` both take the
+  name, as with every other.
+- **What 0.17.0 said it did not do yet, the `sim` provider now does.** A match on the
+  simulator whose mode declares a `length` is played as a mode with a length rather than
+  as rounds: `going_live` carries the `length` in force, one `round_start` opens a round
+  that never ends, bodies kill each other and respawn until the duration runs out or
+  somebody reaches the frag limit, and `map_end`/`series_end` carry `time_limit` or
+  `frag_limit`. **So the countdown of PRD-10 T6 is drawable off your dev world**, not only
+  off the dev node, and it is the same number either way: `durationSeconds` is in seconds
+  of your own clock, so a `sim.timeScale: 20` says `30` for a manifest's `600`.
+- **A one-team mode names no winner on the simulator too.** `map_end.winner` and
+  `series_end.winner` are `null` for `slots.teams: 1`, whichever story the mode plays —
+  the rule 0.17.0 wrote for the server, now true of the fake and the `sim` provider as
+  well. No shape changed; a `sim` `powerup-dm` simply stops naming a side that never won
+  anything.
+
 ## 0.17.0 — 2026-09-20
 
 **A length for a mode with nothing to win** (PRD-03 T9, for the platform's PRD-10 T6; it

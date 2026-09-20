@@ -17,11 +17,14 @@
  */
 import type { Prng } from '@ezpug/core'
 import type {
+  GamemodeLength,
   GameserverEvent,
   GameserverPlayer,
   GameserverSource,
+  LiveLength,
   MapRadar,
   MapRadarLayer,
+  MatchEndReason,
   MatchTeam,
   PlayerRoundSummary,
   RoundWinCondition,
@@ -72,6 +75,18 @@ export interface StoryOptions {
   /** Position-tick sampling interval; `null` turns the ephemeral tier off. */
   positionTickIntervalMs: number | null
   /**
+   * **Playback's speed, because one number on the wire is measured in it**
+   * (PRD-03 T9a). Every beat here is stated in match time and playback divides
+   * it by this, exactly as `host_timescale` speeds a real server's engine up
+   * while the SDK's own timers keep counting real milliseconds. So
+   * `going_live.length.durationSeconds` — the seconds a client counts down on
+   * *its* clock — is the manifest's number divided by this one, which is what
+   * `MatchLength.InForce` computes on a real server. Nothing else reads it and
+   * no dice are drawn from it: a seeded match plays the same match at any
+   * speed. Absent: 1.
+   */
+  timeScale?: number
+  /**
    * The catalog's radar per map of the series, in `assignment.maps` order —
    * what the orchestrator told this server the maps it is playing look like.
    *
@@ -114,6 +129,20 @@ const WEAPONS: Record<'pistol' | 'smg' | 'rifle', Record<TeamSide, readonly stri
     ct: ['m4a1_silencer', 'm4a1', 'famas', 'aug'],
   },
 }
+
+/**
+ * **A deathmatch body is back on its feet almost at once** — the modes with a
+ * length respawn (`mp_respawn_on_death_*`) after the engine's immunity time.
+ */
+const RESPAWN_MS = 3_000
+
+/**
+ * The pace of a room with a length: one kill on the server roughly this often
+ * *per player on it*. Six puppets killing each other 144 times in the ten
+ * minutes of the dev lane's `powerup-dm` run (PRD-03 T9) is one every 4.2 s,
+ * which is what this number is.
+ */
+const KILL_INTERVAL_PER_PLAYER_MS = 25_000
 
 const flip = (side: TeamSide): TeamSide => (side === 'ct' ? 't' : 'ct')
 const other = (team: MatchTeam): MatchTeam => (team === 'team_a' ? 'team_b' : 'team_a')
@@ -203,6 +232,40 @@ function planSeries(prng: Prng, winner: MatchTeam, mapsInSeries: number): MatchT
   const total = target + loserMaps
   const loserWins = new Set(prng.sample(indices(total - 1), loserMaps))
   return indices(total).map(i => (loserWins.has(i) ? other(winner) : winner))
+}
+
+/**
+ * **Who won a map, or a series, or nobody** — the SDK's own rule
+ * (`GenericFlow.Winner`, PRD-03 T9/T10) said again on this side of the seam:
+ * a one-team mode has no team to have won it, and a tie names nobody either.
+ */
+function winnerOf(assignment: MatchAssignment, teamA: number, teamB: number): MatchTeam | null {
+  if ((assignment.teamCount ?? 2) === 1 || teamA === teamB) return null
+  return teamA > teamB ? 'team_a' : 'team_b'
+}
+
+/**
+ * **What `going_live` carries**, or `null` when the mode's length is only an
+ * idle timeout — nobody is watching a server that is empty, so there is
+ * nothing to count down. `MatchLength.InForce` on a real server, to the same
+ * rounding: the duration is the client's own seconds (the time scale already
+ * divided out), the frag limit is a count and scales with nothing.
+ */
+export function liveLengthInForce(
+  length: GamemodeLength | undefined,
+  timeScale: number,
+): LiveLength | null {
+  if (!length) return null
+  const scale = timeScale > 0 ? timeScale : 1
+  const durationSeconds =
+    length.durationSeconds === undefined
+      ? undefined
+      : Math.max(1, Math.ceil(length.durationSeconds / scale))
+  if (durationSeconds === undefined && length.fragLimit === undefined) return null
+  return {
+    ...(durationSeconds !== undefined && { durationSeconds }),
+    ...(length.fragLimit !== undefined && { fragLimit: length.fragLimit }),
+  }
 }
 
 export function buildMatchStory(options: StoryOptions): MatchStory {
@@ -312,6 +375,28 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
   const readyAtMs = t
   emit(t, { type: 'server_ready', matchId, source, map: firstMap.map })
 
+  // **Nobody ever comes** (PRD-03 T9a). What happens to an empty server is the
+  // mode's to say, exactly as it is on real hardware: a manifest that names an
+  // `idleTimeoutSeconds` ends the match on it — a `series_end` with no
+  // `going_live` anywhere before it, which the orchestrator's machine already
+  // accepts from any open state — and a manifest that names none never ends at
+  // all, so the story runs dry and the join deadline decides. Nothing is said
+  // out loud to an empty room: warmup chat has no reader.
+  if (scenario.idle) {
+    const idleSeconds = assignment.length?.idleTimeoutSeconds
+    if (idleSeconds === undefined) return { beats, outcome: 'idle', demos }
+    t += idleSeconds * 1_000
+    emit(t, {
+      type: 'series_end',
+      matchId,
+      source,
+      seriesScore: { teamA: 0, teamB: 0 },
+      winner: null,
+      reason: 'idle',
+    })
+    return { beats, outcome: 'completed', demos }
+  }
+
   const absentCount = Math.min(scenario.absentPlayers ?? 0, players.length - 1)
   const absent = new Set(prng.sample(players, absentCount).map(p => p.player.steamId64))
   const arrivals = players
@@ -338,6 +423,117 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
   // opened on a live match is never a blank rectangle.
   say(t, 'warmup')
   fillWarmup(readyAtMs, t)
+
+  // --- a mode with a length: one map, one round, one clock ------------------
+  //
+  // **The story a mode with nothing to win tells** (PRD-03 T9a). The SDK owns
+  // the clock on a real server (`mp_timelimit 0`), which makes such a mode one
+  // round nobody wins: a `round_start` and never a `round_end`, bodies dying
+  // and respawning until the duration or the frag limit is reached, then
+  // `map_end` and `series_end` carrying the reason. This is that, beat for
+  // beat, so a client drawing a countdown off the simulator draws it off the
+  // dev node too. A length that is only an idle timeout says nothing here —
+  // that mode still plays rounds, and its idle end is the `idle` scenario's.
+  const inForce = liveLengthInForce(assignment.length, options.timeScale ?? 1)
+  if (inForce && assignment.length) {
+    t += 10_000
+    const liveAtMs = t
+    const mapStartIndex = beats.length
+    // Emitted at the same instant, as the engine's own round-start frame emits
+    // them (`GenericFlow.OnRoundStart`): the map goes live and round one is it.
+    emit(t, {
+      type: 'going_live',
+      matchId,
+      source,
+      mapNumber: 1,
+      map: firstMap.map,
+      length: inForce,
+    })
+    emit(t, {
+      type: 'round_start',
+      matchId,
+      source,
+      mapNumber: 1,
+      roundNumber: 1,
+      score: { teamA: 0, teamB: 0 },
+    })
+    const teamASide =
+      firstMap.teamASide === 'knife' ? prng.pick(['ct', 't'] as const) : firstMap.teamASide
+    const openingLineAtMs = t + prng.int(20_000, 60_001)
+    const played = playLength({
+      prng,
+      matchId,
+      source,
+      emit,
+      players,
+      asGameserverPlayer,
+      tStart: liveAtMs,
+      length: assignment.length,
+      teams: assignment.teamCount ?? 2,
+      teamASide,
+      positionTickIntervalMs,
+      radar: radars[0] ?? null,
+    })
+    // Said into the middle of the kill feed, then merged by time: the beats
+    // above are already sorted among themselves (`fillWarmup`'s rule).
+    say(openingLineAtMs, 'pistol')
+    beats.sort((a, b) => a.atMs - b.atMs)
+    t = played.endAtMs
+    say(t, 'end')
+    t += 2_000
+    // Nobody won a round, so the score is nought and the winner is nobody —
+    // `GenericFlow.Finish` reads exactly these two numbers.
+    const score = { teamA: 0, teamB: 0 }
+    emit(t, {
+      type: 'map_end',
+      matchId,
+      source,
+      mapNumber: 1,
+      map: firstMap.map,
+      score,
+      winner: winnerOf(assignment, score.teamA, score.teamB),
+      reason: played.reason,
+    })
+    t += 6_000
+    const demo = simulatedRecording({
+      matchId,
+      serverId: source.serverId,
+      scenario: scenario.name,
+      mapNumber: 1,
+      map: firstMap.map,
+      players: players.map(state => ({
+        steamId64: state.player.steamId64,
+        name: state.player.name,
+        team: state.team,
+      })),
+      events: beats
+        .slice(mapStartIndex)
+        .map(beat => beat.event)
+        .filter(event => !isEphemeralGameserverEvent(event.type)),
+    })
+    demos.push(demo)
+    emit(t, {
+      type: 'demo_available',
+      matchId,
+      source,
+      mapNumber: 1,
+      filename: demo.filename,
+      sizeBytes: demo.sizeBytes,
+    })
+    t += 2_000
+    // A length is the *match's*, not a map's: the series ends with it however
+    // many maps the request planned (`GenericFlow.End`, `seriesOver: true`).
+    const seriesScore = { teamA: 0, teamB: 0 }
+    emit(t, {
+      type: 'series_end',
+      matchId,
+      source,
+      seriesScore,
+      winner: winnerOf(assignment, seriesScore.teamA, seriesScore.teamB),
+      reason: played.reason,
+    })
+    return { beats, outcome: 'completed', demos }
+  }
 
   // --- the series -----------------------------------------------------------
 
@@ -513,7 +709,9 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
       mapNumber,
       map: decidedMap.map,
       score: { ...score },
-      winner: mapWinner,
+      // Who won the rounds still decides the series; who is *named* is the
+      // SDK's rule — a one-team mode names nobody (PRD-03 T9a/T10).
+      winner: winnerOf(assignment, score.teamA, score.teamB),
     })
     t += 6_000
     // The honest recording, not a plausible 90 MB of fake demo: this map's own
@@ -550,7 +748,13 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
   }
 
   t += 2_000
-  emit(t, { type: 'series_end', matchId, source, seriesScore, winner: seriesWinner })
+  emit(t, {
+    type: 'series_end',
+    matchId,
+    source,
+    seriesScore,
+    winner: winnerOf(assignment, seriesScore.teamA, seriesScore.teamB),
+  })
   return { beats, outcome: 'completed', demos }
 }
 
@@ -922,6 +1126,187 @@ function playRound(options: RoundOptions): {
   for (const beat of roundBeats) options.emit(beat.atMs, beat.event)
 
   return { durationMs: endMs, winCondition }
+}
+
+// ---------------------------------------------------------------------------
+// A mode with a length
+// ---------------------------------------------------------------------------
+
+interface LengthOptions {
+  prng: Prng
+  matchId: string
+  source: GameserverSource
+  emit: (atMs: number, event: GameserverEvent) => void
+  players: PlayerState[]
+  asGameserverPlayer: (state: PlayerState) => GameserverPlayer
+  /** `going_live`'s own instant: the duration is counted from here. */
+  tStart: number
+  length: GamemodeLength
+  /** The manifest's `slots.teams`: at `1` everybody is everybody's enemy. */
+  teams: number
+  teamASide: TeamSide
+  positionTickIntervalMs: number | null
+  radar: MapRadar | null
+}
+
+/**
+ * **The one round a mode with a length plays.** Bodies kill each other and
+ * respawn until the manifest's duration runs out or somebody reaches its frag
+ * limit, whichever comes first — no round ever ends, because on a real server
+ * the SDK owns the clock (`mp_timelimit 0`, `mp_roundtime` at the engine's
+ * maximum) and nothing in the game is counting to anything (PRD-03 T9).
+ *
+ * The kill feed is the only story there is, so it is the one told honestly:
+ * attribution is skill-weighted as it is in a round, a corpse is out for
+ * {@link RESPAWN_MS} and back, and in a free-for-all (`teams: 1`) a victim's
+ * killer is anybody else alive rather than anybody on the other side —
+ * `mp_teammates_are_enemies`, which is what such a mode's cfg sets.
+ *
+ * Everything is collected and sorted before it is handed on, as
+ * {@link playRound} does: playback walks the list in the order a spectator saw
+ * it, and the dice roll in planning order.
+ */
+function playLength(options: LengthOptions): { endAtMs: number; reason: MatchEndReason } {
+  const { prng, matchId, source, tStart, players, length, teams, teamASide } = options
+  const mapNumber = 1
+  const roundNumber = 1
+
+  const beats: { atMs: number; event: GameserverEvent }[] = []
+  const emit = (atMs: number, event: GameserverEvent): void => {
+    beats.push({ atMs, event })
+  }
+
+  const durationMs = length.durationSeconds === undefined ? null : length.durationSeconds * 1_000
+  const fragLimit = length.fragLimit ?? null
+  /** Mean seconds between two kills anywhere on the server, for this many people. */
+  const meanGapMs = Math.max(600, Math.round(KILL_INTERVAL_PER_PLAYER_MS / players.length))
+  const sideOf = (state: PlayerState): TeamSide =>
+    state.team === 'team_a' ? teamASide : flip(teamASide)
+
+  /** Out of the fight until this instant — a deathmatch corpse, not a round's. */
+  const upAt = new Map<string, number>()
+  const aliveAt = (atMs: number): PlayerState[] =>
+    players.filter(state => (upAt.get(state.player.steamId64) ?? 0) <= atMs)
+  const weightedPick = (candidates: PlayerState[]): PlayerState => {
+    const total = candidates.reduce((sum, p) => sum + p.skill, 0)
+    let roll = prng.next() * total
+    for (const candidate of candidates) {
+      roll -= candidate.skill
+      if (roll <= 0) return candidate
+    }
+    return candidates[candidates.length - 1] as PlayerState
+  }
+
+  let reason: MatchEndReason = durationMs === null ? 'frag_limit' : 'time_limit'
+  let endAtMs = durationMs === null ? Number.POSITIVE_INFINITY : tStart + durationMs
+  // A frag limit without a duration still has to stop: the guard is generous
+  // enough that only a story nobody could tell would reach it.
+  const maxKills = fragLimit === null ? Number.POSITIVE_INFINITY : fragLimit * players.length * 8
+  let dealt = 0
+
+  for (let atMs = tStart + prng.int(2_000, 8_001); atMs < endAtMs; ) {
+    if (dealt >= maxKills) break
+    const standing = aliveAt(atMs)
+    if (standing.length >= 2) {
+      const victim = weightedPick(standing)
+      const opponents = standing.filter(
+        state => state !== victim && (teams === 1 || state.team !== victim.team),
+      )
+      if (opponents.length > 0) {
+        const killer = weightedPick(opponents)
+        const killerSide = sideOf(killer)
+        // Everybody buys what they like in a mode with a length
+        // (`mp_buy_anywhere`), so the tiers are the room's taste, not an economy.
+        const tier = prng.bool(0.2) ? 'pistol' : prng.bool(0.25) ? 'smg' : 'rifle'
+        const weapon =
+          tier === 'rifle' && prng.bool(0.15) ? 'awp' : prng.pick(WEAPONS[tier][killerSide])
+        const headshot = weapon === 'awp' ? prng.bool(0.15) : prng.bool(0.45)
+
+        const assists: { player: GameserverPlayer; flash: boolean }[] = []
+        if (prng.bool(0.25)) {
+          const helpers = opponents.filter(state => state !== killer)
+          if (helpers.length > 0) {
+            const helper = prng.pick(helpers)
+            const flash = prng.bool(0.3)
+            assists.push({ player: options.asGameserverPlayer(helper), flash })
+            if (flash) helper.flashAssists++
+            else helper.assists++
+            helper.damage += prng.int(15, 61)
+          }
+        }
+
+        upAt.set(victim.player.steamId64, atMs + RESPAWN_MS)
+        victim.deaths++
+        killer.kills++
+        killer.damage += prng.int(80, 141)
+        if (headshot) killer.headshotKills++
+        dealt++
+
+        emit(atMs, {
+          type: 'player_death',
+          matchId,
+          source,
+          mapNumber,
+          roundNumber,
+          victim: options.asGameserverPlayer(victim),
+          killer: options.asGameserverPlayer(killer),
+          assists,
+          weapon,
+          headshot,
+          ...(weapon === 'awp' && prng.bool(0.05) ? { noscope: true } : {}),
+          ...(prng.bool(0.08) ? { penetrated: true } : {}),
+          ...(prng.bool(0.06) ? { throughSmoke: true } : {}),
+          roundTimeMs: atMs - tStart,
+        })
+
+        if (fragLimit !== null && killer.kills >= fragLimit) {
+          reason = 'frag_limit'
+          endAtMs = atMs + 1_000
+          break
+        }
+      }
+    }
+    atMs += prng.int(Math.ceil(meanGapMs / 2), meanGapMs * 2)
+  }
+
+  if (!Number.isFinite(endAtMs)) endAtMs = tStart + (dealt > 0 ? meanGapMs : 0)
+
+  // The ephemeral tier, the same low-rate sampling a round gets — of whoever
+  // is on their feet, which in this mode is nearly everybody nearly always.
+  if (options.positionTickIntervalMs !== null) {
+    const ground = wanderer(prng, options.radar)
+    const positions = new Map(
+      players.map(state => [state.player.steamId64, ground.spawn(sideOf(state))]),
+    )
+    for (
+      let atMs = tStart + options.positionTickIntervalMs;
+      atMs < endAtMs;
+      atMs += options.positionTickIntervalMs
+    ) {
+      const sampled = aliveAt(atMs)
+      if (sampled.length === 0) continue
+      emit(atMs, {
+        type: 'position_tick',
+        matchId,
+        source,
+        mapNumber,
+        roundNumber,
+        positions: sampled.map(state => {
+          const point = positions.get(state.player.steamId64) as WanderPoint
+          ground.step(point)
+          return {
+            steamId64: state.player.steamId64,
+            ...ground.world(point),
+            yaw: prng.int(0, 360),
+          }
+        }),
+      })
+    }
+  }
+
+  beats.sort((a, b) => a.atMs - b.atMs)
+  for (const beat of beats) options.emit(beat.atMs, beat.event)
+  return { endAtMs, reason }
 }
 
 // ---------------------------------------------------------------------------

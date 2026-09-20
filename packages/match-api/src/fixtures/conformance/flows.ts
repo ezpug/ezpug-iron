@@ -447,7 +447,14 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       const verb = manifest.commands[0]?.name as string
       ctx.check('it declares a widget', manifest.widget !== undefined)
 
-      const body = ctx.request({ gamemode: 'powerup-dm', teams: EMPTY_TEAMS })
+      // **A mode with a length is as long as it says it is** (PRD-03 T9a):
+      // ten minutes of deathmatch, so the flow asks the engine to play them
+      // quickly rather than for the story to be shorter than the manifest.
+      const body = ctx.request({
+        gamemode: 'powerup-dm',
+        teams: EMPTY_TEAMS,
+        sim: { timeScale: PLAY_OUT_TIME_SCALE },
+      })
       const created = await ctx.api.matches.create({ body })
       const params = { matchId: created.id }
       await ctx.waitFor('the match to go live', async () => {
@@ -497,6 +504,32 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       ctx.check(
         'the plugin_event the tap produced is in the replay',
         envelopes.some(e => e.deliveryId === answer.deliveryId),
+      )
+
+      // **The length, on the wire** (PRD-03 T9a, the platform's PRD-10 T6): a
+      // free-for-all has nothing to win, so what ends it is the manifest's
+      // `length` and what a client draws is the countdown `going_live`
+      // carries — in the client's own seconds, this match's time scale
+      // already divided out.
+      const live = payload(envelopes, 'going_live')
+      ctx.check(
+        'going_live carries the length in force',
+        live?.length?.durationSeconds ===
+          Math.ceil((manifest.length?.durationSeconds ?? 0) / PLAY_OUT_TIME_SCALE),
+        JSON.stringify(live?.length),
+      )
+      const mapEnd = payload(envelopes, 'map_end')
+      const seriesEnd = payload(envelopes, 'series_end')
+      ctx.check(
+        'the map ended on the mode’s length',
+        mapEnd?.reason === 'time_limit',
+        mapEnd?.reason,
+      )
+      ctx.check('and the series with it', seriesEnd?.reason === 'time_limit', seriesEnd?.reason)
+      ctx.check(
+        'a one-team mode names no winner',
+        manifest.slots.teams === 1 ? mapEnd?.winner === null && seriesEnd?.winner === null : true,
+        `${mapEnd?.winner} / ${seriesEnd?.winner}`,
       )
     },
   },

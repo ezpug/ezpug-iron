@@ -457,7 +457,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > **An idle end can come from `ready`**: a `series_end` with no `going_live` before it.
     > The machine already ended a match on `series_end` from any open state; a test pins it.
 
-- [ ] **T9a: the simulator plays a length.** The sim tells every mode as a round-based
+- [x] **T9a: the simulator plays a length.** The sim tells every mode as a round-based
   story and says none of T9's three fields, so a `powerup-dm` match on the `sim` provider
   — which is what the platform's dev world and its PRD-10 T6 draw from — has no countdown
   and names a winning team for a free-for-all. For a mode whose manifest declares a
@@ -465,6 +465,35 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   duration (or to the frag limit), `map_end`/`series_end` with the `reason`, no winner for
   `slots.teams: 1`; an `idle` scenario knob if a story with nobody in it can be told. The
   fake inherits it. Released, naming PRD-10 T6.
+
+    > **The `idle` knob is one story with two honest ends**, because what happens to an
+    > empty server is the *mode's* to say and not the scenario's: nobody connects, and a
+    > manifest naming an `idleTimeoutSeconds` ends itself on it while a manifest naming
+    > none waits for ever and leaves the join deadline the only thing that gives up — the
+    > same two answers a real server gives.
+    >
+    > **A one-team mode names no winner in the round-based story too**, not only in the
+    > length one, which is T10's second bullet arriving early: `winnerOf` reads
+    > `assignment.teamCount` for every `map_end` and `series_end` the simulator emits, so
+    > T10's manifest flip needs nothing here.
+
+- [ ] **T9b (P1): a key the Match API cannot list.** `keys.mint` is the service, not the
+  route, so it accepts a `name` longer than `ApiKey.name`'s 64 characters — and then
+  `GET /v1/keys` is `internal` **for every caller of that database**, because the response
+  no longer parses. Found on 2026-09-20 with `standing.test.ts` red on a clean tree: six
+  rows an earlier `verify:extended` conformance run left in `ezpug_iron_test`, minted
+  `${namespace}-${flow.id}-${mints}-puppeteer`. T9a capped the names that call site mints
+  and renamed the rows; the guard is missing. The service refuses what the contract cannot
+  carry (name, scopes, budget), a test says so, and the bootstrap and node-enrolment mints
+  are checked for the same reach.
+
+- [ ] **T9c: a mode that records events is handed a demo it never made.** The simulator
+  emits `demo_available` for every map of every mode, `records: "events"` included — the
+  orchestrator gates the *upload* on `records` (`providers/sim/provider.ts`) but the fact
+  travels, and a real `powerup-dm` or `flying-scoutsman` server produces none. Thread the
+  manifest's `records` into the assignment as T9a threaded `length` and `teamCount`, and
+  say it only where a demo exists. T11 compares sim and real by the classes of fact they
+  emit, so this is a diff it would otherwise find.
 
 - [ ] **T10: retakes is one team** (owner decision, 2026-09-19).
   - Manifest `slots.teams: 1` with `teamSize: 10`, since `retakes.ts:60` multiplies.

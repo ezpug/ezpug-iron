@@ -151,6 +151,10 @@ export function simAssignmentFor(
       // The engine's stand-in mode enforces the manifest's verbs (T24).
       commands: gamemode.commands,
       openJoin: gamemode.slots.openJoin,
+      // What ends a match of this mode when the game never would, and whether
+      // anybody can have won it (PRD-03 T9a).
+      teamCount: gamemode.slots.teams,
+      ...(gamemode.length && { length: gamemode.length }),
       // Said out loud while the simulated server waits, exactly as a plugin
       // would print them (T30).
       ...(request.warmupLines && { warmupLines: request.warmupLines }),

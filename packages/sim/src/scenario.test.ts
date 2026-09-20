@@ -27,6 +27,7 @@ describe('the scenario table', () => {
     expect(listed.map(entry => entry.name)).toEqual(Object.keys(SIMULATOR_SCENARIOS))
     expect(listed.find(entry => entry.name === 'no-show')).toEqual({
       name: 'no-show',
+      idle: false,
       neverReady: false,
       absentPlayers: 2,
       crashAfterRound: null,

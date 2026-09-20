@@ -101,6 +101,18 @@ reach — and on five idle minutes. A mode that declares a duration sets the eng
 clocks out of its way (`mp_timelimit 0` in `powerup-dm.cfg`, and the comment there says why
 two equal clocks were wrong).
 
+**The simulator plays it too** (PRD-03 T9a), so a client draws the same countdown off a
+`sim` match as off a real server. A mode whose manifest declares a duration or a frag
+limit is told as a mode with a length rather than as rounds: `going_live` with the length
+in force, one `round_start` that never ends, bodies killing each other and respawning
+until the duration or the frag limit is reached, `map_end` and `series_end` with the
+reason, and no winner for `slots.teams: 1`. `going_live.length.durationSeconds` is divided
+by the story's `sim.timeScale` exactly as `MatchLength.InForce` divides by the engine's
+(`timeScale: 20` says `30` for a manifest's `600`). A mode whose only end is an idle
+timeout still plays rounds — its idle end is the **`idle` scenario**: nobody connects, and
+then the mode's own manifest decides, a `series_end` with `reason: "idle"` where it names
+a timeout and nothing at all where it does not.
+
 ### Capabilities
 
 | Capability | True means |

@@ -20,6 +20,7 @@
  */
 import type {
   Game,
+  GamemodeLength,
   Locale,
   MapPlan,
   MatchRules,
@@ -79,6 +80,23 @@ export interface MatchAssignment {
   commands?: readonly PlayerCommandSpec[]
   /** The manifest's `slots.openJoin`: a tap from a SteamID64 not on the roster is a joined player's, not a stranger's. */
   openJoin?: boolean
+  /**
+   * The manifest's `slots.teams`. `1` is a free-for-all: the roster is still
+   * dealt into two sides, because that is the only shape a request has, but
+   * **no map and no series has a winner** — the SDK's own rule
+   * (`GenericFlow.Winner`, PRD-03 T9/T10), said here so a story told on the
+   * simulator names nobody either. Absent: two, as every round-based mode is.
+   */
+  teamCount?: number
+  /**
+   * **What ends a match of this mode when the game itself never would**
+   * (PRD-03 T9/T9a): the manifest's `length`, which the SDK enforces on a real
+   * server for every flow it tells the story of. A story built with one is a
+   * length story — `going_live` carries what is in force, and `map_end` and
+   * `series_end` carry the `reason` they ended on. Absent, or a `matchzy`
+   * mode's, whose length is MatchZy's: the round-based story, as before.
+   */
+  length?: GamemodeLength
   /**
    * The lines the client wrote for warmup, already rendered in the roster's
    * majority locale — what a real server prints one every few seconds while it
@@ -204,6 +222,10 @@ export interface MatchRequestHandoff {
   commands?: readonly PlayerCommandSpec[]
   /** The manifest's `slots.openJoin`. */
   openJoin?: boolean
+  /** The manifest's `slots.teams` — `1` names no winner. */
+  teamCount?: number
+  /** The manifest's `length`, for a flow the SDK tells the story of. */
+  length?: GamemodeLength
   /** The request's `warmupLines`, verbatim — the platform rendered them, the server prints them. */
   warmupLines?: readonly string[]
 }
@@ -234,6 +256,8 @@ export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchA
       : { enabled: true, maxRounds: DEFAULT_OVERTIME_ROUNDS },
     ...(handoff.commands !== undefined && { commands: handoff.commands }),
     ...(handoff.openJoin !== undefined && { openJoin: handoff.openJoin }),
+    ...(handoff.teamCount !== undefined && { teamCount: handoff.teamCount }),
+    ...(handoff.length !== undefined && { length: handoff.length }),
     ...(handoff.warmupLines !== undefined && { warmupLines: [...handoff.warmupLines] }),
   })
 }

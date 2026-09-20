@@ -12,6 +12,7 @@
             "absentPlayers": 0,
             "crashAfterRound": null,
             "pauses": 0,
+            "idle": false,
             "overtimes": 0,
             "comeback": false
           },
@@ -21,6 +22,7 @@
             "absentPlayers": 0,
             "crashAfterRound": null,
             "pauses": 0,
+            "idle": false,
             "overtimes": 1,
             "comeback": false
           },
@@ -30,6 +32,7 @@
             "absentPlayers": 0,
             "crashAfterRound": null,
             "pauses": 2,
+            "idle": false,
             "overtimes": 0,
             "comeback": false
           },
@@ -39,6 +42,7 @@
             "absentPlayers": 0,
             "crashAfterRound": null,
             "pauses": 0,
+            "idle": false,
             "overtimes": 0,
             "comeback": true
           },
@@ -48,6 +52,17 @@
             "absentPlayers": 2,
             "crashAfterRound": null,
             "pauses": 0,
+            "idle": false,
+            "overtimes": 0,
+            "comeback": false
+          },
+          {
+            "name": "idle",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "idle": true,
             "overtimes": 0,
             "comeback": false
           },
@@ -57,6 +72,7 @@
             "absentPlayers": 0,
             "crashAfterRound": 9,
             "pauses": 0,
+            "idle": false,
             "overtimes": 0,
             "comeback": false
           },
@@ -66,6 +82,7 @@
             "absentPlayers": 0,
             "crashAfterRound": null,
             "pauses": 0,
+            "idle": false,
             "overtimes": 0,
             "comeback": false
           }

@@ -62,6 +62,13 @@ export const simScenarioSchema = z.object({
   crashAfterRound: z.number().int().positive().nullable(),
   /** Tactical pauses sprinkled into map 1. */
   pauses: z.number().int().nonnegative(),
+  /**
+   * Nobody ever connects (PRD-03 T9a). A mode whose manifest names a
+   * `length.idleTimeoutSeconds` ends itself on it — a `series_end` with
+   * `reason: "idle"` and no `going_live` before it; a mode that names none
+   * waits for ever and the join deadline decides.
+   */
+  idle: z.boolean(),
   /** Overtimes forced on map 1 — ignored when the request disabled overtime. */
   overtimes: z.number().int().nonnegative(),
   /** The winner trails badly at the half, then runs the table. */

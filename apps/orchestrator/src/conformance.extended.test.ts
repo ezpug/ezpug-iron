@@ -308,6 +308,22 @@ async function quiesce(): Promise<void> {
   stalls.push(`quiesce ran out of passes after ${systemClock.now() - started} ms`)
 }
 
+/**
+ * **A key name the Match API can carry back.** `ApiKey.name` is capped at 64
+ * characters, and `keys.mint` is the service rather than the route, so a name
+ * longer than that is minted happily and then makes `GET /v1/keys` **500 for
+ * every caller of that database** — which is what it did: six rows left by an
+ * earlier extended run turned `standing.test.ts` red on a clean tree. The
+ * namespace stays at the front (the sweep matches on it) and the counter and
+ * the role at the back (they are what makes the name unique); the flow id in
+ * the middle is what gives way.
+ */
+function keyName(namespace: string, flowId: string, mints: number, role?: string): string {
+  const tail = `-${mints}${role ? `-${role}` : ''}`
+  const room = 64 - namespace.length - 1 - tail.length
+  return `${namespace}-${flowId.slice(0, Math.max(0, room))}${tail}`
+}
+
 /** A fresh pair of keys per flow, on the one standing orchestrator. */
 async function target(flow: { id: string }): Promise<ConformanceTarget> {
   const o = orchestrator as Orchestrator
@@ -315,19 +331,19 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
   const webhookSecrets = [{ id: SECRET_ID, secret: SECRET }]
   mints += 1
   const platform = await o.keys.mint({
-    name: `${namespace}-${flow.id}-${mints}`,
+    name: keyName(namespace, flow.id, mints),
     scopes: ['matches'],
     budget,
     webhookSecrets,
   })
   const thrifty = await o.keys.mint({
-    name: `${namespace}-${flow.id}-${mints}-thrifty`,
+    name: keyName(namespace, flow.id, mints, 'thrifty'),
     scopes: ['matches'],
     budget: { ...budget, maxServerLifetimeMinutes: 60 },
     webhookSecrets,
   })
   const puppeteer = await o.keys.mint({
-    name: `${namespace}-${flow.id}-${mints}-puppeteer`,
+    name: keyName(namespace, flow.id, mints, 'puppeteer'),
     scopes: ['matches', 'simulation'],
     budget,
     webhookSecrets,

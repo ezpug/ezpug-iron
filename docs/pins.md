@@ -128,7 +128,7 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.17.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.18.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -156,7 +156,10 @@ that names an open-join guest or a plain bot. Nothing in production sends it unt
 round deploys (T16), and the pin moves before that. The platform's PRD-10 T3 is the task
 that moves this pin. **0.17.0** is additive again (PRD-03 T9): a manifest's `length`,
 `going_live.length` and a `reason` on `map_end`/`series_end` — what the platform's PRD-10
-T6 draws a countdown and an end reason from.
+T6 draws a countdown and an end reason from. **0.18.0** is additive too (PRD-03 T9a):
+`SimScenario.idle`, one boolean on a response object and one more scenario name — and, on
+the `sim` provider rather than in a schema, the length story itself, so the countdown
+PRD-10 T6 draws is drawable off the platform's dev world and not only off the dev node.
 
 ## Bumping one
 

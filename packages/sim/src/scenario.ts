@@ -33,6 +33,19 @@ export interface SimulatorScenario {
   /** Tactical pauses sprinkled into map 1. */
   pauses?: number
   /**
+   * **Nobody ever comes** (PRD-03 T9a). The server boots, says `server_ready`
+   * and then waits on an empty map. What happens next is the *mode's* to
+   * decide, exactly as it is on a real server: a mode whose manifest names an
+   * `idleTimeoutSeconds` ends itself on it — a `series_end` with
+   * `reason: "idle"` and no `going_live` before it — and a mode that names
+   * none simply never ends, and the orchestrator's join deadline decides.
+   *
+   * Not the same as {@link absentPlayers}, which is a *partial* roster and
+   * ends as `no_show`, nor {@link neverReady}, where the server never boots
+   * at all.
+   */
+  idle?: boolean
+  /**
    * Force this many overtimes on map 1 (regulation ends tied). Ignored when
    * the assignment has overtime disabled — the simulator plays the config
    * it was handed, like a real server would.
@@ -51,6 +64,7 @@ export const SIMULATOR_SCENARIOS = {
   pauses: { name: 'pauses', pauses: 2 },
   comeback: { name: 'comeback', comeback: true },
   'no-show': { name: 'no-show', absentPlayers: 2 },
+  idle: { name: 'idle', idle: true },
   'server-crash': { name: 'server-crash', crashAfterRound: 9 },
   'never-ready': { name: 'never-ready', neverReady: true },
 } as const satisfies Record<string, SimulatorScenario>
@@ -91,6 +105,7 @@ export interface SimulatorScenarioInfo {
   absentPlayers: number
   crashAfterRound: number | null
   pauses: number
+  idle: boolean
   overtimes: number
   comeback: boolean
 }
@@ -108,6 +123,7 @@ export function listScenarios(): SimulatorScenarioInfo[] {
     absentPlayers: scenario.absentPlayers ?? 0,
     crashAfterRound: scenario.crashAfterRound ?? null,
     pauses: scenario.pauses ?? 0,
+    idle: scenario.idle ?? false,
     overtimes: scenario.overtimes ?? 0,
     comeback: scenario.comeback ?? false,
   }))

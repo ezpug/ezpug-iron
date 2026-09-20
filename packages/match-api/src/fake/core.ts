@@ -990,6 +990,10 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       // The engine's stand-in mode enforces the manifest's verbs (T24).
       commands: record.manifest.commands,
       openJoin: record.manifest.slots.openJoin,
+      // What ends a match of this mode when the game never would, and whether
+      // anybody can have won it (PRD-03 T9a).
+      teamCount: record.manifest.slots.teams,
+      ...(record.manifest.length && { length: record.manifest.length }),
       // Said out loud while the simulated server waits, exactly as a plugin
       // would print them (T30).
       ...(request.warmupLines && { warmupLines: request.warmupLines }),
