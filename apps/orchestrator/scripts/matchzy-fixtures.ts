@@ -70,6 +70,10 @@ const context: MatchZyContext = {
     teamA: { name: 'EZPug A', players: TEAM_A },
     teamB: { name: 'EZPug B', players: TEAM_B },
   },
+  // The recorded run asked for `minPlayersToReady: 0` — the fork's "everybody
+  // connected must ready" — so the roster is the only thing a `team_ready` is
+  // held against here (PRD-03 T5a).
+  readyFloor: 0,
 }
 
 const RECORDING_PATH = 'packages/protocol/fixtures/recorded/real-pug-matchzy.json'
@@ -83,6 +87,8 @@ interface Plan {
   note: string
   payload: Record<string, unknown>
   state?: MatchZyState
+  /** The floor this payload's match config carried, when it was not the recorded run's `0` (PRD-03 T5a). */
+  readyFloor?: number
 }
 
 /** The first payload under `name` that answers `pick` — the SteamID, usually. */
@@ -554,6 +560,33 @@ const plan: Plan[] = [
     note: 'The first team_ready of every recorded puppet pug, before a single player_ready: the fork decides IsTeamReady from the CT/T side and counts from the logical team slots, and while the bots are still being spawned and mapped the two disagree — here at none of five. A team nobody on it has readied for has passed nothing, and forwarding it would spend the edge on a transient so the real passage is dropped.',
     payload: at('team_ready', 0),
   },
+  // ------------------------------------------- the floor a slack gate sets
+  {
+    file: '45-team-ready-on-the-floor.json',
+    source: 'derived',
+    from: '28-team-ready.json',
+    readyFloor: 4,
+    state: fresh(),
+    note: 'The one passage T5 dropped (PRD-03 T5a). A 5v5 whose request asked minPlayersToReady: 8 carries min_players_to_ready: 4, and MatchZy-Enhanced’s IsTeamReady passes a side at four ready with its fifth still silent — so this is a fact, and holding it against the whole roster made the durable log say the team passed one puppet later than it did. 28 with ready_count 4 and total_ready 6, which is byte for byte what the gate-of-four pug on the dev node sent: eleven of its forty-six team_ready payloads read exactly this.',
+    payload: {
+      ...where('team_ready', payload => Number(payload.ready_count) === 5),
+      ready_count: 4,
+      total_ready: 6,
+    },
+  },
+  {
+    file: '46-team-ready-under-the-floor.json',
+    source: 'derived',
+    from: '28-team-ready.json',
+    readyFloor: 4,
+    state: fresh(),
+    note: 'The same match one ready earlier. The fork re-checks the gate after every single ready and the side count runs ahead of the logical one while its bots are mapped, so three of five is announced too — under the floor, and the sides are still being filled. The gate-of-four run sent five of these and the door said nothing to any of them.',
+    payload: {
+      ...where('team_ready', payload => Number(payload.ready_count) === 5),
+      ready_count: 3,
+      total_ready: 5,
+    },
+  },
 ]
 
 // Only the fixtures: the folder's README is written by hand.
@@ -561,7 +594,11 @@ for (const name of readdirSync(DIR).filter(file => file.endsWith('.json'))) rmSy
 
 let state = initialMatchZyState()
 for (const entry of plan) {
-  const result = translateMatchZyEvent(entry.payload, context, entry.state ?? state)
+  const result = translateMatchZyEvent(
+    entry.payload,
+    entry.readyFloor === undefined ? context : { ...context, readyFloor: entry.readyFloor },
+    entry.state ?? state,
+  )
   if (entry.state === undefined) state = result.state
   const expected: Record<string, unknown> = result.dropped
     ? { dropped: result.dropped }
@@ -572,6 +609,7 @@ for (const entry of plan) {
     from: entry.from,
     note: entry.note,
     ...(entry.state !== undefined && { state: entry.state }),
+    ...(entry.readyFloor !== undefined && { readyFloor: entry.readyFloor }),
     payload: entry.payload,
     expect: expected,
   }

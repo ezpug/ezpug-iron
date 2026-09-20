@@ -109,7 +109,7 @@ afterEach(async () => {
   for (const app of rigs.splice(0)) await app.close()
 })
 
-async function createRig(): Promise<Rig> {
+async function createRig(overrides: Partial<MatchRequestInput> = {}): Promise<Rig> {
   const provider = createPhantomProvider()
   const app = createTestApp({ providers: [provider] })
   rigs.push(app)
@@ -120,7 +120,7 @@ async function createRig(): Promise<Rig> {
     webhookSecrets: [{ id: 'whsec-1', secret: 'a-test-secret-of-at-least-thirty-two-chars' }],
   })
   const key = (await app.keys.get(minted.key.id)) as AuthenticatedKey
-  const { match } = await app.matches.create(key, request())
+  const { match } = await app.matches.create(key, request(overrides))
   await app.settle()
   const row = app.store.rows.servers.find(server => server.matchId === match.id)
   if (!row?.serverId) throw new Error('the walk left no server')
@@ -264,6 +264,54 @@ describe('a pug through the MatchZy door', () => {
     // The match is over: the door says so rather than feeding a corpse.
     const late = await rig.post({ event: 'going_live', matchid: serial, map_number: 0 })
     expect(late.status).toBe(409)
+  })
+
+  it('lets a team through on the floor its own match config set', async () => {
+    // **The door reads the floor back out of the builder** (PRD-03 T5a): a
+    // 2v1 whose `players_per_team` is the smaller roster's one (T1) carries
+    // `min_players_to_ready: 1`, and MatchZy-Enhanced's `IsTeamReady` passes
+    // the pair at one ready of two. T5 held every `team_ready` against the
+    // whole roster, so that passage — the one case MatchZy really means —
+    // was dropped, and the durable log only heard about team A when its
+    // second player readied. The floor is what makes it a fact.
+    const rig = await createRig({
+      teams: {
+        teamA: {
+          name: 'Team tk',
+          players: [
+            { steamId64: '76561198279375306', name: 'tk' },
+            { steamId64: '76561198279375308', name: 'puppet-3' },
+          ],
+        },
+        teamB: { name: 'Team maex', players: [{ steamId64: '76561198279375307', name: 'maex' }] },
+      },
+    })
+    const through = await rig.post({
+      event: 'team_ready',
+      matchid: rig.serial,
+      team: 'team1',
+      ready_count: 1,
+      total_ready: 1,
+      expected_total: 2,
+    })
+    expect(through.body).toMatchObject({ accepted: 1 })
+    const { items } = await rig.app.matches.events(rig.key, rig.matchId, 0, 200)
+    expect(items.map(envelope => envelope.payload.type)).toContain('team_ready')
+    expect(items.find(envelope => envelope.payload.type === 'team_ready')?.payload).toMatchObject({
+      team: 'team_a',
+      tally: { ready: { teamA: 1, teamB: 0 }, expected: 2 },
+    })
+    // Nothing has happened on team B, and nothing is said about it.
+    const nobody = await rig.post({
+      event: 'team_ready',
+      matchid: rig.serial,
+      team: 'team2',
+      ready_count: 0,
+      total_ready: 1,
+      expected_total: 2,
+    })
+    expect(nobody.body).toMatchObject({ accepted: 0 })
+    expect(nobody.body.dropped).toMatch(/0 ready, under/)
   })
 
   it('refuses what it cannot attribute or read', async () => {

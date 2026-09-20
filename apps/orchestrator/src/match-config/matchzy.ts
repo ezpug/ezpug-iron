@@ -225,8 +225,20 @@ const PLUGIN_TEAMS = 2
  * `gamemodeReadyGate` already computes exactly it: `min(players, seats,
  * preset)`). MatchZy's `min_players_to_ready` is **per team**
  * (`GetTeamMinReady`), so the builder halves the wire's, rounding up, and
- * never lets it exceed {@link playersPerTeam} — a force-ready floor above the
- * ordinary gate would refuse the very team it exists to let through.
+ * never lets it exceed {@link playersPerTeam} — a floor above the ordinary
+ * gate would refuse the very team it exists to let through.
+ *
+ * **On MatchZy-Enhanced this number is the gate itself, not a force-ready
+ * floor** (PRD-03 T5a), and that is a change from stock worth saying out
+ * loud. Stock 0.8.15 passed a team on `playerCount == readyCount &&
+ * playerCount >= players_per_team` and read `min_players_to_ready` only when
+ * somebody typed `.forceready`. The fork's `ReadySystem.cs` `IsTeamReady`
+ * still demands {@link playersPerTeam} **bodies connected** on the side, and
+ * then branches: at `0` everybody connected must ready, and above `0`
+ * `readyCount >= minReady` is enough. So a team of five with a gate of four
+ * passes with its fifth still silent — which is real, which the door has to
+ * let through, and which is why {@link matchZyReadyGate} is exported rather
+ * than the arithmetic living twice.
  *
  * With no rules at all the manifest's full house is the total, as it always
  * was. `min_spectators_to_ready` needs no conversion: spectators are one team.
@@ -240,6 +252,25 @@ function warmup(input: MatchConfigInput): { players: number; spectators: number 
     players: Math.min(Math.ceil(total / PLUGIN_TEAMS), playersPerTeam(input)),
     spectators: request.rules ? request.rules.warmup.minSpectatorsToReady : 0,
   }
+}
+
+/**
+ * **The ready gate as MatchZy will read it**, the two numbers {@link common}
+ * writes into the match file: how many bodies a side must hold before it can
+ * be ready at all, and how many of them must have said so.
+ *
+ * Exported because the **door** has to hold a `team_ready` against the same
+ * floor this config set (PRD-03 T5a). MatchZy calls a team through the gate
+ * at `min_players_to_ready` and the orchestrator must neither invent that
+ * number nor recompute it a second way: the whole lesson of the 2026-09-18
+ * stall is that two halves of this repo disagreeing about one threshold is
+ * invisible until a match will not start.
+ */
+export function matchZyReadyGate(input: MatchConfigInput): {
+  playersPerTeam: number
+  minPlayersToReady: number
+} {
+  return { playersPerTeam: playersPerTeam(input), minPlayersToReady: warmup(input).players }
 }
 
 /**

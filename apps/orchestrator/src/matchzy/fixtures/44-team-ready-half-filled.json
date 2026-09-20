@@ -11,6 +11,6 @@
     "event": "team_ready"
   },
   "expect": {
-    "dropped": "team_b is called through the gate with 0 of its 5 rostered ready — the sides are still being filled"
+    "dropped": "team_b is called through the gate with 0 ready, under its 5 rostered — the sides are still being filled"
   }
 }

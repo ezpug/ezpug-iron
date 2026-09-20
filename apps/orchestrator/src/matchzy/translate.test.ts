@@ -40,6 +40,13 @@ interface Fixture {
    * where the story happened to be.
    */
   state?: MatchZyState
+  /**
+   * The per-team ready floor this payload's match config carried
+   * (`min_players_to_ready`, PRD-03 T5a). Absent is the recorded run's own
+   * `0` — the fork's "everybody connected must ready" — and a file that
+   * declares one is a match whose request asked for a gate below its roster.
+   */
+  readyFloor?: number
   payload: unknown
   expect: { events?: GameserverEvent[]; dropped?: string; note?: boolean }
 }
@@ -73,6 +80,10 @@ const context: MatchZyContext = {
     teamA: { name: 'EZPug A', players: ['306', '308', '310', '312', '314'].map(puppet) },
     teamB: { name: 'EZPug B', players: ['307', '309', '311', '313', '315'].map(puppet) },
   },
+  // The recorded run asked for `minPlayersToReady: 0`, which is the fork's
+  // "everybody connected must ready" and leaves the roster as the door's only
+  // expectation (PRD-03 T5a). The floor's own cases are below.
+  readyFloor: 0,
 }
 
 describe('the fixtures, in order', () => {
@@ -87,7 +98,11 @@ describe('the fixtures, in order', () => {
   it('translate exactly as written, state carried from one to the next', () => {
     let state: MatchZyState = initialMatchZyState()
     for (const fixture of fixtures) {
-      const result = translateMatchZyEvent(fixture.payload, context, fixture.state ?? state)
+      const result = translateMatchZyEvent(
+        fixture.payload,
+        fixture.readyFloor === undefined ? context : { ...context, readyFloor: fixture.readyFloor },
+        fixture.state ?? state,
+      )
       // **A fixture that declares its own state does not leak into the
       // story.** It is a case of its own — that is what declaring one means —
       // and the recorded run either side of it is one match in order. The
@@ -425,6 +440,96 @@ describe('MatchZy-Enhanced, event by event', () => {
     state = unready.state
     expect(translateMatchZyEvent(teamReady(5, 7), context, state).events).toHaveLength(1)
     expect(translateMatchZyEvent(everybody, context, state).events).toHaveLength(1)
+  })
+
+  /**
+   * **The floor the door has to know** (PRD-03 T5a). MatchZy-Enhanced's
+   * `IsTeamReady` wants `players_per_team` bodies on the side and then passes
+   * the team at `readyCount >= min_players_to_ready` — so a five whose match
+   * config asks four is genuinely through with its fifth still silent. T5
+   * held every `team_ready` against the whole roster, which filtered the
+   * fork's transients and this real passage with them; the floor is the same
+   * number the builder wrote into the match file
+   * ({@link matchZyReadyGate}), never a second opinion.
+   */
+  describe('the ready floor its match config set', () => {
+    const teamReady = (count: number, total = count, team = 'team1') => ({
+      event: 'team_ready',
+      matchid: context.serial,
+      team,
+      ready_count: count,
+      total_ready: total,
+      expected_total: 10,
+    })
+    const withFloor = (readyFloor: number, teams = context.teams): MatchZyContext => ({
+      ...context,
+      teams,
+      readyFloor,
+    })
+
+    it('lets a five whose gate is four through with its fifth still silent', () => {
+      const result = translateMatchZyEvent(teamReady(4), withFloor(4), initialMatchZyState())
+      expect(result.dropped).toBeUndefined()
+      expect(result.events[0]).toMatchObject({
+        type: 'team_ready',
+        team: 'team_a',
+        tally: { ready: { teamA: 4, teamB: 0 }, expected: 10 },
+      })
+      // The same payload against a match that asked everybody to ready: the
+      // roster is the expectation there, and four of five is the sides still
+      // being filled. This is T5's rule, and it is why the floor exists —
+      // without it the line above is a drop.
+      expect(translateMatchZyEvent(teamReady(4), context, initialMatchZyState()).dropped).toMatch(
+        /4 ready, under its 5 rostered/,
+      )
+    })
+
+    it('still drops the fork’s transients, which sit under any real floor', () => {
+      // Every recorded puppet pug opens with a team_ready at none of five,
+      // and announces a team again at one of five while its bots are being
+      // mapped (T5): the side count and the logical count disagree until the
+      // mapping is done.
+      for (const count of [0, 1, 3]) {
+        const result = translateMatchZyEvent(teamReady(count), withFloor(4), initialMatchZyState())
+        expect(result.events).toEqual([])
+        expect(result.dropped).toMatch(new RegExp(`${count} ready, under the 4`))
+      }
+    })
+
+    it('never asks a side for more than its roster holds', () => {
+      // A 2v1: `players_per_team` is the smaller roster's one (T1), so the
+      // floor is one, and MatchZy calls the pair through with one of the two
+      // ready. That is the case the PRD names — a team let through on
+      // min_players_to_ready with somebody still silent — and it is a fact.
+      const uneven = {
+        teamA: { name: 'EZPug A', players: ['306', '308'].map(puppet) },
+        teamB: { name: 'EZPug B', players: [puppet('307')] },
+      }
+      expect(
+        translateMatchZyEvent(teamReady(1, 1), withFloor(1, uneven), initialMatchZyState())
+          .events[0],
+      ).toMatchObject({ team: 'team_a', tally: { ready: { teamA: 1, teamB: 0 } } })
+      // And a floor the roster cannot reach is the stall wearing the other
+      // shoe: the single player on team B is through at one, whatever number
+      // a config carried.
+      expect(
+        translateMatchZyEvent(teamReady(1, 1, 'team2'), withFloor(5, uneven), initialMatchZyState())
+          .events[0],
+      ).toMatchObject({ team: 'team_b' })
+    })
+
+    it('holds an unrostered team against nothing at all', () => {
+      // The `--force-start` lane's match rosters nobody, and a floor built
+      // from a manifest is no expectation about bodies nobody named.
+      const anonymous = {
+        teamA: { name: 'EZPug A', players: [] },
+        teamB: { name: 'EZPug B', players: [] },
+      }
+      expect(
+        translateMatchZyEvent(teamReady(0, 0), withFloor(0, anonymous), initialMatchZyState())
+          .events[0],
+      ).toMatchObject({ type: 'team_ready', team: 'team_a' })
+    })
   })
 
   it('says where one player stands once — the reconcile pass readies a slot twice', () => {

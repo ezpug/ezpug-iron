@@ -1,9 +1,10 @@
+import type { GamemodeManifest } from '@ezpug/match-api'
 import { isTerminalMatchState } from '@ezpug/match-api'
 import { MATCHZY_PAYLOAD_MAX, MATCHZY_TOKEN_HEADER } from '@ezpug/protocol'
 import type { ServerEventSink } from '../link/channels'
 import type { Log } from '../log'
 import type { MatchStore } from '../match/store'
-import { matchzySerial } from '../match-config/matchzy'
+import { matchZyReadyGate, matchzySerial } from '../match-config/matchzy'
 import { hashToken, looksLikeToken } from '../tokens'
 import { nullTrace, type Trace } from '../trace'
 import {
@@ -53,6 +54,13 @@ import {
 export interface MatchZyDoorOptions {
   store: MatchStore
   matches: ServerEventSink
+  /**
+   * The catalog, for the one thing the door reads a manifest for: the ready
+   * floor this match's MatchZy config was built with (PRD-03 T5a). A mode the
+   * catalog no longer holds leaves the floor unset, and a `team_ready` is
+   * then held against the roster alone, as it was before the floor existed.
+   */
+  gamemodes: readonly GamemodeManifest[]
   log: Log
   translate?: TranslateOptions
   /** The dev recorder (T13): the raw payload and what it became. */
@@ -78,7 +86,7 @@ export interface MatchZyDoor {
 }
 
 export function createMatchZyDoor(options: MatchZyDoorOptions): MatchZyDoor {
-  const { store, matches, log } = options
+  const { store, matches, log, gamemodes } = options
   const trace = options.trace ?? nullTrace
   const states = new Map<string, MatchZyState>()
 
@@ -116,6 +124,14 @@ export function createMatchZyDoor(options: MatchZyDoorOptions): MatchZyDoor {
       const state = states.get(row.id) ?? initialMatchZyState()
       const rules = row.requestJson.rules
       const teams = row.requestJson.teams
+      // The floor the match file set, read back the way it was written
+      // (PRD-03 T5a): `matchZyReadyGate` is the builder's own arithmetic, so
+      // the door cannot drift from the number MatchZy is judging by.
+      const manifest = gamemodes.find(mode => mode.id === row.gamemode)
+      const readyFloor = manifest
+        ? matchZyReadyGate({ matchId: row.id, request: row.requestJson, manifest })
+            .minPlayersToReady
+        : 0
       const result = translateMatchZyEvent(
         payload,
         {
@@ -127,6 +143,7 @@ export function createMatchZyDoor(options: MatchZyDoorOptions): MatchZyDoor {
             teamA: { name: teams.teamA.name, players: teams.teamA.players.map(p => p.steamId64) },
             teamB: { name: teams.teamB.name, players: teams.teamB.players.map(p => p.steamId64) },
           },
+          readyFloor,
         },
         state,
         {

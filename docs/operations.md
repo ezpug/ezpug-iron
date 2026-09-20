@@ -1272,6 +1272,17 @@ MatchZy to send a round's beginning. And **the ready events are the server's own
 arithmetic** — a client draws them rather than recomputing the gate, which is what made
 the 2026-09-18 stall invisible.
 
+**A `team_ready` is held against the floor that match's config set** (PRD-03 T5a):
+`min_players_to_ready`, which the door reads back out of the same builder that wrote it
+(`matchZyReadyGate`) so the two halves of this repo cannot hold two numbers for one
+threshold. The fork re-checks the gate after every single ready and announces a side from
+none ready upwards while its bots are still being mapped, so everything under the floor is
+dropped with the count in the reason; at the floor and above it travels once. A request
+that asked for no gate (`minPlayersToReady: 0`) leaves the roster as the only expectation.
+This matters the moment a gate sits below a roster: a 5v5 asking eight goes through at
+**four of five a side**, and the run that proved it on the dev node sent 46 `team_ready`
+of which the log kept two.
+
 **What a real match turns on** (PRD-03 T3a). Two of the fork's player features are on
 where stock had neither, and one switch of the four is the request's:
 
@@ -1370,6 +1381,11 @@ handler `.ready` calls. `--bots <n>` is how many bodies, split a side (an odd nu
 uneven match: `--bots 3` is a 2v1), and `--timescale <n>` is the engine clock they play at.
 The run's own key is minted with the `simulation` scope, which production's platform key
 does not hold.
+
+**`--ready-gate <n>`** is `rules.warmup.minPlayersToReady` across both teams, `0` by
+default. The builder halves it per side, so `--bots 10 --ready-gate 8` is a five whose
+gate is four and is how the floor above is played on hardware. It never starts a match
+short-handed — the fork still wants every rostered body connected and on its side.
 
 **`--force-start` is the escape hatch**, and it is the only thing that sends RCON at a
 match: `bot_kick; bot_quota 0`, `css_start`, the quota back, `mp_warmup_end`. It exists

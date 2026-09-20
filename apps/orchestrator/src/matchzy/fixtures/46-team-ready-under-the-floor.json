@@ -1,0 +1,22 @@
+{
+  "source": "derived",
+  "from": "28-team-ready.json",
+  "note": "The same match one ready earlier. The fork re-checks the gate after every single ready and the side count runs ahead of the logical one while its bots are mapped, so three of five is announced too — under the floor, and the sides are still being filled. The gate-of-four run sent five of these and the door said nothing to any of them.",
+  "state": {
+    "scores": {},
+    "starts": {},
+    "ready": {}
+  },
+  "readyFloor": 4,
+  "payload": {
+    "team": "team1",
+    "ready_count": 3,
+    "total_ready": 5,
+    "expected_total": 10,
+    "matchid": 1083740696,
+    "event": "team_ready"
+  },
+  "expect": {
+    "dropped": "team_a is called through the gate with 3 ready, under the 4 its match config asks of a side — the sides are still being filled"
+  }
+}

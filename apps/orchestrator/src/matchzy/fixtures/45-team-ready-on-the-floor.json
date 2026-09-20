@@ -1,0 +1,39 @@
+{
+  "source": "derived",
+  "from": "28-team-ready.json",
+  "note": "The one passage T5 dropped (PRD-03 T5a). A 5v5 whose request asked minPlayersToReady: 8 carries min_players_to_ready: 4, and MatchZy-Enhanced’s IsTeamReady passes a side at four ready with its fifth still silent — so this is a fact, and holding it against the whole roster made the durable log say the team passed one puppet later than it did. 28 with ready_count 4 and total_ready 6, which is byte for byte what the gate-of-four pug on the dev node sent: eleven of its forty-six team_ready payloads read exactly this.",
+  "state": {
+    "scores": {},
+    "starts": {},
+    "ready": {}
+  },
+  "readyFloor": 4,
+  "payload": {
+    "team": "team1",
+    "ready_count": 4,
+    "total_ready": 6,
+    "expected_total": 10,
+    "matchid": 1083740696,
+    "event": "team_ready"
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "team_ready",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "team": "team_a",
+        "tally": {
+          "ready": {
+            "teamA": 4,
+            "teamB": 2
+          },
+          "expected": 10
+        }
+      }
+    ]
+  }
+}

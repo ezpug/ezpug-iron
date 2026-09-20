@@ -13,6 +13,7 @@ import {
   buildMatchZyConfig,
   type MatchConfigInput,
   type MatchZyMatchConfig,
+  matchZyReadyGate,
   matchzySerial,
 } from './matchzy'
 
@@ -259,6 +260,34 @@ function matchZyTeamReady(
   return false
 }
 
+/**
+ * **MatchZy-Enhanced's gate, which is not stock's** (`ReadySystem.cs`
+ * `IsTeamReady` in the pinned fork, transcribed beside stock's above —
+ * PRD-03 T5a). Two differences the door has to live with:
+ *
+ * - `min_players_to_ready` is **the ordinary gate**, not a force-ready floor.
+ *   At `0` everybody connected must ready, as stock did; above `0` a team
+ *   passes at `readyCount >= minReady`, with nobody typing `.forceready`.
+ * - The roster requirement did not move: a side still needs
+ *   `players_per_team` **bodies connected** before any of this is read. So a
+ *   player who never connects never reaches the floor — the floor is only
+ *   ever crossed by somebody who is there and silent.
+ */
+function enhancedTeamReady(
+  config: Pick<MatchZyMatchConfig, 'players_per_team' | 'min_players_to_ready'>,
+  team: { playerCount: number; readyCount: number; forced?: boolean },
+): boolean {
+  const { playerCount, readyCount, forced = false } = team
+  if (playerCount === 0) return false
+  if (playerCount < config.players_per_team) return false
+  if (config.min_players_to_ready <= 0) {
+    if (playerCount === readyCount) return true
+  } else if (readyCount >= config.min_players_to_ready) {
+    return true
+  }
+  return forced
+}
+
 /** Every rostered player is on the server and has typed `!ready`. Does MatchZy go live? */
 function goesLiveOnceEverybodyReadies(config: MatchZyMatchConfig): boolean {
   return [config.team1, config.team2].every(team => {
@@ -345,6 +374,44 @@ describe('a team of one can ready up', () => {
     // An odd total rounds up, then stops at the team a force-ready must pass.
     expect(buildMatchZyConfig(pug(2, 1, 3)).min_players_to_ready).toBe(1)
     expect(buildMatchZyConfig(pug(1, 1, 0)).min_players_to_ready).toBe(0)
+  })
+
+  it('hands the door the very number it wrote into the match file', () => {
+    // The door holds a `team_ready` against `min_players_to_ready` (PRD-03
+    // T5a) and reads it back through this function rather than halving the
+    // request a second time. Two copies of one threshold disagreeing is the
+    // 2026-09-18 stall's shape, and this is what makes a second copy
+    // impossible.
+    for (const input of [pug(5, 5, 10), pug(5, 5, 8), pug(2, 1, 3), pug(1, 1, 0), pug(0, 0, 0)]) {
+      const config = buildMatchZyConfig(input)
+      expect(matchZyReadyGate(input)).toEqual({
+        playersPerTeam: config.players_per_team,
+        minPlayersToReady: config.min_players_to_ready,
+      })
+    }
+  })
+
+  it('passes a five whose gate is four with its fifth silent, and never one who is absent', () => {
+    // The case PRD-03 T5a plays: `minPlayersToReady: 8` across both teams is
+    // four a side, and the fork's own gate lets the team through at four of
+    // five ready. The door must forward that `team_ready`; T5's roster rule
+    // dropped it.
+    const config = buildMatchZyConfig(pug(5, 5, 8))
+    expect(config.players_per_team).toBe(5)
+    expect(config.min_players_to_ready).toBe(4)
+    expect(enhancedTeamReady(config, { playerCount: 5, readyCount: 4 })).toBe(true)
+    expect(enhancedTeamReady(config, { playerCount: 5, readyCount: 3 })).toBe(false)
+    // **And the floor is never what a missing player crosses.** A side four
+    // bodies deep is refused before the floor is read at all, so the PRD's
+    // "one player never connecting" cannot be a team through the gate on
+    // this build — the platform's join deadline stays the only thing that
+    // gives up on them (T3a), and `AreAllConfiguredPlayersConnectedAndOnCorrectTeams`
+    // holds the whole match in warmup meanwhile.
+    expect(enhancedTeamReady(config, { playerCount: 4, readyCount: 4 })).toBe(false)
+    // Stock 0.8.15 would have refused the four-of-five too: there the number
+    // only ever applied to `.forceready`.
+    expect(matchZyTeamReady(config, { playerCount: 5, readyCount: 4 })).toBe(false)
+    expect(matchZyTeamReady(config, { playerCount: 5, readyCount: 4, forced: true })).toBe(true)
   })
 
   it('says the same number to Get5, which counts per team too', () => {

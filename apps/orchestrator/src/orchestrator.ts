@@ -350,7 +350,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     rateLimiter: createRateLimiter({ clock, ...config.rateLimit }),
     health,
     isDraining: () => shutdown?.draining === true,
-    matchzy: createMatchZyDoor({ store, matches, log, trace }),
+    matchzy: createMatchZyDoor({ store, matches, gamemodes: catalog, log, trace }),
     widgets: widgetBundles,
     baseUrl: config.baseUrl,
   })

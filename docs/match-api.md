@@ -100,7 +100,9 @@ gate, so a map that runs a ready phase of its own starts from nothing. (The serv
 this is arithmetic a match plugin does not do for itself: MatchZy-Enhanced re-checks the
 gate after every ready and re-announces every team still through it, from one player ready
 upwards — 44 `team_ready` for two teams in the recorded puppet pug, which is why a
-`team_ready` only travels when its count matches the roster the request named.)
+`team_ready` only travels once its side has reached the floor that match's own config set:
+`minPlayersToReady` per team, or the whole roster where the request asked for no gate at
+all.)
 
 `knife_start` and `knife_end` bracket a knifed map; `knife_end.winner` is who picks
 the side, `null` when the server could not attribute it, and the pick itself arrives as
@@ -203,6 +205,15 @@ holds — the platform's `gamemodeReadyGate` sends `min(players, seats, preset)`
 has to know which match plugin runs the server: MatchZy counts *per team*
 (`GetTeamMinReady`), and the orchestrator's config builder halves the wire's number,
 rounding up, on the way in.
+
+**A gate below the roster is a real gate, not a formality.** Ask for eight on a 5v5 and
+each side goes through at four ready with its fifth still silent — MatchZy-Enhanced reads
+the per-team number as the gate itself, where stock only read it for `.forceready` — and
+`team_ready` for that side travels at four, because that is when the server judged it
+through. It is **not** a way to start a match short-handed: the side still needs its full
+`players_per_team` bodies connected before any of this is read, so a player who never
+arrives never brings the gate down to the rest (see the join deadline below). Ask for `0`
+and every connected player must ready, which is the strictest the server offers.
 
 The same builder sizes `players_per_team` from the **roster**, not from the gamemode's
 `teamSize`: MatchZy passes a team only at `playerCount >= players_per_team`

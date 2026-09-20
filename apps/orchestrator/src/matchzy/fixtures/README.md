@@ -53,5 +53,19 @@ whose bot was remapped, and it calls a team through the gate from one player rea
 upwards while its bots are still being mapped: the recorded puppet pug sent 44
 `team_ready`, four `all_players_ready` and eleven `player_ready` for ten puppets who
 readied once and two teams that passed the gate once. A durable log holds facts, so 41,
-42, 43 and 44 are dropped — and 28 is the `team_ready` whose count matches the roster the
-request named, which is what the door holds every one of them against.
+42, 43 and 44 are dropped — and 28 is the `team_ready` the door let through.
+
+**45 and 46 are the floor** (PRD-03 T5a), and they are the only files here whose match
+config is not the recorded run's. What a `team_ready` is held against is
+`min_players_to_ready` — the request's `warmup.minPlayersToReady` halved per team by
+`match-config/matchzy.ts` and read back by the door through the same function, never a
+second opinion — and the recorded run asked `0`, which is the fork's *everybody connected
+must ready* and leaves the roster as the only expectation. A file may declare a
+`readyFloor` of its own, and these two declare `4`: the gate a 5v5 gets when its request
+asks `minPlayersToReady: 8`. MatchZy-Enhanced's `IsTeamReady` passes a side at four ready
+with its fifth still silent, so **45 is a fact and holding it against the whole roster is
+what made the log say the team passed one puppet later than it did**; 46 is the same
+match one ready earlier, under the floor, and says nothing. Both payloads are what the
+gate-of-four pug on the dev node really sent — eleven of its forty-six `team_ready` read
+like 45 and five like 46 — spelled as edits of 28 because a fixture here carries the
+fixture match's serial.

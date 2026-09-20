@@ -70,6 +70,12 @@ const HELP = `iron-match — run one real match through the Match API and record
                          assertion skipped — no green run may depend on it
   --format <name>        rules.format: competitive (default) or wingman, the
                          two-a-side game — use it with --bots 4
+  --ready-gate <n>       rules.warmup.minPlayersToReady across both teams;
+                         default 0, which is "everybody connected must ready".
+                         The builder halves it per team, and MatchZy-Enhanced
+                         then passes a side at that many ready — so --bots 10
+                         --ready-gate 8 is a five whose gate is four (PRD-03
+                         T5a)
   --no-overtime          allow a drawn map — MatchZy then replays it, so the run hangs
   --max-live-minutes <n> force-end a match still live after this long; default 35
   --base-url <url>       default $EZPUG_IRON_BASE_URL
@@ -272,6 +278,28 @@ function puppetRoster(count) {
  */
 const FORMAT = flags.get('format') ?? 'competitive'
 if (FORMAT !== 'competitive' && FORMAT !== 'wingman') die('--format is `competitive` or `wingman`')
+/**
+ * **`rules.warmup.minPlayersToReady`, and the one way to play the floor**
+ * (PRD-03 T5a). On the wire it is the whole match's count; the MatchZy
+ * builder halves it per team, caps it at `players_per_team` and writes it
+ * into the match file, and MatchZy-Enhanced's `IsTeamReady` then passes a
+ * side the moment that many of its bodies are ready — its fifth still
+ * silent. `0`, the default and what every recording before T5a was made
+ * with, is the fork's "everybody connected must ready" and leaves the door
+ * holding a `team_ready` against the roster alone.
+ *
+ * It is never a way to start a match short-handed: the fork still wants
+ * `players_per_team` bodies on the side and every rostered SteamID connected
+ * (`AreAllConfiguredPlayersConnectedAndOnCorrectTeams`), so a player who
+ * never arrives holds the match in warmup whatever this says.
+ */
+const READY_GATE = flags.has('ready-gate') ? Number(flags.get('ready-gate')) : 0
+if (!Number.isInteger(READY_GATE) || READY_GATE < 0)
+  die('--ready-gate is a whole number of players across both teams, 0 or more')
+if (READY_GATE > BOTS && SIMULATE)
+  die(
+    `--ready-gate ${READY_GATE} is above the ${BOTS} puppets on the roster: nobody could reach it`,
+  )
 const WANT_DEMO = flags.get('no-demo') !== 'true'
 /**
  * Overtime is **on** by default and that is a finding, not a preference: with
@@ -1003,7 +1031,7 @@ async function run() {
       // not better: one round a side splits 1-1 far more often than six rounds
       // split 3-3.
       overtime: { enabled: OVERTIME, maxRounds: 6, startMoney: 10_000 },
-      warmup: { minPlayersToReady: 0, minSpectatorsToReady: 0 },
+      warmup: { minPlayersToReady: READY_GATE, minSpectatorsToReady: 0 },
       // These travel in the match config, which MatchZy re-applies a second
       // after its own `live.cfg` — so the quota below is what the *match* runs
       // with whatever that cfg did to it. `bot_quota_mode` is deliberately not

@@ -69,12 +69,13 @@ import { z } from 'zod'
  *   `all_ready`) and the knife (`knife_round_started`, `knife_round_ended`).
  *   A client must not recompute the gate — whether a team has passed it is
  *   the match plugin's own judgement, which is the whole lesson of the
- *   2026-09-18 stall (T1). **A team says it once, and only when its own
- *   roster is through**: the fork re-checks the gate after every single ready
- *   and POSTs a `team_ready` for each team still through it, twice over and
- *   from one player ready upwards — 44 of them, four `all_players_ready` and
- *   eleven `player_ready` in the recorded pug of ten puppets (T5), for two
- *   teams that passed the gate once and ten puppets who readied once.
+ *   2026-09-18 stall (T1). **A team says it once, and only when the floor
+ *   its own match config set is reached** ({@link MatchZyContext.readyFloor},
+ *   T5a): the fork re-checks the gate after every single ready and POSTs a
+ *   `team_ready` for each team still through it, twice over and from one
+ *   player ready upwards — 44 of them, four `all_players_ready` and eleven
+ *   `player_ready` in the recorded pug of ten puppets (T5), for two teams
+ *   that passed the gate once and ten puppets who readied once.
  *   {@link MatchZyState.ready} is the memory that makes the log facts rather
  *   than polls.
  * - **`round_started` too, and this was a hole.** `MatchZyFlow` (the core
@@ -126,6 +127,23 @@ export interface MatchZyContext {
     teamA: MatchZyTeamContext
     teamB: MatchZyTeamContext
   }
+  /**
+   * **The per-team ready floor this match's config carries** —
+   * `min_players_to_ready`, straight out of {@link matchZyReadyGate}, which is
+   * the request's `warmup.minPlayersToReady` halved and capped at
+   * `players_per_team` (PRD-03 T5a).
+   *
+   * It is what makes a `team_ready` below the roster a fact rather than a
+   * transient. MatchZy-Enhanced's `IsTeamReady` passes a team on
+   * `readyCount >= minReady` once `players_per_team` bodies are on the side,
+   * so a five whose gate is four is through with its fifth still silent, and
+   * a door that insisted on the whole roster would drop the one passage
+   * MatchZy really meant.
+   *
+   * `0` is the fork's "everybody connected must ready", and then the roster
+   * the request named is the only expectation the door has.
+   */
+  readyFloor: number
 }
 
 export interface MatchZyTeamContext {
@@ -761,22 +779,32 @@ export function translateMatchZyEvent(
       // ready, and — worse — spend the edge below on a transient so the real
       // passage is dropped.
       //
-      // So the count MatchZy sends is held against **the roster the request
-      // named**, which is the only per-team expectation the door has and a
-      // number this repo wrote into the match config itself
-      // (`match-config/matchzy.ts`, `players_per_team`). A match that rosters
-      // nobody on this team — the `--force-start` lane's — has nothing to
-      // hold it against and the first one through stands.
+      // So the count MatchZy sends is held against **the floor this match's
+      // own config set** (PRD-03 T5a) — `min_players_to_ready`, which the
+      // door reads back through `matchZyReadyGate` rather than inventing a
+      // second number. The fork's `IsTeamReady` passes a team the moment
+      // `readyCount >= minReady`, so a five whose gate is four is genuinely
+      // through with its fifth still silent, and T5's roster rule dropped
+      // exactly that passage: the one case MatchZy really meant.
       //
-      // The one thing this filters that MatchZy meant: a team let through on
-      // `min_players_to_ready` with somebody still missing. `all_ready` and
-      // `going_live` still say the match started, and PRD-03 has a line for
-      // teaching the door that floor.
+      // A gate of `0` is the fork's "everybody connected must ready", and
+      // there the roster the request named is the only expectation the door
+      // has. A match that rosters nobody on this team — the `--force-start`
+      // lane's — has neither, and the first one through stands.
       const rostered = (team === 'team_a' ? context.teams.teamA : context.teams.teamB).players
         .length
-      if (rostered > 0 && event.ready_count !== rostered)
+      // Never above the roster: a floor a team cannot reach would refuse the
+      // passage it exists to let through, which is the stall wearing the
+      // other shoe.
+      const asked = context.readyFloor > 0 ? context.readyFloor : rostered
+      const floor = rostered > 0 ? Math.min(asked, rostered) : asked
+      const because =
+        context.readyFloor > 0 && context.readyFloor <= floor
+          ? `the ${floor} its match config asks of a side`
+          : `its ${floor} rostered`
+      if (floor > 0 && event.ready_count < floor)
         return drop(
-          `${team} is called through the gate with ${event.ready_count} of its ${rostered} rostered ready — the sides are still being filled`,
+          `${team} is called through the gate with ${event.ready_count} ready, under ${because} — the sides are still being filled`,
         )
       // MatchZy sends this team's count and the total; the other team's is
       // the difference, and never below zero however the two were counted.

@@ -274,7 +274,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - `iron-match.mjs`'s force-start becomes an explicit `--force-start` flag, documented
     as the escape hatch.
 
-- [ ] **T5a: the ready floor the door does not know.** `team_ready` only travels when
+- [x] **T5a: the ready floor the door does not know.** `team_ready` only travels when
   MatchZy's count for that team matches the roster the request named
   (`matchzy/translate.ts`, T5): the fork calls a team through the gate from one player
   ready upwards while its bots are still being mapped, and forwarding that put "team A is
@@ -282,6 +282,15 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   means it — a team let through on `min_players_to_ready` with somebody still missing.
   Teach the door that floor (it is the request's `warmup.minPlayersToReady`, halved by the
   builder) and play the case: a 5v5 whose gate is four a side, one player never connecting.
+
+    > Played as a 5v5 of puppets whose gate is four a side, **without** the missing player,
+    > because the fork cannot produce that half: `ReadySystem.cs` `IsTeamReady` refuses a
+    > side holding fewer than `players_per_team` bodies *before* it reads the floor at all,
+    > and `AreAllConfiguredPlayersConnectedAndOnCorrectTeams` holds the whole match in
+    > warmup while any rostered SteamID is absent (T3a's sentence). So the floor is only
+    > ever crossed by somebody who is **there and silent**, never by somebody missing — the
+    > platform's join deadline is still the only thing that gives up on them. Both halves
+    > are pinned in `matchzy.test.ts` against the fork's gate transcribed beside stock's.
 
 - [ ] **T6: the regression matrix, on real hardware.** Lane cases that each assert their
   fact sequence:

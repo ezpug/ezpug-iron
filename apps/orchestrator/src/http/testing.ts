@@ -287,7 +287,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     }),
     health,
     isDraining: () => draining.value,
-    matchzy: createMatchZyDoor({ store, matches, log }),
+    matchzy: createMatchZyDoor({ store, matches, gamemodes: catalog, log }),
     ...(options.widgets && { widgets: options.widgets, baseUrl: 'http://localhost:3430' }),
   })
   void hub.start()
