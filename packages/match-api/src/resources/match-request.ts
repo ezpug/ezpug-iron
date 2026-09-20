@@ -109,6 +109,25 @@ export const matchRulesSchema = z.object({
       .int()
       .nonnegative()
       .describe('ready spectators; casters are one group'),
+    /**
+     * **Nobody has to type `.ready`.** On (the default), the match plugin
+     * readies each player a couple of seconds after they pick a side and
+     * counts down out loud once the gate is passed; a player who types
+     * `.unready` is left alone until they type `.ready` again, so the two
+     * commands still mean what they always did. Off is the LAN admin's
+     * manual ready-up, where a captain wants the room to say so.
+     *
+     * It does **not** loosen any gate: the same roster has to be connected
+     * and on its side, and the same {@link minPlayersToReady} has to be met
+     * (MatchZy-Enhanced's `CheckAndAutoReadyPlayers` only simulates the
+     * command, `IsLiveRequirementSatisfied` still decides). A rostered
+     * player who never connects still holds the match in warmup for ever —
+     * the client's own join deadline is the only thing that gives up.
+     */
+    autoReady: z
+      .boolean()
+      .default(true)
+      .describe('ready each player automatically; the gate itself is unchanged'),
   }),
   /**
    * A preset's cvars, merged **under** the ones the gamemode derives — a

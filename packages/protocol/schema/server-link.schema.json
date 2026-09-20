@@ -1995,11 +1995,17 @@
               "minimum": 0,
               "maximum": 9007199254740991,
               "description": "ready spectators; casters are one group"
+            },
+            "autoReady": {
+              "default": true,
+              "description": "ready each player automatically; the gate itself is unchanged",
+              "type": "boolean"
             }
           },
           "required": [
             "minPlayersToReady",
-            "minSpectatorsToReady"
+            "minSpectatorsToReady",
+            "autoReady"
           ],
           "additionalProperties": false
         },

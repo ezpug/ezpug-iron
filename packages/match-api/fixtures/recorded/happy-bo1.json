@@ -322,7 +322,8 @@
             },
             "warmup": {
               "minPlayersToReady": 10,
-              "minSpectatorsToReady": 0
+              "minSpectatorsToReady": 0,
+              "autoReady": true
             },
             "cvars": {}
           },
@@ -431,7 +432,8 @@
             },
             "warmup": {
               "minPlayersToReady": 10,
-              "minSpectatorsToReady": 0
+              "minSpectatorsToReady": 0,
+              "autoReady": true
             },
             "cvars": {}
           },

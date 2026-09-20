@@ -6,6 +6,35 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.13.0 — 2026-09-20
+
+**Nobody has to type `.ready`** (PRD-03 T3a, for the platform's PRD-10 T4):
+`rules.warmup.autoReady`, a boolean that defaults to **`true`**. Additive — a request
+written before this field existed parses unchanged and gets the default, which is the
+owner's decision of 2026-09-19 that real matches auto-ready. The server readies each
+player a couple of seconds after they pick a side and counts down out loud once the gate
+is passed, so the match a lobby made starts by itself.
+
+Two things a consumer needs to know about it:
+
+- **It decides who has said yes, never whether the match may start.** Every gate is
+  unchanged: the whole roster still has to be connected and on its configured side, and
+  `minPlayersToReady` still has to be met. A rostered player who never connects still
+  holds the match in warmup — **your join deadline is the only thing that gives up on
+  them**, as it was before.
+- **Read it off the request rather than guessing.** A ready board that says "type `.ready`
+  in game" is wrong for an auto-ready match; what it should show is who is in and who is
+  still missing, with the countdown starting when the last one arrives. `.ready` and
+  `.unready` still work for anyone who types them, and `.unready` opts that player out
+  until they type `.ready` again.
+
+Not in this package, because no request may ask for them (PRD-03 T3a, decision 19 as
+amended): a server of ours now runs a **side-pick timer**, so a knife round whose winner
+never answers picks a side at random after sixty seconds instead of holding the box for
+ever — and `.gg` and forfeit-on-disconnect stay **off** on every server, because this API
+has no result that says a match was surrendered or walked over, and a server must not end
+a match in a way its client cannot record.
+
 ## 0.12.0 — 2026-09-20
 
 **Six new gameserver events, so a client can draw the ready gate and the knife** (PRD-03

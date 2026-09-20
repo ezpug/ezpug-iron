@@ -154,7 +154,8 @@
             "matchzy_reset_cvars_on_series_end": "true",
             "mp_overtime_enable": "0",
             "mp_overtime_maxrounds": "2",
-            "mp_overtime_startmoney": "10000"
+            "mp_overtime_startmoney": "10000",
+            "matchzy_autoready_enabled": "true"
           }
         },
         "maps": [
@@ -172,7 +173,8 @@
           },
           "warmup": {
             "minPlayersToReady": 2,
-            "minSpectatorsToReady": 0
+            "minSpectatorsToReady": 0,
+            "autoReady": true
           },
           "cvars": {
             "mp_freezetime": "15",
@@ -551,7 +553,8 @@
             "matchzy_reset_cvars_on_series_end": "true",
             "mp_overtime_enable": "0",
             "mp_overtime_maxrounds": "2",
-            "mp_overtime_startmoney": "10000"
+            "mp_overtime_startmoney": "10000",
+            "matchzy_autoready_enabled": "true"
           }
         },
         "maps": [
@@ -569,7 +572,8 @@
           },
           "warmup": {
             "minPlayersToReady": 2,
-            "minSpectatorsToReady": 0
+            "minSpectatorsToReady": 0,
+            "autoReady": true
           },
           "cvars": {
             "mp_freezetime": "15",

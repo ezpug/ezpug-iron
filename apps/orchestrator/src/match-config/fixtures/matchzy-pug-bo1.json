@@ -41,6 +41,7 @@
     "mp_maxrounds": "24",
     "mp_overtime_enable": "1",
     "mp_overtime_maxrounds": "6",
-    "mp_overtime_startmoney": "10000"
+    "mp_overtime_startmoney": "10000",
+    "matchzy_autoready_enabled": "true"
   }
 }

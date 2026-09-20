@@ -276,6 +276,15 @@ describe('the CS2 server image', () => {
         'matchzy_report_endpoint ""',
         'matchzy_report_server_id ""',
         'matchzy_report_token ""',
+        // PRD-03 T3a: the player features, which are the same kind of promise
+        // in the other direction — the timer that ends a knife nobody answers
+        // has to be on, and the two ways to end a match early that the Match
+        // API has no result for have to be off.
+        'matchzy_side_selection_enabled true',
+        'matchzy_side_selection_time 60',
+        'matchzy_gg_enabled false',
+        'matchzy_ffw_enabled false',
+        'matchzy_autoready_enabled false',
       ])
         expect(repo('docker/cs2/cfg/MatchZy/ezpug.cfg')).toContain(name)
     })
@@ -302,6 +311,24 @@ describe('the CS2 server image', () => {
       // Upstream's own file writes the URL commands with `""`, which is unset.
       const empty = run(scratch('config.cfg', `${base}\nmatchzy_heartbeat_url ""\n`))
       expect(empty.status).toBe(0)
+      // A switch that has to be *on* fails the same way when a later line
+      // turns it off — the timer is what keeps a knife round nobody answers
+      // from holding the box until a human looks (PRD-03 T3a).
+      const noTimer = run(scratch('config.cfg', `${base}\nmatchzy_side_selection_time 0\n`))
+      expect(noTimer.status).toBe(1)
+      expect(noTimer.stdout).toContain('leaves matchzy_side_selection_time at "0"')
+      const off = run(scratch('config.cfg', `${base}\nmatchzy_side_selection_enabled 0\n`))
+      expect(off.status).toBe(1)
+      expect(off.stdout).toContain('leaves matchzy_side_selection_enabled at "0"')
+      // …and `1` is the same word as `true` to the engine, so it passes.
+      expect(run(scratch('config.cfg', `${base}\nmatchzy_side_selection_enabled 1\n`)).status).toBe(
+        0,
+      )
+      // A match a server could surrender or forfeit is a match the platform
+      // cannot record the end of.
+      const gg = run(scratch('config.cfg', `${base}\nmatchzy_gg_enabled true\n`))
+      expect(gg.status).toBe(1)
+      expect(gg.stdout).toContain('leaves matchzy_gg_enabled at "true"')
       // The stats database is the SQLite file beside the plugin, never MySQL.
       const mysql = run(ours, scratch('database.json', '{ "DatabaseType": "MySQL" }'))
       expect(mysql.status).toBe(1)

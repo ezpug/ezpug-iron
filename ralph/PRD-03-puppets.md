@@ -204,7 +204,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - Additive release. The changelog tells the platform what it can now draw: who is
     ready, a countdown, the knife decision.
 
-- [ ] **T3a: what real matches turn on** (owner decision, 2026-09-19).
+- [x] **T3a: what real matches turn on** (owner decision, 2026-09-19).
   - Two of the fork's player features go **on** for real matches:
     - **the side-pick timer**: a knife winner who never answers no longer holds a server
       forever (`matchzy_side_selection_enabled`, `matchzy_side_selection_time`,
@@ -224,6 +224,13 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - Lane cases:
     - a 1v1 of puppets with auto-ready starts with no ready command sent;
     - a knife round nobody answers resolves on the timer.
+
+    > Both moved to T6, where puppets exist. A non-simulation match execs
+    > `cfg/MatchZy/humans.cfg` (`bot_kick; bot_quota 0`) at every warmup start
+    > (`Utility.cs` ExecWarmupCfg), so there is no body on a side for auto-ready to ready
+    > until T4/T5 put rostered puppets there — the fork's own workaround for this is
+    > `matchzy_autoready_simulation_enabled`, which is on our off-list. The lane ran the
+    > recorded `pug` instead, which proves the switches reach a real server.
   - `matchzy_autoready_simulation_enabled` (`:92`, spawns two bots) is one more switch
     for T2's off-list.
 
@@ -266,7 +273,10 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - `pug` at **every size from one to five a side**, and 2v1 (uneven: the platform's
     PRD-10 T1 makes customs allow it);
   - the `1v1` and `wingman` formats from T3b;
-  - knife on, with the side decided by the new timer, and knife off;
+  - knife on, with the side decided by the new timer (nobody types `.stay`), and knife
+    off;
+  - a 1v1 of puppets that goes live with **no ready command sent at all** — T3a's two
+    lane cases, which need puppets on a side to be possible;
   - a pause and an unpause;
   - a rostered puppet leaving and coming back;
   - an overtime, if short `mp_maxrounds` can force one reliably, otherwise sim-only with

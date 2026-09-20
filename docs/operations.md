@@ -1272,6 +1272,21 @@ MatchZy to send a round's beginning. And **the ready events are the server's own
 arithmetic** — a client draws them rather than recomputing the gate, which is what made
 the 2026-09-18 stall invisible.
 
+**What a real match turns on** (PRD-03 T3a). Two of the fork's player features are on
+where stock had neither, and one switch of the four is the request's:
+
+| Switch | Whose | Why |
+| ------ | ----- | --- |
+| `matchzy_side_selection_enabled` / `_time` (60 s) | the server's, `docker/cs2/cfg/MatchZy/ezpug.cfg` | a knife winner who never types `.stay` held the box for ever; the timer picks a side at random and goes live |
+| `matchzy_autoready_enabled` | the **match's**, from `rules.warmup.autoReady` (default on) | nobody types `.ready`; the builder writes it into every match config and MatchZy puts it back at series end, so a LAN admin asks for manual ready per match |
+| `matchzy_gg_enabled`, `matchzy_ffw_enabled` | the server's, off | a surrender vote and a walkover; the Match API has no result for either, so a server using one would end a match the platform cannot record |
+
+Auto-ready readies bodies, it does not start matches: the roster must still be connected
+and on its sides and the gate must still pass, so the platform's join deadline stays the
+only thing that gives up on a missing player. `docker/cs2/matchzy-cfg-check.sh` holds all
+four — with the timer as the one line that has to be *on* — and the image build fails over
+the cfg as it ships.
+
 Answers: `200` with `{ accepted, statuses }` for anything the door could read, dropped
 events included (`{ accepted: 0, dropped: <why> }` — MatchZy only logs the status);
 `401` for no or an unknown token, `409` when the row holds no open match, `400` for a body

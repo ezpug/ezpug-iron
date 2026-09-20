@@ -47,6 +47,10 @@ import { mergeCvars } from './cvars'
  * - **`min_players_to_ready` is per team on the plugin and per match on the
  *   wire**, so the builder converts. {@link warmup} says which way round and
  *   why the wire's is the total.
+ * - **The fork's own switches ride in `cvars`, above everything else**
+ *   (PRD-03 T3a). {@link matchzyCvars} is the layer: what a *match* decides
+ *   about MatchZy-Enhanced, as against what the image's cfg decides about the
+ *   server. Only MatchZy reads them, so Get5 never sees them.
  */
 
 /** A team as MatchZy and Get5 both read one: `{ "<steamid64>": "<name>" }`. */
@@ -200,6 +204,27 @@ function warmup(input: MatchConfigInput): { players: number; spectators: number 
   }
 }
 
+/**
+ * **What a match decides about MatchZy-Enhanced itself**, on top of every
+ * other cvar layer (PRD-03 T3a). The fork is applied by `ExecuteChangedConvars`
+ * *before* warmup starts (`MatchManagement.cs` `LoadMatch`) and put back on
+ * series end, so a per-match value is in force for exactly the match that
+ * asked for it — which is why these belong here and not in the image's cfg,
+ * where they would be one setting for every match a server ever plays.
+ *
+ * Today that is auto-ready and nothing else. The **side-pick timer** is not
+ * here on purpose: a knife round nobody answers must not be able to hold a
+ * server for ever, whoever built the request, so the timer is the server's and
+ * `docker/cs2/cfg/MatchZy/ezpug.cfg` owns it. `.gg` and the forfeit clock are
+ * off in that same file: a server must not end a match in a way the platform
+ * has no result for.
+ */
+function matchzyCvars(input: MatchConfigInput): Record<string, string> {
+  return {
+    matchzy_autoready_enabled: String(input.request.rules?.warmup.autoReady ?? true),
+  }
+}
+
 function common(input: MatchConfigInput) {
   const { request, manifest } = input
   const ready = warmup(input)
@@ -238,7 +263,7 @@ export function buildMatchZyConfig(input: MatchConfigInput): MatchZyMatchConfig 
     team1: shared.team1,
     team2: shared.team2,
     spectators: shared.spectators,
-    cvars: shared.cvars,
+    cvars: { ...shared.cvars, ...matchzyCvars(input) },
   }
 }
 

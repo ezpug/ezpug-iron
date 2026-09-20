@@ -180,6 +180,27 @@ it here.
     facts a millisecond apart for one moment. A test reads the pinned clone's own
     serialisers, when it is on the box, and fails if the fork ever adds a name nobody
     classified.*
+    *Amended by PRD-03 T3a, 2026-09-20 (owner decision, 2026-09-19): **what a real match
+    turns on.** The fork has player features stock never had, and the question each one
+    asks is who owns it — the box or the request. Two are the **box's**, because no match a
+    client can build may hold a server until a human notices or end in a way its client
+    cannot record: the **side-pick timer** (`matchzy_side_selection_enabled`, 60 s) ends a
+    knife round whose winner never answers by picking a side at random, and **`.gg` and
+    forfeit-on-disconnect stay off** (`matchzy_gg_enabled`, `matchzy_ffw_enabled`) until
+    the Match API has a forfeit result to record them with. One is the **match's**:
+    `rules.warmup.autoReady` (additive, `@ezpug/match-api` 0.13.0, default **on**) becomes
+    `matchzy_autoready_enabled` in the match config, which MatchZy applies before warmup
+    and puts back at series end — a LAN admin who wants the room to type `.ready` asks per
+    match, and the server between matches readies nobody. `docker/cs2/matchzy-cfg-check.sh`
+    grew the second half it needed for this: a switch that has to be **on** fails the same
+    way as one that has to be off. And the reading that decided the default: **auto-ready
+    decides who has said yes, never whether the match may start.**
+    `CheckAndAutoReadyPlayers` only simulates the command a couple of seconds after a
+    player picks a side; `IsLiveRequirementSatisfied` still wants every rostered SteamID
+    connected and on its configured side and still wants `min_players_to_ready` — so the
+    platform's join deadline remains the only thing that gives up on a missing player,
+    `.unready` opts a player out until they type `.ready` again, and turning auto-ready on
+    loosened no gate.*
 20. **Skins travel over the link, no exposed MySQL.** The platform owns loadouts; a match
     request's roster entries carry them; a **data-layer fork of cs2-WeaponPaints** takes
     the in-memory loadout the core plugin hands it instead of querying MySQL. No public

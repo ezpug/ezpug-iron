@@ -1,13 +1,19 @@
 #!/bin/sh
-# What MatchZy-Enhanced may never have switched on in a cfg of ours (PRD-03 T2,
-# docs/decisions.md 19). The fork reaches out by itself in ways stock MatchZy
-# never did; each of those paths has one switch, and this is the list of them.
+# What a cfg of ours has to say about MatchZy-Enhanced, and what it may never
+# say (PRD-03 T2 and T3a, docs/decisions.md 19). Two lists in one file:
+#
+#   - the paths the fork opens by itself, which stock MatchZy never did — each
+#     has one switch and every one of them is off;
+#   - the player features a match must not be able to lose: the side-pick timer
+#     that ends a knife round nobody answers, and the two ways to end a match
+#     early that the Match API has no result for.
 #
 #   matchzy-cfg-check.sh <config.cfg> [<database.json>]
 #
 # Reads the cfg the way the engine does — a line is `name value`, `//` starts a
 # comment, the last line that sets a name wins — and exits 1 naming every
-# switch that is on. The image build runs it over the file as it ships (the
+# switch whose last word is not the one it has to be. The image build runs it
+# over the file as it ships (the
 # pinned release's config.cfg with `cfg/MatchZy/ezpug.cfg` appended), so a
 # release that turns one on is a red build; `cs2-image.test.ts` runs it over
 # ours, so a line that goes missing is a red verify.
@@ -20,8 +26,9 @@ database=${2:-}
 
 awk '
   # name → the value it must have, exactly, once the whole file is read.
-  # A name that is absent falls to the code default, and these defaults are on
-  # (or, for the report, one upstream edit away from it): absent is a failure.
+  # A name that is absent falls to the code default, and a default is not
+  # something a pinned release owes us: absent is a failure either way round,
+  # for a switch that must be off and for one that must be on.
   BEGIN {
     must["matchzy_safeautoupdater_enabled"] = "false"      # Steam UpToDateCheck, every 5 min
     must["matchzy_safeautoupdater_action"] = "warn_only"   # `restart` kicks and quits
@@ -29,6 +36,20 @@ awk '
     must["matchzy_report_endpoint"] = ""                   # POSTs the match report there
     must["matchzy_report_server_id"] = ""                  # the report, and server_configured
     must["matchzy_report_token"] = ""                      # the report
+
+    # The player features (PRD-03 T3a). `.gg` is a surrender vote and FFW a
+    # walkover when a team leaves; the Match API has no result for either, so a
+    # server using one would end a match the platform cannot record. The
+    # side-pick timer is the opposite case — it has to be *on*, because without
+    # it a knife winner who never answers holds the server until a human looks.
+    must["matchzy_gg_enabled"] = "false"                   # surrender vote
+    must["matchzy_ffw_enabled"] = "false"                  # walkover when a team leaves
+    must["matchzy_side_selection_enabled"] = "true"        # ends a knife nobody answers
+    must["matchzy_side_selection_time"] = "60"             # 0 is the timer switched off
+    # Auto-ready belongs to the match, not the box: the builder writes it into
+    # every match config from `rules.warmup.autoReady`, and a server that
+    # readies people between matches holds an opinion nobody asked it for.
+    must["matchzy_autoready_enabled"] = "false"
 
     # Console commands, not cvars: each one *persists* a value in matchzy.db and
     # starts a fetch or a timer with it, so off means never given one. The
@@ -80,7 +101,9 @@ awk '
         bad = 1
       } else {
         got = last[name]
+        # The engine reads 0/1 and false/true as the same word for a bool.
         if (want == "false" && got == "0") got = "false"
+        if (want == "true" && got == "1") got = "true"
         if (got != want) {
           printf "matchzy-cfg-check: %s leaves %s at \"%s\", it has to be \"%s\"\n", FILENAME, name, last[name], want
           bad = 1

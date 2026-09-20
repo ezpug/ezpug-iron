@@ -50,7 +50,7 @@ export const EMPTY_TEAMS = {
 export const SHORT_RULES: MatchRules = {
   regulationRounds: 2,
   overtime: { enabled: false, maxRounds: 2, startMoney: 10_000 },
-  warmup: { minPlayersToReady: 10, minSpectatorsToReady: 0 },
+  warmup: { minPlayersToReady: 10, minSpectatorsToReady: 0, autoReady: true },
   cvars: {},
 }
 

@@ -452,3 +452,84 @@ describe('rosters', () => {
     expect(matchZyValidationError(config)).toBe('')
   })
 })
+
+/**
+ * **What a real match turns on** (PRD-03 T3a, owner decision 2026-09-19).
+ * Auto-ready is the request's, because a LAN admin may well want the room to
+ * type `.ready`; the side-pick timer and the two early-end commands are the
+ * server's, because no request may build a match that can hold a box for ever
+ * or end in a way the platform has no result for. So exactly one of the four
+ * is in a config, and the other three are read off the image's cfg here.
+ */
+describe('what a real match turns on', () => {
+  const cfg = readFileSync(
+    fileURLToPath(new URL('../../../../docker/cs2/cfg/MatchZy/ezpug.cfg', import.meta.url)),
+    'utf8',
+  )
+
+  it('writes the request’s auto-ready into every MatchZy config', () => {
+    expect(buildMatchZyConfig(pugBo1()).cvars.matchzy_autoready_enabled).toBe('true')
+    expect(
+      buildMatchZyConfig({
+        ...pugBo1(),
+        request: request({
+          rules: {
+            regulationRounds: 24,
+            overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+            warmup: { minPlayersToReady: 10, minSpectatorsToReady: 0, autoReady: false },
+          },
+        }),
+      }).cvars.matchzy_autoready_enabled,
+    ).toBe('false')
+  })
+
+  it('readies automatically when the request says nothing at all', () => {
+    // Additive means a request written before this field existed still parses,
+    // and the owner decision is that such a match auto-readies.
+    expect(
+      buildMatchZyConfig({ ...pugBo1(), request: request({ rules: undefined }) }).cvars
+        .matchzy_autoready_enabled,
+    ).toBe('true')
+    const noField = request({
+      rules: {
+        regulationRounds: 24,
+        overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+        warmup: { minPlayersToReady: 10, minSpectatorsToReady: 0 },
+      },
+    })
+    expect(noField.rules?.warmup.autoReady).toBe(true)
+  })
+
+  it('cannot be turned off by a preset’s cvars — the switch sits above them', () => {
+    const { cvars } = buildMatchZyConfig({
+      ...pugBo1(),
+      request: request({
+        rules: {
+          regulationRounds: 24,
+          overtime: { enabled: true, maxRounds: 6, startMoney: 10_000 },
+          warmup: { minPlayersToReady: 10, minSpectatorsToReady: 0 },
+          cvars: { matchzy_autoready_enabled: 'false' },
+        },
+      }),
+    })
+    expect(cvars.matchzy_autoready_enabled).toBe('true')
+  })
+
+  it('never puts the side-pick timer or an early end in a config — those are the server’s', () => {
+    for (const config of [buildMatchZyConfig(pugBo1()), buildMatchZyConfig(knifeBo3())])
+      for (const name of Object.keys(config.cvars))
+        expect(name).not.toMatch(/side_selection|_gg_|_ffw_/)
+    // And the image's cfg is where they are decided, once, for every match.
+    expect(cfg).toMatch(/^matchzy_side_selection_enabled true$/m)
+    expect(cfg).toMatch(/^matchzy_side_selection_time 60$/m)
+    expect(cfg).toMatch(/^matchzy_gg_enabled false$/m)
+    expect(cfg).toMatch(/^matchzy_ffw_enabled false$/m)
+    // Auto-ready's baseline there is off: a server between matches readies nobody.
+    expect(cfg).toMatch(/^matchzy_autoready_enabled false$/m)
+  })
+
+  it('leaves auto-ready nothing to say to Get5, which has never had one', () => {
+    for (const name of Object.keys(buildGet5Config(csgoBo1()).cvars))
+      expect(name).not.toMatch(/autoready/)
+  })
+})

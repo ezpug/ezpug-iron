@@ -1801,6 +1801,10 @@ public sealed record MatchRulesWarmup
     [JsonPropertyName("minSpectatorsToReady")]
     [JsonPropertyOrder(1)]
     public required long MinSpectatorsToReady { get; init; }
+
+    [JsonPropertyName("autoReady")]
+    [JsonPropertyOrder(2)]
+    public bool AutoReady { get; init; } = true;
 }
 
 /// <summary>Hostname and event name (decision 22).</summary>

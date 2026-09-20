@@ -107,7 +107,7 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `gamemode`     | kebab id                                               | from `GET /v1/gamemodes` |
 | `teams`        | `{ teamA, teamB }`, each `{ name, players: RosterEntry[] }` | rosters may be empty for an open-join mode; a SteamID may appear once |
 | `maps`         | `{ map, sides: ct \| t \| knife }[]`, ≥1               | `sides` is where **team A** starts; every `map` inside the gamemode's `maps` |
-| `rules?`       | `{ regulationRounds, overtime, warmup, cvars }`        | absent = the gamemode's defaults |
+| `rules?`       | `{ regulationRounds, overtime, warmup, cvars }`        | absent = the gamemode's defaults. `warmup` is `{ minPlayersToReady, minSpectatorsToReady, autoReady }`, the last defaulting to `true` |
 | `requirements` | `{ region?, lan?, preferLan?, simulated?, provider? }` | every field narrows except `preferLan`, which only ranks; default `{}`. `lan` and `preferLan` together are `validation_failed` |
 | `callbacks`    | `{ webhookUrl, webhookSecretId, demoUploadUrl?, demoUploadUrls?, streamAllowedOrigins? }` | `webhookSecretId` names a secret registered on the key; `demoUploadUrl` is a presigned PUT, `demoUploadUrls` is one per map (`{ mapNumber, url }[]`, ≤16) |
 | `warmupLines?` | string[] ≤20                                           | printed in warmup, one every eight seconds, in order and cycling; rendered by the client (one line everybody reads cannot be four languages), relayed unbranded, sanitized to one chat line |
@@ -131,6 +131,27 @@ number is the *smaller* roster's length, because one number has to let both team
 and a 2v1's single player is refused by anything larger; `playerCount == readyCount` is
 what still makes everybody who is on the server say so. A match the request rosters nobody
 for (bots, an open room) keeps the mode's own house.
+
+**Nobody has to type `.ready`.** `rules.warmup.autoReady` defaults to **on** (PRD-03 T3a,
+owner decision 2026-09-19): the match plugin readies each player a couple of seconds after
+they pick a side and counts down out loud once the gate is passed, so a pug starts by
+itself. It loosens nothing — **auto-ready decides only who has said yes, never whether the
+match may start.** MatchZy-Enhanced still waits for every rostered SteamID to be connected
+*and on its configured side*, and for the same `minPlayersToReady`
+(`CheckAndAutoReadyPlayers` simulates the command; `IsLiveRequirementSatisfied` is what
+decides). So a rostered player who never connects holds the match in warmup for ever, and
+**the client's own join deadline is the only thing that gives up on them** — not the
+server, not `.forceready`, which a loaded match ignores for a missing body. Set it to
+`false` for a LAN where a captain wants the room to say so out loud; `.ready` and
+`.unready` work either way, and a player who types `.unready` is left alone until they
+type `.ready` again.
+
+**A knife round nobody answers ends by itself**, and that one is not a request's to
+choose. The server runs a sixty-second side-pick timer and picks at random when it
+expires, because no match a client can build may hold a box until a human notices. For the
+same reason `.gg` (a surrender vote) and forfeit-on-disconnect are off on every server of
+ours: the Match API has no result that says either, and a server must not end a match in a
+way its client cannot record.
 
 **`lan` or `preferLan`.** `lan: true` is "the venue's own hardware or nothing" and refuses
 the match `no_capable_server` when no node is enrolled; `preferLan: true` is "the venue's
