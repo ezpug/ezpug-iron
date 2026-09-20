@@ -41,6 +41,12 @@ import { loadRootEnv } from './env'
  *  - **a puppet leaving and coming back**, the one thing that holds a loaded
  *    match at the gate.
  *
+ * **And one row that is not a `matchzy` match at all** (T8): `powerup-dm`,
+ * whose flow and whose puppets are both the SDK's, played so that a puppet can
+ * **tap the phone** — a player token, the widget socket, the mode's verb, the
+ * `plugin_event` it leaves behind and the push that comes back. That is the
+ * path only the owner's finger had ever proved.
+ *
  * The stall itself is reproduced red one floor down, where it lives and where
  * it costs nothing: `match-config/matchzy.test.ts` replays MatchZy's own
  * `IsTeamReady` against the builder's output and forces the manifest's five
@@ -138,7 +144,31 @@ type Summary = {
     left: { afterMs: number; standing: number } | null
     back: { afterMs: number; standing: number } | null
   } | null
+  widget?: {
+    steamId64: string
+    expiresAt: string
+    welcome: {
+      matchId: string
+      steamId64: string
+      gamemode: string
+      state: string
+      locale: string | null
+      commands: { name: string; chargesLeft: number | null; readyInMs: number }[]
+    }
+    grant: { status?: string; code?: string; chargesLeft?: number } | null
+    claimed: number
+    pushes: number
+    corpseTaps: { afterMs: number; status?: string; code: string | null }[]
+    corpse: { status?: string; code?: string; message?: string } | null
+    deaths: number
+    stranger: {
+      minted: string
+      steamId64: string
+      result: { status?: string; code?: string } | null
+    } | null
+  } | null
   matchzy?: Record<string, number>
+  pluginEvents?: Record<string, number>
   demoTarget?: string | null
   demo?: { uploaded: number; skipped?: string } | null
   simulation?: { puppets: number; timeScale: number; simulated: boolean } | null
@@ -362,6 +392,80 @@ const CASES: LaneCase[] = [
       expect(summary.payloads?.player_ready, 'not every puppet readied up').toBe(2)
     },
   },
+  {
+    // **A puppet taps the phone** (PRD-03 T8), and it is the only row that is
+    // not a `matchzy` match: `powerup-dm` is the mode with a widget, its flow
+    // is the SDK's own (`GenericFlow` reads the story off the engine), and its
+    // puppets are the SDK's too (T7's `Puppeteer`, not MatchZy-Enhanced's
+    // simulation mode). Everything below rides the path **only the owner's
+    // finger had ever taken**: a player token, a socket, a tap, and a phone
+    // that gets an answer back.
+    //
+    // Three taps, three different assertions, and none of them through
+    // `/v1/matches/:id/commands` — a tap is the widget socket's own frame, so
+    // this row's `rcon` is zero like every other.
+    id: 'widget',
+    what: "taps powerup-dm's widget as a puppet, and is refused as a corpse and as a stranger",
+    puppets: 6,
+    args: ['--gamemode', 'powerup-dm', '--widget', '--no-demo', '--max-live-minutes', '12'],
+    facts: summary => {
+      const widget = summary.widget
+      expect(widget, 'the run never opened a widget socket').not.toBeNull()
+      // **The greeting**: the token was minted for a rostered puppet and the
+      // socket answered for that match, that player and that mode, with the
+      // verb the manifest declares and a charge in hand.
+      expect(widget?.welcome.steamId64, 'the phone was greeted as somebody else').toBe(
+        widget?.steamId64,
+      )
+      expect(widget?.welcome.matchId, 'the phone was greeted for another match').toBe(
+        summary.matchId,
+      )
+      expect(widget?.welcome.gamemode).toBe('powerup-dm')
+      expect(widget?.welcome.state, 'the phone said hello to a match that was not live').toBe(
+        'live',
+      )
+      expect(
+        widget?.welcome.commands.map(verb => verb.name),
+        "the hello did not carry the mode's verb",
+      ).toEqual(['powerup'])
+      // **The grant reaches the SDK and the power-up applies.** The charge is
+      // one per life (`gamemodes/powerup-dm/manifest.json`), so an applied tap
+      // leaves none — the SDK's own number, come back over the socket.
+      expect(widget?.grant?.status, 'the tap did not apply').toBe('applied')
+      expect(widget?.grant?.chargesLeft, "the SDK did not spend the life's charge").toBe(0)
+      // **…and `plugin_event` lands.** In the durable log, where the platform
+      // reads it, and on the phone that asked, which is the socket's other
+      // half: a widget subscribes to the hub and sees its own tap land.
+      expect(
+        summary.pluginEvents?.powerup_claimed ?? 0,
+        'no powerup_claimed in the durable log',
+      ).toBeGreaterThanOrEqual(1)
+      expect(widget?.claimed ?? 0, 'the phone never saw its own claim').toBeGreaterThanOrEqual(1)
+      // **A push goes the other way** (PRD-02 T26): `radar_peek` is five
+      // seconds of everybody else's positions, pushed to this one phone every
+      // half second and written down nowhere. Never stored, never replayed —
+      // so the only place it can be counted is a socket that was open.
+      expect(widget?.pushes ?? 0, 'the peek never reached the phone').toBeGreaterThanOrEqual(1)
+      expect(
+        summary.payloads?.position_tick ?? 0,
+        'a position tick was stored: the peek must be ephemeral',
+      ).toBe(0)
+      // **A dead puppet is refused `NotAlive`**, which is the mode's own
+      // verdict (`PowerupDm.OnPlayerCommand`) turned into a refusal by the
+      // SDK's command table, in this player's language.
+      expect(widget?.corpse?.status, 'no tap ever met a corpse').toBe('rejected')
+      expect(widget?.corpse?.code).toBe('not_alive')
+      // **A stranger.** `powerup-dm` opens its roster, so a player token is
+      // minted for a SteamID the request never named — that is the "unless the
+      // mode is open-join" half; the closed half is a `pug`'s, refused
+      // `player_not_in_match` at the door and pinned against the fake and the
+      // real orchestrator by the conformance suite. What the SDK then does
+      // with a tap from a body that is not on the server is this row's:
+      expect(widget?.stranger?.minted, 'an open-join mode refused a token').toBe('ok')
+      expect(widget?.stranger?.result?.status).toBe('rejected')
+      expect(widget?.stranger?.result?.code, 'a stranger was not refused').toBe('not_in_match')
+    },
+  },
 ]
 
 /**
@@ -573,7 +677,7 @@ describe('the iron-match script', () => {
    * be a lane case nobody missed.** Cheap, and it runs in `pnpm verify` where
    * the lane itself never does.
    */
-  it('covers every shape PRD-03 T6 names', () => {
+  it("covers every shape PRD-03 T6 names, and T8's phone", () => {
     const ids = CASES.map(lane => lane.id)
     expect(ids).toEqual([
       'pug-1v1',
@@ -586,6 +690,10 @@ describe('the iron-match script', () => {
       'knife',
       'pause',
       'drop',
+      // T6's matrix is the ten above. `widget` is **T8**'s, and the only row
+      // that is not a `matchzy` match at all: `powerup-dm`, the SDK's own
+      // flow and the SDK's own puppets, tapped from a phone.
+      'widget',
     ])
     // **No row of the matrix types at the match.** Every one goes live because
     // players readied and nothing else, and every one takes its stimulus

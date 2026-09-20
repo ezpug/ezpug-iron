@@ -82,6 +82,13 @@ const HELP = `iron-match — run one real match through the Match API and record
                          is the Match API's own, addressed to the SteamID the
                          request rostered — the only id a client ever holds —
                          and nothing is typed at the server (PRD-03 T7a)
+  --widget               drive the mode's widget socket as a puppet's phone
+                         (PRD-03 T8): mint a player token for the first
+                         rostered SteamID, say hello on GET /v1/widget, claim
+                         a power-up, tap again on every death of that puppet
+                         to meet \`not_alive\`, and tap once as a stranger the
+                         request never rostered. Needs --simulate and a mode
+                         whose manifest declares a widget and a verb
   --ready-gate <n>       rules.warmup.minPlayersToReady across both teams;
                          default 0, which is "everybody connected must ready".
                          The builder halves it per team, and MatchZy-Enhanced
@@ -343,6 +350,49 @@ if (DROP_PUPPET && !SIMULATE) die('--drop-puppet needs puppets: pass --simulate'
 /** How long `--drop-puppet` waits on the stream for the whole room to be announced. */
 const ROOM_PATIENCE_MS = 120_000
 /**
+ * **A puppet taps the phone** (PRD-03 T8, decision 17), which until now only
+ * the owner's finger had ever done: `POST /v1/matches/:id/player-tokens` for a
+ * rostered SteamID, `GET /v1/widget` with that token in the first frame, and
+ * the mode's own verb over it — the whole path from a phone to
+ * `Gamemode.OnPlayerCommand` and back, on real hardware, with a bot for a
+ * thumb.
+ *
+ * The three taps this makes, and why each one is a different assertion:
+ *
+ *  - **the grant** — {@link WIDGET_VERB} with {@link WIDGET_KIND}, which the
+ *    SDK checks against the manifest (the verb, the args, the cooldown, the
+ *    charge) before `powerup-dm` ever sees it, and which leaves a
+ *    `plugin_event` in the durable log and — for `radar_peek` — a run of
+ *    `push` frames on this socket and nobody else's;
+ *  - **the corpse** — the same verb, fired the instant a `player_death` for
+ *    this puppet arrives *on the widget socket itself*, because a phone sees
+ *    the match it is a phone for. A charge is spent per life, so the grant's
+ *    own life is out of charges and it is the life after it that can be
+ *    refused `not_alive`;
+ *  - **the stranger** — a SteamID the request never rostered. `powerup-dm`
+ *    opens its roster (`slots.openJoin`), so the *token* is minted for
+ *    anybody, which is the half of "unless the mode is open-join" a run on
+ *    this mode can prove; the tap is then the SDK's to refuse, because no
+ *    body on the server answers for that id.
+ */
+const WIDGET = flags.get('widget') === 'true'
+if (WIDGET && !SIMULATE) die('--widget needs a puppet whose phone to be: pass --simulate')
+/** The verb the widget taps, and the kind it asks for. `powerup-dm`'s, the only mode with a phone. */
+const WIDGET_VERB = 'powerup'
+/**
+ * `radar_peek` rather than `speed` or `armor` on purpose: it is the one kind
+ * that answers *back*, ten `push` frames over five seconds to the one phone
+ * that asked (PRD-02 T26), so a single tap proves both directions of the
+ * socket instead of one.
+ */
+const WIDGET_KIND = 'radar_peek'
+/** The `plugin_event` the mode leaves in the durable log when a power-up is claimed. */
+const WIDGET_CLAIMED = 'powerup_claimed'
+/** A SteamID64 nobody on this run is: the stranger's. */
+const WIDGET_STRANGER = '76561198000000042'
+/** How long a tap may take before the run stops waiting for its `command_result`. */
+const WIDGET_TAP_MS = 15_000
+/**
  * **`rules.warmup.minPlayersToReady`, and the one way to play the floor**
  * (PRD-03 T5a). On the wire it is the whole match's count; the MatchZy
  * builder halves it per team, caps it at `players_per_team` and writes it
@@ -530,6 +580,87 @@ function mintKey(name, scopes) {
   if (!secret.startsWith('ezik_'))
     die(`could not mint an API key (${(result.stderr ?? '').trim() || 'no output'})`)
   return secret
+}
+
+/**
+ * **A phone, in about sixty lines** (PRD-03 T8): the widget socket as
+ * `@ezpug/gamemode-kit` opens it, without the browser. `GET /v1/widget`, the
+ * player token in the first frame and nowhere else — a query string would put
+ * it in the orchestrator's request log — then the `hello` back with the mode's
+ * verbs, `event` frames for every durable fact of the match, `push` frames the
+ * mode addressed to this one player, and a `command_result` per tap.
+ *
+ * Frames are handed to listeners as they arrive rather than polled, because
+ * the one tap this script cares about the timing of is fired *from* a frame:
+ * a `player_death` for the puppet, answered before the engine respawns it.
+ *
+ * The token is never said out loud — not in a line, not in the summary, not in
+ * the recording. What the run reports is that one was minted and when it dies.
+ */
+async function openPhone(token, who) {
+  const socket = new WebSocket(`${BASE_URL.replace(/^http/, 'ws')}/v1/widget`)
+  const frames = []
+  const listeners = []
+  let closure = null
+  socket.on('message', data => {
+    let frame
+    try {
+      frame = JSON.parse(data.toString())
+    } catch {
+      return
+    }
+    frames.push(frame)
+    for (const listener of [...listeners]) listener(frame)
+  })
+  socket.on('close', (code, reason) => {
+    closure = { code, reason: reason.toString() }
+  })
+  socket.on('error', error => say(`${who}'s phone: ${error.message}`))
+  await new Promise((resolve, reject) => {
+    socket.once('open', resolve)
+    socket.once('error', reject)
+  })
+  /** The first frame a predicate accepts, from here on or already in hand. */
+  const next = (accepts, withinMs) =>
+    new Promise(resolve => {
+      const held = frames.find(accepts)
+      if (held) return resolve(held)
+      const listener = frame => {
+        if (!accepts(frame)) return
+        listeners.splice(listeners.indexOf(listener), 1)
+        clearTimeout(timer)
+        resolve(frame)
+      }
+      // biome-ignore lint/plugin: an operator script driving real hardware in real time
+      const timer = setTimeout(() => {
+        listeners.splice(listeners.indexOf(listener), 1)
+        resolve(null)
+      }, withinMs)
+      listeners.push(listener)
+    })
+  socket.send(JSON.stringify({ type: 'hello', protocol: 1, token }))
+  const welcome = await next(frame => frame.type === 'hello', WIDGET_TAP_MS)
+  if (!welcome) die(`${who}'s phone was never greeted${closure ? ` (closed ${closure.code})` : ''}`)
+  let taps = 0
+  return {
+    welcome,
+    frames,
+    /** Every frame from now on, as it arrives. */
+    on: listener => listeners.push(listener),
+    /** One tap, and the `command_result` that came back for it. */
+    tap: async (command, args) => {
+      const correlationId = `${RUN_ID}-tap-${who}-${++taps}`
+      socket.send(JSON.stringify({ type: 'command', correlationId, command, args }))
+      const answer = await next(
+        frame => frame.type === 'command_result' && frame.correlationId === correlationId,
+        WIDGET_TAP_MS,
+      )
+      return answer ?? { type: 'command_result', correlationId, command, status: 'no_answer' }
+    },
+    close: () => {
+      if (socket.readyState === WebSocket.OPEN) socket.close(1000, 'done')
+    },
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1010,6 +1141,16 @@ async function run() {
     )
   if (SIMULATE && !manifest.capabilities.simulation)
     die(`${GAMEMODE} does not claim capabilities.simulation — the door would refuse the request`)
+  // **A phone needs a mode that has one** (PRD-03 T8). The catalog is asked
+  // rather than the checkout, and the verb too: the widget socket's `hello`
+  // answers with the verbs the *served* manifest declares, and a tap for one
+  // it does not is `unknown_command` at the door before any server sees it.
+  if (WIDGET) {
+    if (!manifest.capabilities.widget || !manifest.capabilities.playerCommands)
+      die(`${GAMEMODE} declares no widget and no player commands — there is no phone to tap`)
+    if (!manifest.commands.some(verb => verb.name === WIDGET_VERB))
+      die(`${GAMEMODE} declares no \`${WIDGET_VERB}\` verb — --widget is powerup-dm's`)
+  }
   /** The puppets, rostered (PRD-03 T5), or nobody. */
   const PUPPETS = SIMULATE ? puppetRoster(BOTS) : null
   if (PUPPETS)
@@ -1283,6 +1424,135 @@ async function run() {
     }
     return { ...ack, answer: 'nothing came back on the stream' }
   }
+  /**
+   * **`--widget`: the path only a finger had ever taken** (PRD-03 T8).
+   *
+   * Called once, the first poll after the match is live. It mints a player
+   * token for the first rostered puppet, opens the widget socket as that
+   * player's phone, claims a power-up, and leaves a listener on the socket
+   * that taps again the instant that puppet dies — the corpse hunt, whose
+   * whole difficulty is that the engine respawns a body in this mode as fast
+   * as it can and the refusal is only true in between. Then it does the same
+   * as somebody the request never rostered.
+   *
+   * Nothing here is typed at the server and nothing goes through
+   * `/v1/matches/:id/commands`: a tap is the widget socket's own frame, which
+   * is the point — `commands.rcon` stays zero for this case like every other.
+   */
+  const tapThePhone = async () => {
+    const rostered = String(PUPPET_STEAM_ID_BASE)
+    const minted = await api('POST', `/v1/matches/${matchId}/player-tokens`, {
+      steamId64: rostered,
+      ttlSeconds: 900,
+    })
+    say(`player token for ${rostered}, good until ${minted.expiresAt}`)
+    const phone = await openPhone(minted.token, 'puppet')
+    cleanups.push(() => phone.close())
+    const record = {
+      steamId64: rostered,
+      expiresAt: minted.expiresAt,
+      /** The `hello` back, minus nothing: it carries no secret. */
+      welcome: {
+        matchId: phone.welcome.matchId,
+        steamId64: phone.welcome.steamId64,
+        gamemode: phone.welcome.gamemode,
+        state: phone.welcome.state,
+        locale: phone.welcome.locale ?? null,
+        commands: (phone.welcome.commands ?? []).map(verb => ({
+          name: verb.name,
+          chargesLeft: verb.chargesLeft,
+          readyInMs: verb.readyInMs,
+        })),
+      },
+      grant: null,
+      /** `plugin_event`s named by the mode that reached this phone as `event` frames. */
+      claimed: 0,
+      /** `push` frames the mode sent this phone and nobody else (PRD-02 T26). */
+      pushes: 0,
+      /** Every tap fired at a corpse, in order, with how long after the death it was answered. */
+      corpseTaps: [],
+      /** The first one refused `not_alive`, which is the assertion. */
+      corpse: null,
+      deaths: 0,
+      stranger: null,
+    }
+    // Everything the phone hears: the pushes the peek sends back, the mode's
+    // `plugin_event` for the claim — armed **before** the grant, so what it
+    // counts is the phone seeing its own tap land, which is what a widget
+    // subscribing to the hub is for — and the deaths that are the corpse
+    // hunt's trigger, which are only interesting once the grant has been
+    // asked for and refused a second time.
+    let tapping = false
+    phone.on(frame => {
+      if (frame.type === 'push') {
+        record.pushes += 1
+        return
+      }
+      if (frame.type !== 'event') return
+      const payload = frame.envelope?.payload
+      if (payload?.type === 'plugin_event' && payload.name === WIDGET_CLAIMED) {
+        record.claimed += 1
+        return
+      }
+      if (payload?.type !== 'player_death' || payload.victim?.steamId64 !== rostered) return
+      if (record.grant === null) return
+      record.deaths += 1
+      // **Fired from the frame, not from a poll.** A dead puppet in a
+      // deathmatch is dead for as long as the engine takes to respawn it, and
+      // the only way to be inside that is to send the tap on the death's own
+      // event rather than on the next five-second tick. One at a time, so the
+      // socket's rate limiter never sees a burst.
+      if (tapping || record.corpse !== null) return
+      tapping = true
+      const diedAt = wall.now()
+      void phone
+        .tap(WIDGET_VERB, { kind: WIDGET_KIND })
+        .then(answer => {
+          record.corpseTaps.push({
+            afterMs: wall.now() - diedAt,
+            status: answer.status,
+            code: answer.code ?? null,
+          })
+          if (answer.code === 'not_alive') {
+            record.corpse = answer
+            say(`tapped a corpse ${wall.now() - diedAt} ms after it died: not_alive`)
+          }
+        })
+        .finally(() => {
+          tapping = false
+        })
+    })
+    // **The grant.** The SDK checks the verb, the args, the cooldown and the
+    // charge against the manifest before `powerup-dm` sees it; what comes back
+    // is the mode's own answer, in this player's language.
+    record.grant = await phone.tap(WIDGET_VERB, { kind: WIDGET_KIND })
+    say(`tap ${WIDGET_VERB}/${WIDGET_KIND}: ${stringify(record.grant).replace(/\s+/g, ' ')}`)
+    // **The stranger.** `powerup-dm` opens its roster, so a token is minted
+    // for anybody — that is the "unless the mode is open-join" half a run on
+    // this mode can prove, and the closed half is the pug's, refused at the
+    // door (`player_not_in_match`) and pinned against the fake. The tap is
+    // then the SDK's to refuse: no body on the server answers for that id.
+    let stranger = null
+    try {
+      const token = await api('POST', `/v1/matches/${matchId}/player-tokens`, {
+        steamId64: WIDGET_STRANGER,
+        ttlSeconds: 900,
+      })
+      const other = await openPhone(token.token, 'stranger')
+      cleanups.push(() => other.close())
+      stranger = {
+        minted: 'ok',
+        steamId64: WIDGET_STRANGER,
+        welcome: { state: other.welcome.state, steamId64: other.welcome.steamId64 },
+        result: await other.tap(WIDGET_VERB, { kind: WIDGET_KIND }),
+      }
+    } catch (error) {
+      stranger = { minted: `refused: ${error.message}`, steamId64: WIDGET_STRANGER, result: null }
+    }
+    record.stranger = stranger
+    say(`the stranger: ${stringify(stranger).replace(/\s+/g, ' ')}`)
+    return record
+  }
   let emptied = false
   let filled = false
   let polls = 0
@@ -1300,6 +1570,8 @@ async function run() {
    */
   let dropped = null
   let droppedAt = 0
+  /** What `--widget` did: three taps and everything that came back (T8). */
+  let widget = null
   let rated = false
   let ratedAt = 0
   let scoreboard = null
@@ -1511,6 +1783,14 @@ async function run() {
       continue
     }
 
+    // Live, and a phone in a puppet's hand (PRD-03 T8). As early as the match
+    // allows: a tap is refused `not_live` before this point, and the corpse
+    // hunt wants as many of this puppet's deaths as the match has left.
+    if (WIDGET && widget === null) {
+      widget = await tapThePhone()
+      continue
+    }
+
     // Live. **Pause and unpause, through the front door** (PRD-03 T6): two
     // match commands two polls apart, which is the path the platform's admin
     // console takes and the only one a client has. The facts are the core
@@ -1622,6 +1902,7 @@ async function run() {
     skins,
     paused,
     dropped,
+    widget,
   }
 }
 
@@ -1773,11 +2054,35 @@ function write(result) {
     paused: result.paused ?? null,
     /** `--drop-puppet`: who left, how, and whether the room filled back up (T6). */
     dropped: result.dropped ?? null,
+    /**
+     * **`--widget`: the phone's three taps** (PRD-03 T8) — the grant the SDK
+     * applied, the corpse it refused `not_alive`, and the stranger it refused
+     * `not_in_match` — plus what came back the other way: the mode's
+     * `plugin_event` for the claim and the `push` frames only this phone got.
+     * `null` when the run never opened a widget socket. No token is in it:
+     * one was minted and the run says when it dies, which is the fact.
+     */
+    widget: result.widget ?? null,
     ledger: {
       rows: rows.length,
       open: rows.filter(row => row.releasedAt === null).length,
       cents: rows.reduce((total, row) => total + (row.cost?.accruedCents ?? 0), 0),
     },
+    /**
+     * **What a mode said in its own words**, by name, with its count: a
+     * `plugin_event` is one payload type in {@link payloads} whatever it
+     * carries, and `powerup_claimed` is the whole assertion of a widget tap
+     * reaching the SDK (PRD-03 T8).
+     */
+    pluginEvents: Object.fromEntries(
+      Object.entries(
+        result.envelopes.reduce((counts, envelope) => {
+          if (envelope.payload.type !== 'plugin_event') return counts
+          counts[envelope.payload.name] = (counts[envelope.payload.name] ?? 0) + 1
+          return counts
+        }, {}),
+      ).sort(([a], [b]) => (a < b ? -1 : 1)),
+    ),
     /** Every payload type the durable log ended up holding, with its count. */
     payloads: Object.fromEntries(
       Object.entries(

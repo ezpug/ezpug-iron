@@ -873,6 +873,13 @@ over (`invalid_state`). The drain closes the widget sockets in the stream's step
 `widget/upgrade.test.ts` runs the whole thing over a real socket against a real link with
 the protocol's fake server as the plugin.
 
+**And on real hardware, by a puppet** (PRD-03 T8): the CS2 lane's `widget` row plays a
+`powerup-dm` of puppets, mints a player token for one of them, opens this socket and taps
+the mode's verb — the grant applied with the SDK's own `chargesLeft`, the `plugin_event` in
+the durable log, the peek's pushes on that phone alone, a tap at a corpse refused
+`not_alive` and one from an unrostered SteamID refused `not_in_match`. `--widget` on
+`iron-match` is the flag; the path was previously proved only by the owner's finger.
+
 ## The widget bundles
 
 Decision 17, T25: a gamemode's widget is a file the orchestrator serves, not code it
@@ -1466,6 +1473,33 @@ player carrying team2's label. Which side the replacement lands on is the engine
 so this row asserts one `player_ready` per puppet and leaves the whole gate to the other
 nine rows. A vendor property recorded rather than filed.
 
+**`--widget`** is a puppet with a phone (PRD-03 T8), and it is the one flag that does not
+speak to the match over `/v1/matches/:id/commands` at all. It mints a player token for the
+first rostered SteamID (`POST /v1/matches/:id/player-tokens`), opens `GET /v1/widget` with
+that token **in the first frame**, and taps the mode's own verb over the socket — the whole
+path from a phone to `Gamemode.OnPlayerCommand` and back, which until this flag only the
+owner's finger had ever taken. It needs `--simulate` and a mode whose served manifest
+declares a widget, player commands and the `powerup` verb, which today means `powerup-dm`.
+
+Three taps, and each is a different assertion:
+
+| Tap | What it proves |
+| --- | -------------- |
+| **the grant** — `powerup` with `kind: radar_peek` | the SDK checked the verb, the args, the cooldown and the charge against the manifest, the mode applied it, `chargesLeft` came back `0`, a `powerup_claimed` `plugin_event` is in the durable log, and the peek's `push` frames arrived on that one phone and nowhere else |
+| **the corpse** — the same verb, fired from the `player_death` frame | `not_alive`, the mode's own verdict, in the player's language |
+| **the stranger** — a SteamID the request never rostered | an open-join mode mints a token for anybody, and the SDK still refuses the tap `not_in_match` |
+
+**The corpse is a race, and it is won from the frame.** A body in this mode is dead only as
+long as the engine takes to respawn it, so the tap is sent from the death's own `event`
+frame on the widget socket rather than from the script's five-second poll — a phone sees
+the match it is a phone for. Measured twice on the dev node: the answer comes back **15–17
+ms** after the death, comfortably inside. What the sequence looks like is the charge rule
+showing through — `charges: 1 per life`, refilled on spawn — so the first corpse tap is
+`no_charges` (the grant spent that life's charge), a tap that lands a hair late is
+`applied` on the respawned body, and the one after it is the `not_alive` the row asserts.
+The run records every attempt with its delay, so a race that started losing would read as
+a measurement rather than as a flake.
+
 **`--force-start` is the escape hatch**, and it is the only thing that sends RCON at a
 match: `bot_kick; bot_quota 0`, `css_start`, the quota back, `mp_warmup_end`. It exists
 because an anonymous bot never types `.ready`, and it is four assertions skipped — the
@@ -1612,8 +1646,9 @@ said `simulated`, **the ledger row is closed with no server left running**, and
 `commands.rcon` is zero — nothing was typed at the match, so it went live because players
 readied. Each case then asserts the facts only it can produce.
 
-**The matrix** (PRD-03 T6) is every shape of match the owner's two weeks of bugs came out
-of:
+**The matrix** (PRD-03 T6, plus T8's phone) is every shape of match the owner's two weeks
+of bugs came out of. Ten of the eleven rows are a `matchzy` match; `widget` is the one that
+is not — `powerup-dm`, whose flow and whose puppets are both the SDK's:
 
 | case | what it plays | what only it proves |
 | --- | --- | --- |
@@ -1623,6 +1658,7 @@ of:
 | `knife` | `maps[0].sides: knife` | the side-selection timer, because puppets never type `.stay` |
 | `pause` | a pause and an unpause through the Match API | `match_paused` / `match_unpaused` are the **core plugin's**, not MatchZy's |
 | `drop` | one puppet leaves in warmup to a `kick` for its rostered id, and comes back | the gate that holds a loaded match while a rostered SteamID is absent — and the front door reaching a puppet at all |
+| `widget` | a `powerup-dm` of puppets, one of whom taps the phone (T8) | the widget socket end to end: a player token, the mode's verb, the `plugin_event` it leaves, the push that comes back, and the two refusals — `not_alive` and `not_in_match` |
 
 `pug-5v5` is the one that also asserts the demo, because it is the match the owner
 actually plays. **Every case is held to `match.server_ready` exactly once** — the durable
@@ -1633,7 +1669,8 @@ second announcement is pinned as the wingman row's own fact rather than smoothed
 that went live went live because players readied, and each takes its stimulus through the
 Match API. `drop` was the last row that could not — it had to reach for `bot_kick ct`
 because no `kick` could find a puppet the core plugin had never announced — and PRD-03 T7a
-gave it the front door.
+gave it the front door. `widget` sends nothing down that route at all: a tap is the widget
+socket's own frame.
 
 **Overtime is counted, not asserted.** The matrix's own note prints the rounds each case
 played: a four-round regulation ends 2–2 often enough to be seen — five of the ten rows did

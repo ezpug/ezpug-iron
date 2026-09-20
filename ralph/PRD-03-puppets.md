@@ -398,13 +398,32 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > the engine's lottery, so the row pins one `player_ready` per puppet and leaves the
     > whole gate to the other nine. A vendor property recorded, not filed.
 
-- [ ] **T8: a puppet taps the phone.**
+- [x] **T8: a puppet taps the phone.**
   - Mint a widget token for a puppet's SteamID and drive `powerup-dm`'s widget socket
     against the dev server.
   - The grant reaches the SDK, the power-up applies and `plugin_event` lands.
   - A dead puppet is refused `NotAlive`. An unrostered SteamID is refused unless the
     mode is open-join.
   - This is the first automated proof of the path only the owner's finger has proved.
+
+    > **The corpse is a race, and it is won from the frame.** A body in `powerup-dm`
+    > respawns as fast as the engine can manage, so a tap fired from the script's
+    > five-second poll would never meet one. The phone sees the match it is a phone for, so
+    > the tap goes out from the `player_death` `event` frame on the widget socket itself —
+    > answered **15–17 ms** after the death on both runs. The sequence around it is the
+    > charge rule showing through (`charges: 1 per life`, refilled on spawn): `no_charges`
+    > for the grant's own life, `applied` for a tap that lands a hair late on the respawned
+    > body, then the `not_alive` the row asserts. Every attempt is recorded with its delay,
+    > so a race that started losing reads as a measurement rather than as a flake.
+    >
+    > **"Unless the mode is open-join" is two halves and this row can only play one.**
+    > `powerup-dm` opens its roster, so the *token* is minted for a SteamID the request
+    > never named — that is the half a run on this mode proves, and the tap is then the
+    > SDK's to refuse (`not_in_match`, because no body on the server answers for that id).
+    > The closed half is the door's `player_not_in_match` on `mintPlayerToken`, which no
+    > mode with a widget can be made to do: it is pinned against the fake and against the
+    > real orchestrator by the conformance suite instead, and a second live match to replay
+    > it would buy nothing.
 
 - [ ] **T9 (fable): a length for plugin modes** (`OPEN-POINTS.md` §1).
   - A manifest vocabulary the SDK enforces: a duration, a frag limit, and an idle timeout

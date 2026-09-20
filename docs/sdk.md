@@ -383,6 +383,15 @@ period turns: `life` on the player's spawn, `round` on round start, `map` on map
 in the player's locale from their profile, German when nobody knows them. A player who
 leaves is forgotten; a release clears the table.
 
+**Every step of that is now proved on a real server by a puppet** (PRD-03 T8), and the
+hardware reads the whole order back in one run: the CS2 lane's `widget` row mints a player
+token for a rostered puppet in a `powerup-dm`, taps `powerup` over the widget socket
+(applied, `chargesLeft: 0`, the mode's `powerup_claimed` in the durable log and the peek's
+pushes on that one phone), taps again inside the fifteen milliseconds between the puppet's
+death and its respawn (`not_alive`, "Nur lebend möglich."), and taps once as a SteamID the
+request never rostered (`not_in_match`). `no_charges` shows up on the way past, because the
+grant spent that life's charge — the refill on spawn, measured rather than asserted.
+
 ## The link
 
 `LinkClient` is decision 5 in one class: one `ClientWebSocket` to the orchestrator's
