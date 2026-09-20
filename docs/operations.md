@@ -1387,6 +1387,53 @@ default. The builder halves it per side, so `--bots 10 --ready-gate 8` is a five
 gate is four and is how the floor above is played on hardware. It never starts a match
 short-handed — the fork still wants every rostered body connected and on its side.
 
+**`--sides <ct|t|knife>`** is `maps[0].sides`, `ct` by default. `knife` is the one that
+needs saying: a room of puppets never types `.stay` or `.switch`, so stock MatchZy would
+hold the box for ever waiting for the knife winner to answer. MatchZy-Enhanced's
+side-selection timer is what decides it instead, and the image's own cfg turns that on
+(PRD-03 T3a) — so `--sides knife` is how the timer is proved on hardware rather than read
+about.
+
+**`--pause`** pauses the live match through the Match API and unpauses it two polls later;
+the facts are the **core plugin's** `match_paused` / `match_unpaused` (MatchZy's own pause
+events are dropped at the door because the plugin already says it).
+
+**`--drop-puppet`** takes one puppet off the server while it is still in warmup and waits
+for the engine to put a body back — the only thing that ever holds a loaded match at the
+gate, because the fork wants every rostered SteamID connected and on its side before it
+goes live. It knocks on the front door twice and **is refused twice**: `kick` by the
+rostered SteamID, the only id a client ever holds, and `kick` by the synthetic one
+(`BotIdentity`) a position tick hands back. Neither reaches the plugin. The orchestrator
+gates `kick` on its own presence map, and that map is filled from `player_connected` /
+`player_disconnected`, which the core plugin emits **for humans only** — so for a room of
+puppets it is empty and **no player command can reach any of them**. That pair of
+refusals is what this flag measures, and PRD-03 T7 is what closes the gap.
+
+So the stimulus is `bot_kick ct` over RCON, and `--drop-puppet` is the **one** thing in the
+matrix that types at a match. Team A opens CT (`maps[0].sides`), so in a 1v1 of puppets
+that is one body and not a room. A bot's own name would be narrower and cannot be had: the
+fork leaves the engine's name on a bot and maps it to the roster underneath
+(`SimulationMode.cs`), and **RCON runs a command without answering one** — `status`
+through `POST /v1/fleet/servers/:id/rcon` comes back with an empty `output`, and
+`GET /v1/fleet/servers/:id/console` carries the core plugin's console lines rather than the
+engine's or MatchZy's, so nothing outside the box can read the roster.
+
+How the run knows the body left and came back: a **position tick** is built from the
+players that are alive and have a position, so GOTV is never in it and every id in it is a
+body playing the match. The room goes one short and then whole again — **both halves are
+watched**, because a room that filled up without ever emptying is a room nothing happened
+to. The go-live is the second proof: the fork will not start a loaded match while a
+rostered SteamID is absent.
+
+It has to be measured that way because **nothing announces it**. The core plugin emits
+`player_connected` for humans only, so the durable log is silent; and MatchZy-Enhanced
+synthesises its own `player_connect` only on the `bot_quota` walk that first fills the
+room — a body its reconcile pass adds later is mapped onto the free slot and re-readied
+but never announced, so its wire is silent too. Measured on the dev node: a 1v1 that lost
+and regained a body sent two `player_connect` and two `player_disconnect`, and three
+`player_ready` for two puppets. A vendor property recorded rather than filed; PRD-03 T7 is
+what gives the durable log a puppet's coming and going.
+
 **`--force-start` is the escape hatch**, and it is the only thing that sends RCON at a
 match: `bot_kick; bot_quota 0`, `css_start`, the quota back, `mp_warmup_end`. It exists
 because an anonymous bot never types `.ready`, and it is four assertions skipped — the
@@ -1525,14 +1572,49 @@ and the count of servers still standing, and both being zero is what "it is over
 
 ### The `EZPUG_CS2_TESTS` lane
 
-`apps/orchestrator/src/cs2.extended.test.ts` runs that script — with `--simulate`, ten
-puppets — and asserts the summary: **ten `player_ready`, each team through the gate once,
-one `all_ready`**, the match reached `ended`, MatchZy went live, rounds were played,
-`series_end` and `match.ended` reached the client, the link and the door both carried the
-match, **and the ledger row is closed with no server left running**. Nothing in a green
-run types `css_start`. It is opt-in twice over — nothing
-happens unless `EZPUG_CS2_TESTS` is set, and `EZPUG_CS2_TESTS=required` turns "there is no
-dev node" from a printed skip into a failure. It is never part of `pnpm verify`.
+`apps/orchestrator/src/cs2.extended.test.ts` runs that script — always with `--simulate` —
+and asserts the summary of each match it plays. **Every case** is held to the same
+invariants: the match reached `ended`, MatchZy went live, rounds were played, `series_end`
+and `match.ended` reached the client, the link and the door both carried it, the resource
+said `simulated`, **the ledger row is closed with no server left running**, and
+`commands.rcon` is zero — nothing was typed at the match, so it went live because players
+readied. Each case then asserts the facts only it can produce.
+
+**The matrix** (PRD-03 T6) is every shape of match the owner's two weeks of bugs came out
+of:
+
+| case | what it plays | what only it proves |
+| --- | --- | --- |
+| `pug-1v1` … `pug-5v5` | a pug at each size, one to five a side | `players_per_team` off the roster — the 2026-09-18 stall was a 1v1 carrying a 5v5's five |
+| `pug-2v1` | uneven | one number has to let both teams through, and it is the smaller team's |
+| `wingman` | `rules.format: wingman` | `game_mode 2`, `live_wingman.cfg` and the map reload — **two `server_ready`**, because the reload re-announces the server |
+| `knife` | `maps[0].sides: knife` | the side-selection timer, because puppets never type `.stay` |
+| `pause` | a pause and an unpause through the Match API | `match_paused` / `match_unpaused` are the **core plugin's**, not MatchZy's |
+| `drop` | one puppet leaves in warmup and comes back | the gate that holds a loaded match while a rostered SteamID is absent |
+
+`pug-5v5` is the one that also asserts the demo, because it is the match the owner
+actually plays. **Every case is held to `match.server_ready` exactly once** — the durable
+fact a client reads — while the raw `server_ready` off the link is only `>= 1`, because a
+map reload re-announces the server and wingman needs one to switch `game_mode`. That
+second announcement is pinned as the wingman row's own fact rather than smoothed away. **Nine of the ten rows type nothing at the match**: each asserts its own
+`commands.rcon`, so a match that went live went live because players readied. The tenth is
+`drop`, which declares one — it knocks on the Match API's `kick` twice, is refused both
+times with `player_not_in_match` (the orchestrator's presence map holds no puppet until
+PRD-03 T7 announces one like a human), and then uses `bot_kick ct`. The refusals are that
+row's real assertion and are meant to go red the day T7 lands.
+
+**Overtime is counted, not asserted.** The matrix's own note prints the rounds each case
+played: a four-round regulation ends 2–2 often enough to be seen — five of the ten rows did
+— and never reliably, because two even teams of bots cannot be made to draw on demand. So
+the PRD's overtime case stays **sim-only**, where a seeded PRNG can force one, and this
+lane records what it happened to get.
+
+It is opt-in twice over — nothing happens unless `EZPUG_CS2_TESTS` is set, and
+`EZPUG_CS2_TESTS=required` turns "there is no dev node" from a printed skip into a
+failure. It is never part of `pnpm verify`. `EZPUG_CS2_CASES=knife,pause` runs one row of
+it while something is being fixed, and `EZPUG_CS2_TIMESCALE` is the engine clock the whole
+matrix plays at — **the lane's choice, never a production request's**. The matrix prints
+its own runtimes when it finishes.
 
 ## `ezpug-iron`, the command (`pnpm iron`)
 

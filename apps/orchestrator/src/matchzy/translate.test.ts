@@ -47,6 +47,12 @@ interface Fixture {
    * declares one is a match whose request asked for a gate below its roster.
    */
   readyFloor?: number
+  /**
+   * The roster this payload's match had, when it was not the recorded run's
+   * ten (PRD-03 T6). An **uneven** one is the only way to make the case where
+   * the fork's one number for two teams disagrees with the sides.
+   */
+  teams?: MatchZyContext['teams']
   payload: unknown
   expect: { events?: GameserverEvent[]; dropped?: string; note?: boolean }
 }
@@ -100,7 +106,11 @@ describe('the fixtures, in order', () => {
     for (const fixture of fixtures) {
       const result = translateMatchZyEvent(
         fixture.payload,
-        fixture.readyFloor === undefined ? context : { ...context, readyFloor: fixture.readyFloor },
+        {
+          ...context,
+          ...(fixture.readyFloor !== undefined && { readyFloor: fixture.readyFloor }),
+          ...(fixture.teams !== undefined && { teams: fixture.teams }),
+        },
         fixture.state ?? state,
       )
       // **A fixture that declares its own state does not leak into the
@@ -516,6 +526,49 @@ describe('MatchZy-Enhanced, event by event', () => {
         translateMatchZyEvent(teamReady(1, 1, 'team2'), withFloor(5, uneven), initialMatchZyState())
           .events[0],
       ).toMatchObject({ team: 'team_b' })
+    })
+
+    /**
+     * **And the same floor decides when the *room* is ready** (PRD-03 T6).
+     * `IsLiveRequirementSatisfied` is per team; `all_players_ready` is not —
+     * the fork sends it on `total_ready >= players_per_team × 2`, one number
+     * for two teams, which is the 2026-09-18 stall's arithmetic pointed the
+     * other way. An uneven roster is where it shows: the 2v1 on the dev node
+     * carries `players_per_team: 1`, so the fork called a room of three all
+     * ready at two while team A still held somebody silent — and said it
+     * again, with different counts, once they had spoken. Two `all_ready` for
+     * one room, the first of them a player early, in a durable log.
+     */
+    it('does not call a room of three ready at two', () => {
+      const uneven = {
+        teamA: { name: 'EZPug A', players: ['306', '308'].map(puppet) },
+        teamB: { name: 'EZPug B', players: [puppet('307')] },
+      }
+      const room = (team1: number, team2: number) => ({
+        event: 'all_players_ready',
+        matchid: context.serial,
+        ready_count_team1: team1,
+        ready_count_team2: team2,
+        total_ready: team1 + team2,
+        countdown_started: true,
+      })
+      // Byte for byte what the matrix's 2v1 sent, in order.
+      const early = translateMatchZyEvent(room(1, 1), withFloor(0, uneven), initialMatchZyState())
+      expect(early.events).toEqual([])
+      expect(early.dropped).toMatch(/team_a is under its 2 rostered/)
+      const whole = translateMatchZyEvent(room(2, 1), withFloor(0, uneven), initialMatchZyState())
+      expect(whole.dropped).toBeUndefined()
+      expect(whole.events[0]).toMatchObject({
+        type: 'all_ready',
+        ready: { teamA: 2, teamB: 1 },
+        countdown: true,
+      })
+      // A gate below the roster is a real gate here too, exactly as it is for
+      // a `team_ready`: a 5v5 whose config asks four a side is a whole room
+      // at four and four (T5a).
+      expect(
+        translateMatchZyEvent(room(4, 4), withFloor(4), initialMatchZyState()).events[0],
+      ).toMatchObject({ type: 'all_ready', ready: { teamA: 4, teamB: 4 } })
     })
 
     it('holds an unrostered team against nothing at all', () => {

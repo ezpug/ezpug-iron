@@ -1,0 +1,31 @@
+{
+  "source": "derived",
+  "from": "29-all-players-ready.json",
+  "note": "What the uneven 2v1 on the dev node really sent, and the reason T6 went red. players_per_team is 1 there — the smaller team’s — so the fork announced the whole room ready on total_ready 2 while team A had one of its two still silent, and a client drawing \"everybody’s in\" would have drawn it a player early. Held against each side’s own floor instead, this says nothing.",
+  "state": {
+    "scores": {},
+    "starts": {},
+    "ready": {}
+  },
+  "teams": {
+    "teamA": {
+      "name": "EZPug A",
+      "players": ["76561198279375306", "76561198279375308"]
+    },
+    "teamB": {
+      "name": "EZPug B",
+      "players": ["76561198279375307"]
+    }
+  },
+  "payload": {
+    "ready_count_team1": 1,
+    "ready_count_team2": 1,
+    "total_ready": 2,
+    "countdown_started": true,
+    "matchid": 1083740696,
+    "event": "all_players_ready"
+  },
+  "expect": {
+    "dropped": "the room is called ready at 1/1 counting down, and team_a is under its 2 rostered — the fork counts one number for two teams"
+  }
+}

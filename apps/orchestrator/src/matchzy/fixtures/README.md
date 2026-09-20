@@ -69,3 +69,17 @@ match one ready earlier, under the floor, and says nothing. Both payloads are wh
 gate-of-four pug on the dev node really sent — eleven of its forty-six `team_ready` read
 like 45 and five like 46 — spelled as edits of 28 because a fixture here carries the
 fixture match's serial.
+
+**47 and 48 are the room**, and they are the only files whose *roster* is not the recorded
+run's ten (PRD-03 T6): a file may declare `teams` of its own, and these two declare the
+**2v1** the matrix played. `IsLiveRequirementSatisfied` is per team, but
+`all_players_ready` is not — the fork sends it on `total_ready >= players_per_team × 2`,
+one number for two teams, which is the 2026-09-18 stall's arithmetic pointed the other
+way. An uneven roster is where that shows: a 2v1 carries `players_per_team: 1` (the
+smaller team's, because one number has to let both sides through), so on the dev node the
+fork called a room of three all ready at **two**, with team A still holding somebody
+silent, and said it again with different counts once they had spoken. 47 is that first
+announcement and the door says nothing to it; 48 is the one the room is owed. Each side is
+held against the same floor a `team_ready` is, read off the payload's own counts rather
+than off what the door happens to remember — so the rule does not depend on MatchZy having
+sent the two `team_ready`s first.

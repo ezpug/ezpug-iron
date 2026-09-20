@@ -509,6 +509,35 @@ function scoreOf(team1: number, team2: number): TeamScore {
 }
 
 /**
+ * **How many of a side have to have said yes before the door believes it**,
+ * and the one place it is decided (PRD-03 T5a, T6).
+ *
+ * The floor is `min_players_to_ready` — the number this match's *own* config
+ * carries, read back through {@link matchZyReadyGate} rather than invented a
+ * second time — never above the roster the request named, because a floor a
+ * side cannot reach would refuse the passage it exists to let through. A gate
+ * of `0` is the fork's "everybody connected must ready", and there the roster
+ * is the only expectation the door has; a match that rosters nobody on this
+ * side (the `--force-start` lane's) has neither, and the first one through
+ * stands.
+ *
+ * Both `team_ready` and `all_players_ready` read it, so the two can never
+ * disagree about when a side is in.
+ */
+function gateOf(context: MatchZyContext, team: MatchTeam): { floor: number; because: string } {
+  const rostered = (team === 'team_a' ? context.teams.teamA : context.teams.teamB).players.length
+  const asked = context.readyFloor > 0 ? context.readyFloor : rostered
+  const floor = rostered > 0 ? Math.min(asked, rostered) : asked
+  return {
+    floor,
+    because:
+      context.readyFloor > 0 && context.readyFloor <= floor
+        ? `the ${floor} its match config asks of a side`
+        : `its ${floor} rostered`,
+  }
+}
+
+/**
  * Which team a body belongs to. The roster decides — a SteamID the request
  * named is the one thing MatchZy cannot get wrong — and only then the team
  * label the payload carries, which is `team1`/`team2` on a `team_ready` and
@@ -791,17 +820,7 @@ export function translateMatchZyEvent(
       // there the roster the request named is the only expectation the door
       // has. A match that rosters nobody on this team — the `--force-start`
       // lane's — has neither, and the first one through stands.
-      const rostered = (team === 'team_a' ? context.teams.teamA : context.teams.teamB).players
-        .length
-      // Never above the roster: a floor a team cannot reach would refuse the
-      // passage it exists to let through, which is the stall wearing the
-      // other shoe.
-      const asked = context.readyFloor > 0 ? context.readyFloor : rostered
-      const floor = rostered > 0 ? Math.min(asked, rostered) : asked
-      const because =
-        context.readyFloor > 0 && context.readyFloor <= floor
-          ? `the ${floor} its match config asks of a side`
-          : `its ${floor} rostered`
+      const { floor, because } = gateOf(context, team)
       if (floor > 0 && event.ready_count < floor)
         return drop(
           `${team} is called through the gate with ${event.ready_count} ready, under ${because} — the sides are still being filled`,
@@ -832,6 +851,34 @@ export function translateMatchZyEvent(
     case 'all_players_ready': {
       const ready = scoreOf(event.ready_count_team1, event.ready_count_team2)
       const said = `${ready.teamA}/${ready.teamB}${event.countdown_started ? ' counting down' : ''}`
+      // **The room is all ready when every side is through its own gate**, and
+      // the fork does not ask that (PRD-03 T6). `IsLiveRequirementSatisfied`
+      // is per team, but `all_players_ready` is sent on
+      // `total_ready >= players_per_team × 2` — one number for two teams, the
+      // 2026-09-18 stall's own arithmetic in the other direction. An **uneven
+      // roster** is where that becomes visible: a 2v1 carries
+      // `players_per_team: 1` (T1: the smaller team, because one number has to
+      // let both through), so the fork announced the whole room ready at
+      // **two of three** on the dev node, while team A still had a player who
+      // had not said a word — and said it again, with different counts, once
+      // they had. A client drawing "everybody's in" would have drawn it a
+      // player early, in a durable log, for ever.
+      //
+      // So each side's count is held against the same floor a `team_ready`
+      // is ({@link gateOf}) — read off the payload rather than off what the
+      // door happens to remember, so the rule does not depend on MatchZy
+      // having sent the two `team_ready`s first.
+      const short = (['team_a', 'team_b'] as const)
+        .map(team => ({ team, ...gateOf(context, team) }))
+        .filter(
+          ({ team, floor }) => floor > 0 && (team === 'team_a' ? ready.teamA : ready.teamB) < floor,
+        )
+      if (short.length > 0)
+        return drop(
+          `the room is called ready at ${said}, and ${short
+            .map(({ team, because }) => `${team} is under ${because}`)
+            .join(' and ')} — the fork counts one number for two teams`,
+        )
       if (state.ready.all === said) return drop(`everybody is already ready at ${said}`)
       return {
         events: [

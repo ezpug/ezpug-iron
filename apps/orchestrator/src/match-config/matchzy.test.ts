@@ -324,10 +324,16 @@ describe('a team of one can ready up', () => {
     }
   }
 
+  // **Every size from one to five a side** (PRD-03 T6), because the stall was
+  // a size: each of these is a different `players_per_team` in the match file
+  // and so a different answer from `IsTeamReady`. The same list is played on
+  // real hardware by the lane's matrix (`cs2.extended.test.ts`).
   it.each([
     [1, 1, 1],
     [2, 1, 1],
     [2, 2, 2],
+    [3, 3, 3],
+    [4, 4, 4],
     [5, 5, 5],
   ])('goes live on a %ivs%i roster, at %i a side', (a, b, perTeam) => {
     const config = buildMatchZyConfig(pug(a, b))

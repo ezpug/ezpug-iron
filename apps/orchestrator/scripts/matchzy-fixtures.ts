@@ -76,6 +76,19 @@ const context: MatchZyContext = {
   readyFloor: 0,
 }
 
+/**
+ * **The uneven roster, for the one case a 5v5 cannot make** (PRD-03 T6): the
+ * 2v1 the matrix played, tk and puppet-3 against maex. Its `players_per_team`
+ * is **one** — the smaller team's, because MatchZy has one number for both
+ * sides and the larger team's would refuse the single player for ever (T1) —
+ * and that is what makes the fork's `total_ready >= players_per_team × 2`
+ * announce a room of three all ready at two.
+ */
+const UNEVEN: MatchZyContext['teams'] = {
+  teamA: { name: 'EZPug A', players: [TEAM_A[0], TEAM_A[1]] as string[] },
+  teamB: { name: 'EZPug B', players: [TEAM_B[0]] as string[] },
+}
+
 const RECORDING_PATH = 'packages/protocol/fixtures/recorded/real-pug-matchzy.json'
 const ENHANCED = 'references/MatchZy-Enhanced/src'
 const SERIAL = matchzySerial(FIXTURE_MATCH_ID)
@@ -89,6 +102,8 @@ interface Plan {
   state?: MatchZyState
   /** The floor this payload's match config carried, when it was not the recorded run's `0` (PRD-03 T5a). */
   readyFloor?: number
+  /** The roster this payload's match had, when it was not the recorded run's ten (PRD-03 T6). */
+  teams?: MatchZyContext['teams']
 }
 
 /** The first payload under `name` that answers `pick` — the SteamID, usually. */
@@ -587,6 +602,40 @@ const plan: Plan[] = [
       total_ready: 5,
     },
   },
+  // ------------------------------------------ one number for two teams
+  //
+  // The 2v1 the matrix played (PRD-03 T6). `players_per_team` is the smaller
+  // team's (T1, because one number has to let both sides through), so the
+  // fork's `total_ready >= players_per_team × 2` calls the whole room ready
+  // at two of three — while team A still holds a player who has said nothing.
+  {
+    file: '47-all-ready-under-a-side.json',
+    source: 'derived',
+    from: '29-all-players-ready.json',
+    teams: UNEVEN,
+    state: fresh(),
+    note: 'What the uneven 2v1 on the dev node really sent, and the reason T6 went red. players_per_team is 1 there — the smaller team’s — so the fork announced the whole room ready on total_ready 2 while team A had one of its two still silent, and a client drawing "everybody’s in" would have drawn it a player early. Held against each side’s own floor instead, this says nothing.',
+    payload: {
+      ...where('all_players_ready', payload => Number(payload.total_ready) === 10),
+      ready_count_team1: 1,
+      ready_count_team2: 1,
+      total_ready: 2,
+    },
+  },
+  {
+    file: '48-all-ready-when-both-sides-are.json',
+    source: 'derived',
+    from: '29-all-players-ready.json',
+    teams: UNEVEN,
+    state: fresh(),
+    note: 'The same 2v1 one ready later: team A’s second player has said yes, both sides are through their own gate, and this is the one all_ready the room is owed. The fork sent four more identical to it and the door says it once.',
+    payload: {
+      ...where('all_players_ready', payload => Number(payload.total_ready) === 10),
+      ready_count_team1: 2,
+      ready_count_team2: 1,
+      total_ready: 3,
+    },
+  },
 ]
 
 // Only the fixtures: the folder's README is written by hand.
@@ -596,7 +645,11 @@ let state = initialMatchZyState()
 for (const entry of plan) {
   const result = translateMatchZyEvent(
     entry.payload,
-    entry.readyFloor === undefined ? context : { ...context, readyFloor: entry.readyFloor },
+    {
+      ...context,
+      ...(entry.readyFloor !== undefined && { readyFloor: entry.readyFloor }),
+      ...(entry.teams !== undefined && { teams: entry.teams }),
+    },
     entry.state ?? state,
   )
   if (entry.state === undefined) state = result.state
@@ -610,6 +663,7 @@ for (const entry of plan) {
     note: entry.note,
     ...(entry.state !== undefined && { state: entry.state }),
     ...(entry.readyFloor !== undefined && { readyFloor: entry.readyFloor }),
+    ...(entry.teams !== undefined && { teams: entry.teams }),
     payload: entry.payload,
     expect: expected,
   }

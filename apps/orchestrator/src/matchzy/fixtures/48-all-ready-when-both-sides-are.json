@@ -1,0 +1,45 @@
+{
+  "source": "derived",
+  "from": "29-all-players-ready.json",
+  "note": "The same 2v1 one ready later: team A’s second player has said yes, both sides are through their own gate, and this is the one all_ready the room is owed. The fork sent four more identical to it and the door says it once.",
+  "state": {
+    "scores": {},
+    "starts": {},
+    "ready": {}
+  },
+  "teams": {
+    "teamA": {
+      "name": "EZPug A",
+      "players": ["76561198279375306", "76561198279375308"]
+    },
+    "teamB": {
+      "name": "EZPug B",
+      "players": ["76561198279375307"]
+    }
+  },
+  "payload": {
+    "ready_count_team1": 2,
+    "ready_count_team2": 1,
+    "total_ready": 3,
+    "countdown_started": true,
+    "matchid": 1083740696,
+    "event": "all_players_ready"
+  },
+  "expect": {
+    "events": [
+      {
+        "type": "all_ready",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "devbox-1"
+        },
+        "ready": {
+          "teamA": 2,
+          "teamB": 1
+        },
+        "countdown": true
+      }
+    ]
+  }
+}
