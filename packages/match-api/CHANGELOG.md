@@ -6,6 +6,36 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.18.5 — 2026-09-20
+
+**An empty server goes live where a real one of its modes would** (PRD-03 T11a, for the
+platform's PRD-10 T6). No schema, route, event, error code or state moved; what changed is
+the story the simulator — and the fake beside it — tells for a mode whose flow is not
+MatchZy's.
+
+- **The `idle` and `no-show` stories now depend on the manifest's `flow`.** They used to
+  tell every mode MatchZy's version of it: an empty or short-handed server sits in warmup
+  for ever, and the match ends with a `series_end` and nothing before it. That is right for
+  `pug`, whose warmup is held open until two teams have readied up, and wrong for every
+  mode the server's own plugin tells the story of (`flow: "plugin"`, `flow: "none"` — all
+  three of `powerup-dm`, `retakes` and `flying-scoutsman`): such a server ends its warmup
+  on its own clock twenty seconds after the map is up whether or not anybody came, which is
+  the only thing a drop-in mode can sensibly do, since people join one of those *live*.
+  Measured side by side on a dev CS2 server and the simulator: the real leg said
+  `server_ready`, `going_live`, `round_start`, `map_end`, `series_end`, and the simulated
+  one said `server_ready`, `series_end`. They now say the same list.
+- **What you can draw off it**: a `powerup-dm` match on the `sim` provider goes live with a
+  `going_live.length` to count down, ends on whichever of the mode's clocks runs out first
+  — the idle timeout from `server_ready`, the duration from `going_live` — and carries that
+  `reason` on `map_end` as well as `series_end`, naming no winner for a one-team mode. A
+  short-handed `no-show` of such a mode is *played* by the bodies that came, so a console
+  rehearsing against the simulator is rehearsing against a match that can happen.
+- **`pug` is untouched**, and so is every round-based story of every mode: a `matchzy`
+  match's empty server still waits for the join deadline, and a `length` is still never
+  MatchZy's to enforce (a real server drops it for that flow).
+- **What you may need to change**: nothing, unless a test of yours pinned the old shape of
+  a simulated `powerup-dm`, `retakes` or `flying-scoutsman` match that nobody joined.
+
 ## 0.18.4 — 2026-09-20
 
 **A scenario a real server cannot play is refused, never silently ignored** (PRD-03 T11,

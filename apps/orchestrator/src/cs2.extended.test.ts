@@ -617,31 +617,28 @@ const CASES: LaneCase[] = [
       ])
       expect(sim.simulation?.provider, 'the second leg did not land on the simulator').toBe('sim')
       expect(sim.finalState, 'the simulated leg did not end').toBe('ended')
+      expect(sim.length?.mapEnd, 'the simulator did not end the map on the idle clock').toBe('idle')
       expect(sim.length?.seriesEnd, 'the simulator did not end it on the idle clock').toBe('idle')
+      expect(sim.length?.winner, 'the simulated free-for-all named a winning team').toBeNull()
       expect(sim.payloads?.player_connected ?? 0, 'the simulator seated somebody').toBe(0)
 
-      // **The classes and the order.** `heartbeat` is a server's pulse and not
-      // a beat of any story, so it is dropped from both; everything else is
-      // compared as it came.
+      // **The classes and the order, and they are now the same list** (T11a).
+      // `heartbeat` is a server's pulse and not a beat of any story, so it is
+      // dropped from both; everything else is compared as it came.
+      //
+      // What this row measured when T11 wrote it was a diff: a real server
+      // whose flow the SDK tells the story of ends its warmup itself twenty
+      // seconds after the map is up (`GenericFlow.GoLiveDelayMs`) whether or
+      // not anybody came — which is right for a drop-in mode, where people
+      // join a *live* server — so the real leg went live, started a round and
+      // ended on `map_end` + `series_end`, while the simulator told every mode
+      // MatchZy's story instead and ended with `series_end` alone. The
+      // simulator was the one that was wrong. It now knows the manifest's
+      // `flow` and tells an SDK-told mode's story as a real one of them tells
+      // it, so the assertion is one list held against both engines.
       const classes = (of: Summary): string[] =>
         (of.story ?? []).filter(type => type !== 'heartbeat')
-      expect(classes(sim), 'the simulator’s idle story changed shape').toEqual([
-        'match.allocated',
-        'server_ready',
-        'match.server_ready',
-        'series_end',
-        'match.ended',
-      ])
-      // **And the diff, pinned rather than hidden.** A real server that the
-      // SDK tells the story of ends its warmup itself twenty seconds after the
-      // map is up (`GenericFlow.GoLiveDelayMs`) whether or not anybody came —
-      // which is right for a drop-in mode, where people join a *live* server —
-      // so the real leg goes live, starts a round and ends on `map_end` +
-      // `series_end`. The simulator tells every mode MatchZy's story instead:
-      // an empty server stays in warmup and ends with `series_end` alone. The
-      // simulator is the one that is wrong, and PRD-03 T11a is where it is put
-      // right; until then this row is the record of it.
-      expect(classes(summary), 'the real leg’s idle story changed shape').toEqual([
+      const idleStory = [
         'match.allocated',
         'server_ready',
         'match.server_ready',
@@ -650,7 +647,9 @@ const CASES: LaneCase[] = [
         'map_end',
         'series_end',
         'match.ended',
-      ])
+      ]
+      expect(classes(summary), 'the real leg’s idle story changed shape').toEqual(idleStory)
+      expect(classes(sim), 'the simulator’s idle story is not the real one').toEqual(idleStory)
     },
   },
 ]

@@ -580,7 +580,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > an empty server stays in warmup. Both end on the mode's idle timeout and name
     > nobody. T11a is the fix.
 
-- [ ] **T11a: the simulator's empty server never goes live** (found by T11, 2026-09-21).
+- [x] **T11a: the simulator's empty server never goes live** (found by T11, 2026-09-21).
   The `idle` and `no-show` stories hold an empty (or short-handed) server in warmup and
   end with `series_end` alone, which is MatchZy's behaviour and not the SDK's: a real
   `powerup-dm`, `retakes` or `flying-scoutsman` server ends its warmup itself
@@ -591,6 +591,34 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   story a real one of them tells. The platform's dev world draws its `powerup-dm`
   matches from here (PRD-10 T6), so until then it is rehearsing against a match that
   cannot happen.
+
+    > **The `flow` decides, and it decides for `no-show` too.** The manifest's `flow` now
+    > reaches the assignment beside `length`, `teamCount` and `records`, and the two
+    > stories that held a server in warmup ask it: MatchZy's warmup is held open until two
+    > teams have readied up, so an empty or short-handed `pug` still runs dry and the join
+    > deadline is still the only thing that gives up on it, while a `plugin` or `none` mode
+    > ends its own warmup on `GenericFlow.GoLiveDelayMs` and is live with whoever is
+    > standing there — which for `no-show` means the match is *played* short-handed, the
+    > absentees in nobody's kill feed and nobody's scoreboard, and for `idle` means a room
+    > with nobody in it goes live and ends on whichever of the mode's clocks runs out first
+    > (the idle timeout from `server_ready`, the duration from `going_live`), `map_end`
+    > carrying the reason because the map *was* live.
+    >
+    > **A `length` on a `matchzy` mode is nobody's**, so the simulator stopped pretending it
+    > could end one: `MatchLength.OnAssigned` drops it for that flow on a real server and
+    > the manifest rules refuse to carry one there, which makes the old branch dead code
+    > wearing a test.
+    >
+    > **Every seeded story is byte for byte the one it was**, which took some care: the
+    > absent draw is `prng.sample`, which shuffles the *whole* pool, so narrowing the pool
+    > would have moved every subsequent number in every SDK-told story. The shuffle stays
+    > over the whole room and the bodies kept back — one a side, so a round-based story can
+    > never be handed an empty team — are filtered out of the shuffled order instead. The
+    > recorded conformance goldens are the proof.
+    >
+    > **The lane's `idle` row is now one list held against both engines** rather than two
+    > lists and a note. Re-run on the dev node and the `sim` provider, 5.5 minutes, no
+    > rounds, and they agree beat for beat.
 
 - [ ] **T12: movement that looks like a match** (radar; spike first, may end as a
   finding).

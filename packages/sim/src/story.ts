@@ -30,7 +30,7 @@ import type {
   RoundWinCondition,
   TeamSide,
 } from '@ezpug/match-api'
-import { isEphemeralGameserverEvent, radarToWorld } from '@ezpug/match-api'
+import { isEphemeralGameserverEvent, radarToWorld, SDK_TOLD_FLOWS } from '@ezpug/match-api'
 import type { MatchAssignment, SimulatedPlayer } from './assignment'
 import { SIM_CHAT_EVENT, sanitizeChatLine } from './chat'
 import type { SimulatedChatMoment } from './chatter'
@@ -143,6 +143,27 @@ const RESPAWN_MS = 3_000
  * which is what this number is.
  */
 const KILL_INTERVAL_PER_PLAYER_MS = 25_000
+
+/**
+ * **How long after the map is up a flow the SDK tells the story of ends its
+ * own warmup** — `GenericFlow.GoLiveDelayMs` to the millisecond, because that
+ * is the number a real one of these servers runs on. It is the window the
+ * roster connects in, and it runs out whether or not anybody used it.
+ */
+const GO_LIVE_DELAY_MS = 20_000
+
+/**
+ * **Whose story this mode's server tells** (PRD-03 T11a). A `matchzy` mode is
+ * MatchZy's: warmup is held open until the teams ready up, so an empty or a
+ * short-handed server never goes live and the orchestrator's join deadline is
+ * the only thing that ever gives up on it. A `plugin` or `none` mode is the
+ * SDK's: `GenericFlow` runs `mp_warmup_end` itself once the delay is up and
+ * the match is live with whoever is standing there, which is the only thing a
+ * drop-in mode could sensibly do — people join it *live*. Absent, as a match
+ * config read off a MatchZy handoff is: MatchZy's.
+ */
+const tellsItsOwnStory = (assignment: MatchAssignment): boolean =>
+  SDK_TOLD_FLOWS.includes(assignment.flow ?? 'matchzy')
 
 const flip = (side: TeamSide): TeamSide => (side === 'ct' ? 't' : 'ct')
 const other = (team: MatchTeam): MatchTeam => (team === 'team_a' ? 'team_b' : 'team_a')
@@ -282,7 +303,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     beats.push({ atMs, event })
   }
 
-  const players: PlayerState[] = [
+  let players: PlayerState[] = [
     ...assignment.teamA.players.map(player => ({ player, team: 'team_a' as MatchTeam })),
     ...assignment.teamB.players.map(player => ({ player, team: 'team_b' as MatchTeam })),
   ].map(({ player, team }) => ({
@@ -305,27 +326,6 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     name: state.player.name,
     team: state.team,
   })
-
-  /**
-   * The three lines this match says, drawn on their **own** stream so
-   * adding chat to the simulator moved nobody's rounds: `fork` is
-   * order-independent by contract, and every seeded match still plays exactly
-   * the match it played before.
-   */
-  const chatter = planSimulatedChatter(prng.fork('chatter'), players.length)
-  const say = (atMs: number, moment: SimulatedChatMoment): void => {
-    const line = chatter?.[moment]
-    const speaker = line ? players[line.speaker] : undefined
-    if (!line || !speaker) return
-    emit(atMs, {
-      type: 'chat_message',
-      matchId,
-      source,
-      player: asGameserverPlayer(speaker),
-      text: line.text,
-      scope: line.scope,
-    })
-  }
 
   /**
    * **The lines the server itself says while it waits** (PRD-02 T30): the
@@ -375,28 +375,6 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
   const readyAtMs = t
   emit(t, { type: 'server_ready', matchId, source, map: firstMap.map })
 
-  // **Nobody ever comes** (PRD-03 T9a). What happens to an empty server is the
-  // mode's to say, exactly as it is on real hardware: a manifest that names an
-  // `idleTimeoutSeconds` ends the match on it — a `series_end` with no
-  // `going_live` anywhere before it, which the orchestrator's machine already
-  // accepts from any open state — and a manifest that names none never ends at
-  // all, so the story runs dry and the join deadline decides. Nothing is said
-  // out loud to an empty room: warmup chat has no reader.
-  if (scenario.idle) {
-    const idleSeconds = assignment.length?.idleTimeoutSeconds
-    if (idleSeconds === undefined) return { beats, outcome: 'idle', demos }
-    t += idleSeconds * 1_000
-    emit(t, {
-      type: 'series_end',
-      matchId,
-      source,
-      seriesScore: { teamA: 0, teamB: 0 },
-      winner: null,
-      reason: 'idle',
-    })
-    return { beats, outcome: 'completed', demos }
-  }
-
   /**
    * **This map's demo, if this mode makes one at all** (PRD-03 T9c). Only a
    * manifest that `records: "demo"` produces a file: a `powerup-dm` or a
@@ -442,8 +420,107 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     })
   }
 
-  const absentCount = Math.min(scenario.absentPlayers ?? 0, players.length - 1)
-  const absent = new Set(prng.sample(players, absentCount).map(p => p.player.steamId64))
+  // **Nobody ever comes** (PRD-03 T9a). What happens to an empty server is the
+  // *mode's* to say, exactly as it is on real hardware — and the two kinds of
+  // mode say different things (T11a, measured side by side on the dev node and
+  // this engine in the lane's `idle` row).
+  //
+  // MatchZy holds its warmup open until two teams have readied up, so nothing
+  // ever goes live and nothing ever ends: the story runs dry and the join
+  // deadline is what decides. A `length` changes none of that — it is never
+  // MatchZy's to enforce, and a real server drops it for that flow
+  // (`MatchLength.OnAssigned`), as the manifest rules already refuse to carry
+  // one there.
+  //
+  // A flow the SDK tells the story of ends its *own* warmup instead
+  // (`GenericFlow`, `GoLiveDelayMs`): twenty seconds after the map is up the
+  // server is live with nobody standing on it — `going_live` carrying whatever
+  // length is in force, and round one with it — which is the only thing a
+  // drop-in mode could sensibly do, since people join such a server *live*. It
+  // then ends on the first clock to run out: the idle timeout, counted from
+  // `server_ready` (`MatchLength.OnReady`), or the duration, counted from
+  // `going_live` — and `map_end` carries the reason too, because this map was
+  // live. A mode that names neither plays on for ever with nobody on it.
+  //
+  // Nothing is said out loud to an empty room either way: warmup chat has no
+  // reader and nobody is there to kill anybody.
+  if (scenario.idle) {
+    if (!tellsItsOwnStory(assignment)) return { beats, outcome: 'idle', demos }
+    const idleSeconds = assignment.length?.idleTimeoutSeconds
+    const liveAtMs = readyAtMs + GO_LIVE_DELAY_MS
+    const mapStartIndex = beats.length
+    const inForce = liveLengthInForce(assignment.length, options.timeScale ?? 1)
+    emit(liveAtMs, {
+      type: 'going_live',
+      matchId,
+      source,
+      mapNumber: 1,
+      map: firstMap.map,
+      ...(inForce && { length: inForce }),
+    })
+    emit(liveAtMs, {
+      type: 'round_start',
+      matchId,
+      source,
+      mapNumber: 1,
+      roundNumber: 1,
+      score: { teamA: 0, teamB: 0 },
+    })
+    // The race `MatchLength` runs, with nobody to reach a frag limit.
+    const clocks: { atMs: number; reason: MatchEndReason }[] = []
+    if (idleSeconds !== undefined) {
+      clocks.push({ atMs: readyAtMs + idleSeconds * 1_000, reason: 'idle' })
+    }
+    if (assignment.length?.durationSeconds !== undefined) {
+      clocks.push({
+        atMs: liveAtMs + assignment.length.durationSeconds * 1_000,
+        reason: 'time_limit',
+      })
+    }
+    const ends = clocks.sort((a, b) => a.atMs - b.atMs)[0]
+    if (!ends) return { beats, outcome: 'idle', demos }
+    t = ends.atMs
+    const score = { teamA: 0, teamB: 0 }
+    emit(t, {
+      type: 'map_end',
+      matchId,
+      source,
+      mapNumber: 1,
+      map: firstMap.map,
+      score,
+      winner: winnerOf(assignment, score.teamA, score.teamB),
+      reason: ends.reason,
+    })
+    announceDemo(1, firstMap.map, mapStartIndex)
+    t += 2_000
+    emit(t, {
+      type: 'series_end',
+      matchId,
+      source,
+      seriesScore: score,
+      winner: winnerOf(assignment, score.teamA, score.teamB),
+      reason: ends.reason,
+    })
+    return { beats, outcome: 'completed', demos }
+  }
+
+  /**
+   * **Who is missing.** The draw is over the whole room, as it has always
+   * been; who may come *out* of it is the flow's. For MatchZy anybody can:
+   * its warmup is held open until both teams are complete and ready, so a
+   * missing player is the join deadline's problem and never the story's. A
+   * flow the SDK tells the story of *plays* the match short-handed, so one
+   * body a side is kept back — a round-based story with an empty side is
+   * nobody's match, and a server with nobody on it at all is the `idle`
+   * scenario rather than this one.
+   */
+  const sdkTold = tellsItsOwnStory(assignment)
+  const keptBack = sdkTold ? [0, assignment.teamA.players.length] : []
+  const order = prng
+    .shuffle(players)
+    .filter(state => !keptBack.some(index => players[index] === state))
+  const absentCount = Math.min(scenario.absentPlayers ?? 0, players.length - 1, order.length)
+  const absent = new Set(order.slice(0, absentCount).map(p => p.player.steamId64))
   const arrivals = players
     .filter(p => !absent.has(p.player.steamId64))
     .map(state => ({ state, atMs: t + prng.int(2_000, 25_001) }))
@@ -452,14 +529,42 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     emit(atMs, { type: 'player_connected', matchId, source, player: asGameserverPlayer(state) })
   }
 
-  // A no-show never goes live: the server heartbeats in warmup until the
-  // orchestrator's join deadline decides — the story just runs dry. The lines
-  // are said for as long as there is a story, which for this one is until the
-  // last player who *did* come arrived.
+  // **A no-show under MatchZy never goes live**: the server heartbeats in
+  // warmup until the orchestrator's join deadline decides — the story just
+  // runs dry. The lines are said for as long as there is a story, which for
+  // this one is until the last player who *did* come arrived.
   const lastArrival = arrivals[arrivals.length - 1]
-  if (absentCount > 0) {
+  if (absentCount > 0 && !sdkTold) {
     fillWarmup(readyAtMs, lastArrival?.atMs ?? t)
     return { beats, outcome: 'idle', demos }
+  }
+  // **A flow the SDK tells the story of waits for nobody** (T11a): warmup ends
+  // on its own clock and the match is played by the bodies that came. The ones
+  // that never did are out of it from here — they kill nobody, die to nobody
+  // and stand in no round's scoreboard, exactly as a player who never
+  // connected does not.
+  if (absentCount > 0) players = players.filter(p => !absent.has(p.player.steamId64))
+
+  /**
+   * The three lines this match says, drawn on their **own** stream so
+   * adding chat to the simulator moved nobody's rounds: `fork` is
+   * order-independent by contract, and every seeded match still plays exactly
+   * the match it played before. Planned once the room is known, so a line is
+   * never put in the mouth of somebody who never came.
+   */
+  const chatter = planSimulatedChatter(prng.fork('chatter'), players.length)
+  const say = (atMs: number, moment: SimulatedChatMoment): void => {
+    const line = chatter?.[moment]
+    const speaker = line ? players[line.speaker] : undefined
+    if (!line || !speaker) return
+    emit(atMs, {
+      type: 'chat_message',
+      matchId,
+      source,
+      player: asGameserverPlayer(speaker),
+      text: line.text,
+      scope: line.scope,
+    })
   }
 
   t = (lastArrival?.atMs ?? t) + prng.int(10_000, 20_001)

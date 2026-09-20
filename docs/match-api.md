@@ -458,10 +458,14 @@ Scope `matches`. `{ scenarios: SimScenario[], default }` — the scripted shapes
 simulator can play, and the one a `sim` block without a `scenario` gets. A `SimScenario` is
 `{ name, neverReady, absentPlayers, crashAfterRound, pauses, idle, overtimes, comeback }`:
 the knobs spelled out, so a console renders facts rather than a hard-coded list. `idle`
-is the story where **nobody ever connects**: a mode whose manifest names a
-`length.idleTimeoutSeconds` ends itself on it — a `series_end` with `reason: "idle"` and
-no `going_live` anywhere before it — and a mode that names none waits for ever, which
-leaves the join deadline the only thing that gives up. Served whether
+is the story where **nobody ever connects**, and what happens then is the *mode's*: a
+`matchzy` mode holds its warmup open for ever, so the join deadline is the only thing
+that gives up on it, while a mode whose flow the server's own plugin tells (`plugin`,
+`none`) ends its warmup on its own clock — `going_live` on an empty server, then
+`map_end` and `series_end` on whichever of its `length`'s clocks runs out first
+(`reason: "idle"`, or `"time_limit"` where the duration is the shorter). A mode that
+names no `length` at all plays on until the join deadline or the TTL. The simulator and a
+real server tell that story the same way, beat for beat. Served whether
 or not the `sim` provider is registered — this is what the build knows how to play, and
 `GET /v1/capacity` is what says whether it could. `MatchRequest.sim.scenario` takes a
 `name` from here, and so does `MatchRequest.simulation.scenario` — one scenario language,

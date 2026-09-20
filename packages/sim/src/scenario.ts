@@ -33,12 +33,14 @@ export interface SimulatorScenario {
   /** Tactical pauses sprinkled into map 1. */
   pauses?: number
   /**
-   * **Nobody ever comes** (PRD-03 T9a). The server boots, says `server_ready`
-   * and then waits on an empty map. What happens next is the *mode's* to
-   * decide, exactly as it is on a real server: a mode whose manifest names an
-   * `idleTimeoutSeconds` ends itself on it — a `series_end` with
-   * `reason: "idle"` and no `going_live` before it — and a mode that names
-   * none simply never ends, and the orchestrator's join deadline decides.
+   * **Nobody ever comes** (PRD-03 T9a, corrected by T11a). The server boots,
+   * says `server_ready` and then waits on an empty map. What happens next is
+   * the *mode's* to decide, exactly as it is on a real server: a `matchzy`
+   * mode holds its warmup open for ever and the orchestrator's join deadline
+   * is what decides, while a mode whose flow the SDK tells the story of ends
+   * its own warmup on its own clock — `going_live` on an empty server, then
+   * `map_end` and `series_end` on whichever of its `length`'s clocks runs out
+   * first (`reason: "idle"`, or `"time_limit"` for a short enough duration).
    *
    * Not the same as {@link absentPlayers}, which is a *partial* roster and
    * ends as `no_show`, nor {@link neverReady}, where the server never boots

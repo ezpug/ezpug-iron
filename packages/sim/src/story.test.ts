@@ -42,6 +42,7 @@ function storyFor(
 
 /** `powerup-dm`'s own numbers: ten minutes, or five with nobody on the server. */
 const DEATHMATCH: Partial<MatchAssignment> = {
+  flow: 'plugin',
   teamCount: 1,
   length: { durationSeconds: 600, idleTimeoutSeconds: 300 },
 }
@@ -209,7 +210,7 @@ describe('buildMatchStory', () => {
     })
   })
 
-  it('no-show: some never connect, nothing goes live, the story runs dry', () => {
+  it('no-show: some never connect, nothing goes live under matchzy, the story runs dry', () => {
     const story = storyFor(SIMULATOR_SCENARIOS['no-show'])
     expect(story.outcome).toBe('idle')
     expect(ofType(story, 'player_connected')).toHaveLength(8)
@@ -653,25 +654,111 @@ describe('a mode with a length (PRD-03 T9a)', () => {
   })
 })
 
-describe('the idle scenario (PRD-03 T9a)', () => {
-  it('ends a mode that names an idle timeout, with no going_live before it', () => {
-    const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-a', DEATHMATCH)
+describe('the idle scenario (PRD-03 T9a, T11a)', () => {
+  it('goes live on an empty server for a flow the SDK tells the story of, and ends on it', () => {
+    // `powerup-dm` whole: its clocks and its `records`, so the sequence below
+    // is the one the dev node produced beat for beat.
+    const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-a', {
+      ...DEATHMATCH,
+      records: 'events',
+    })
     expect(story.outcome).toBe('completed')
-    expect(story.beats.map(beat => beat.event.type)).toEqual(['server_ready', 'series_end'])
+    expect(story.demos).toHaveLength(0)
+    // The dev node's own sequence, measured in the lane's `idle` row (T11):
+    // a server nobody came to ends its warmup anyway and ends as a match.
+    expect(story.beats.map(beat => beat.event.type)).toEqual([
+      'server_ready',
+      'going_live',
+      'round_start',
+      'map_end',
+      'series_end',
+    ])
+    expect(ofType(story, 'player_connected')).toHaveLength(0)
+    expect(ofType(story, 'player_death')).toHaveLength(0)
+    // Twenty seconds after the map is up, `GenericFlow.GoLiveDelayMs` to the
+    // millisecond, carrying the length a client counts down.
+    const readyAtMs = story.beats[0]?.atMs ?? 0
+    const [live] = ofType(story, 'going_live')
+    expect(live?.length).toEqual({ durationSeconds: 600 })
+    expect((story.beats[1]?.atMs ?? 0) - readyAtMs).toBe(20_000)
+    // The idle clock runs from `server_ready` and beats the duration, which
+    // runs from `going_live`: five minutes, not ten minutes and twenty seconds.
+    const [mapEnd] = ofType(story, 'map_end')
     const [seriesEnd] = ofType(story, 'series_end')
+    expect(mapEnd?.reason).toBe('idle')
+    expect(mapEnd?.winner).toBeNull()
+    expect(mapEnd?.score).toEqual({ teamA: 0, teamB: 0 })
     expect(seriesEnd?.reason).toBe('idle')
     expect(seriesEnd?.winner).toBeNull()
     expect(seriesEnd?.seriesScore).toEqual({ teamA: 0, teamB: 0 })
-    // Counted in match time from `server_ready`, like every other beat.
-    const [ready, end] = story.beats
-    expect((end?.atMs ?? 0) - (ready?.atMs ?? 0)).toBe(300_000)
+    const endAtMs = story.beats.find(beat => beat.event.type === 'map_end')?.atMs ?? 0
+    expect(endAtMs - readyAtMs).toBe(300_000)
   })
 
-  it('leaves a mode that names none waiting, for the join deadline to decide', () => {
-    const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-b')
+  it('ends on the duration where that is the clock that runs out first', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-c', {
+      flow: 'plugin',
+      teamCount: 1,
+      length: { durationSeconds: 60, idleTimeoutSeconds: 3_600 },
+    })
+    expect(ofType(story, 'map_end')[0]?.reason).toBe('time_limit')
+    expect(ofType(story, 'series_end')[0]?.reason).toBe('time_limit')
+  })
+
+  it('leaves an SDK-told mode that names no clock live for ever, nothing ending it', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-d', { flow: 'none' })
     expect(story.outcome).toBe('idle')
-    expect(story.beats.map(beat => beat.event.type)).toEqual(['server_ready'])
-    expect(ofType(story, 'player_connected')).toHaveLength(0)
+    expect(story.beats.map(beat => beat.event.type)).toEqual([
+      'server_ready',
+      'going_live',
+      'round_start',
+    ])
+    // Nothing to count down when the mode declares no length at all.
+    expect(ofType(story, 'going_live')[0]?.length).toBeUndefined()
+  })
+
+  it('plays a short-handed SDK-told match with the bodies that came (T11a)', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['no-show'], 'no-show-sdk', DEATHMATCH)
+    expect(story.outcome).toBe('completed')
+    const connected = ofType(story, 'player_connected')
+    expect(connected).toHaveLength(8)
+    expect(ofType(story, 'going_live')).toHaveLength(1)
+    expect(ofType(story, 'series_end')[0]?.reason).toBe('time_limit')
+    // The two who never came are in nothing that follows: no kill, no death,
+    // no scoreboard line, and nobody's chat.
+    const present = new Set(connected.map(event => event.player.steamId64))
+    expect(present.size).toBe(8)
+    for (const death of ofType(story, 'player_death')) {
+      expect(present.has(death.victim.steamId64)).toBe(true)
+      if (death.killer) expect(present.has(death.killer.steamId64)).toBe(true)
+    }
+    for (const said of ofType(story, 'chat_message')) {
+      expect(present.has(said.player.steamId64)).toBe(true)
+    }
+  })
+
+  it('never empties a side of an SDK-told match, however many the scenario keeps away', () => {
+    const story = storyFor({ name: 'deserted', absentPlayers: 9 }, 'no-show-9', {
+      flow: 'plugin',
+      length: { durationSeconds: 60 },
+    })
+    const connected = ofType(story, 'player_connected')
+    expect(connected).toHaveLength(2)
+    expect(new Set(connected.map(event => event.player.team))).toEqual(
+      new Set(['team_a', 'team_b']),
+    )
+    expect(story.outcome).toBe('completed')
+  })
+
+  it('leaves a matchzy mode waiting in warmup, for the join deadline to decide', () => {
+    // MatchZy holds warmup open until two teams ready up, and a `length` is
+    // never its to enforce (`MatchLength.OnAssigned`) — so neither shape ends.
+    for (const overrides of [{}, { ...DEATHMATCH, flow: 'matchzy' as const }]) {
+      const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-b', overrides)
+      expect(story.outcome).toBe('idle')
+      expect(story.beats.map(beat => beat.event.type)).toEqual(['server_ready'])
+      expect(ofType(story, 'player_connected')).toHaveLength(0)
+    }
   })
 })
 

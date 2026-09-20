@@ -128,7 +128,7 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.18.4`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.18.5`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -170,7 +170,11 @@ look like over there. **0.18.4** moves no schema either (PRD-03 T11): a
 `simulation.scenario` whose knobs no real server can execute is `validation_failed` at the
 door instead of a knob that quietly did nothing, so a console offering the catalog as a
 dropdown for a simulated match (PRD-10 T8) can now be told which entries a room of puppets
-will actually play.
+will actually play. **0.18.5** is the `sim` again (PRD-03 T11a): a simulated server nobody
+joined now goes live and ends as a match wherever a real server of that mode would — the
+manifest's `flow` reaches the story, so `powerup-dm`, `retakes` and `flying-scoutsman` are
+told the SDK's version of an empty room rather than MatchZy's, which is what the platform's
+PRD-10 T6 rehearses its countdown against in its dev world.
 
 ## Bumping one
 

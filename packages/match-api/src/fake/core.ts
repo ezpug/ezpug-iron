@@ -1030,6 +1030,9 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       ...(record.manifest.length && { length: record.manifest.length }),
       // What the server keeps: only a `demo` mode announces one (T9c).
       records: record.manifest.records,
+      // Whose story the server tells: an SDK-told flow ends its own warmup and
+      // goes live on an empty room, MatchZy's never does (T11a).
+      flow: record.manifest.flow,
       // Said out loud while the simulated server waits, exactly as a plugin
       // would print them (T30).
       ...(request.warmupLines && { warmupLines: request.warmupLines }),

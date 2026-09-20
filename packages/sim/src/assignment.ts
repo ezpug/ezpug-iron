@@ -20,6 +20,7 @@
  */
 import type {
   Game,
+  GamemodeFlow,
   GamemodeLength,
   GamemodeRecords,
   Locale,
@@ -98,6 +99,18 @@ export interface MatchAssignment {
    * mode's, whose length is MatchZy's: the round-based story, as before.
    */
   length?: GamemodeLength
+  /**
+   * **Who owns the flow on the server** (PRD-03 T11a): the manifest's `flow`.
+   * `matchzy` is MatchZy's story — an empty or short-handed server holds its
+   * warmup open for ever and the join deadline is the only thing that gives
+   * up on it. The flows the SDK tells the story of (`plugin`, `none`) end
+   * their own warmup twenty seconds after the map is up whether or
+   * not anybody came (`GenericFlow.GoLiveDelayMs`), which is right for a
+   * drop-in mode people join *live*, and end on `map_end` + `series_end`.
+   * Absent: `matchzy`, which is what a match config read off a MatchZy
+   * handoff always is.
+   */
+  flow?: GamemodeFlow
   /**
    * **What the server keeps of this match** (PRD-03 T9c): the manifest's
    * `records`. Only `demo` produces a demo, so only a `demo` mode announces
@@ -238,6 +251,8 @@ export interface MatchRequestHandoff {
   length?: GamemodeLength
   /** The manifest's `records` — only `demo` announces a demo. */
   records?: GamemodeRecords
+  /** The manifest's `flow` — an SDK-told flow goes live on an empty server, MatchZy's does not (T11a). */
+  flow?: GamemodeFlow
   /** The request's `warmupLines`, verbatim — the platform rendered them, the server prints them. */
   warmupLines?: readonly string[]
 }
@@ -271,6 +286,7 @@ export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchA
     ...(handoff.teamCount !== undefined && { teamCount: handoff.teamCount }),
     ...(handoff.length !== undefined && { length: handoff.length }),
     ...(handoff.records !== undefined && { records: handoff.records }),
+    ...(handoff.flow !== undefined && { flow: handoff.flow }),
     ...(handoff.warmupLines !== undefined && { warmupLines: [...handoff.warmupLines] }),
   })
 }
