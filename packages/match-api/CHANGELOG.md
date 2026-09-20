@@ -6,6 +6,41 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.17.0 — 2026-09-20
+
+**A length for a mode with nothing to win** (PRD-03 T9, for the platform's PRD-10 T6; it
+closes `OPEN-POINTS` §1). Additive: three optional fields and one optional manifest block,
+no enum you already parse grew a value, and a client that ignores them needs no change.
+
+- **`GamemodeManifest.length`** (also on the summary), `{ durationSeconds?, fragLimit?,
+  idleTimeoutSeconds? }`, at least one. What ends a match of the mode besides the game
+  itself, enforced by the SDK on the server for `plugin` and `none` flows; a `matchzy`
+  manifest that declares one does not parse. **This is what the room screen says before
+  anybody joins**: "10 minutes", "first to 30", or — when the block is absent or names only
+  the idle timeout — "plays the rounds the room sets". `powerup-dm` is `600` s with a
+  `300` s idle end at manifest `0.4.0`; `retakes` (`0.3.0`) and `flying-scoutsman`
+  (`0.4.0`) keep ending on the rules' rounds and gain the same idle end, so an open-join
+  server nobody is on stops billing by itself.
+- **`going_live.length`**, `{ durationSeconds?, fragLimit? }` — **the field you turn into a
+  countdown** (PRD-10 T6). `durationSeconds` is the length *in force*, in seconds of your
+  own clock, counted from the arrival of that `going_live` (a simulated match at
+  `timeScale: 2` says `300` for a manifest's `600`; no server timestamp travels, as ever).
+  `fragLimit` is what you count the leader's kills up to, from `player_death`. Absent for
+  a mode with neither.
+- **`map_end.reason` and `series_end.reason`**: `time_limit`, `frag_limit` or `idle` when
+  the mode's length ended the match, absent when the game did (the win panel). An `idle`
+  end can arrive while the match is still `ready` — nobody ever came — as a `series_end`
+  with no `going_live` and no `map_end` before it. The match then ends `completed` like
+  any finished series, the server is released, and `match.ended`'s `detail` repeats the
+  reason for whoever reads the match rather than its events.
+- **A one-team mode names no winner.** `winner` is `null` on `map_end` and `series_end`
+  for `slots.teams: 1`, whoever ended the match. It used to be whichever side of the
+  engine's free-for-all happened to lead, which no client could draw. Already legal in the
+  schema (a drawn map), so nothing to parse differently — stop expecting a team there.
+- Not in this release: the simulator still plays every mode as a round-based story and
+  says none of the three fields. Until it does (PRD-03 T9a), a `powerup-dm` match on the
+  `sim` provider has no countdown to draw; the real server and the manifest do.
+
 ## 0.16.0 — 2026-09-20
 
 **A body the request never named, and puppets outside MatchZy** (PRD-03 T7, for the

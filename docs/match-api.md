@@ -87,6 +87,19 @@ request named — a puppet is one — wherever they stand; a body the request ne
 is on none (since 0.16.0, PRD-03 T7). An `unrostered` player belongs to neither team: draw
 it in a guest list and attribute nothing by team to it.
 
+**A mode with nothing to win has a length, and the facts say so** (since 0.17.0, PRD-03
+T9). A manifest's `length` (`docs/gamemodes.md`, "Length") names a duration, a frag limit
+and an idle timeout, the SDK on the server enforces it, and three optional fields carry it:
+`going_live.length` is `{ durationSeconds?, fragLimit? }` **in force** — count
+`durationSeconds` down from that event's arrival (it is already on your clock: a simulated
+match's time scale is taken out of it) and a leader's kills up to `fragLimit` from the
+`player_death`s you already have — and `map_end.reason` / `series_end.reason` is
+`time_limit`, `frag_limit` or `idle` when the length ended the match, absent when the game
+did. An `idle` end may come from `ready`, with no `going_live` and no `map_end` before it:
+nobody came. Either way the match ends `completed` and the server is released. **A
+one-team mode (`slots.teams: 1`) names no winner**: `winner` is `null` on both facts,
+whatever the engine's two side scores said.
+
 **The ready gate is the server's arithmetic, never the client's.** `player_ready`,
 `player_unready` and `team_ready` each carry a `tally`: `ready` is the ready player count
 per team, in team order, and `expected` is how many the server is waiting for across both

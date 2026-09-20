@@ -259,6 +259,32 @@
       ],
       "additionalProperties": false
     },
+    "LiveLength": {
+      "description": "The length in force for a live map.",
+      "type": "object",
+      "properties": {
+        "durationSeconds": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "fragLimit": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": false
+    },
+    "MatchEndReason": {
+      "description": "Which part of a mode’s length ended the match.",
+      "type": "string",
+      "enum": [
+        "time_limit",
+        "frag_limit",
+        "idle"
+      ]
+    },
     "PauseKind": {
       "description": "Why a match is standing still.",
       "type": "string",
@@ -723,6 +749,9 @@
             "map": {
               "type": "string",
               "minLength": 1
+            },
+            "length": {
+              "$ref": "#/$defs/LiveLength"
             }
           },
           "required": [
@@ -932,6 +961,9 @@
                   "type": "null"
                 }
               ]
+            },
+            "reason": {
+              "$ref": "#/$defs/MatchEndReason"
             }
           },
           "required": [
@@ -976,6 +1008,9 @@
                   "type": "null"
                 }
               ]
+            },
+            "reason": {
+              "$ref": "#/$defs/MatchEndReason"
             }
           },
           "required": [
@@ -2127,6 +2162,28 @@
       ],
       "additionalProperties": false
     },
+    "GamemodeLength": {
+      "description": "What ends a match of a mode besides the game itself.",
+      "type": "object",
+      "properties": {
+        "durationSeconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 14400
+        },
+        "fragLimit": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        },
+        "idleTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 3600
+        }
+      },
+      "additionalProperties": false
+    },
     "GamemodeCapabilities": {
       "description": "What the mode can do, as booleans the loader enforces.",
       "type": "object",
@@ -2395,6 +2452,9 @@
         },
         "flow": {
           "$ref": "#/$defs/GamemodeFlow"
+        },
+        "length": {
+          "$ref": "#/$defs/GamemodeLength"
         },
         "records": {
           "$ref": "#/$defs/GamemodeRecords"

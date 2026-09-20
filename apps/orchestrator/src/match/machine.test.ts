@@ -1325,6 +1325,37 @@ describe('the demo', () => {
     return { key, match, say }
   }
 
+  it('ends a match its mode’s length ended, from `ready`, and says which part of it', async () => {
+    // PRD-03 T9: a `powerup-dm` server nobody came to says `series_end` with
+    // `reason: idle` before it ever went live. That is a finished match and a
+    // released server, not a fact to be refused for arriving out of `live`.
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request({ gamemode: 'powerup-dm' }))
+    await app.settle()
+    const row = app.store.rows.servers.find(server => server.matchId === match.id)
+    if (!row?.serverId) throw new Error('the walk left no server')
+    const source = { provider: PHANTOM, serverId: row.serverId }
+    const say = async (event: Record<string, unknown> & { type: GameserverEvent['type'] }) =>
+      app.matches.ingest(source, { ...event, matchId: match.id, source } as GameserverEvent)
+    await say({ type: 'server_ready', map: 'de_mirage' })
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('ready')
+
+    await say({
+      type: 'series_end',
+      seriesScore: { teamA: 0, teamB: 0 },
+      winner: null,
+      reason: 'idle',
+    })
+    await app.playOut()
+    const final = await app.matches.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.endedReason).toEqual({ kind: 'completed', detail: 'the mode’s length: idle' })
+    expect(app.store.rows.servers.find(s => s.matchId === match.id)?.releasedAt).toBeTruthy()
+    await app.close()
+  })
+
   it('holds the match open past series_end until the demo lands', async () => {
     const app = createTestApp({ providers: [createPhantomProvider()] })
     const { key, match, say } = await scripted(app)

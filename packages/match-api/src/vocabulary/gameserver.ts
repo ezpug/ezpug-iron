@@ -290,11 +290,37 @@ export const knifeEndEventSchema = mapScoped.extend({
   winner: matchTeamSchema.nullable(),
 })
 
+/**
+ * **What will end this map besides the game itself** (PRD-03 T9), as the
+ * server enforces it: the mode's manifest `length`, in force. `durationSeconds`
+ * is what a client counts down **from the arrival of this event** — seconds of
+ * the client's own clock, so a simulated match's time scale is already taken
+ * out of it — and `fragLimit` is what it counts a leader's kills up to. The
+ * idle timeout is not here: nobody is watching a server that is empty.
+ */
+export const liveLengthSchema = z.object({
+  durationSeconds: z.number().int().positive().optional(),
+  fragLimit: z.number().int().positive().optional(),
+})
+export type LiveLength = z.infer<typeof liveLengthSchema>
+
+/**
+ * Why a map, and the series with it, ended when the game itself did not end
+ * it (PRD-03 T9): the mode's `length` ran out. `time_limit` — its duration;
+ * `frag_limit` — somebody reached its frag limit; `idle` — nobody was on the
+ * server for its idle timeout, which may be before it ever went live.
+ */
+export const MATCH_END_REASONS = ['time_limit', 'frag_limit', 'idle'] as const
+export const matchEndReasonSchema = z.enum(MATCH_END_REASONS)
+export type MatchEndReason = z.infer<typeof matchEndReasonSchema>
+
 /** Knife/warmup is over — the map is live. */
 export const goingLiveEventSchema = mapScoped.extend({
   type: z.literal('going_live'),
   /** Engine map name — the moment a map is definitively being played. */
   map: z.string().min(1),
+  /** Present when the mode's manifest gives the match a duration or a frag limit. */
+  length: liveLengthSchema.optional(),
 })
 
 export const roundStartEventSchema = roundScoped.extend({
@@ -335,13 +361,21 @@ export const mapEndEventSchema = mapScoped.extend({
   map: z.string().min(1).optional(),
   score: teamScoreSchema,
   winner: matchTeamSchema.nullable(),
+  /** Present when the mode's `length` ended the map; absent when the game did. */
+  reason: matchEndReasonSchema.optional(),
 })
 
-/** The recorded result of the series — maps won, in team order. */
+/**
+ * The recorded result of the series — maps won, in team order. `winner` is
+ * `null` for a drawn series and **always** for a one-team mode
+ * (`slots.teams: 1`): a free-for-all has no team to have won it.
+ */
 export const seriesEndEventSchema = eventBase.extend({
   type: z.literal('series_end'),
   seriesScore: teamScoreSchema,
   winner: matchTeamSchema.nullable(),
+  /** Present when the mode's `length` ended the series; absent when the game did. */
+  reason: matchEndReasonSchema.optional(),
 })
 
 /** Why the match is standing still. Named, because the live channel shows it. */

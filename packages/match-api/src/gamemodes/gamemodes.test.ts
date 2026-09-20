@@ -15,6 +15,7 @@ import {
   gamemodeAllowsMap,
   gamemodeCatalogSchema,
   gamemodeCvarsSchema,
+  gamemodeLengthSchema,
   gamemodeManifestSchema,
   gamemodeSummarySchema,
   gamemodeWidgetSchema,
@@ -30,6 +31,7 @@ import {
 } from '../resources/widget-host'
 import { matchApiRoutes } from '../routes'
 import { matchApiJsonSchemas } from '../schemas'
+import { MATCH_END_REASONS } from '../vocabulary/gameserver'
 import { SHIPPED_GAMEMODE_IDS, SHIPPED_GAMEMODES, shippedGamemode } from './index'
 
 const gamemodesDir = dirname(
@@ -162,6 +164,38 @@ describe('what the tier allows', () => {
     expect(issuesOf({ ...config, plugins: [], flow: 'none' })).toEqual([])
     expect(issuesOf({ ...config, plugins: ['Anything'], flow: 'none' })).toEqual(['plugins'])
     expect(issuesOf({ ...config, plugins: [], flow: 'plugin' })).toEqual(['flow'])
+  })
+
+  it('a length is for the flows the SDK tells, names at least one end, and is bounded', () => {
+    // PRD-03 T9: a duration, a frag limit, an idle timeout — whichever first.
+    expect(issuesOf(sdkManifest({ length: { durationSeconds: 600 } }))).toEqual([])
+    expect(issuesOf(sdkManifest({ length: { fragLimit: 30, idleTimeoutSeconds: 300 } }))).toEqual(
+      [],
+    )
+    expect(issuesOf(sdkManifest({ length: {} }))).toEqual(['length'])
+    expect(issuesOf(sdkManifest({ length: { durationSeconds: 5 } }))).toEqual([
+      'length.durationSeconds',
+    ])
+    expect(issuesOf(sdkManifest({ length: { idleTimeoutSeconds: 86_400 } }))).toEqual([
+      'length.idleTimeoutSeconds',
+    ])
+    expect(issuesOf(sdkManifest({ length: { fragLimit: 0 } }))).toEqual(['length.fragLimit'])
+    // MatchZy plays the rules it was given; nothing here ends its match for it.
+    expect(issuesOf(sdkManifest({ flow: 'matchzy', length: { durationSeconds: 600 } }))).toEqual([
+      'length',
+    ])
+  })
+
+  it('every shipped mode the SDK tells the story of can end on an empty server', () => {
+    for (const manifest of SHIPPED_GAMEMODES) {
+      if (manifest.flow === 'matchzy') expect(manifest.length, manifest.id).toBeUndefined()
+      else expect(manifest.length?.idleTimeoutSeconds, manifest.id).toBeGreaterThan(0)
+    }
+    // The one mode with nothing to win is the one with a clock (OPEN-POINTS §1).
+    expect(SHIPPED_GAMEMODES.find(mode => mode.id === 'powerup-dm')?.length).toEqual({
+      durationSeconds: 600,
+      idleTimeoutSeconds: 300,
+    })
   })
 
   it('a plugin or sdk mode names the plugin it runs on', () => {
@@ -298,6 +332,7 @@ describe('docs/gamemodes.md', () => {
       ...Object.keys(gamemodeManifestSchema.shape),
       ...Object.keys(gamemodeManifestSchema.shape.slots.shape),
       ...Object.keys(gamemodeManifestSchema.shape.capabilities.shape),
+      ...Object.keys(gamemodeLengthSchema.shape),
       ...Object.keys(gamemodeWidgetSchema.shape),
       ...Object.keys(playerCommandSpecSchema.shape),
     ]
@@ -312,6 +347,7 @@ describe('docs/gamemodes.md', () => {
       ...GAMEMODE_CAPABILITIES,
       ...PLAYER_COMMAND_CHARGE_PERIODS,
       ...WIDGET_NEEDS,
+      ...MATCH_END_REASONS,
       ...PROTECTED_CVARS,
       ...SHIPPED_GAMEMODE_IDS,
     ]

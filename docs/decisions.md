@@ -289,6 +289,23 @@ it here.
     `drop` row of the CS2 matrix takes a `kick` for the rostered SteamID and no row of it
     types anything at a match.
 
+26. **A mode with nothing to win declares a length, and the SDK ends the match.** (PRD-03
+    T9, 2026-09-20; `OPEN-POINTS` §1.) Production's first seven `powerup-dm` rooms never
+    finished: a free-for-all has no condition that ends it, so a rented box billed until a
+    human released it and the mode read as "the match never started" while working
+    perfectly. The manifest's `length` — `durationSeconds`, `fragLimit`,
+    `idleTimeoutSeconds`, whichever first — is a vocabulary every such mode inherits, and
+    the SDK enforces it (`MatchLength`) rather than each mode or an engine cvar, because
+    only the SDK can say *why* it ended: `map_end` and `series_end` carry `reason`
+    (`time_limit`, `frag_limit`, `idle`), `going_live.length` carries what is in force for
+    a client to count, and the machine ends the match `completed` and releases the server
+    as after any series — from `ready` too, when nobody ever came. Three rules under it:
+    **no server timestamp travels** (the countdown is seconds from the fact's arrival, with
+    a simulated match's time scale already divided out); **a plain bot is nobody** for the
+    idle clock, a puppet is somebody; and **a one-team mode names no winner**, whoever
+    ended it. It is never MatchZy's match to end (a `matchzy` manifest with a `length` does
+    not parse), and `ttlMinutes` stays the backstop it always was, no longer the design.
+
 ## How the rounds run
 
 24. **Spine first, then two loops in parallel.** `ralph/PRD-01-spine.md` (this repo, ~10

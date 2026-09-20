@@ -78,9 +78,12 @@
               "competitive"
             ],
             "flow": "none",
+            "length": {
+              "idleTimeoutSeconds": 300
+            },
             "records": "events",
             "ranked": false,
-            "version": "0.3.0",
+            "version": "0.4.0",
             "maps": "any",
             "plugins": [],
             "cfg": [
@@ -120,9 +123,12 @@
               "competitive"
             ],
             "flow": "plugin",
+            "length": {
+              "idleTimeoutSeconds": 300
+            },
             "records": "events",
             "ranked": false,
-            "version": "0.2.0",
+            "version": "0.3.0",
             "maps": {
               "catalog": [
                 "de_ancient",
@@ -181,9 +187,13 @@
               "competitive"
             ],
             "flow": "plugin",
+            "length": {
+              "durationSeconds": 600,
+              "idleTimeoutSeconds": 300
+            },
             "records": "events",
             "ranked": false,
-            "version": "0.3.0",
+            "version": "0.4.0",
             "maps": {
               "catalog": [
                 "de_ancient",

@@ -178,6 +178,38 @@ so nobody colours the rest of a chat line or breaks the panel by what they calle
 team. `ChatColor` holds the engine's palette as code points; the card is HTML, because
 that is what the centre panel reads.
 
+### A length: what ends a mode with nothing to win
+
+A round-based mode ends when the engine has counted its rounds and the generic flow emitter
+reports the win panel. A free-for-all has no such thing, so the manifest declares a
+`length` (`docs/gamemodes.md`, "Length") and the SDK enforces it — `MatchLength`, owned by
+the runtime like the emitter, for every flow the emitter tells (`plugin`, `none`), never
+for `matchzy`, and never over a mode whose class says `OwnsFlow`. A mode writes nothing:
+
+```json
+"length": { "durationSeconds": 600, "fragLimit": 30, "idleTimeoutSeconds": 300 }
+```
+
+- **The duration** starts when the emitter says `going_live`, which carries
+  `length: { durationSeconds, fragLimit }` as *in force*: the SDK's timers are real
+  milliseconds and a simulated match may run the engine faster, so the manifest's seconds
+  are divided by `simulation.timeScale` — for the timer and for the fact alike.
+- **The frag limit** counts kills per player while the map is live; a suicide and a death
+  to the world are nobody's. The death is emitted before the end it causes.
+- **The idle timeout** runs whenever nobody is on the server — from `server_ready`, and
+  from the last person leaving — and a connect cancels it. A person is a human or a puppet
+  (`IsBot && !IsPuppet` is furniture), or a room of request bots would bill for ever.
+
+Whichever comes first calls `GenericFlow.End(reason)`: `map_end` if the map was live,
+`series_end` always, both with `reason`, no winner for `slots.teams: 1`; the humans are told
+in their own locale (`length.ended.*`), and the emitter then says nothing until the next
+assignment, because the engine plays on for the second the release takes. On the harness
+it is `host.World.Elapse(600_000)` and an assertion on `SeriesEndEvent.Reason`
+(`MatchLengthTests`). A mode that declares a duration should set the engine's own clocks
+out of its way (`mp_timelimit 0`): `mp_timelimit` counts from the map load, not from going
+live, so two equal clocks mean the engine wins by the length of the warmup and the end
+carries no reason.
+
 ### EZ Rating on the scoreboard
 
 A mode writes nothing for this. When the manifest's `scoreboardRating` capability is on,

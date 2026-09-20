@@ -62,8 +62,8 @@ public sealed class Facts
     public PlayerDisconnectedEvent PlayerDisconnected(IGamePlayer player) =>
         new() { MatchId = MatchId, Source = Source, Player = Player(player) };
 
-    public GoingLiveEvent GoingLive(string map) =>
-        new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Map = map };
+    public GoingLiveEvent GoingLive(string map, LiveLength? length = null) =>
+        new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Map = map, Length = length };
 
     public RoundStartEvent RoundStart(TeamScore? score = null) =>
         new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, RoundNumber = Context.RoundNumber, Score = score };
@@ -91,11 +91,11 @@ public sealed class Facts
             Sides = new SideSwapEventSides { TeamA = teamA, TeamB = teamA == TeamSide.Ct ? TeamSide.T : TeamSide.Ct },
         };
 
-    public MapEndEvent MapEnd(TeamScore score, MatchTeam? winner, string? map = null) =>
-        new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Map = map, Score = score, Winner = winner };
+    public MapEndEvent MapEnd(TeamScore score, MatchTeam? winner, string? map = null, MatchEndReason? reason = null) =>
+        new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Map = map, Score = score, Winner = winner, Reason = reason };
 
-    public SeriesEndEvent SeriesEnd(TeamScore seriesScore, MatchTeam? winner) =>
-        new() { MatchId = MatchId, Source = Source, SeriesScore = seriesScore, Winner = winner };
+    public SeriesEndEvent SeriesEnd(TeamScore seriesScore, MatchTeam? winner, MatchEndReason? reason = null) =>
+        new() { MatchId = MatchId, Source = Source, SeriesScore = seriesScore, Winner = winner, Reason = reason };
 
     public MatchPausedEvent MatchPaused(PauseKind? kind = null, PauseSource? pausedBy = null) =>
         new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Kind = kind, PausedBy = pausedBy };

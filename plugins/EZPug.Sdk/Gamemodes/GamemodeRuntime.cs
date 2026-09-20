@@ -58,6 +58,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Facts = new Facts(() => Match, Source, () => Assignment);
         Puppets = new Puppeteer(world, Match, _log);
         Flow = new GenericFlow(world, this, _log);
+        Length = new MatchLength(world, this, _log);
         Brand = new Branding(world, () => Localizer, Match);
         Ratings = new RatingBoard(world, () => Localizer, Brand);
         Warmup = new WarmupChat(world, Match);
@@ -92,6 +93,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>The SDK's own flow emitter, speaking for a <c>plugin</c> or <c>none</c> flow (PRD-02 T22).</summary>
     public GenericFlow Flow { get; }
+
+    /// <summary>The manifest's <c>length</c>, enforced: a duration, a frag limit, an idle timeout (PRD-03 T9).</summary>
+    public MatchLength Length { get; }
 
     /// <summary>EZ Rating on the scoreboard and the line that greets a player with it, when the manifest asks for them (PRD-02 T27).</summary>
     public RatingBoard Ratings { get; }
@@ -335,6 +339,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         _mapAskedAtMs = null;
         _mapAskedFor = null;
         Flow.OnAssigned(assignment);
+        Length.OnAssigned(assignment);
         // The voice before anything speaks with it: the rating greeting a connect fires
         // carries this match's prefix, not the last one's.
         Brand.OnAssigned(assignment);
@@ -403,6 +408,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Commands = null;
             var released = reason;
             Flow.OnReleased();
+            Length.OnReleased();
             Ratings.OnReleased();
             Warmup.OnReleased();
             Puppets.OnReleased();
@@ -583,6 +589,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Emit(Facts.ServerReady(map));
         Active?.OnStart();
         Puppets.OnReady();
+        Length.OnReady();
     }
 
     private void CancelSettle()
@@ -605,6 +612,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Emit(Facts.PlayerConnected(player));
         }
 
+        Length.OnPlayerConnected(player);
         Ratings.OnPlayerConnected(player);
         Brand.OnPlayerConnected(player);
         Active?.OnPlayerJoined(player);
@@ -623,6 +631,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         }
 
         Puppets.OnPlayerDisconnected(player);
+        Length.OnPlayerDisconnected(player);
         Ratings.OnPlayerDisconnected(player);
         Brand.OnPlayerDisconnected(player);
         Active?.OnPlayerLeft(player);
@@ -653,6 +662,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
         Emit(Facts.PlayerDeath(death));
         Active?.OnPlayerDied(death);
+        // After the death is said: the frag that ends the match is in the log before the end is.
+        Length.OnPlayerDied(death);
     }
 
     private void OnRoundStarted()

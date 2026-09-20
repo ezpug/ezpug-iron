@@ -71,6 +71,53 @@ export const gamemodeSlotsSchema = z.object({
 export type GamemodeSlots = z.infer<typeof gamemodeSlotsSchema>
 
 /**
+ * **How long a match of this mode lasts, when nothing in the game decides it**
+ * (PRD-03 T9). A round-based mode ends on the request's rules — the engine
+ * counts to `regulationRounds` and puts the win panel up. A free-for-all has
+ * nothing to win and therefore nothing to end on, and a rented server played
+ * one for as long as nobody released it. So the manifest says it, and the SDK
+ * on the server enforces it for every flow it tells the story of (`plugin` and
+ * `none`; a `matchzy` mode's length is MatchZy's and a manifest claiming one
+ * does not parse):
+ *
+ * - `durationSeconds` — the match ends this long after `going_live`
+ *   (`time_limit`). What a client counts **down**: `going_live.length` repeats
+ *   the number in force, measured from that event's arrival.
+ * - `fragLimit` — the match ends when one player has this many kills
+ *   (`frag_limit`); suicides and deaths to the world count for nobody. What a
+ *   client counts **up**, from the `player_death`s it already receives.
+ * - `idleTimeoutSeconds` — the match ends when nobody has been on the server
+ *   for this long (`idle`): from `server_ready` if nobody ever comes, and from
+ *   the moment the last person leaves. A person is a human or a puppet; a
+ *   plain bot keeps nobody's seat warm. Anybody connecting stops the clock.
+ *
+ * Whichever is reached first ends the match: `map_end` and `series_end` carry
+ * the `reason`, and the orchestrator releases the server as it does for any
+ * finished series. At least one of the three is named.
+ */
+export const gamemodeLengthSchema = z
+  .object({
+    durationSeconds: z.number().int().min(30).max(14_400).optional(),
+    fragLimit: z.number().int().positive().max(10_000).optional(),
+    idleTimeoutSeconds: z.number().int().min(30).max(3_600).optional(),
+  })
+  .refine(
+    length =>
+      length.durationSeconds !== undefined ||
+      length.fragLimit !== undefined ||
+      length.idleTimeoutSeconds !== undefined,
+    { message: 'a length names a duration, a frag limit or an idle timeout' },
+  )
+export type GamemodeLength = z.infer<typeof gamemodeLengthSchema>
+
+/**
+ * The flows whose story the SDK tells itself, and therefore the only ones a
+ * `length` can be enforced for: a mode whose match plugin owns the flow ends
+ * on the rules that plugin plays, and nothing here ends its match for it.
+ */
+export const SDK_TOLD_FLOWS: readonly GamemodeFlow[] = ['plugin', 'none']
+
+/**
  * Which maps a match of this mode may pin. `any` — whatever the request
  * plans, workshop maps included (the platform's map pool decides). Otherwise
  * an allow-list: official maps by engine name (`catalog`) and Workshop maps
@@ -340,6 +387,12 @@ export const gamemodeSummarySchema = z.object({
     })
     .default(['competitive']),
   flow: gamemodeFlowSchema,
+  /**
+   * What ends a match of this mode besides the game itself (PRD-03 T9); see
+   * {@link gamemodeLengthSchema}. Absent — what every manifest written before
+   * the field said — means the rules' rounds are the only end there is.
+   */
+  length: gamemodeLengthSchema.optional(),
   records: gamemodeRecordsSchema,
   /** Always false this round: the manifest states what the server records, never what counts. */
   ranked: z.literal(false),
@@ -360,6 +413,7 @@ function checkManifestConsistency(
     plugins: string[]
     commands: unknown[]
     widget?: unknown
+    length?: unknown
     capabilities: GamemodeCapabilities
   },
   ctx: z.RefinementCtx,
@@ -373,6 +427,9 @@ function checkManifestConsistency(
   } else if (manifest.plugins.length === 0) {
     refuse('plugins', `a ${manifest.tier} mode names the plugin it runs on`)
   }
+
+  if (manifest.length !== undefined && !SDK_TOLD_FLOWS.includes(manifest.flow))
+    refuse('length', 'a length is enforced by the SDK, for the flows it tells the story of')
 
   if (manifest.tier !== 'sdk') {
     if (manifest.commands.length > 0) refuse('commands', 'only an sdk mode accepts player commands')

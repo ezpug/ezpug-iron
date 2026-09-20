@@ -53,6 +53,7 @@ same data.
 | `slots` | how many people play and how they arrive — `teamSize`, `teams`, `openJoin`, below |
 | `formats` | which engine games the mode plays, in the order a client offers them: `["competitive"]` unless the mode's match software can switch the engine's game (`pug` also plays `wingman`, CS2's two-a-side game). A request whose `rules.format` is outside the list is refused `validation_failed` at the door, never played as the other game; a manifest that says nothing plays `competitive` |
 | `flow` | who owns match flow. `matchzy`: MatchZy runs ready-up, knife, live, the series; its events are translated into the vocabulary once, by the orchestrator, off the HTTP remote log the core plugin points at it ("The `matchzy` flow" below). `plugin`: the mode's plugin may speak `going_live`, `round_end`, `map_end`, `series_end` itself, and the SDK's generic emitter speaks for it when it does not. `none`: no plugin at all — the generic emitter is the whole story ("The generic flow" below) |
+| `length` | what ends a match of this mode besides the game itself ("Length" below): a duration, a frag limit, an idle timeout. For `plugin` and `none` flows only — the SDK enforces it; a `matchzy` manifest that declares one does not parse. Absent means the rules' rounds are the only end there is |
 | `records` | `demo`: a demo is recorded and uploaded to the request's `demoUploadUrl` **by the server** (MatchZy records for a `matchzy` flow, the SDK for any other; the core plugin always owns the PUT), `demo.uploaded` follows, the match waits for it past `series_end`, and every durable event flows. `events`: the durable events only. `none`: orchestration facts only; the game's events still stream live but nothing is promised durably. Positions and chat are never records |
 | `ranked` | always `false`. The manifest states what the server records, never what counts |
 | `maps` | `"any"` — the request plans whatever it likes, workshop maps included; the platform's map pool decides. Or an allow-list `{ catalog: [engine names], workshop: [published-file ids] }`; a request planning a map outside it is refused `map_not_allowed` at the door. A plugin that ships spawn files per map lists them; a mode built for one map lists one |
@@ -72,6 +73,33 @@ same data.
 | `teamSize` | the most one team holds. The platform's room refuses an eleventh player for a `5` |
 | `teams` | `2` for a sided mode, `1` for a free-for-all. A free-for-all request still sends `teamA` and `teamB`, with `teamB.players` empty |
 | `openJoin` | `true` means people may connect without being rostered: the server lets them in, the orchestrator relays `player.joined` with `rostered: false`, and the platform answers with a `profile` command so the server learns their name, locale, rating and loadout. `false` means the roster is the guest list and nobody else gets past the SteamID check |
+
+### Length
+
+A round-based mode ends when the engine has counted the rules' rounds. A free-for-all has
+nothing to win, so nothing ever ended it: production's first seven `powerup-dm` rooms were
+each stopped by a human releasing a rented box (PRD-03 T9). `length` is the vocabulary
+every mode with nothing to win inherits. The SDK enforces it (`MatchLength`), whichever
+comes first ends the match, and the end is a real terminal fact: `map_end` when the map
+was live, `series_end` always, both with a `reason`, after which the orchestrator releases
+the server as it does for any finished series (`match.ended`, `completed`).
+
+| Field | Ends the match | `reason` | What a client draws |
+| ----- | -------------- | -------- | ------------------- |
+| `durationSeconds` | this long after `going_live` (30 s to 4 h) | `time_limit` | a countdown — from **`going_live.length.durationSeconds`**, counted from that event's arrival. It is the number in force on the server's own clock: a simulated match at `timeScale: 2` says `300` for a manifest's `600` |
+| `fragLimit` | when one player reaches this many kills on the live map. A suicide and a death to the world are nobody's frag | `frag_limit` | the leader's kills counted up to **`going_live.length.fragLimit`**, from the `player_death`s it already receives |
+| `idleTimeoutSeconds` | when nobody has been on the server this long (30 s to 1 h): from `server_ready` if nobody ever comes, from the moment the last person leaves otherwise. A person is a human or a puppet; a plain bot keeps nobody's seat warm. Anybody connecting stops the clock | `idle` | nothing while it runs — nobody is watching an empty server — and the reason afterwards. It can end a match that never went live: `series_end` with no `map_end` before it |
+
+A terminal fact with no `reason` is the game's own end (the win panel). **A one-team mode
+(`slots.teams: 1`) never names a winner**, whoever ended it: the engine keeps a CT and a T
+score in a free-for-all too, and the side that happened to lead did not win a deathmatch.
+
+What ships: `powerup-dm` is ten minutes, or five with nobody there. `retakes` and
+`flying-scoutsman` end on the rounds the request's rules set — cs2-retakes plays
+`mp_maxrounds` like any round-based game, which is the one end its plugin can honestly
+reach — and on five idle minutes. A mode that declares a duration sets the engine's own
+clocks out of its way (`mp_timelimit 0` in `powerup-dm.cfg`, and the comment there says why
+two equal clocks were wrong).
 
 ### Capabilities
 
@@ -269,6 +297,7 @@ one; a mode does not enable it and a `config` mode has nothing to enable it *wit
 | `side_swap` | the gamerules flagging a swap at the next round reset (`mp_halftime`), polled every 250 ms because the flag is transient — and at a new map of a series, on the ends its plan named |
 | `map_end` | the win panel (`cs_win_panel_match`), the engine's own full stop, whatever decided the map — `mp_maxrounds`, a clinch or `mp_timelimit` |
 | `series_end` | the same win panel, when the map that ended was the last one the request planned |
+| `map_end` + `series_end` with a `reason` | the manifest's `length` running out ("Length" above) — after which the emitter is silent until the next assignment, because the engine plays on for the second a release takes |
 
 **Why `side_swap` is not optional.** CS2 swaps the team *scores* along with the players at
 halftime, so a score read after the swap is in the new sides' order; without the swap
@@ -288,6 +317,7 @@ command is the mode's job.
 | only an `sdk` mode has `commands` or a `widget` | the SDK relays taps; a community plugin has no seam for them |
 | `capabilities.playerCommands` ⇔ `commands` non-empty; `capabilities.widget` ⇔ `widget` present; `widget` ⇒ `playerCommands` | a capability is a claim about a block that exists |
 | `capabilities.backups` needs `flow` other than `none` | a backup restores into a match someone is running |
+| `length` needs `flow` other than `matchzy`, and names at least one of its three ends | MatchZy plays the rules it was given and the SDK ends nothing for it |
 | an allow-list names at least one map | say `"any"` instead of an empty list |
 | `ranked` is `false` | see above |
 
@@ -303,6 +333,10 @@ From `GET /v1/gamemodes`, cached (PRD-09 T6):
   allows an empty roster.
 - **The map picker** is filtered by `maps`: everything the platform's pool offers for
   `"any"`, the intersection for an allow-list.
+- **What ends it**, before anyone joins: `length.durationSeconds` as "10 minutes",
+  `length.fragLimit` as "first to 30", neither as "plays the rounds the room sets". On the
+  match page the countdown and the frag target come from `going_live.length`, the end
+  reason from `series_end.reason`, and a `slots.teams: 1` match shows no winner.
 - **The match page** shows the gamemode beside the context badge; the widget mounts for
   `capabilities.widget` modes; the live radar is offered for `capabilities.positions`.
 - `pug` is preselected; the queue and tournaments are fixed to it. `ranked` is never read.

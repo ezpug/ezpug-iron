@@ -239,6 +239,31 @@ public sealed record PlayerRoundSummary
     public long? Score { get; init; }
 }
 
+/// <summary>The length in force for a live map.</summary>
+public sealed record LiveLength
+{
+    [JsonPropertyName("durationSeconds")]
+    [JsonPropertyOrder(0)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? DurationSeconds { get; init; }
+
+    [JsonPropertyName("fragLimit")]
+    [JsonPropertyOrder(1)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? FragLimit { get; init; }
+}
+
+/// <summary>Which part of a mode’s length ended the match.</summary>
+public enum MatchEndReason
+{
+    [JsonStringEnumMemberName("time_limit")]
+    TimeLimit,
+    [JsonStringEnumMemberName("frag_limit")]
+    FragLimit,
+    [JsonStringEnumMemberName("idle")]
+    Idle,
+}
+
 /// <summary>Why a match is standing still.</summary>
 public enum PauseKind
 {
@@ -690,6 +715,11 @@ public sealed record GoingLiveEvent : GameserverEvent
     [JsonPropertyName("map")]
     [JsonPropertyOrder(5)]
     public required string Map { get; init; }
+
+    [JsonPropertyName("length")]
+    [JsonPropertyOrder(6)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LiveLength? Length { get; init; }
 }
 
 /// <summary><c>round_start</c> — one branch of <see cref="GameserverEvent"/>.</summary>
@@ -878,6 +908,11 @@ public sealed record MapEndEvent : GameserverEvent
     [JsonPropertyName("winner")]
     [JsonPropertyOrder(7)]
     public MatchTeam? Winner { get; init; }
+
+    [JsonPropertyName("reason")]
+    [JsonPropertyOrder(8)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MatchEndReason? Reason { get; init; }
 }
 
 /// <summary><c>series_end</c> — one branch of <see cref="GameserverEvent"/>.</summary>
@@ -913,6 +948,11 @@ public sealed record SeriesEndEvent : GameserverEvent
     [JsonPropertyName("winner")]
     [JsonPropertyOrder(5)]
     public MatchTeam? Winner { get; init; }
+
+    [JsonPropertyName("reason")]
+    [JsonPropertyOrder(6)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MatchEndReason? Reason { get; init; }
 }
 
 /// <summary><c>match_paused</c> — one branch of <see cref="GameserverEvent"/>.</summary>
@@ -1903,6 +1943,25 @@ public sealed record GamemodeSlots
     public required bool OpenJoin { get; init; }
 }
 
+/// <summary>What ends a match of a mode besides the game itself.</summary>
+public sealed record GamemodeLength
+{
+    [JsonPropertyName("durationSeconds")]
+    [JsonPropertyOrder(0)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? DurationSeconds { get; init; }
+
+    [JsonPropertyName("fragLimit")]
+    [JsonPropertyOrder(1)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? FragLimit { get; init; }
+
+    [JsonPropertyName("idleTimeoutSeconds")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? IdleTimeoutSeconds { get; init; }
+}
+
 /// <summary>What the mode can do, as booleans the loader enforces.</summary>
 public sealed record GamemodeCapabilities
 {
@@ -2127,40 +2186,45 @@ public sealed record AssignedGamemode
     [JsonPropertyOrder(6)]
     public required GamemodeFlow Flow { get; init; }
 
-    [JsonPropertyName("records")]
+    [JsonPropertyName("length")]
     [JsonPropertyOrder(7)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public GamemodeLength? Length { get; init; }
+
+    [JsonPropertyName("records")]
+    [JsonPropertyOrder(8)]
     public required GamemodeRecords Records { get; init; }
 
     [JsonPropertyName("ranked")]
-    [JsonPropertyOrder(8)]
+    [JsonPropertyOrder(9)]
     public bool Ranked => false;
 
     [JsonPropertyName("version")]
-    [JsonPropertyOrder(9)]
+    [JsonPropertyOrder(10)]
     public required string Version { get; init; }
 
     [JsonPropertyName("plugins")]
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(11)]
     public IReadOnlyList<string> Plugins { get; init; } = [];
 
     [JsonPropertyName("cfg")]
-    [JsonPropertyOrder(11)]
+    [JsonPropertyOrder(12)]
     public IReadOnlyList<string> Cfg { get; init; } = [];
 
     [JsonPropertyName("cvars")]
-    [JsonPropertyOrder(12)]
+    [JsonPropertyOrder(13)]
     public Dictionary<string, string> Cvars { get; init; } = new();
 
     [JsonPropertyName("capabilities")]
-    [JsonPropertyOrder(13)]
+    [JsonPropertyOrder(14)]
     public required GamemodeCapabilities Capabilities { get; init; }
 
     [JsonPropertyName("commands")]
-    [JsonPropertyOrder(14)]
+    [JsonPropertyOrder(15)]
     public IReadOnlyList<PlayerCommandSpec> Commands { get; init; } = [];
 
     [JsonPropertyName("sdkVersion")]
-    [JsonPropertyOrder(15)]
+    [JsonPropertyOrder(16)]
     public required string SdkVersion { get; init; }
 }
 

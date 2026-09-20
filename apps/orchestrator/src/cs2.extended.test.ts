@@ -144,6 +144,12 @@ type Summary = {
     left: { afterMs: number; standing: number } | null
     back: { afterMs: number; standing: number } | null
   } | null
+  length?: {
+    inForce: { durationSeconds?: number; fragLimit?: number } | null
+    mapEnd: string | null
+    seriesEnd: string | null
+    winner: string | null
+  }
   widget?: {
     steamId64: string
     expiresAt: string
@@ -192,6 +198,14 @@ type LaneCase = {
    * the count.
    */
   rcon?: number
+  /**
+   * **A match that is one round nobody wins** (PRD-03 T9). A free-for-all's
+   * single round outlasts the match on purpose — the mode's `length` ends it
+   * mid-round, so there is a `round_start` and never a `round_end`. Declared,
+   * like {@link rcon}, so that a round-based row which stopped ending rounds
+   * cannot hide behind it.
+   */
+  roundless?: true
   /** The facts only this case can produce. The invariants are in {@link play}. */
   facts?: (summary: Summary) => void
 }
@@ -407,6 +421,7 @@ const CASES: LaneCase[] = [
     id: 'widget',
     what: "taps powerup-dm's widget as a puppet, and is refused as a corpse and as a stranger",
     puppets: 6,
+    roundless: true,
     args: ['--gamemode', 'powerup-dm', '--widget', '--no-demo', '--max-live-minutes', '12'],
     facts: summary => {
       const widget = summary.widget
@@ -464,6 +479,19 @@ const CASES: LaneCase[] = [
       expect(widget?.stranger?.minted, 'an open-join mode refused a token').toBe('ok')
       expect(widget?.stranger?.result?.status).toBe('rejected')
       expect(widget?.stranger?.result?.code, 'a stranger was not refused').toBe('not_in_match')
+      // **And the match ends because its manifest says how long it is** (PRD-03
+      // T9), not because a human released the box: `going_live` carries the
+      // duration in force — the manifest's ten minutes over the lane's engine
+      // clock — and both terminal facts say the clock ended it, with nobody
+      // named the winner of a free-for-all.
+      expect(summary.length?.inForce?.durationSeconds, 'going_live carried no countdown').toBe(
+        Math.ceil(600 / Number(TIMESCALE)),
+      )
+      expect(summary.length?.mapEnd, 'the map was not ended by the mode’s length').toBe(
+        'time_limit',
+      )
+      expect(summary.length?.seriesEnd).toBe('time_limit')
+      expect(summary.length?.winner, 'a free-for-all named a winning team').toBeNull()
     },
   },
 ]
@@ -555,7 +583,12 @@ function play(lane: LaneCase): Summary {
   // The match played itself out: MatchZy said so and the machine agreed.
   expect(summary.finalState).toBe('ended')
   expect(summary.payloads?.going_live, 'MatchZy never went live').toBe(1)
-  expect(rounds, 'no round was played').toBeGreaterThanOrEqual(1)
+  if (lane.roundless) {
+    expect(summary.payloads?.round_start, 'the one round never started').toBeGreaterThanOrEqual(1)
+    expect(rounds, 'a round ended in a match whose length outlasts its round').toBe(0)
+  } else {
+    expect(rounds, 'no round was played').toBeGreaterThanOrEqual(1)
+  }
   expect(summary.payloads?.['match.ended'], 'no match.ended reached the client').toBe(1)
   // `series_end` only when MatchZy finished the series itself. A drawn map
   // goes to overtime, and CS2 works its overtime clinch out from the

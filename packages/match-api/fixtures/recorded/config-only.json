@@ -30,9 +30,12 @@
           "competitive"
         ],
         "flow": "none",
+        "length": {
+          "idleTimeoutSeconds": 300
+        },
         "records": "events",
         "ranked": false,
-        "version": "0.3.0",
+        "version": "0.4.0",
         "maps": "any",
         "plugins": [],
         "cfg": [

@@ -61,4 +61,10 @@
   <data name="branding.card.enjoy" xml:space="preserve">
     <value>Have fun.</value>
   </data>
+  <data name="length.ended.time_limit" xml:space="preserve">
+    <value>Time is up – the match is over.</value>
+  </data>
+  <data name="length.ended.frag_limit" xml:space="preserve">
+    <value>Frag limit reached – the match is over.</value>
+  </data>
 </root>

@@ -8,6 +8,7 @@ import {
   GAMESERVER_EVENT_TYPES,
   gameserverEventSchema,
   isEphemeralGameserverEvent,
+  MATCH_END_REASONS,
   parseServerChatLine,
   playerRoundSummarySchema,
 } from './gameserver'
@@ -54,6 +55,27 @@ describe('the normalized gameserver event union', () => {
   it('rejects an event without source identity', () => {
     const { source: _dropped, ...rest } = fixtures.round_end
     expect(() => gameserverEventSchema.parse(rest)).toThrow()
+  })
+
+  it('says what will end a live map and why a series ended, where a mode has a length (PRD-03 T9)', () => {
+    const live = gameserverEventSchema.parse({
+      ...fixtures.going_live,
+      length: { durationSeconds: 600, fragLimit: 30 },
+    })
+    expect(live).toMatchObject({ length: { durationSeconds: 600, fragLimit: 30 } })
+    // Absent for every mode the game itself ends — what every event said before.
+    expect(gameserverEventSchema.parse(fixtures.going_live)).not.toHaveProperty('length')
+
+    for (const reason of MATCH_END_REASONS) {
+      expect(
+        gameserverEventSchema.parse({ ...fixtures.series_end, winner: null, reason }),
+      ).toMatchObject({ reason })
+      expect(gameserverEventSchema.parse({ ...fixtures.map_end, reason })).toMatchObject({ reason })
+    }
+    expect(() =>
+      gameserverEventSchema.parse({ ...fixtures.series_end, reason: 'everybody_bored' }),
+    ).toThrow()
+    expect(gameserverEventSchema.parse(fixtures.series_end)).not.toHaveProperty('reason')
   })
 
   it('carries the puppets marker on source, absent on a real match (PRD-03 T4)', () => {

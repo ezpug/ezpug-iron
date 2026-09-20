@@ -9,6 +9,7 @@
   },
   "slots": { "teamSize": 12, "teams": 1, "openJoin": true },
   "flow": "plugin",
+  "length": { "durationSeconds": 600, "idleTimeoutSeconds": 300 },
   "records": "events",
   "ranked": false,
   "maps": {
@@ -63,6 +64,6 @@
     }
   ],
   "widget": { "entry": "dist/widget.js", "needs": ["tokens", "locale", "playerToken"] },
-  "version": "0.3.0",
+  "version": "0.4.0",
   "sdkVersion": "0.1.0"
 }

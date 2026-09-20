@@ -425,7 +425,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > real orchestrator by the conformance suite instead, and a second live match to replay
     > it would buy nothing.
 
-- [ ] **T9 (fable): a length for plugin modes** (`OPEN-POINTS.md` §1).
+- [x] **T9 (fable): a length for plugin modes** (`OPEN-POINTS.md` §1).
   - A manifest vocabulary the SDK enforces: a duration, a frag limit, and an idle timeout
     once the last body leaves.
   - A plugin-flow match ends with a real terminal fact, with no winner when
@@ -435,10 +435,45 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - The release names the field the platform turns into a countdown (PRD-10 T6).
   - This is also what lets an unattended puppet run finish.
 
+    > **The field is `going_live.length.durationSeconds`**, counted from that fact's
+    > arrival — no server timestamp travels (the vocabulary never trusted a gameserver's
+    > calendar), and a simulated match's time scale is already divided out of it. The
+    > manifest's `length` is what a room says before anyone joins; `map_end.reason` and
+    > `series_end.reason` (`time_limit`, `frag_limit`, `idle`) are the end reason.
+    >
+    > **The engine's clocks were the bug underneath.** `powerup-dm.cfg` had `mp_timelimit 10`
+    > all along, which is why the lane's puppets always finished while production's humans
+    > gave up first: nothing told a client there *was* an end. And `mp_timelimit` counts
+    > from the map load while the SDK counts from going live, so two equal clocks meant the
+    > engine won by the length of the warmup and the end carried no reason. The SDK owns the
+    > clock now (`mp_timelimit 0`, `mp_roundtime 60`), which makes the mode **one round
+    > nobody wins**: a `round_start` and never a `round_end`. The lane's row says so out
+    > loud (`roundless`).
+    >
+    > **`retakes` honestly ends on its rounds** — cs2-retakes plays `mp_maxrounds` like any
+    > round-based game and the generic flow reports the win panel — so it gets the idle end
+    > only, and so does `flying-scoutsman`, which has the same open door and the same bill.
+    >
+    > **An idle end can come from `ready`**: a `series_end` with no `going_live` before it.
+    > The machine already ended a match on `series_end` from any open state; a test pins it.
+
+- [ ] **T9a: the simulator plays a length.** The sim tells every mode as a round-based
+  story and says none of T9's three fields, so a `powerup-dm` match on the `sim` provider
+  — which is what the platform's dev world and its PRD-10 T6 draw from — has no countdown
+  and names a winning team for a free-for-all. For a mode whose manifest declares a
+  `length`: `going_live.length` in story time, one round of deaths that lasts the
+  duration (or to the frag limit), `map_end`/`series_end` with the `reason`, no winner for
+  `slots.teams: 1`; an `idle` scenario knob if a story with nobody in it can be told. The
+  fake inherits it. Released, naming PRD-10 T6.
+
 - [ ] **T10: retakes is one team** (owner decision, 2026-09-19).
   - Manifest `slots.teams: 1` with `teamSize: 10`, since `retakes.ts:60` multiplies.
     `openJoin` stays.
   - `GenericFlow.cs:229-251` names no winner for one team, which fixes `powerup-dm` too.
+
+    > Landed with T9, whose own bullet asked for it ("no winner when `Slots.Teams == 1`"):
+    > `GenericFlow.Winner` reads the assignment's slots, for the win panel and for a length
+    > alike, and `MatchLengthTests` pins both. What is left here is the manifest.
   - Bump the manifest version; the package bundles the manifests.
   - Record the decision.
   - A lane case: three puppets in `retakes` play and end.

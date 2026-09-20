@@ -1658,7 +1658,7 @@ is not — `powerup-dm`, whose flow and whose puppets are both the SDK's:
 | `knife` | `maps[0].sides: knife` | the side-selection timer, because puppets never type `.stay` |
 | `pause` | a pause and an unpause through the Match API | `match_paused` / `match_unpaused` are the **core plugin's**, not MatchZy's |
 | `drop` | one puppet leaves in warmup to a `kick` for its rostered id, and comes back | the gate that holds a loaded match while a rostered SteamID is absent — and the front door reaching a puppet at all |
-| `widget` | a `powerup-dm` of puppets, one of whom taps the phone (T8) | the widget socket end to end: a player token, the mode's verb, the `plugin_event` it leaves, the push that comes back, and the two refusals — `not_alive` and `not_in_match` |
+| `widget` | a `powerup-dm` of puppets, one of whom taps the phone (T8) | the widget socket end to end: a player token, the mode's verb, the `plugin_event` it leaves, the push that comes back, and the two refusals — `not_alive` and `not_in_match` — and, since PRD-03 T9, **a match that ends because its manifest says how long it is**: `going_live.length.durationSeconds` is the manifest's 600 over the lane's time scale, both terminal facts say `time_limit`, nobody wins a free-for-all, and the row is declared `roundless` (one `round_start`, no `round_end`: the mode's one round outlasts the match on purpose) |
 
 `pug-5v5` is the one that also asserts the demo, because it is the match the owner
 actually plays. **Every case is held to `match.server_ready` exactly once** — the durable

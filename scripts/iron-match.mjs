@@ -2083,6 +2083,20 @@ function write(result) {
         }, {}),
       ).sort(([a], [b]) => (a < b ? -1 : 1)),
     ),
+    /**
+     * **How the match's length showed on the wire** (PRD-03 T9): what
+     * `going_live` said was in force, and what the terminal facts said ended
+     * it. All `null` for a match the game itself ended — a `pug`, a knife.
+     */
+    length: (() => {
+      const of = type => result.envelopes.find(envelope => envelope.payload.type === type)?.payload
+      return {
+        inForce: of('going_live')?.length ?? null,
+        mapEnd: of('map_end')?.reason ?? null,
+        seriesEnd: of('series_end')?.reason ?? null,
+        winner: of('series_end')?.winner ?? null,
+      }
+    })(),
     /** Every payload type the durable log ended up holding, with its count. */
     payloads: Object.fromEntries(
       Object.entries(

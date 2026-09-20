@@ -9,6 +9,7 @@
   },
   "slots": { "teamSize": 5, "teams": 2, "openJoin": true },
   "flow": "plugin",
+  "length": { "idleTimeoutSeconds": 300 },
   "records": "events",
   "ranked": false,
   "maps": {
@@ -40,6 +41,6 @@
     "scoreboardRating": true
   },
   "commands": [],
-  "version": "0.2.0",
+  "version": "0.3.0",
   "sdkVersion": "0.1.0"
 }

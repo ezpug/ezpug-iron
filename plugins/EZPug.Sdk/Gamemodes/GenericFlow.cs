@@ -31,7 +31,10 @@ namespace EZPug.Sdk;
 /// <c>series_end</c> with it when the map that ended was the last one the assignment
 /// planned. T22 asks for <c>series_end</c> "when the manifest's rounds/timeLimit is
 /// reached"; a manifest carries neither, and the engine reaching either of them <i>is</i>
-/// the win panel, so the map plan is what decides whether the series is over too.</item>
+/// the win panel, so the map plan is what decides whether the series is over too. A mode
+/// with nothing to win declares a <c>length</c> instead, and <see cref="MatchLength"/>
+/// ends the match through <see cref="End"/> (PRD-03 T9). A one-team mode names no
+/// winner either way.</item>
 /// </list>
 ///
 /// <b>It also starts the match, because for these flows nobody else can.</b> MatchZy holds
@@ -187,10 +190,18 @@ public sealed class GenericFlow
             return;
         }
 
+        if (_mapOver)
+        {
+            // The win panel is up, or the mode's length ran out: a round the engine starts
+            // after that is nobody's.
+            return;
+        }
+
         if (!_live)
         {
             _live = true;
-            _runtime.Emit(_runtime.Facts.GoingLive(_world.Map));
+            _runtime.Emit(_runtime.Facts.GoingLive(_world.Map, _runtime.Length.InForce));
+            _runtime.Length.OnLive();
         }
 
         if (_pendingSwap)
@@ -244,26 +255,58 @@ public sealed class GenericFlow
             return;
         }
 
-        _mapOver = true;
-        var winner = Winner(_teamA, _teamB);
         // Read before the emit: `map_end` is what advances the runtime's map number.
         var last = _runtime.Match.MapNumber >= assignment.Maps.Count;
-        _runtime.Emit(_runtime.Facts.MapEnd(new TeamScore { TeamA = _teamA, TeamB = _teamB }, winner, _world.Map));
-        _live = false;
-        if (winner == MatchTeam.TeamA)
+        Finish(assignment, reason: null, seriesOver: last);
+    }
+
+    /// <summary>
+    /// <b>The mode's length ran out</b> (PRD-03 T9, <see cref="MatchLength"/>): the match
+    /// is over now, whatever the engine thinks. A live map gets its <c>map_end</c>; the
+    /// <c>series_end</c> follows always — a length is the match's, not a map's, and an
+    /// idle server that never went live still owes its client a terminal fact. Both carry
+    /// the reason. After it this emitter says nothing more until the next assignment: the
+    /// engine plays on for the second it takes the orchestrator to release the server,
+    /// and none of that is a round of anybody's match.
+    /// </summary>
+    /// <returns>Whether the end was said — <c>false</c> when this emitter does not speak for the match, or the map is already over.</returns>
+    internal bool End(MatchEndReason reason)
+    {
+        if (!Active || _mapOver || _runtime.Assignment is not { } assignment)
         {
-            _mapsA++;
-        }
-        else if (winner == MatchTeam.TeamB)
-        {
-            _mapsB++;
+            return false;
         }
 
-        if (last)
+        Finish(assignment, reason, seriesOver: true);
+        Disarm();
+        _armed = false;
+        return true;
+    }
+
+    private void Finish(Assignment assignment, MatchEndReason? reason, bool seriesOver)
+    {
+        _mapOver = true;
+        if (_live)
+        {
+            var winner = Winner(assignment, _teamA, _teamB);
+            _runtime.Emit(_runtime.Facts.MapEnd(new TeamScore { TeamA = _teamA, TeamB = _teamB }, winner, _world.Map, reason));
+            _live = false;
+            if (winner == MatchTeam.TeamA)
+            {
+                _mapsA++;
+            }
+            else if (winner == MatchTeam.TeamB)
+            {
+                _mapsB++;
+            }
+        }
+
+        if (seriesOver)
         {
             _runtime.Emit(_runtime.Facts.SeriesEnd(
                 new TeamScore { TeamA = _mapsA, TeamB = _mapsB },
-                Winner(_mapsA, _mapsB)));
+                Winner(assignment, _mapsA, _mapsB),
+                reason));
         }
     }
 
@@ -318,8 +361,13 @@ public sealed class GenericFlow
         _teamB = 0;
     }
 
-    private static MatchTeam? Winner(long teamA, long teamB) =>
-        teamA == teamB ? null : teamA > teamB ? MatchTeam.TeamA : MatchTeam.TeamB;
+    /// <summary>
+    /// Nobody, for a one-team mode (<c>slots.teams: 1</c>): the engine still keeps a CT and
+    /// a T score in a free-for-all, and naming the side that happened to lead as the winner
+    /// of a deathmatch is a result no client can draw (PRD-03 T9).
+    /// </summary>
+    private static MatchTeam? Winner(Assignment assignment, long teamA, long teamB) =>
+        assignment.Gamemode.Slots.Teams == 1 || teamA == teamB ? null : teamA > teamB ? MatchTeam.TeamA : MatchTeam.TeamB;
 
     private static TeamSide Other(TeamSide side) => side == TeamSide.Ct ? TeamSide.T : TeamSide.Ct;
 

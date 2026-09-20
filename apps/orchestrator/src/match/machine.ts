@@ -1337,7 +1337,17 @@ export function createMatches(options: MatchesOptions): Matches {
           armDemo(row)
           break
         }
-        await end(row, 'ended', { kind: 'completed' }, 'released')
+        // A series the mode's length ended (PRD-03 T9) is as complete as one the
+        // game ended; which part of the length it was travels in the fact, and
+        // in the detail for whoever reads the match and not its events.
+        await end(
+          row,
+          'ended',
+          event.reason
+            ? { kind: 'completed', detail: `the mode’s length: ${event.reason}` }
+            : { kind: 'completed' },
+          'released',
+        )
         break
       default:
         break
