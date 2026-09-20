@@ -292,7 +292,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > platform's join deadline is still the only thing that gives up on them. Both halves
     > are pinned in `matchzy.test.ts` against the fork's gate transcribed beside stock's.
 
-- [ ] **T6: the regression matrix, on real hardware.** Lane cases that each assert their
+- [x] **T6: the regression matrix, on real hardware.** Lane cases that each assert their
   fact sequence:
   - `pug` at **every size from one to five a side**, and 2v1 (uneven: the platform's
     PRD-10 T1 makes customs allow it);
@@ -307,6 +307,31 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     the reason.
 
   Before the fix, the 2026-09-18 stall is reproduced red against the old builder.
+
+    > **Overtime is counted, not asserted — sim-only, with the reason.** Four regulation
+    > rounds end 2–2 often enough to be seen (five of the matrix's ten rows went to one,
+    > up to fifteen rounds) and never on demand: two even teams of bots cannot be made to
+    > draw, and CS2 works the clinch out from the `mp_maxrounds 24` MatchZy's own
+    > `live.cfg` sets rather than the four the request asked for. So the lane prints what
+    > each row happened to get and the seeded PRNG keeps the case.
+    >
+    > **The puppet that leaves cannot leave by the front door yet.** `kick` is gated on the
+    > orchestrator's presence map, which is filled from `player_connected` /
+    > `player_disconnected` — emitted **for humans only** — so for a room of puppets it is
+    > empty and *no* player command can reach any of them. The run knocks twice (the
+    > rostered SteamID and the synthetic one) and records both refusals as the case's real
+    > assertion, red the day **T7** lands; the stimulus is then `bot_kick ct`, declared as
+    > the matrix's only `rcon`. T8's widget path depends on the same gap.
+    >
+    > **Nothing announces a puppet's coming and going.** The fork synthesises
+    > `player_connect` only on the `bot_quota` walk that first fills the room; a body its
+    > reconcile pass adds later is mapped and re-readied but never announced. Measured: a
+    > 1v1 that lost and regained a body sent two connects and two disconnects, and *three*
+    > `player_ready` for two puppets. Position ticks and the go-live are the evidence
+    > instead.
+    >
+    > T3a's two lane cases are satisfied by **every** row: no ready command is ever sent
+    > and each asserts its own `commands.rcon`.
 
 - [ ] **T7 (fable): puppets in the SDK.** For the modes MatchZy does not run
   (`powerup-dm`, `retakes`, `flying-scoutsman`):
