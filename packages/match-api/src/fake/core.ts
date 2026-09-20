@@ -26,6 +26,7 @@ import {
   SIM_PROVIDER_ID,
   SIMULATED_MATCH_RECORD_CONTENT_TYPE,
 } from '@ezpug/sim'
+import type { ZodType } from 'zod'
 import { ApiError, MATCH_API_ERROR_STATUS, type MatchApiErrorCode } from '../errors'
 import { SHIPPED_GAMEMODES } from '../gamemodes'
 import type {
@@ -58,6 +59,7 @@ import type {
   WebhookSecretsRequest,
 } from '../resources'
 import {
+  apiKeyCreateRequestSchema,
   CONSOLE_LINES_MAX,
   demoUploadUrlFor,
   gamemodeAllowsMap,
@@ -248,6 +250,20 @@ function refuse(code: MatchApiErrorCode, message: string, details?: Record<strin
   return new ApiError(MATCH_API_ERROR_STATUS[code], code, message, details)
 }
 
+/**
+ * Read a body against the schema that names it, whoever handed it over
+ * (T9b). A route parses; an in-process caller holds only the TypeScript
+ * type, which knows `string` and not `max(64)` — and a value the contract
+ * cannot carry, written, is a resource nobody can read back.
+ */
+function onContract<T>(schema: ZodType<T>, value: unknown, subject: string): T {
+  const parsed = schema.safeParse(value)
+  if (parsed.success) return parsed.data
+  throw refuse('validation_failed', `${subject} is not something the Match API can carry`, {
+    issues: parsed.error.issues,
+  })
+}
+
 /** Structural equality on JSON-shaped values — how an idempotent create tells a retry from a conflict. */
 function sameJson(a: unknown, b: unknown): boolean {
   return JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b))
@@ -333,19 +349,25 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
   // --- Keys -----------------------------------------------------------------
 
   const mintKey = (request: ApiKeyCreateRequest): ApiKeyCreated => {
+    // The contract at the write, not only at the door (PRD-03 T9b): the fake
+    // is called in-process by a dev world and by every test, where the
+    // request's *type* is all a caller holds. A name of 65 characters
+    // minted here and refused by the orchestrator would be the fake lying
+    // about the orchestrator, which is the one thing it may never do.
+    const carried = onContract(apiKeyCreateRequestSchema, request, 'the API key')
     for (const existing of keys.values()) {
-      if (existing.key.name === request.name && !existing.key.revokedAt)
-        throw refuse('conflict', `a key named ${request.name} exists`)
+      if (existing.key.name === carried.name && !existing.key.revokedAt)
+        throw refuse('conflict', `a key named ${carried.name} exists`)
     }
     const secret = `${FAKE_SECRET_PREFIXES.apiKey}${hex32()}`
     const key: ApiKey = {
       id: id(),
-      name: request.name,
+      name: carried.name,
       prefix: secret.slice(0, 12),
-      scopes: [...request.scopes],
-      budget: { ...request.budget },
-      webhookSecretIds: request.webhookSecrets.map(s => s.id),
-      fleetWebhook: request.fleetWebhook ?? null,
+      scopes: [...carried.scopes],
+      budget: { ...carried.budget },
+      webhookSecretIds: carried.webhookSecrets.map(s => s.id),
+      fleetWebhook: carried.fleetWebhook ?? null,
       createdAt: iso(),
       lastUsedAt: null,
       revokedAt: null,
@@ -353,7 +375,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     const record: KeyRecord = {
       key,
       secret,
-      webhookSecrets: new Map(request.webhookSecrets.map(s => [s.id, s.secret])),
+      webhookSecrets: new Map(carried.webhookSecrets.map(s => [s.id, s.secret])),
       thresholdsSent: new Set(),
     }
     keys.set(key.id, record)

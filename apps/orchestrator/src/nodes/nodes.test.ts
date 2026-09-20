@@ -248,6 +248,27 @@ afterEach(async () => {
 const openRows = (rig: NodeRig) => rig.app.store.rows.servers.filter(row => row.releasedAt === null)
 
 describe('enrolment', () => {
+  /**
+   * T9b, the node door's half of the same reach: `enrol` is the service and
+   * not the route, so a caller in this process held `NodeEnrolRequest`'s type
+   * and none of its grammar. An id `nodeSchema` cannot carry would make
+   * `GET /v1/fleet/nodes` `internal` for every caller of that database,
+   * exactly as a 71-character key name did for `GET /v1/keys`.
+   */
+  it('refuses an id, a region or a label the Match API cannot carry — and writes no row', async () => {
+    const rig = await createNodeRig()
+    const enrol = (body: unknown) =>
+      rig.app.nodes.enrol(body as Parameters<typeof rig.app.nodes.enrol>[0], rig.key.key.id)
+    for (const body of [
+      { id: 'Dev Box', region: 'saarland', labels: {} },
+      { id: 'devbox', region: 'Saarland!', labels: {} },
+      { id: 'devbox', region: 'saarland', labels: { rack: 2 } },
+    ])
+      await expect(enrol(body)).rejects.toMatchObject({ code: 'validation_failed' })
+    expect(await rig.app.nodes.list()).toEqual([])
+    expect(await rig.app.store.findNode('Dev Box')).toBeUndefined()
+  })
+
   it('hands the node token over exactly once, on the hello that spends the enrolment', async () => {
     const rig = await createNodeRig()
     const node = await rig.enrol()

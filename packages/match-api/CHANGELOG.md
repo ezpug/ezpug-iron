@@ -6,6 +6,23 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.18.1 — 2026-09-20
+
+**The fake reads a minted key against the contract** (PRD-03 T9b). No schema moved; the
+fake refuses one thing it used to accept, and refuses it because the orchestrator does.
+
+- **`fake.mintKey` is the fake's one door that is not the dispatch**, so it was the one
+  door where a caller held `ApiKeyCreateRequest`'s TypeScript type and none of its bounds
+  — a `name` of 65 characters, an unknown scope, a negative `monthlyCents`. It now parses
+  the request the way a route would and throws `validation_failed`. This matters because
+  of what the same gap did to the real orchestrator on 2026-09-20: names of up to 71
+  characters were minted in-process, written, and `GET /v1/keys` then answered `internal`
+  for **every** caller of that database, because `ApiKey.name` caps at 64 and the response
+  no longer parsed. The orchestrator's service refuses the same three now.
+- **Nothing to change** unless your seed or your tests mint keys the contract could never
+  have carried; if they do, the fake tells you at the mint instead of the real
+  orchestrator telling you on the box.
+
 ## 0.18.0 — 2026-09-20
 
 **The simulator plays a length** (PRD-03 T9a, for the platform's PRD-10 T6). Additive: one

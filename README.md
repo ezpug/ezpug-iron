@@ -238,10 +238,10 @@ The package is the contract, so a schema change is a release with a changelog li
 a silent edit (`docs/decisions.md` 24). `scripts/release.mjs` is the whole path:
 
 ```sh
-pnpm release version 0.18.0   # bump packages/match-api, roll its CHANGELOG, print the tag
+pnpm release version 0.18.1   # bump packages/match-api, roll its CHANGELOG, print the tag
 pnpm verify:extended          # the conformance suite is the gate
-git commit -am 'chore(match-api): 0.18.0'
-git tag match-api@0.18.0 && git push origin match-api@0.18.0
+git commit -am 'chore(match-api): 0.18.1'
+git tag match-api@0.18.1 && git push origin match-api@0.18.1
 ```
 
 The tag fires `.github/workflows/release.yml`, which re-verifies, packs, audits the tarball

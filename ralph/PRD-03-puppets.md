@@ -477,7 +477,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > `assignment.teamCount` for every `map_end` and `series_end` the simulator emits, so
     > T10's manifest flip needs nothing here.
 
-- [ ] **T9b (P1): a key the Match API cannot list.** `keys.mint` is the service, not the
+- [x] **T9b (P1): a key the Match API cannot list.** `keys.mint` is the service, not the
   route, so it accepts a `name` longer than `ApiKey.name`'s 64 characters — and then
   `GET /v1/keys` is `internal` **for every caller of that database**, because the response
   no longer parses. Found on 2026-09-20 with `standing.test.ts` red on a clean tree: six

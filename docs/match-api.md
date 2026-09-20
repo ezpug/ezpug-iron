@@ -413,6 +413,15 @@ Create takes `{ name, scopes, budget, webhookSecrets?: [{ id, secret }] }` and a
 `{ key, secret }`, the secret shown once. Webhook secrets are registered by id so a
 match request can name one and a client can rotate without a gap.
 
+**`name` is at most 64 characters, and the mint enforces it** — not only the route.
+`ApiKey.name` caps there, so a longer name written to the database is a key `GET /v1/keys`
+can never list again: the response stops parsing and **every** caller of that database
+gets `internal`, not just whoever minted it. The orchestrator's key service therefore
+reads the create request against this schema at the write, wherever the caller came from,
+and answers `validation_failed` with `details.issues` naming the field — the same for an
+unknown scope and a budget outside its bounds. `@ezpug/match-api/fake`'s `mintKey` does
+the same, so a dev world finds it at the mint rather than on the box.
+
 ## Routes
 
 Paged lists take `?cursor=&limit=` (limit ≤200, default 50) and answer `{ items,

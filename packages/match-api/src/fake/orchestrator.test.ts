@@ -71,7 +71,7 @@ describe('a Bo1 on the fake', () => {
     expect(created.expiresAt).toBe(new Date(T0 + 180 * 60_000).toISOString())
 
     await h.fake.playOut()
-    expect(performance.now() - started).toBeLessThan(5_000)
+    const wallMs = performance.now() - started
 
     const match = await client.matches.get({ params: { matchId: created.id } })
     expect(match.state).toBe('ended')
@@ -85,6 +85,18 @@ describe('a Bo1 on the fake', () => {
     expect(match.liveAt).not.toBeNull()
     expect(match.sim?.finished).toBe(true)
     expect(match.sim?.outcome).toBe('completed')
+
+    // **The title's claim, as a ratio and not as a stopwatch.** The fake runs
+    // on the injected clock, so a match that spans an hour of *its* time
+    // costs no wall clock worth measuring. This was a 5 000 ms budget until
+    // it went red at 5 413 ms on a loaded box with a cold transform cache
+    // (PRD-03 T9b) — a machine-speed assertion, which is a flake waiting for
+    // a busy afternoon. The regression it exists to catch is the fake
+    // sleeping real time, and that moves the two numbers together: a
+    // hundredth of the story is still four orders of magnitude from it.
+    const storyMs = Date.parse(match.endedAt ?? '') - Date.parse(match.createdAt)
+    expect(storyMs).toBeGreaterThan(20 * 60_000)
+    expect(wallMs).toBeLessThan(storyMs / 100)
 
     const envelopes = await allEvents(h, match.id)
     expect(envelopes).toHaveLength(match.seq)
@@ -182,6 +194,35 @@ describe('a Bo1 on the fake', () => {
 })
 
 describe('the door', () => {
+  /**
+   * T9b: `mintKey` is the fake's one door a caller reaches **without** going
+   * through `fake/dispatch.ts` — a dev world's seed, a test, the conformance
+   * target — so it is the one door where a caller holds the request's
+   * TypeScript type and none of its bounds. A key the fake writes and the
+   * orchestrator refuses is the fake lying about the orchestrator; every
+   * other body arrives through the dispatch, which parses.
+   */
+  it('reads a minted key against the contract, not only against its type', () => {
+    const h = setup()
+    const budget = { maxConcurrentServers: 1, maxServerLifetimeMinutes: 120, monthlyCents: 0 }
+    const mint = (name: string) =>
+      h.fake.mintKey({ name, scopes: ['matches'], budget, webhookSecrets: [] })
+    expect(() => mint('a'.repeat(65))).toThrowError(
+      expect.objectContaining({ code: 'validation_failed' }),
+    )
+    expect(() => mint('')).toThrowError(expect.objectContaining({ code: 'validation_failed' }))
+    expect(() =>
+      h.fake.mintKey({
+        name: 'over-budget',
+        scopes: ['matches'],
+        budget: { ...budget, monthlyCents: -1 },
+        webhookSecrets: [],
+      }),
+    ).toThrowError(expect.objectContaining({ code: 'validation_failed' }))
+    // Nothing off the contract got in, and what the contract carries still is.
+    expect(mint('a'.repeat(64)).key.name).toHaveLength(64)
+  })
+
   it('refuses what it cannot serve with the published codes', async () => {
     const h = setup({
       budget: { maxConcurrentServers: 1, maxServerLifetimeMinutes: 120, monthlyCents: 0 },

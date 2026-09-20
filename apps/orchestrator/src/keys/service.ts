@@ -5,11 +5,16 @@ import {
   type ApiKey,
   type ApiKeyCreated,
   type ApiKeyCreateRequest,
+  apiKeyCreateRequestSchema,
   type BudgetPatchRequest,
+  budgetPatchRequestSchema,
   type FleetWebhookRequest,
+  fleetWebhookRequestSchema,
   MATCH_API_ERROR_STATUS,
   type WebhookSecretsRequest,
+  webhookSecretsRequestSchema,
 } from '@ezpug/match-api'
+import { onContract } from '../contract'
 import { apiKeyPrefix, hashToken, looksLikeToken, mintToken, type RandomBytes } from '../tokens'
 import { KeyNameTakenError, type KeyRecord, type KeyStore } from './store'
 
@@ -112,25 +117,31 @@ export function createKeys(options: KeysOptions): Keys {
     })
   }
 
-  /** The one place a row is written, whoever decided the secret. */
+  /**
+   * The one place a row is written, whoever decided the secret — and
+   * therefore the one place the contract is read before it is (T9b): a
+   * caller holding the request's *type* does not hold its bounds, and a name
+   * of 71 characters is a key `GET /v1/keys` can never list again.
+   */
   const insert = async (secret: string, request: ApiKeyCreateRequest): Promise<ApiKeyCreated> => {
+    const carried = onContract(apiKeyCreateRequestSchema, request, 'the API key')
     try {
       const record = await store.insert({
         id: randomUUID(),
-        name: request.name,
+        name: carried.name,
         prefix: apiKeyPrefix(secret),
         secretHash: hashToken(secret),
-        scopes: request.scopes,
-        budget: request.budget,
-        webhookSecrets: request.webhookSecrets,
-        fleetWebhook: request.fleetWebhook ?? null,
+        scopes: carried.scopes,
+        budget: carried.budget,
+        webhookSecrets: carried.webhookSecrets,
+        fleetWebhook: carried.fleetWebhook ?? null,
         createdAt: clock.date(),
       })
       return { key: record.key, secret }
     } catch (error) {
       if (error instanceof KeyNameTakenError)
         throw new ApiError(MATCH_API_ERROR_STATUS.conflict, 'conflict', error.message, {
-          name: request.name,
+          name: carried.name,
         })
       throw error
     }
@@ -191,13 +202,15 @@ export function createKeys(options: KeysOptions): Keys {
     },
 
     async setBudget(id, patch) {
-      const record = await store.setBudget(id, patch, clock.date())
+      const carried = onContract(budgetPatchRequestSchema, patch, "the key's budget")
+      const record = await store.setBudget(id, carried, clock.date())
       if (!record) throw notFound(id)
       return record.key
     },
 
     async setWebhookSecrets(id, request) {
-      const record = await store.replaceWebhookSecrets(id, request.secrets, clock.date())
+      const carried = onContract(webhookSecretsRequestSchema, request, "the key's webhook secrets")
+      const record = await store.replaceWebhookSecrets(id, carried.secrets, clock.date())
       if (!record) throw notFound(id)
       return record.key
     },
@@ -210,7 +223,11 @@ export function createKeys(options: KeysOptions): Keys {
     async setFleetWebhook(id, request) {
       const existing = await store.findById(id)
       if (!existing) throw notFound(id)
-      const { fleetWebhook } = request
+      const { fleetWebhook } = onContract(
+        fleetWebhookRequestSchema,
+        request,
+        "the key's fleet webhook",
+      )
       if (fleetWebhook && !existing.webhookSecrets.has(fleetWebhook.secretId))
         throw new ApiError(
           MATCH_API_ERROR_STATUS.validation_failed,

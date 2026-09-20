@@ -1824,6 +1824,18 @@ secret leaked, instead of minting a second key and leaving the first alive);
 the secrets a key's match requests sign with. `EZPUG_IRON_BOOTSTRAP_API_KEY` is the dev
 world's known key (see the image section).
 
+**A key the contract cannot carry is refused at the mint** (PRD-03 T9b). `name` caps at
+64 characters in `ApiKey`, so a longer one written to the database makes `GET /v1/keys`
+answer **`internal` for every caller of that database** — the row is fine, the response
+simply stops parsing, and the symptom names nobody. That happened on 2026-09-20: six rows
+of up to 71 characters left by a `verify:extended` run, minted in-process where the route's
+parse never runs. The key service now reads the create request against the contract's own
+schema at the write — the mint script, the dev bootstrap and a test rig alike — and
+answers `validation_failed` with `details.issues`. Node enrolment does the same with its
+id, region and labels. **If you meet an `internal` on a listing route**, the row is
+usually the answer: find it with the resource's own bounds (`select name from api_keys
+where length(name) > 64`) before reaching for the logs.
+
 ## Budgets: the wall in front of the money
 
 Every key carries three ceilings (decision 7) and the orchestrator enforces them against

@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type { Clock } from '@ezpug/core'
 import type { Node, NodeEnrolment, NodeEnrolRequest } from '@ezpug/match-api'
-import { ApiError, MATCH_API_ERROR_STATUS } from '@ezpug/match-api'
+import { ApiError, MATCH_API_ERROR_STATUS, nodeEnrolRequestSchema } from '@ezpug/match-api'
 import { LINK_CLOSE_CODES } from '@ezpug/protocol'
+import { onContract } from '../contract'
 import type { Log } from '../log'
 import type { MatchStore, NodeRow } from '../match/store'
 import { hashToken, mintToken, type RandomBytes } from '../tokens'
@@ -95,7 +96,12 @@ export function createNodes(options: NodesOptions): Nodes {
       return Promise.all(rows.map(view))
     },
 
-    enrol: async (body, keyId) => {
+    enrol: async (request, keyId) => {
+      // The route parses this; the test rigs that call the service directly
+      // do not, and a node id `nodeSchema` cannot carry makes
+      // `GET /v1/fleet/nodes` `internal` for every caller of that database
+      // (T9b, the same reach that cost the keys door a listing).
+      const body = onContract(nodeEnrolRequestSchema, request, 'the node')
       const existing = await store.findNode(body.id)
       const at = clock.date()
       if (existing && !existing.revokedAt) {
