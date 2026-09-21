@@ -354,6 +354,20 @@ issues; `BotIdentity.IsBot(id)` reads it back. The core plugin applies it, the h
 (`World.Connect(BotIdentity.SteamId64Of(1), "Bot Cliff", bot: true)`), and a bot's death is a
 real `player_death`.
 
+## Puppets
+
+A **puppet** is a bot that plays a rostered player's seat, so a real server can play a whole
+match with nobody on it and reach it through the doors a human uses: connect, ready up, play,
+leave (PRD-03). The request asks with `simulation` and a key holding the `simulation` scope,
+and the mode claims `capabilities.simulation` (`docs/match-api.md`, `MatchRequest`; decision
+25). Every fact of the match carries `source.simulated: true`, stamped by the orchestrator.
+Under every flow except `matchzy`, the SDK seats the puppets. Under `matchzy`, MatchZy-Enhanced's
+simulation mode seats them and the SDK only learns who is who. Either way a puppet is the
+roster entry on the wire. How to run one is in `docs/operations.md`: "Puppets, and the escape
+hatch" for the lane, and "A puppet match" for `ezpug-iron matches create --simulate`.
+
+### Seating a puppet
+
 **Puppets** are the other kind of body the engine plays (PRD-03 T7), and the two are never
 mixed up: a plain bot is never rostered and never announced, a puppet is a roster entry made
 flesh. When the assignment carries `simulation` and the flow is not `matchzy` (MatchZy seats
@@ -407,6 +421,8 @@ knobs a puppet can do are refused**: MatchZy-Enhanced's simulation mode seats on
 teams from its warmup watchdog, so neither an absent puppet nor a silent one can be
 expressed without patching the fork. And a scenario's `winner` never travels at all — no
 named scenario sets it, and nothing on a server could honour it.
+
+### Under `matchzy`: the fork seats them
 
 **Under `matchzy` the fork seats them and the cast arrives late** (PRD-03 T7a). MatchZy-Enhanced's
 simulation mode spawns one bot per roster entry itself and decides which is which seconds

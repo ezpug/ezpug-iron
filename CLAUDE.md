@@ -31,8 +31,8 @@ loop).
   the conformance suite (`@ezpug/match-api/fixtures`) passes against the fake **and** the
   real orchestrator on every verify.
 - **One vocabulary.** The gameserver event union in `@ezpug/match-api` is the only
-  language a server speaks to anyone. The core plugin emits it natively; MatchZy, retakes
-  and any community plugin are translated into it once, inside the plugin or the
+  language a server speaks to anyone. The core plugin emits it natively; MatchZy-Enhanced,
+  retakes and any community plugin are translated into it once, inside the plugin or the
   orchestrator, never downstream. Position ticks are ephemeral: stream only, never stored,
   never replayed.
 - **Every server dials out, every server is a ledger row.** A server's link to the
@@ -48,12 +48,19 @@ loop).
   server. The dev CS2 container (`pnpm cs2:up`) and Dathost are opt-in lanes behind
   `EZPUG_CS2_TESTS=required` / `EZPUG_DATHOST_TESTS=required`, skipped with a printed reason
   otherwise.
+- **Puppets go through the front door.** A real server plays a match with nobody on it by
+  seating a bot in each rostered player's place: MatchZy-Enhanced's simulation mode under
+  `matchzy`, the SDK's puppeteer everywhere else. A puppet connects, readies and plays the
+  way a human does, so a lane case that types RCON at a match has skipped an assertion.
+  `simulation` on a request needs the `simulation` key scope, which production's platform
+  key never holds, and every fact of such a match carries `source.simulated`. A plain bot
+  is never rostered and never announced.
 - **The plugin is thin, the SDK is the product.** `EZPug.Sdk` owns the link, the event
   model, timers, per-player state, player commands, i18n and the test harness; a gamemode
   is a class over it and a manifest beside it. CounterStrikeSharp types stay behind the
   SDK's seams so a gamemode test never needs the game. Vendored community plugins
-  (MatchZy, retakes, the WeaponPaints fork) are pinned in `docs/pins.md` and never patched
-  except the WeaponPaints data layer.
+  (MatchZy-Enhanced, retakes, the WeaponPaints fork) are pinned in `docs/pins.md` and never
+  patched except the WeaponPaints data layer.
 - **Determinism.** The injected clock and seeded PRNG from `packages/core` in anything
   that must reproduce; no bare `Date.now()`, `new Date()`, `Math.random()`, `setTimeout`
   outside it (the Biome plugin in `scripts/lint/` makes them errors); C# uses an injected
@@ -80,8 +87,9 @@ Green means commit, red means fix; a flaky test is a P1 against the spine.
 `pnpm verify:extended` adds the live world: compose up (Postgres, Redis), the orchestrator
 in sim mode driven through the real HTTP surface, the conformance suite against it, the
 fault-injection suite, the dev CS2 lane when `EZPUG_CS2_TESTS` demands it (a node on this
-box starts the container; the lane plays one real match through it), the Dathost smoke when
-demanded. Deploying is pre-authorized on this box (`./scripts/deploy.sh`, any verb);
+box starts the container; the lane plays its matrix of puppet matches through it, one at
+a time, under the lock both repos share, `/tmp/ezpug-cs2-lane.lock`), the Dathost smoke
+when demanded. Deploying is pre-authorized on this box (`./scripts/deploy.sh`, any verb);
 destroying a volume, dropping a database or editing another project's Traefik file still
 needs a human. The deploy script is also the **only** hand on the production stack: never
 `docker compose -p ezpug-iron` (or `-p ezpug`, the platform's), never `-f compose.prod.yaml`

@@ -114,6 +114,7 @@ it here.
 ## Inside the server
 
 19. **Stock MatchZy, pinned; the core plugin beside it; fork the day a hook is missing.**
+    *(Since PRD-03 T2 the pinned MatchZy is MatchZy-Enhanced, upstream's release, uncustomised.)*
     MatchZy owns match flow for `pug` (`going_live`, `round_end`, `map_end`, `series_end`);
     the core plugin owns what MatchZy cannot see (players, deaths, bomb, positions, chat,
     heartbeat, backups, the gamemode loader, the link). Neither double-speaks the other's

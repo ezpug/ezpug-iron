@@ -762,7 +762,17 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     tree.
   - The platform's pin named in the note.
 
-- [ ] **T17: the docs catch up.**
+    > blocked (2026-09-21): **T14's blocker is this task's whole last step.** Checked today,
+    > not assumed: `ezpug-prod-api` still runs `ezpug/api:latest` at revision `fb77243`,
+    > whose lockfile resolves `@ezpug/match-api` **0.15.0**. Deploying `gs.ezpug.com` from
+    > this tree puts `team: "unrostered"` (0.16.0, T7) in front of that strict parser.
+    > The platform's `main` pins 0.17.0 (`pnpm-workspace.yaml` catalog) and Verdaccio's
+    > `latest` is 0.18.5. The release half is done: every contract change of the round is
+    > in `CHANGELOG.md` up to 0.18.5, and `Unreleased` is empty. The deploy waits for the
+    > platform's production to carry ≥ 0.16.0. T14's live run then goes first, because it
+    > needs this deploy.
+
+- [x] **T17: the docs catch up.**
   - `docs/sdk.md`: a puppets chapter.
   - `docs/gamemodes.md`: length and one team.
   - `docs/match-api.md`: simulation and ready semantics.

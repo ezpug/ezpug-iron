@@ -165,7 +165,7 @@ A real CS2 server is one lane further, and opt-in because the game is tens of
 gigabytes:
 
 ```sh
-pnpm cs2:build     # the server image: Metamod, CounterStrikeSharp, MatchZy, EZPug.Core, the cfg set
+pnpm cs2:build     # the server image: Metamod, CounterStrikeSharp, MatchZy-Enhanced, EZPug.Core, the cfg set
 pnpm cs2:install   # the game itself, once, into a docker volume — never into the checkout
 pnpm cs2:up        # a dedicated server on 27415 (GOTV 27420), dialling the orchestrator
 pnpm cs2:console   # attach to its console (detach: Ctrl-P Ctrl-Q)
@@ -219,6 +219,7 @@ pnpm iron keys create --name platform --scopes matches \
   --webhook-secret whsec-2026-09          # a key that can create matches; both secrets, once
 pnpm iron gamemodes list                  # what this orchestrator will play
 pnpm iron matches create --file req.json  # a Match API request document
+pnpm iron matches create --file req.json --simulate  # …played by puppets (a `simulation` key)
 pnpm iron matches watch <matchId>         # the live stream until it closes
 pnpm iron servers list                    # the ledger: what is running, what it cost
 pnpm iron budget                          # this key's ceilings and this month
