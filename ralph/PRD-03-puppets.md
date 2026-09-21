@@ -729,7 +729,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > The live run is one command once the deploy can happen:
     > `EZPUG_DATHOST_TESTS=required EZPUG_IRON_BASE_URL=https://gs.ezpug.com`.
 
-- [ ] **T15: the operator's lever.**
+- [x] **T15: the operator's lever.**
   - `ezpug-iron matches create --simulate [--scenario <name>] [--timescale <n>]`,
     replacing the script-only `--bots`.
   - `docs/operations.md`: how to run a puppet match against `gs.ezpug.com` to show the
