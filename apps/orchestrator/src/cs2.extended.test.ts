@@ -1010,7 +1010,17 @@ function play(lane: LaneCase): Summary {
     expect(summary.payloads?.player_connected ?? 0, 'somebody was seated after all').toBe(0)
     expect(summary.payloads?.player_death ?? 0, 'somebody died on an empty server').toBe(0)
   } else {
-    expect(summary.payloads?.player_death ?? 0, 'nobody died: no link events').toBeGreaterThan(0)
+    // **A death or a bomb**, because both come only from the core plugin and
+    // over the link. A death alone is not guaranteed. In the T18 sweep, the
+    // `drop` row's two bots played three rounds, two of them ending on the
+    // bomb, and never met.
+    const linkFacts = ['player_death', 'bomb_planted', 'bomb_defused', 'bomb_exploded']
+      .map(type => summary.payloads?.[type] ?? 0)
+      .reduce((sum, count) => sum + count, 0)
+    expect(
+      linkFacts,
+      'no death and no bomb: the link carried nothing of the match',
+    ).toBeGreaterThan(0)
   }
 
   lane.facts?.(summary)
