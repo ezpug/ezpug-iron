@@ -28,6 +28,7 @@ import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { describeLaneLock, takeLaneLock } from './cs2-lane-lock.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(join(repo, 'apps/orchestrator/package.json'))
@@ -141,6 +142,13 @@ const HELP = `iron-match — run one real match through the Match API and record
   --rebuild <dir>        write the files again from a finished run's raw.json,
                          without playing another match
   --timeout-minutes <n>  give up and cancel after this long; default 45
+  --lock-wait <minutes>  how long to wait for the shared CS2 lane lock before
+                         giving up; default 45. A run that may land on this
+                         box's one CS2 container takes that lock first, because
+                         the platform's own lane plays matches on it too
+                         (docs/operations.md, "The lane lock")
+  --no-lock              take no lane lock — a run on a container nobody else
+                         shares, or an operator who has just broken a stale one
   --json                 print the run summary as JSON and nothing else
   --help
 `
@@ -489,6 +497,21 @@ const WRITE_FIXTURES = flags.get('write-fixtures') === 'true'
  */
 const FIXTURE_PREFIX = flags.get('fixture-prefix') ?? 'real'
 const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 45) * 60_000
+/**
+ * **The lane lock** (PRD-03 T13). There is one CS2 install on this box and two
+ * loops that play matches on it — this repo's `EZPUG_CS2_TESTS` lane and the
+ * platform's (its PRD-10 T9) — so a run that may land on the node provider
+ * takes a file first and waits for whoever has it.
+ *
+ * A run that **pins** a provider which is not `nodes` touches no container
+ * here (`--provider sim` is the simulator, and the Dathost smoke rents its own
+ * box), so it takes nothing: the `idle` row's second leg would otherwise queue
+ * behind the matrix for no reason. Everything else takes it, including a run
+ * that pins nothing, because "probably not the dev node" is not an answer a
+ * lock can be built on.
+ */
+const LOCK = flags.get('no-lock') !== 'true' && (PROVIDER === null || PROVIDER === 'nodes')
+const LOCK_WAIT_MS = Number(flags.get('lock-wait') ?? 45) * 60_000
 /**
  * The orchestrator's trace, found rather than assumed. A **relative**
  * `EZPUG_IRON_TRACE_FILE` — which is what `.env.example` and
@@ -1049,6 +1072,42 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 }
 
 async function run() {
+  // 0. **The lane, before the clock starts** (PRD-03 T13). Taken ahead of
+  //    `startedAt` on purpose: the wait for another loop's match is not part
+  //    of this run's own `--timeout-minutes`, and the ledger window below
+  //    would otherwise open while somebody else's server was still up.
+  let lane = null
+  if (LOCK) {
+    let told = -1
+    lane = await takeLaneLock({
+      holder: 'ezpug-iron',
+      what: `${RUN_ID} — ${GAMEMODE}, ${BOTS} ${SIMULATE ? 'puppets' : 'bodies'}`,
+      waitMs: LOCK_WAIT_MS,
+      clock: wall,
+      onWait: ({ held, broke, waitedMs }) => {
+        if (broke)
+          return say(
+            `the CS2 lane was held by a run that is gone (${describeLaneLock(held)}) — taking it`,
+          )
+        // Once when the wait starts, then once a minute: a lane that queues
+        // behind the other loop for twenty minutes should say so, and not
+        // twelve times a minute.
+        const minutes = Math.floor(waitedMs / 60_000)
+        if (minutes === told) return
+        told = minutes
+        say(`waiting for the CS2 lane — held by ${describeLaneLock(held)}`)
+      },
+    })
+    cleanups.push(() => {
+      if (lane.release()) say('released the CS2 lane')
+    })
+    say(
+      lane.waitedMs > 1_000
+        ? `took the CS2 lane after ${Math.round(lane.waitedMs / 1_000)}s`
+        : 'took the CS2 lane',
+    )
+  }
+
   const startedAt = wall.now()
   const traceFrom = traceOffset()
   if (TRACE_FILE) {
@@ -2113,6 +2172,15 @@ async function run() {
     streamFrames,
     trace: readTrace(traceFrom),
     startedAt,
+    lock: lane
+      ? {
+          taken: true,
+          path: lane.path,
+          waitedSeconds: Math.round(lane.waitedMs / 1_000),
+          /** The corpse this run stepped over, if it did — never a live holder. */
+          broke: lane.broke ? describeLaneLock(lane.broke) : null,
+        }
+      : { taken: false, path: null, waitedSeconds: 0, broke: null },
     demoTarget: s3 ? `${s3.endpoint}/${s3.bucket}/${demoKey}` : null,
     demoStored,
     demoRelay: demoRelay?.seen ?? null,
@@ -2226,6 +2294,14 @@ function write(result) {
           provider: result.match.provider ?? null,
         }
       : null,
+    /**
+     * **The shared CS2 lane, and what it cost to get onto it** (PRD-03 T13):
+     * whether this run took the box's one lock, how long it queued behind the
+     * other loop, and whose corpse it had to step over. `taken: false` is a
+     * run that could not have landed on the container — the simulator, or a
+     * rented box — and is how the lane's own test tells its two legs apart.
+     */
+    lock: result.lock ?? null,
     demoTarget: result.demoTarget,
     /** What `match.ended` said became of the demos (T21). */
     demo: result.match.endedReason ? (demoOutcome(result.envelopes) ?? null) : null,

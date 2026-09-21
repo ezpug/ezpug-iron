@@ -671,13 +671,40 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > carries no timestamp), but a radar interpolating on an assumed 100 ms runs 8 %
     > ahead.
 
-- [ ] **T13: the lane is a tier.**
+- [x] **T13: the lane is a tier.**
   - `EZPUG_CS2_TESTS=required` runs T5, T6, T8, T10 and T11 serially, under the lane's
     timescale, each with a budget from the load-scaled ladder.
   - Runtime per case goes in the note.
   - The one CS2 container is shared with the platform's PRD-10 T9. Agree a lock (a file
     both lanes take) so the two loops never start matches on it at once.
   - A flaky case is a P1.
+
+    > **The lock is a protocol, not a library.** The platform is a different checkout that
+    > never imports this one, so what both sides implement is a page in `docs/operations.md`
+    > — `/tmp/ezpug-cs2-lane.lock` (the box's, not either repo's), one `O_EXCL` create,
+    > JSON carrying `token`, `holder`, `what`, `pid`, `host` and `since`, a look every five
+    > seconds, and a break only for a holder that is provably gone (no such pid on this
+    > host, ninety minutes old, or contents that are not this JSON). `scripts/cs2-lane-lock.mjs`
+    > is our forty lines of it, `status` and `break` are the two verbs an operator has, and
+    > `iron-match.mjs` takes it before it creates the match and releases it in the `finally`
+    > that releases the server. A run that **pins** a provider which is not `nodes` takes
+    > nothing, which is what keeps the `idle` row's simulated leg out of the queue. It is
+    > cooperative and says so: the node's own capacity refusal is still the floor under it.
+    >
+    > **The stale paths are tested off hardware, on an injected clock**, because a lock
+    > only ever exercised by the thing it protects has its interesting branches exercised by
+    > a night nobody is watching. `cs2-lane-lock.test.ts` queues behind a live holder, gives
+    > up naming it, steps over a dead pid, a lock past the TTL and a file it did not write,
+    > judges another host by age alone, and — the one that matters — refuses to remove a
+    > lock that is no longer its own.
+    >
+    > **The ladder is rungs, and so is the load**: 18 minutes for a room of four puppets or
+    > fewer, 24 up to eight, 32 for the 5v5 with a demo, times 1 / 1.25 / 1.5 / 2 by the
+    > one-minute load average per core, sampled per row. One flat thirty-five for everything
+    > meant a two-minute `retakes` row could hang for half an hour before anybody was told.
+    > The script's force-end sits **six minutes inside** the budget, so a match that wanders
+    > ends `force_ended` with its ledger row closed rather than being cancelled by a
+    > timeout — which is exactly what `wingman` did, at fourteen rounds.
 
 - [ ] **T14: puppets on Dathost.** One live smoke (`EZPUG_DATHOST_TESTS=required`): a
   2v2 `pug` of puppets on a rented box, end to end.

@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
+import { cpus, loadavg } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { loadRootEnv } from './env'
@@ -121,13 +122,56 @@ const ONLY = (process.env.EZPUG_CS2_CASES ?? '')
  */
 const TIMESCALE = process.env.EZPUG_CS2_TIMESCALE ?? '2'
 /**
- * The whole match, generously: allocation, a 67 GB game booting, bots playing
- * four rounds and as many overtimes as they need to break the tie — on a box
- * that is usually running something else. The script gets
- * {@link SCRIPT_MINUTES} and this is the outer wall.
+ * **The ladder** (T13), in minutes of wall clock on an idle box: allocation, a
+ * 67 GB game booting, puppets readying, four rounds and as many overtimes as
+ * they need to break the tie. One flat thirty-five for every row used to be
+ * the wall, which meant a three-minute `retakes` row could hang for half an
+ * hour before anybody was told — a budget that fits nothing fits nothing.
+ *
+ * A rung is picked off the size of the room, because that is what the runtimes
+ * measured on this box sort by: two to four puppets play out in five or six
+ * minutes, ten play the match the owner plays, with a demo to upload and a
+ * GOTV window to wait for. A case may name its own rung; none needs to yet.
  */
-const SCRIPT_MINUTES = 35
-const BUDGET_MS = (SCRIPT_MINUTES + 5) * 60_000
+const LADDER = { short: 18, medium: 24, long: 32 } as const
+type Rung = keyof typeof LADDER
+
+/**
+ * **And the ladder is scaled by what else the box is doing.** Twelve cores,
+ * and the platform's Ralph loop runs beside this one — its `pnpm verify` is
+ * six vitest workers and a browser. Every flake this lane has had was a
+ * deadline rather than a behaviour (the reason `eventually()` exists one floor
+ * down), so the budget asks the box how busy it is and buys the same patience
+ * `eventually` does.
+ *
+ * Rungs again rather than a multiplication, so a run's budget is a number
+ * somebody can repeat from the load average printed in its own note.
+ */
+function loadFactor(): number {
+  const perCore = (loadavg()[0] ?? 0) / cpus().length
+  if (perCore <= 0.5) return 1
+  if (perCore <= 1) return 1.25
+  if (perCore <= 1.5) return 1.5
+  return 2
+}
+
+/**
+ * The top of that scale. Vitest wants a test's timeout at collection, long
+ * before the row runs and whatever the load does in between, so the **outer**
+ * wall is always the busiest box's budget while the script's own is the box in
+ * front of it.
+ */
+const LOAD_CEILING = 2
+
+/**
+ * **How long a row may wait for the other loop** (T13). The platform's
+ * real-server lane plays one golden-path match on the same container; a matrix
+ * row that finds the lock taken queues behind it rather than colliding with
+ * it, and this is the wall in front of a holder that is wedged rather than
+ * busy. It is outside every budget above: waiting for somebody else's match is
+ * not this row's runtime.
+ */
+const LOCK_WAIT_MINUTES = 45
 
 /** What `iron-match --json` prints, and everything this file reads off it. */
 type Summary = {
@@ -137,6 +181,8 @@ type Summary = {
   forcedEnd?: boolean
   endedReason?: { kind?: string } | null
   ledger?: { rows: number; open: number }
+  /** The shared CS2 lane (T13): whether this run took the box's lock, and what it queued behind. */
+  lock?: { taken: boolean; path: string | null; waitedSeconds: number; broke: string | null } | null
   payloads?: Record<string, number>
   /** The classes of fact the match produced, in order, a run of the same class collapsed (PRD-03 T11). */
   story?: string[]
@@ -234,6 +280,17 @@ type LaneCase = {
   puppets: number
   /** Everything after `--simulate --bots <puppets>`. */
   args: string[]
+  /**
+   * Which rung of {@link LADDER} this row's budget comes off, when the size of
+   * its room is not the whole story. Unset is the room's own rung.
+   */
+  rung?: Rung
+  /**
+   * How many matches this row plays. One, unless it plays the same scenario on
+   * a second provider to compare them (`idle`, T11) — the outer wall is per
+   * row and has to cover both.
+   */
+  legs?: number
   /**
    * How many `rcon` commands this case sends *at the match*. **Zero, every
    * row**, since PRD-03 T7a gave the last one without a front door
@@ -622,6 +679,9 @@ const CASES: LaneCase[] = [
     puppets: 2,
     empty: true,
     roundless: true,
+    // Two matches, the second on the simulator (T11): the outer wall covers
+    // both, the budget is per leg.
+    legs: 2,
     args: [
       '--gamemode',
       'powerup-dm',
@@ -642,18 +702,26 @@ const CASES: LaneCase[] = [
 
       // **The same scenario on the simulator**, through the same script and
       // the same Match API — the provider is the only thing that changes.
-      const sim = spawn(2, [
-        '--gamemode',
-        'powerup-dm',
-        '--scenario',
-        'idle',
-        '--no-demo',
-        '--provider',
-        'sim',
-        '--lan',
-        'false',
-      ])
+      const sim = spawn(
+        2,
+        [
+          '--gamemode',
+          'powerup-dm',
+          '--scenario',
+          'idle',
+          '--no-demo',
+          '--provider',
+          'sim',
+          '--lan',
+          'false',
+        ],
+        LADDER.short,
+      )
       expect(sim.simulation?.provider, 'the second leg did not land on the simulator').toBe('sim')
+      // **And it took no lane lock**, because nothing it did could reach the
+      // container: a leg on the simulator queueing behind the matrix would be
+      // the lock spreading past what it is for (T13).
+      expect(sim.lock?.taken, 'the simulated leg took the CS2 lane lock').toBe(false)
       expect(sim.finalState, 'the simulated leg did not end').toBe('ended')
       expect(sim.length?.mapEnd, 'the simulator did not end the map on the idle clock').toBe('idle')
       expect(sim.length?.seriesEnd, 'the simulator did not end it on the idle clock').toBe('idle')
@@ -760,8 +828,43 @@ function readiedUp(summary: Summary, puppets: number): void {
   expect(summary.payloads?.all_ready, 'the room was never all ready').toBe(1)
 }
 
-/** How long each case took and what it played, printed as the matrix's own note (T13). */
-const runtimes: { id: string; minutes: number; rounds: number; overtime: boolean }[] = []
+/**
+ * How long each case took against what it was given, what it played, and how
+ * long it queued behind the other loop — printed as the matrix's own note
+ * (T13), because "the lane takes two hours" is not a number anybody can plan
+ * a night around.
+ */
+const runtimes: {
+  id: string
+  minutes: number
+  budget: number
+  waited: number
+  rounds: number
+  overtime: boolean
+}[] = []
+
+/** The rung a row's budget comes off: its own, or the one its room size earns. */
+function rungOf(lane: LaneCase): Rung {
+  if (lane.rung) return lane.rung
+  if (lane.puppets <= 4) return 'short'
+  if (lane.puppets <= 8) return 'medium'
+  return 'long'
+}
+
+/** What the script gets for this row, on the box as it is right now. */
+function budgetOf(lane: LaneCase): number {
+  return Math.round(LADDER[rungOf(lane)] * loadFactor())
+}
+
+/**
+ * **The outer wall**, which vitest wants before anything has run: the busiest
+ * box's budget for every leg, plus one whole lock wait, plus a minute for the
+ * script to print what went wrong. A row that crosses *this* is a row nobody
+ * is going to diagnose from a timeout.
+ */
+function wallOf(lane: LaneCase): number {
+  return (LADDER[rungOf(lane)] * LOAD_CEILING * (lane.legs ?? 1) + LOCK_WAIT_MINUTES + 1) * 60_000
+}
 
 async function why(): Promise<string | null> {
   if (LANE === '') return 'EZPUG_CS2_TESTS is not set'
@@ -793,7 +896,7 @@ if (reason !== null && !DEMANDED)
  * it to everything that is true of **every** match on this lane. The case's
  * own {@link LaneCase.facts} are the part only it can prove.
  */
-function spawn(puppets: number, args: readonly string[]): Summary {
+function spawn(puppets: number, args: readonly string[], minutes: number): Summary {
   const run = spawnSync(
     'node',
     [
@@ -805,10 +908,24 @@ function spawn(puppets: number, args: readonly string[]): Summary {
       '--timescale',
       TIMESCALE,
       '--timeout-minutes',
-      String(SCRIPT_MINUTES),
+      String(minutes),
+      '--lock-wait',
+      String(LOCK_WAIT_MINUTES),
+      // **The force-end sits inside the budget, never on it.** A match that
+      // wanders into a long overtime is ended by the script — which closes
+      // its ledger row and says `force_ended`, a fact this lane asserts —
+      // rather than by the budget running out, which would leave a cancelled
+      // match and a stack trace. Six minutes for the boot, the warmup and the
+      // demo window; a case that wants a tighter wall says so in its own args,
+      // which come after these and win.
+      '--max-live-minutes',
+      String(Math.max(8, minutes - 6)),
       ...args,
     ],
-    { cwd: REPO, encoding: 'utf8', timeout: BUDGET_MS },
+    // The child's own walls are the ones that clean up after themselves; this
+    // is the wall in front of a child that never answers at all, and it has to
+    // allow for the whole lock wait on top of the budget.
+    { cwd: REPO, encoding: 'utf8', timeout: (minutes + LOCK_WAIT_MINUTES + 1) * 60_000 },
   )
   // The exit code first: a run that died has no summary to parse, and its
   // stderr is the only thing worth reading when it did.
@@ -820,8 +937,15 @@ function spawn(puppets: number, args: readonly string[]): Summary {
 
 function play(lane: LaneCase): Summary {
   const startedAt = performance.now()
-  const summary = spawn(lane.puppets, lane.args)
+  const budget = budgetOf(lane)
+  const summary = spawn(lane.puppets, lane.args, budget)
   const rounds = summary.payloads?.round_end ?? 0
+
+  // **The row had the box to itself** (T13). Every row of this matrix lands on
+  // the one `ezpug-iron-cs2` container, which the platform's own lane plays
+  // matches on too, so a run that reached a server without holding the lock is
+  // a run that could have met somebody else's match halfway through.
+  expect(summary.lock?.taken, 'the row started a match without the shared lane lock').toBe(true)
 
   // **Puppets, and the marker every consumer reads** (T4): the resource said
   // the match was simulated, so every fact of it carries `source.simulated`
@@ -899,13 +1023,23 @@ function play(lane: LaneCase): Summary {
   runtimes.push({
     id: lane.id,
     minutes: Math.round(((performance.now() - startedAt) / 60_000) * 10) / 10,
+    budget,
+    waited: Math.round(((summary.lock?.waitedSeconds ?? 0) / 60) * 10) / 10,
     rounds,
     overtime: rounds > 4,
   })
   return summary
 }
 
-describe.skipIf(reason !== null && !DEMANDED)('puppets play real matches on the dev node', () => {
+/**
+ * **`sequential`, said out loud** (T13). It is vitest's default inside a file,
+ * and it is also the one thing this lane cannot do without: there is one CS2
+ * container, one game port and one 68 GB install, so two rows at once are two
+ * matches on one server. The lane lock is what makes that true *between* the
+ * two loops on this box; this is what makes it true within the file.
+ */
+const matrix = reason !== null && !DEMANDED ? describe.skip : describe.sequential
+matrix('puppets play real matches on the dev node', () => {
   if (reason !== null) {
     it('is demanded but its world is absent', () => {
       expect.fail(`EZPUG_CS2_TESTS=required: ${reason}`)
@@ -915,14 +1049,20 @@ describe.skipIf(reason !== null && !DEMANDED)('puppets play real matches on the 
 
   afterAll(() => {
     if (runtimes.length === 0) return
+    const total = runtimes.reduce((sum, row) => sum + row.minutes, 0)
     process.stderr.write(
-      `\n[orchestrator] the CS2 matrix, at timescale ${TIMESCALE}:\n${runtimes
-        .map(
-          row =>
-            `               ${row.id.padEnd(12)} ${String(row.minutes).padStart(5)} min  ` +
-            `${String(row.rounds).padStart(2)} rounds${row.overtime ? ' (overtime)' : ''}`,
-        )
-        .join('\n')}\n\n`,
+      `\n[orchestrator] the CS2 matrix, at timescale ${TIMESCALE}, ` +
+        `load ${loadavg()[0]?.toFixed(2)} over ${cpus().length} cores (×${loadFactor()}):\n` +
+        `${runtimes
+          .map(
+            row =>
+              `               ${row.id.padEnd(12)} ${String(row.minutes).padStart(5)} min ` +
+              `of ${String(row.budget).padStart(2)}  ` +
+              `${String(row.rounds).padStart(2)} rounds${row.overtime ? ' (overtime)' : ''}` +
+              `${row.waited > 0 ? `, waited ${row.waited} min for the lane` : ''}`,
+          )
+          .join('\n')}\n` +
+        `               ${'total'.padEnd(12)} ${String(Math.round(total * 10) / 10).padStart(5)} min\n\n`,
     )
   })
 
@@ -930,7 +1070,7 @@ describe.skipIf(reason !== null && !DEMANDED)('puppets play real matches on the 
     // A spike is never part of the matrix a round is judged on: it runs when
     // `EZPUG_CS2_CASES` asks for it by name and not otherwise.
     const chosen = ONLY.length === 0 ? lane.spike !== true : ONLY.includes(lane.id)
-    it.skipIf(!chosen)(`${lane.id}: ${lane.what}`, () => void play(lane), BUDGET_MS + 30_000)
+    it.skipIf(!chosen)(`${lane.id}: ${lane.what}`, () => void play(lane), wallOf(lane))
   }
 })
 
@@ -1015,5 +1155,70 @@ describe('the iron-match script', () => {
     expect(CASES.filter(lane => lane.spike).map(lane => `${lane.id}:${lane.rcon}`)).toEqual([
       'radar:1',
     ])
+  })
+})
+
+/**
+ * **The tier itself** (PRD-03 T13) — the arithmetic the lane is run with,
+ * checked where it costs nothing. The lane plays matches only when a dev node
+ * is up; the budgets it would hand them, the wall it would put in front of
+ * them and the lock it takes to get at the container are all decidable from
+ * here, and they are the part that goes wrong silently.
+ */
+describe('the lane is a tier', () => {
+  it('gives every row a budget off the ladder, above what that row has ever taken', () => {
+    // The longest runtime measured on this box for each shape, from the
+    // progress notes of T6, T8, T10, T11 and T12: nothing here has ever run
+    // for more than eight minutes, so the shortest rung is already twice the
+    // worst row — the ladder is patience, not a prediction.
+    for (const lane of CASES) {
+      const budget = LADDER[rungOf(lane)]
+      expect(budget, `${lane.id} has no budget`).toBeGreaterThanOrEqual(LADDER.short)
+      expect(budget, `${lane.id} is budgeted above the ladder`).toBeLessThanOrEqual(LADDER.long)
+      // **The force-end sits inside the budget.** `spawn` hands the script
+      // `--max-live-minutes` six below its own wall, unless the row names a
+      // tighter one — so a match that wanders is ended by the script, which
+      // closes the ledger row, rather than by the budget, which would leave a
+      // cancelled match behind.
+      const own = lane.args.indexOf('--max-live-minutes')
+      const maxLive = own === -1 ? budget - 6 : Number(lane.args[own + 1])
+      expect(maxLive, `${lane.id} would give up before it force-ended`).toBeLessThan(budget)
+    }
+    // The room decides the rung, and the one row that plays two matches says
+    // so rather than borrowing a longer rung to hide the second one.
+    expect(CASES.filter(lane => (lane.legs ?? 1) > 1).map(lane => lane.id)).toEqual(['idle'])
+    expect(rungOf({ id: 'x', what: '', puppets: 10, args: [] })).toBe('long')
+  })
+
+  it('scales that ladder by what else the box is doing, and never past the ceiling', () => {
+    // The load factor is a ladder too, so a budget in a note can be read back
+    // from the load average printed beside it.
+    expect(loadFactor()).toBeGreaterThanOrEqual(1)
+    expect(loadFactor()).toBeLessThanOrEqual(LOAD_CEILING)
+    // The outer wall is always the busiest box's, because vitest wants it at
+    // collection and the platform's loop may start at any moment.
+    for (const lane of CASES)
+      expect(wallOf(lane), `${lane.id}'s wall is under its own budget`).toBeGreaterThan(
+        LADDER[rungOf(lane)] * LOAD_CEILING * (lane.legs ?? 1) * 60_000,
+      )
+  })
+
+  it('takes a lock the platform loop can take too, and says where it is', () => {
+    // **The protocol is the contract** (T13): the platform's real-server lane
+    // (its PRD-10 T9) is a different checkout that never imports this one, so
+    // what both sides implement is the file and the rules in `operations.md`.
+    // A path that moved here and not there would be two loops holding two
+    // different locks and neither noticing.
+    const lock = readFileSync(`${REPO}scripts/cs2-lane-lock.mjs`, 'utf8')
+    const operations = readFileSync(`${REPO}docs/operations.md`, 'utf8')
+    expect(lock).toContain("'/tmp/ezpug-cs2-lane.lock'")
+    expect(operations).toContain('/tmp/ezpug-cs2-lane.lock')
+    expect(operations).toContain('EZPUG_CS2_LANE_LOCK')
+    // Every field a waiter on the other side reads off the file.
+    for (const field of ['token', 'holder', 'what', 'pid', 'host', 'since', 'sinceMs'])
+      expect(operations, `the lock's \`${field}\` is not documented`).toContain(`\`${field}\``)
+    // And the two verbs an operator has when a run was killed.
+    expect(operations).toContain('cs2-lane-lock.mjs status')
+    expect(operations).toContain('cs2-lane-lock.mjs break')
   })
 })

@@ -1696,6 +1696,65 @@ it while something is being fixed, and `EZPUG_CS2_TIMESCALE` is the engine clock
 matrix plays at — **the lane's choice, never a production request's**. The matrix prints
 its own runtimes when it finishes.
 
+#### The budget each row gets (PRD-03 T13)
+
+One flat thirty-five minutes for every row used to be the wall, which meant a
+three-minute `retakes` row could hang for half an hour before anybody was told. A row's
+budget now comes off a **ladder** — 18 minutes for a room of four puppets or fewer, 24 up
+to eight, 32 for a full 5v5, which is the row with a demo to upload and a GOTV window to
+wait for — and that ladder is **scaled by what the box is doing**: the one-minute load
+average per core, in rungs (×1 below half a core busy, ×1.25, ×1.5, ×2 above one and a
+half), because the platform's Ralph loop runs beside this one and every flake this lane
+has had was a deadline rather than a behaviour. The script's own force-end
+(`--max-live-minutes`) is set six minutes inside that budget, so a match that wanders into
+a long overtime is **ended by the script** — which closes the ledger row and says
+`force_ended` — rather than by the budget, which would leave a cancelled match and a stack
+trace. The note the matrix prints carries each row's minutes against its budget, the load
+it was measured at, and the total.
+
+#### The lane lock
+
+There is **one** CS2 install on this box (68 GB, one container, one game port) and **two**
+loops that play matches on it: this lane, and the platform's real-server lane in
+`/root/ezpug` (its PRD-10 T9). Neither can see the other's process tree, so the agreement
+between them is a file:
+
+```sh
+node scripts/cs2-lane-lock.mjs status   # who holds the lane, or nobody (exit 1 when held)
+node scripts/cs2-lane-lock.mjs break    # take it from a run that was killed
+```
+
+`scripts/iron-match.mjs` takes it before it creates the match and releases it in the same
+`finally` that releases the server, so every row of the matrix holds it for exactly one
+match. A run that **pins** a provider which is not `nodes` takes nothing — `--provider sim`
+is the simulator and the Dathost smoke rents its own box — and `--no-lock` is the operator's
+way out. `--lock-wait <minutes>` (default 45) is how long a run queues before it gives up
+and names the holder.
+
+**The protocol, which is the part the platform implements for itself** (it is a different
+checkout and never imports this repo — forty lines on either side):
+
+- The file is `/tmp/ezpug-cs2-lane.lock`, or `EZPUG_CS2_LANE_LOCK` when both sides set it.
+  It belongs to the box rather than to either repo, and a reboot frees it.
+- Taking it is one exclusive create (`O_EXCL`; `writeFileSync(path, …, { flag: 'wx' })`),
+  which two processes cannot both win. The contents are JSON: `token` (a UUID, the only
+  thing a release checks), `holder` (`ezpug-iron` / `ezpug-platform`), `what` (the run and
+  what it is playing, for the line the other side prints), `pid`, `host`, `since` (ISO)
+  and `sinceMs`.
+- A waiter looks again every 5 s and prints who it is waiting for, once a minute.
+- A lock may be **broken** only when its holder is provably gone: `pid` on this `host`
+  answering no signal, an age above **90 minutes** (longer than any budget on the ladder
+  and longer than the platform's golden path), or contents that are not this JSON. The
+  breaker renames the file aside before removing it, so that two waiters who judge the
+  same lock dead do not both go on to take it.
+- Releasing removes the file **only if the token is still its own**: a run whose lock was
+  broken while it was still going must never remove the lock of whoever took it next.
+
+It is cooperative, and the orchestrator's own capacity refusal is still the floor
+underneath it — a node with one free slot refuses the second allocation, which is a red
+test rather than two matches on one server. The lock is there so the two loops queue
+instead of colliding, and so the one that waits can say who it is waiting for.
+
 ## `ezpug-iron`, the command (`pnpm iron`)
 
 Every lever the orchestrator has, from a terminal (PRD-02 T33). `apps/cli` is one call on
