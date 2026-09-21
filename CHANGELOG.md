@@ -21,7 +21,36 @@ there, not this file.
 
 ## Unreleased
 
-_Nothing yet._
+**Puppets** (`ralph/PRD-03-puppets.md`). This work is deployed on `gs.ezpug.com` from local
+builds, but no `orchestrator@`, `node@`, `cs2@` or `plugins@` tag has been cut for it
+yet. The contract went out as `@ezpug/match-api` **0.11.1** to **0.18.5**, and the
+package's own changelog has every line.
+
+- **The CS2 image** runs **MatchZy-Enhanced** `1.4.32` in place of stock MatchZy 0.8.15.
+  It is upstream's release binary, pinned by sha-256 (decision 19 as amended). The build
+  checks the appended `cfg/MatchZy/ezpug.cfg`: every path that opens a socket by itself
+  is off, the side-pick timer is on, and `.gg` and forfeit-on-disconnect are off.
+- **The orchestrator**:
+  - `players_per_team` comes from the roster: a 1v1 pug can ready up.
+  - Simulation is behind the `simulation` key scope, and every fact carries
+    `source.simulated`.
+  - MatchZy-Enhanced's ready, knife and demo-upload events are translated into the
+    vocabulary.
+  - The `1v1` and `wingman` formats.
+  - `keys.mint` refuses anything the contract cannot list.
+  - The fleet console route asks the plugin for a fresh tail on every read.
+- **The plugins**:
+  - `EZPug.Sdk` seats puppets for the modes MatchZy does not run. It casts the fork's bots
+    to their roster entries under `pug`.
+  - Plugin modes get a length: a duration, a frag limit and an idle end.
+  - A one-team mode names no winner.
+  - `retakes` is one team of ten.
+- **The terminal**: `ezpug-iron matches create --simulate [--scenario] [--timescale]`.
+- **The box**:
+  - `scripts/deploy.sh` and `cs2-env.sh build` prune dangling images and age-bound the
+    build cache.
+  - Every compose service caps its json log.
+  - The dev CS2 lane runs under the lock both repos share, `/tmp/ezpug-cs2-lane.lock`.
 
 ## 2026-09-08
 
