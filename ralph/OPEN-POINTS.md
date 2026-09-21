@@ -95,7 +95,9 @@ the lane releases when its match ends.
 **What it needs.** The platform's half waits for its server to leave the fleet before it
 releases, and its PRD-10 names the task. Until then, either lane can fail its first row
 behind the other's release. Our lane's fleet-wide "no server running" assertion is the
-right check under an exclusive lock and stays as it is.
+right check under an exclusive lock and stays as it is. Our side now also waits up to ten
+minutes for an empty fleet after taking the lock, so our lane no longer fails behind an
+early release. The platform's lane still can, behind anyone's.
 
 ## The production platform key holds `simulation` (owner call, 2026-09-21)
 

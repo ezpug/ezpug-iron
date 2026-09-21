@@ -527,6 +527,8 @@ const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 45) * 60_000
  */
 const LOCK = flags.get('no-lock') !== 'true' && (PROVIDER === null || PROVIDER === 'nodes')
 const LOCK_WAIT_MS = Number(flags.get('lock-wait') ?? 45) * 60_000
+/** How long a run that took the lane waits for the last holder's server to leave the fleet. */
+const LANE_DRAIN_MS = 10 * 60_000
 /**
  * The orchestrator's trace, found rather than assumed. A **relative**
  * `EZPUG_IRON_TRACE_FILE` — which is what `.env.example` and
@@ -1146,7 +1148,8 @@ async function run() {
     )
   }
 
-  const startedAt = wall.now()
+  // `let` because a wait for the last holder's server (1a) restarts it.
+  let startedAt = wall.now()
   const traceFrom = traceOffset()
   if (TRACE_FILE) {
     // **A named trace that is not there is a stop, not a shrug.** Without this
@@ -1198,6 +1201,33 @@ async function run() {
     await admin('DELETE', `/v1/keys/${keyId}`)
     say(`revoked the run's key`)
   })
+
+  // 1a. **The lane is ours once the last holder's server has left** (PRD-03
+  //     T18). The protocol says to release only after the server is gone
+  //     (`docs/operations.md`). A holder that releases on its match's end
+  //     leaves a server behind for minutes, and this run's end-of-match
+  //     assertion counts every server on the fleet. So a run that took the
+  //     lane waits for an empty fleet first, bounded, and names what it waited
+  //     for. If the bound runs out it plays anyway, and that assertion says
+  //     whose server was still there.
+  if (lane) {
+    const until = wall.now() + LANE_DRAIN_MS
+    for (let told = ''; ; ) {
+      const { servers } = await api('GET', '/v1/fleet/servers')
+      if (servers.length === 0) break
+      const who = servers.map(server => `${server.id} (match ${server.matchId})`).join(', ')
+      if (who !== told) say(`the CS2 lane is ours, but the fleet still lists ${who} — waiting`)
+      told = who
+      if (wall.now() >= until) {
+        say(`the fleet did not empty in ${LANE_DRAIN_MS / 60_000} minutes — playing anyway`)
+        break
+      }
+      await wall.sleep(5_000)
+    }
+    // Somebody else's server is not this run's clock, any more than the lock
+    // wait is, and the ledger window opens after it is gone.
+    startedAt = wall.now()
+  }
 
   // 2. The webhook endpoint, verified with the published verifier.
   const { verifyWebhook } = await matchApi()
