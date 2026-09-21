@@ -728,6 +728,9 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     >
     > The live run is one command once the deploy can happen:
     > `EZPUG_DATHOST_TESTS=required EZPUG_IRON_BASE_URL=https://gs.ezpug.com`.
+    >
+    > **Unblocked 2026-09-21**: T16 deployed `8028bbf` to `gs.ezpug.com` once the platform's
+    > production moved to match-api 0.17.0. This is the next run's task.
 
 - [x] **T15: the operator's lever.**
   - `ezpug-iron matches create --simulate [--scenario <name>] [--timescale <n>]`,
@@ -755,22 +758,22 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     the box would restart with it.
   - The platform's PRD-10 T10a does the same there.
 
-- [ ] **T16: release and deploy.**
+- [x] **T16: release and deploy.**
   - `@ezpug/match-api` carries every additive change of the round, each changelog line
     naming the PRD-10 task it serves.
   - Images tagged, the Dathost template refreshed, `./scripts/deploy.sh` from a clean
     tree.
   - The platform's pin named in the note.
 
-    > blocked (2026-09-21): **T14's blocker is this task's whole last step.** Checked today,
-    > not assumed: `ezpug-prod-api` still runs `ezpug/api:latest` at revision `fb77243`,
-    > whose lockfile resolves `@ezpug/match-api` **0.15.0**. Deploying `gs.ezpug.com` from
-    > this tree puts `team: "unrostered"` (0.16.0, T7) in front of that strict parser.
-    > The platform's `main` pins 0.17.0 (`pnpm-workspace.yaml` catalog) and Verdaccio's
-    > `latest` is 0.18.5. The release half is done: every contract change of the round is
-    > in `CHANGELOG.md` up to 0.18.5, and `Unreleased` is empty. The deploy waits for the
-    > platform's production to carry ≥ 0.16.0. T14's live run then goes first, because it
-    > needs this deploy.
+    > **Unblocked on 2026-09-21 by the platform, not by us.** `ezpug-prod-api` was redeployed
+    > at 09:35 from `9b1e807`, whose lockfile resolves `@ezpug/match-api` **0.17.0**, the
+    > same as its `main`. Before deploying, the gap from 0.17.0 to 0.18.5 was read as a
+    > schema diff, not trusted from the changelog. Nothing moved except one required
+    > `SimScenario.idle` on a response, which a 0.17.0 `z.object` strips, and the retakes
+    > manifest data. `gs.ezpug.com` now runs `8028bbf` and serves `retakes@0.4.0` as one team
+    > of ten, with every mode claiming `simulation`. **0.18.1 names no PRD-10 task,
+    > because it serves none**: T9b was this repo's own P1. The released line stays as
+    > written.
 
 - [x] **T17: the docs catch up.**
   - `docs/sdk.md`: a puppets chapter.
@@ -791,6 +794,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > `verify:extended` runs with the lane demanded are not run ahead of that. The sweep
     > proves the tree that gets deployed, and T14 or T16 may still move it. Order once the
     > platform's production carries ≥ 0.16.0: T16's deploy, then T14's live run, then this.
+    > T16 is done (2026-09-21); T14 is what is left ahead of this.
 
 ## Working rules
 
