@@ -47,7 +47,7 @@
 // token) is written by `configure`, on the clone, never here.
 import { spawnSync } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -234,7 +234,15 @@ function extractTree(image, say) {
     )
   }
   const imageId = inspect.stdout.trim().replace(/^sha256:/, '')
-  const target = join(repo, '.cache/dathost-image', imageId.slice(0, 16))
+  const cache = join(repo, '.cache/dathost-image')
+  const target = join(cache, imageId.slice(0, 16))
+  // Only the extraction of the image that is on the box now is worth keeping:
+  // every other one is a build the next refresh will never upload again, and
+  // six of them were 1.1 GB when the disk last filled (PRD-03 T15a).
+  if (existsSync(cache))
+    for (const stale of readdirSync(cache))
+      if (stale !== imageId.slice(0, 16))
+        rmSync(join(cache, stale), { recursive: true, force: true })
   if (existsSync(join(target, 'addons'))) {
     say(`artifacts: ${target} (cached from ${image})`)
     return { dir: target, image, imageId }

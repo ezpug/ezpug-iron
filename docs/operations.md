@@ -139,7 +139,7 @@ build, three destinations, because a server that runs a different plugin set tha
 that was tested is not a tested server.
 
 ```sh
-pnpm cs2:build     # build it (the plugins are compiled inside the build)
+pnpm cs2:build     # build it (the plugins are compiled inside the build), refusing below the disk floor, then tidy
 pnpm cs2:install   # install/update app 730 into the cs2-data volume — ~67 GB, once
 pnpm cs2:up        # run it on this box, host network, ports 27415 + 27420
 pnpm cs2:status    # image built? game installed? container running, and what it said
@@ -289,7 +289,7 @@ the shape of it.
 
 ```sh
 pnpm verify && pnpm verify:extended   # the gate; the deploy does not run it for you
-./scripts/deploy.sh                   # preflight → build → migrate → up → routes → smoke
+./scripts/deploy.sh                   # preflight → build → migrate → up → routes → smoke → tidy
 ./scripts/deploy.sh smoke             # …or any one step, alone
 pnpm prod:ps                          # what is running
 pnpm prod:logs                        # follow
@@ -298,6 +298,27 @@ pnpm prod:down                        # stop; the volumes stay
 
 Every step is idempotent — running the whole thing twice in a row is a no-op the second
 time, which is what makes re-running a failed deploy the normal way to finish it.
+
+**The disk is part of the deploy** (PRD-03 T15a). This box's root disk filled three times in
+September 2026, from build cache nobody used, dangling images and container logs nobody
+capped. So both scripts that build an image, `deploy.sh` (in `preflight`) and `pnpm cs2:build`,
+refuse to start with less than `EZPUG_BUILD_MIN_FREE_GB` (default 20) free where Docker keeps
+its data. When they refuse, they print `df` and `docker system df`. After a deploy whose smoke
+is green, or a build that worked, they remove dangling images and prune build cache older than
+`EZPUG_BUILD_CACHE_MAX_AGE` (default `168h`). They also cap what is left at
+`EZPUG_BUILD_CACHE_MAX_SIZE` (default `20GB`, least recently used first), because the age cap
+alone reclaimed nothing on the day it was measured. `./scripts/deploy.sh tidy` does the same by
+itself. `scripts/docker-hygiene.sh` holds both rules.
+
+Every compose service, and the CS2 container `ezpug-node` creates, caps its json log at
+3 × 10 MB. The lane keeps its newest 30 runs in `.cache/iron-match`. `pnpm dathost:image` keeps
+only the extraction of the image that is on the box now.
+
+Some things are **never** done, by these scripts or by hand. `docker volume prune` and
+`docker system prune --volumes` are out, because the CS2 install is a 68 GB volume whose
+container is usually stopped, so Docker lists it as reclaimable, and other projects' data
+sits beside it. `/etc/docker/daemon.json` is never edited and dockerd is never restarted,
+because every project on the box would restart with it.
 
 **The three files.** `compose.prod.yaml` is the stack (its own Postgres and Redis on named
 volumes, the orchestrator published on `172.17.0.1:3431` and nowhere else, no CS2 — nodes

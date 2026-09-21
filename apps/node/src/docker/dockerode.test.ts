@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
+import Docker from 'dockerode'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createDockerodeDocker } from './dockerode'
+import { CONTAINER_LOG, createDockerodeDocker } from './dockerode'
 import type { DockerPort } from './port'
 
 /**
@@ -103,6 +104,10 @@ describe.skipIf(!available)('the dockerode adapter against the daemon', () => {
       status: 'created',
       labels: { [RUN_LABEL]: RUN_ID },
     })
+    // The log cap is the daemon's to honour, not the port's to report, so it
+    // is read off the daemon's own view of the container (PRD-03 T15a).
+    const raw = await new Docker({ socketPath: SOCKET }).getContainer(id).inspect()
+    expect(raw.HostConfig.LogConfig).toEqual(CONTAINER_LOG)
 
     // The image's default command (`sh`) exits at once without a tty, so
     // the container is `running` or already `exited` by the time it is

@@ -14,6 +14,7 @@
 #   ./scripts/deploy.sh smoke      prove gs.ezpug.com answers
 #   ./scripts/deploy.sh key [args] mint this deployment's FIRST API key, once
 #   ./scripts/deploy.sh rollback   put `:previous` back and smoke it again
+#   ./scripts/deploy.sh tidy       remove dangling images, prune old build cache
 #
 # Every step is idempotent: running the whole thing twice in a row changes
 # nothing the second time (the build hits its cache, the migration finds
@@ -32,6 +33,8 @@ export EZPUG_PROD_COMPOSE_OK=1
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=scripts/docker-hygiene.sh
+source scripts/docker-hygiene.sh
 
 ENV_FILE=.env.production
 COMPOSE=(docker compose -f compose.prod.yaml --env-file "$ENV_FILE")
@@ -144,6 +147,11 @@ cmd_preflight() {
     && die "EZPUG_IRON_BACKUP_DIR ($backup_dir) is inside the repo — backups do not belong in a checkout"
   mkdir -p "$backup_dir" || die "cannot create the backup directory $backup_dir"
   [[ -w $backup_dir ]] || die "$backup_dir is not writable"
+
+  # Last of the refusals because it is the one that is about the box rather
+  # than this deploy: a build that runs the disk full takes every neighbour
+  # down with it (PRD-03 T15a).
+  require_build_space 'build the orchestrator image' || die 'not enough free disk to build'
 
   if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
     warn 'the working tree is dirty — the image will hold uncommitted code'
@@ -411,6 +419,13 @@ cmd_rollback() {
   warn 'the next `deploy.sh build` will make *this* image :previous — fix forward soon'
 }
 
+# ── tidy ───────────────────────────────────────────────────────────────────
+# After a build or a deploy that succeeded, never before: `scripts/docker-hygiene.sh`
+# says what goes (dangling images, old build cache) and what never does (volumes).
+cmd_tidy() {
+  log "$(tidy_docker 2>&1)"
+}
+
 cmd_all() {
   step 'preflight'
   cmd_preflight
@@ -424,6 +439,8 @@ cmd_all() {
   cmd_routes
   step 'smoke'
   cmd_smoke
+  step 'tidy'
+  cmd_tidy
   local what
   what="$(pinned_image)"
   printf '\n\033[32m✓ deployed %s to %s\033[0m\n' \
@@ -433,7 +450,7 @@ cmd_all() {
 case "${1:-all}" in
   all) cmd_all ;;
   preflight) cmd_preflight ;;
-  build) cmd_preflight && cmd_build ;;
+  build) cmd_preflight && cmd_build && cmd_tidy ;;
   backup) cmd_backup ;;
   migrate) cmd_migrate ;;
   up) cmd_up ;;
@@ -441,5 +458,6 @@ case "${1:-all}" in
   smoke) cmd_smoke ;;
   key) shift; cmd_key "$@" ;;
   rollback) cmd_rollback ;;
-  *) die "unknown command '$1' (all | preflight | build | backup | migrate | up | routes | smoke | key | rollback)" ;;
+  tidy) cmd_tidy ;;
+  *) die "unknown command '$1' (all | preflight | build | backup | migrate | up | routes | smoke | key | rollback | tidy)" ;;
 esac

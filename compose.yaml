@@ -14,12 +14,22 @@
 # pinned so a rebuilt environment is the same environment (docs/pins.md).
 name: ezpug-iron-dev
 
+# Every service caps its json log (PRD-03 T15a). The daemon's default is
+# uncapped and this box's `daemon.json` is every project's, so the cap is said
+# here rather than there: three files of 10 MB is what a service may hold.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
 services:
   # The ledger, the keys, the durable log. Ships with a second database
   # (ezpug_iron_test) for the Vitest strategy — see docker/postgres/init.
   postgres:
     image: postgres:17-alpine
     container_name: ezpug-iron-postgres
+    logging: *logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${EZPUG_IRON_POSTGRES_USER:-ezpug_iron}
@@ -49,6 +59,7 @@ services:
   redis:
     image: redis:8-alpine
     container_name: ezpug-iron-redis
+    logging: *logging
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
     ports:

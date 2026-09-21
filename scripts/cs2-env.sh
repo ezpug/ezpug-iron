@@ -3,7 +3,7 @@
 # world. `scripts/dev-env.sh` is Postgres and Redis, which every clone needs;
 # this is the game, which only the boxes that run matches do.
 #
-#   ./scripts/cs2-env.sh build      build the image (docker/cs2/Dockerfile)
+#   ./scripts/cs2-env.sh build      build the image (docker/cs2/Dockerfile), then tidy
 #   ./scripts/cs2-env.sh install    install/update app 730 into the volume (~67 GB, once)
 #   ./scripts/cs2-env.sh up         start the server
 #   ./scripts/cs2-env.sh down       stop it (the game install is kept)
@@ -14,6 +14,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=scripts/docker-hygiene.sh
+source scripts/docker-hygiene.sh
 
 COMPOSE=(docker compose -f compose.cs2.yaml)
 CONTAINER=ezpug-iron-cs2
@@ -73,8 +75,12 @@ installed() {
 cmd_build() {
   require_docker
   ensure_env_file
+  # The disk that filled three times in September filled from builds like this
+  # one (PRD-03 T15a): refuse below the floor, tidy after a build that worked.
+  require_build_space 'build the CS2 image' || die 'not enough free disk to build'
   log 'building the CS2 image (the plugins are compiled inside it)…'
   EZPUG_GIT_SHA="$(git_sha)" "${COMPOSE[@]}" build
+  log "$(tidy_docker 2>&1)"
   log 'built. Next: `pnpm cs2:install` if the game is not in the volume yet.'
 }
 

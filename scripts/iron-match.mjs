@@ -22,7 +22,15 @@
 // the fixtures' own so a second run produces the same bytes.
 import { spawnSync } from 'node:child_process'
 import { createHash, createHmac, randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer, request as httpRequest } from 'node:http'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join } from 'node:path'
@@ -576,7 +584,30 @@ const wall = {
 }
 
 const RUN_ID = `iron-match-${wall.at().toISOString().replace(/[:.]/g, '-')}`
-const OUT_DIR = flags.get('rebuild') ?? flags.get('out') ?? join(repo, '.cache/iron-match', RUN_ID)
+const RUNS_DIR = join(repo, '.cache/iron-match')
+const OUT_DIR = flags.get('rebuild') ?? flags.get('out') ?? join(RUNS_DIR, RUN_ID)
+/**
+ * How many runs `.cache/iron-match` keeps (PRD-03 T15a): two passes of the
+ * matrix, which is more than any `--rebuild` has ever reached back for. The
+ * directory held 1.3 GB in 120 runs when the box last filled.
+ */
+const KEEP_RUNS = 30
+
+/**
+ * The newest {@link KEEP_RUNS} of this script's own run directories stay and
+ * the rest go. Only names this script gives (`iron-match-<ISO instant>`, which
+ * sort as they happened), and only in the default place: a run written with
+ * `--out` is somebody's on purpose.
+ */
+function pruneRuns() {
+  if (!existsSync(RUNS_DIR)) return
+  const runs = readdirSync(RUNS_DIR, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && /^iron-match-\d{4}-/.test(entry.name))
+    .map(entry => entry.name)
+    .sort()
+  for (const name of runs.slice(0, Math.max(0, runs.length - KEEP_RUNS)))
+    rmSync(join(RUNS_DIR, name), { recursive: true, force: true })
+}
 
 if (!Number.isInteger(ROUNDS) || ROUNDS <= 0 || ROUNDS % 2 !== 0)
   die('--rounds must be a positive even number (the Match API refuses anything else)')
@@ -2506,6 +2537,7 @@ function write(result) {
     )
   writeFileSync(join(OUT_DIR, 'ledger.json'), stringify(scrub(result.ledger)))
   say(`wrote the run to ${OUT_DIR}`)
+  if (OUT_DIR === join(RUNS_DIR, RUN_ID)) pruneRuns()
 
   if (!WRITE_FIXTURES) {
     say('run again with --write-fixtures to update the recorded files')

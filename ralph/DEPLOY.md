@@ -127,6 +127,20 @@ gunzip -c /var/backups/ezpug-iron/ezpug-iron-<stamp>.sql.gz \
 Restore into a scratch database first and count what came back before you point the
 orchestrator at it.
 
+## Disk
+
+A deploy whose smoke is green ends with `tidy`: dangling images are removed and build
+cache older than a week (`EZPUG_BUILD_CACHE_MAX_AGE`) or past 20 GB
+(`EZPUG_BUILD_CACHE_MAX_SIZE`) is pruned. The same step runs alone:
+
+```bash
+./scripts/deploy.sh tidy
+```
+
+`preflight` refuses to build below `EZPUG_BUILD_MIN_FREE_GB` (default 20) free and prints
+`df` when it does. If that happens, free space with `tidy`. **Never** use a volume prune:
+the CS2 install and other projects' databases are volumes on this box.
+
 ## Rollback
 
 ### A bad release

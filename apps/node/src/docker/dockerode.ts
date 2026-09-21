@@ -16,6 +16,12 @@ export interface DockerodeOptions {
   socketPath: string
 }
 
+/** The json log cap of every container this node creates. */
+export const CONTAINER_LOG = {
+  Type: 'json-file',
+  Config: { 'max-size': '10m', 'max-file': '3' },
+} as const
+
 interface DockerodeFailure {
   statusCode?: number
   message?: string
@@ -143,6 +149,11 @@ export function createDockerodeDocker(options: DockerodeOptions): DockerPort {
             // never silently restarted with a token the orchestrator has
             // already given up on.
             RestartPolicy: { Name: 'no' },
+            // A game server's console is chatty and the daemon's default log
+            // is uncapped: the same 3 × 10 MB every compose service in this
+            // repo is held to (PRD-03 T15a), said per container because the
+            // daemon's config is every project's on a shared box.
+            LogConfig: CONTAINER_LOG,
           },
         })
         return container.id

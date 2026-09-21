@@ -12,6 +12,15 @@
 # environment, so what runs here is what a venue runs.
 name: ezpug-iron-cs2
 
+# Every service caps its json log (PRD-03 T15a). The daemon's default is
+# uncapped and this box's `daemon.json` is every project's, so the cap is said
+# here rather than there: three files of 10 MB is what a service may hold.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
 services:
   cs2:
     build:
@@ -21,6 +30,7 @@ services:
         EZPUG_GIT_SHA: ${EZPUG_GIT_SHA:-unknown}
     image: ${EZPUG_IRON_CS2_IMAGE:-ghcr.io/ezpug/ezpug-iron/cs2:dev}
     container_name: ezpug-iron-cs2
+    logging: *logging
     restart: unless-stopped
     # Host networking: a game server's traffic is UDP and its clients read the
     # address out of the packets, so a NAT hop between the two is an evening of

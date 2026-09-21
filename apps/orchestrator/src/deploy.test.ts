@@ -144,6 +144,7 @@ describe('scripts/deploy.sh', () => {
     'smoke',
     'key',
     'rollback',
+    'tidy',
   ]
 
   it('dispatches every verb the runbook and the reference name', () => {

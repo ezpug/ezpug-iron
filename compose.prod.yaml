@@ -26,6 +26,15 @@
 # (docs/operations.md, "What this database holds in clear, and why").
 name: ezpug-iron
 
+# Every service caps its json log (PRD-03 T15a). The daemon's default is
+# uncapped and this box's `daemon.json` is every project's, so the cap is said
+# here rather than there: three files of 10 MB is what a service may hold.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
 services:
   # The ledger, the keys, the durable log. No `docker/postgres/init` mount:
   # that is the dev world's second database for Vitest, and production has no
@@ -33,6 +42,7 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: ezpug-iron-prod-postgres
+    logging: *logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${EZPUG_IRON_POSTGRES_USER:?set EZPUG_IRON_POSTGRES_USER in .env.production}
@@ -55,6 +65,7 @@ services:
   redis:
     image: redis:8-alpine
     container_name: ezpug-iron-prod-redis
+    logging: *logging
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
     volumes:
@@ -85,6 +96,7 @@ services:
         # answer "previous to what?" months later. `scripts/deploy.sh` exports it.
         EZPUG_GIT_SHA: ${EZPUG_GIT_SHA:-unknown}
     container_name: ezpug-iron-prod-migrate
+    logging: *logging
     restart: 'no'
     env_file:
       - .env.production
@@ -101,6 +113,7 @@ services:
   mint-key:
     image: ${EZPUG_IRON_IMAGE:-ezpug-iron/orchestrator:latest}
     container_name: ezpug-iron-prod-mint-key
+    logging: *logging
     restart: 'no'
     profiles: ['tools']
     env_file:
@@ -125,6 +138,7 @@ services:
   backup:
     image: postgres:17-alpine
     container_name: ezpug-iron-prod-backup
+    logging: *logging
     restart: 'no'
     profiles: ['tools']
     depends_on:
@@ -165,6 +179,7 @@ services:
       args:
         EZPUG_GIT_SHA: ${EZPUG_GIT_SHA:-unknown}
     container_name: ezpug-iron-prod-orchestrator
+    logging: *logging
     restart: unless-stopped
     env_file:
       - .env.production
