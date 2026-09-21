@@ -73,3 +73,26 @@ stream's interval is documented as "about ten a second, never exactly", or the v
 grows a monotonic `uptimeMs` on the tick so a consumer can interpolate on the server's own
 numbers. Nobody drawing a radar has hit this yet; the platform's PRD-10 is the first that
 will.
+
+## §5 The platform's lane releases the CS2 lane before its server is gone
+
+**What happened.** The second `verify:extended` of PRD-03 T18's sweep (2026-09-21) went
+red on its first row, `pug-1v1`, with "a server is still running". The server was not
+ours. The platform's lane (`platform-cs2-lane-860ad73c`) held the lock from 12:18:34 and
+released it at 12:34:49. Its server `9fe2635d` (match `28250c0c`) stayed `running` on the
+dev node until 12:40:36 (the dev orchestrator's `servers` table). Our row took the lane
+two seconds after the release, played its whole match (12:34:51–12:38:05), and found the
+platform's server still on `GET /v1/fleet/servers` at the end
+(`.cache/iron-match/iron-match-2026-09-21T12-27-59-351Z/raw.json`). Its own ledger row
+was closed.
+
+**Why.** Our protocol page (`docs/operations.md`, "The lane lock") never said the lock has
+to outlive the server. It now says so: release only once the fleet lists no server for
+your match. The platform's `scripts/cs2-lane-lock.mjs` and its lane in
+`/root/ezpug/apps/api/src/cs2-lane.test.ts` implement the page. Judging by the timeline,
+the lane releases when its match ends.
+
+**What it needs.** The platform's half waits for its server to leave the fleet before it
+releases, and its PRD-10 names the task. Until then, either lane can fail its first row
+behind the other's release. Our lane's fleet-wide "no server running" assertion is the
+right check under an exclusive lock and stays as it is.

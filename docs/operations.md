@@ -1787,6 +1787,14 @@ checkout and never imports this repo — forty lines on either side):
   same lock dead do not both go on to take it.
 - Releasing removes the file **only if the token is still its own**: a run whose lock was
   broken while it was still going must never remove the lock of whoever took it next.
+- **Release only after the server is gone.** That means `GET /v1/fleet/servers` no longer
+  lists a server for your match, not just that the match has ended. A match's end and its
+  server's release are separate moments, and the orchestrator can take minutes to get from
+  one to the other. The next holder's first look at the fleet must not find you still
+  there. `iron-match.mjs` releases the lock as the last step of its cleanup, after the
+  server. On 2026-09-21 the platform's lane released at 12:34:49 and its server stayed up
+  until 12:40:36. Our 1v1 row took the lane in between and found that server still
+  running.
 
 It is cooperative, and the orchestrator's own capacity refusal is still the floor
 underneath it — a node with one free slot refuses the second allocation, which is a red

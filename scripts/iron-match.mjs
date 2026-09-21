@@ -434,6 +434,13 @@ const WIDGET_STRANGER = '76561198000000042'
 /** How long a tap may take before the run stops waiting for its `command_result`. */
 const WIDGET_TAP_MS = 15_000
 /**
+ * How often the grant is asked again when it met a corpse, and how far apart.
+ * A body in `powerup-dm` is back within a second or two of dying, so eight
+ * tries a second apart cover a respawn many times over (PRD-03 T18).
+ */
+const WIDGET_GRANT_TRIES = 8
+const WIDGET_GRANT_RETRY_MS = 1_000
+/**
  * **The movement spike** (PRD-03 T12), and the only row of this lane that
  * types at a match on purpose. The question is whether a puppet moved by
  * `Teleport` once an engine frame comes out of the Match API's stream looking
@@ -1742,6 +1749,8 @@ async function run() {
         })),
       },
       grant: null,
+      /** Every grant tap in order: more than one only when an earlier one met a corpse. */
+      grantTaps: [],
       /** `plugin_event`s named by the mode that reached this phone as `event` frames. */
       claimed: 0,
       /** `push` frames the mode sent this phone and nobody else (PRD-02 T26). */
@@ -1802,7 +1811,24 @@ async function run() {
     // **The grant.** The SDK checks the verb, the args, the cooldown and the
     // charge against the manifest before `powerup-dm` sees it; what comes back
     // is the mode's own answer, in this player's language.
-    record.grant = await phone.tap(WIDGET_VERB, { kind: WIDGET_KIND })
+    //
+    // **The grant is aimed at a living body.** A puppet in this mode dies every
+    // few seconds, so a tap fired at any moment can land between a death and a
+    // respawn and be refused `not_alive`. That refusal is correct, and it is the
+    // corpse case's assertion, not this one's. The second `verify:extended` of
+    // the T18 sweep met exactly that and read it as "the tap did not apply".
+    // So a `not_alive` grant waits a beat and asks again. Every try is recorded,
+    // and the last answer stands if the body never came back.
+    for (let tries = 1; ; tries += 1) {
+      const answer = await phone.tap(WIDGET_VERB, { kind: WIDGET_KIND })
+      record.grantTaps.push({ status: answer.status, code: answer.code ?? null })
+      if (answer.code !== 'not_alive' || tries === WIDGET_GRANT_TRIES) {
+        record.grant = answer
+        break
+      }
+      say(`the grant met a corpse (try ${tries}), asking again in ${WIDGET_GRANT_RETRY_MS} ms`)
+      await wall.sleep(WIDGET_GRANT_RETRY_MS)
+    }
     say(`tap ${WIDGET_VERB}/${WIDGET_KIND}: ${stringify(record.grant).replace(/\s+/g, ' ')}`)
     // **The stranger.** `powerup-dm` opens its roster, so a token is minted
     // for anybody — that is the "unless the mode is open-join" half a run on
