@@ -96,3 +96,28 @@ the lane releases when its match ends.
 releases, and its PRD-10 names the task. Until then, either lane can fail its first row
 behind the other's release. Our lane's fleet-wide "no server running" assertion is the
 right check under an exclusive lock and stays as it is.
+
+## The production platform key holds `simulation` (owner call, 2026-09-21)
+
+**What happened.** The owner pressed "test match with puppets" on ezpug.com's fleet page
+and got `forbidden`, `details.scope: simulation`. The platform's fleet door (its PRD-10 T8)
+is built to send puppets through production. But `packages/match-api/src/scopes.ts` says
+"a production platform key does not hold it", and `ralph/DEPLOY.md` mints `platform` with
+`matches,fleet`. The two rounds disagreed, and the owner wants the button to work.
+
+**What was done.** The live `platform` key (`d22fcf5b…`, prefix `ezik_ocE9Mf0`) had
+`simulation` appended in `ezpug-iron-prod-postgres` by one scoped `UPDATE`. There is no
+scope-edit route, and a new key would have meant new webhook secrets and orphaned
+in-flight matches. It is undone by `array_remove(scopes, 'simulation')` on that row. Key
+lookups aren't cached, so the change took effect immediately.
+
+**Why it is safe enough.** The platform marks a puppeted match `puppets` from creation and
+never counts it (its PRD-10 T7). Every fact carries `source.simulated`. And the request
+must carry the `simulation` block explicitly. That block is set only by the admin fleet
+door.
+
+**What it needs.** Either (a) a `PATCH /v1/keys/:id/scopes` route and CLI verb so this is
+never a SQL line again, plus `scopes.ts`'s comment and `DEPLOY.md`'s mint line updated to
+say the platform key holds `simulation`. Or (b) a separate rehearsal key that the platform
+uses only on its fleet door, which is the path `scopes.ts` intended. Recommended: (a). The
+safety lives in the platform's `puppets` flag, not in which key asked.
