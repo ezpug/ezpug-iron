@@ -783,6 +783,15 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
 
 - [ ] **T18: the sweep.** Everything in "When the PRD is complete", with the closing note.
 
+    > blocked (2026-09-21): **three of the sweep's five lines are T14's and T16's**, which
+    > wait on the same thing: the Dathost smoke with its ledger line, the deploy from a
+    > clean tree with `gs.ezpug.com` serving the new MatchZy, and the platform's pin named.
+    > Checked again, not assumed: `ezpug-prod-api` still runs `ezpug/api:latest` at
+    > `fb77243`, whose lockfile resolves `@ezpug/match-api` **0.15.0**. The two
+    > `verify:extended` runs with the lane demanded are not run ahead of that. The sweep
+    > proves the tree that gets deployed, and T14 or T16 may still move it. Order once the
+    > platform's production carries ≥ 0.16.0: T16's deploy, then T14's live run, then this.
+
 ## Working rules
 
 - **Production is `./scripts/deploy.sh` and nothing else.** Never `docker compose -p <prod
