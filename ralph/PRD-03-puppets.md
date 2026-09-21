@@ -735,7 +735,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - `docs/operations.md`: how to run a puppet match against `gs.ezpug.com` to show the
     platform to somebody, or to rehearse before a LAN.
 
-- [ ] **T15a: this repo stops filling the box** (owner decision, 2026-09-19: prevent it
+- [x] **T15a: this repo stops filling the box** (owner decision, 2026-09-19: prevent it
   rather than alert on it).
   - The root disk hit 100 % on 2026-09-15 and twice on 2026-09-17. Measured 2026-09-19:
     - 42 GB of Docker build cache across 1,151 entries, none in use;
