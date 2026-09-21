@@ -33,6 +33,7 @@ export const BOOLEAN_FLAGS: readonly string[] = [
   'adopt',
   'force',
   'no-wait',
+  'simulate',
 ]
 
 export interface ParsedArgs {

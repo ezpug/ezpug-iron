@@ -1799,7 +1799,7 @@ pnpm iron dathost image --check
 | ----- | ----- |
 | `keys` | `create`, `list`, `revoke` — the `admin` scope's own. The mint's flags and defaults are `keys:mint`'s, so the two doors agree. `--webhook-secret <id>` (repeatable, up to 8) registers a webhook secret on the new key: the flag takes the **id**, the secret is drawn here and shown once. |
 | `gamemodes` | `list` — the catalog, titles in DE and EN (`--locale` narrows to one). |
-| `matches` | `create`, `list`, `get`, `watch`, `cancel`, `command` |
+| `matches` | `create` (`--simulate [--scenario] [--timescale]` for puppets; see below), `list`, `get`, `watch`, `cancel`, `command` |
 | `servers` | `list` (`--all` reads the ledger, closed rows included), `kill`, `console` |
 | `nodes` | `enrol-token`, `list`, `drain` (`--undrain`), `remove` (un-enrol) |
 | `providers` | `list` (health, `lastError`, `lastCheckedAt`, open rows), `drain` (`--undrain`), `gslt` (the Steam login token pool) — the outage group (T38b) |
@@ -1879,6 +1879,84 @@ the `matches` scope rather than `fleet`, because a client picks a region out of 
 drained provider stays in the table with `available` at zero — capacity that is not being
 offered is a different fact from capacity that is gone, and a dash is a third thing again
 (a provider that cannot say, which Dathost does not).
+
+### A puppet match, to show somebody or to rehearse a LAN (PRD-03 T15)
+
+`matches create --simulate` plays the request document with **puppets**. Every roster
+entry gets a bot that carries its SteamID and name, connects, readies up through the
+match plugin's own ready system and plays the match out, and nobody types anything at it.
+It is a real match on a real server. The ledger, the budget, the webhooks, the demo and
+the GOTV relay are all the ones a human match gets. The only differences are the
+`simulated: true` on the match and `source.simulated` on every fact, so no consumer counts
+it as real. The CLI replaces `iron-match.mjs --simulate --bots <n>` as the operator's
+lever. The script stays as the CS2 lane's harness.
+
+```sh
+# 1. A key that may ask for puppets. Production's platform key does not hold
+#    `simulation`, and must not. Mint a short-lived one with an admin key:
+export EZPUG_IRON_API_KEY=<an admin key>          # never a flag
+pnpm iron --url https://gs.ezpug.com keys create --name demo-2026-09-26 \
+  --scopes matches,simulation --monthly-cents 500 --webhook-secret whsec-demo
+export EZPUG_IRON_API_KEY=<the secret it printed once>
+
+# 2. The request: the roster the puppets play, and where the server comes from.
+pnpm iron --url https://gs.ezpug.com matches create --file demo.json --simulate
+pnpm iron --url https://gs.ezpug.com matches get <matchId>      # connect + GOTV
+pnpm iron --url https://gs.ezpug.com matches watch <matchId>    # the facts as they land
+
+# 3. Done early? End it and give the key back.
+pnpm iron --url https://gs.ezpug.com matches command <matchId> force_end --reason "demo over"
+pnpm iron --url https://gs.ezpug.com keys revoke <keyId>
+```
+
+`demo.json` is an ordinary request (`packages/match-api` `matchRequestSchema`). A few
+fields need care:
+
+- **The roster is the match.** Four entries play a 2v2 and ten play a 5v5. The puppets
+  wear exactly the SteamIDs and names written there, so use made-up ones, or the fixtures'
+  (`76561198279375306` onwards), rather than a stranger's.
+- **`callbacks.webhookSecretId`** names the secret `keys create` registered.
+  `callbacks.webhookUrl` can point anywhere you can read, or nowhere reachable when
+  `watch` is all you need.
+- **`requirements`** decides who pays:
+  - `{ "provider": "dathost" }` is a rented box at the hourly rate;
+  - `{ "provider": "nodes" }` or `preferLan` is the venue's own iron;
+  - `sim` has no server to watch at all, only the stream.
+
+  The key's `--monthly-cents` is the wall, and `ttlMinutes` is the row's own lifetime.
+
+To **show the platform to somebody**, give them the GOTV relay from `matches get` (and the
+join password, from `matches get --json`, if they want to be on the server). They are then
+watching a match that tells the same story, fact for fact, as the one they are about to
+play. A match created here belongs to the key that created it: the platform's own screens
+show matches the *platform* asked for. Its half of this lever is in its own PRD-10.
+
+To **rehearse before a LAN**:
+
+1. Enrol the venue's node and aim the request at `nodes`.
+2. Roster the night's shape: ten for a 5v5 `pug`, or the size the evening actually plays.
+3. Play one match through at timescale 1, so a round lasts as long as it will on the
+   night.
+
+That proves the node, the image on it, the ready gate at that roster size, the demo
+upload and the platform's webhook, before anybody has sat down.
+
+**The flags.**
+
+- `--timescale <n>` is the engine clock, 0.1–10. The fork applies it as `host_timescale`
+  under `sv_cheats 1`, so leave it unsaid, which means 1, whenever a person is watching.
+  2 is the CS2 lane's.
+- `--scenario <name>` is from `GET /v1/sim/scenarios`, the same catalog the simulator
+  plays. A real server honours only the knobs a puppet can do, and under a `matchzy` mode
+  that is none: `happy-path` or unsaid. `docs/sdk.md` has the table. Anything else is
+  refused `validation_failed` with the knob named.
+- Both are refused without `--simulate`. A flag that changes who plays a match is typed
+  out.
+- The gamemode must claim `capabilities.simulation`. All four bundled modes do.
+
+**Which orchestrator.** `simulation` arrived in match-api 0.15.0 (PRD-03 T4).
+`gs.ezpug.com` serves it from PRD-03 T16's deploy on. Until then, run this against the dev
+world on this box (`--url http://127.0.0.1:3430`, `nodes` for the dev CS2 server).
 
 ## Keys, scopes, rate limits, logs
 

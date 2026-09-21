@@ -22,10 +22,18 @@ import { orDash } from '../output'
  * SteamID64s, locales and loadouts, a map plan, a webhook URL and the id of
  * a registered secret. A flag surface over that would be a second, worse
  * schema that drifts from the first. So `--file` takes the JSON the platform
- * would have POSTed — `-` reads stdin — and the only flags are the two
- * things an operator genuinely re-decides between runs
- * (`--client-match-id`, `--ttl-minutes`), which are patched onto the
- * document before it is validated here and again by the server.
+ * would have POSTed — `-` reads stdin — and the only flags are the things
+ * an operator genuinely re-decides between runs (`--client-match-id`,
+ * `--ttl-minutes`, and whether it is played by puppets), which are patched
+ * onto the document before it is validated here and again by the server.
+ *
+ * **`--simulate` is the operator's lever** (PRD-03 T15): the same document,
+ * played by puppets — one per roster entry, readying and playing through the
+ * doors a human takes — for showing the platform to somebody or rehearsing
+ * before a LAN. It patches `simulation` onto the request (`--scenario`,
+ * `--timescale` fill its two fields), so the key needs the `simulation`
+ * scope and the door says so by name if it does not. The roster is still the
+ * document's: a puppet is a SteamID somebody wrote down, never invented here.
  *
  * **Watch is the stream, not a poll.** `GET /v1/matches/:id/stream` is best
  * effort by contract: the first frame is a `hello` carrying the last durable
@@ -43,6 +51,8 @@ export const MATCHES_USAGE = `ezpug-iron matches — ask for a match, read it, w
 
   matches create --file <path|->         a Match API request document (JSON)
                  [--client-match-id <id>] [--ttl-minutes <n>]
+                 [--simulate [--scenario <name>] [--timescale <n>]]
+                                         puppets play the roster (simulation scope)
   matches list [--state <state>] [--client-match-id <id>] [--limit <n>] [--cursor <c>]
   matches get <matchId>
   matches watch <matchId> [--ticks]      the live stream until it closes
@@ -96,10 +106,12 @@ async function create(context: CommandContext): Promise<number> {
 
   const clientMatchId = flag(args, 'client-match-id')
   const ttlMinutes = flag(args, 'ttl-minutes')
+  const simulation = simulationOf(context, document)
   const patched = {
     ...(document as Record<string, unknown>),
     ...(clientMatchId !== undefined && { clientMatchId }),
     ...(ttlMinutes !== undefined && { ttlMinutes: Number(ttlMinutes) }),
+    ...(simulation !== undefined && { simulation }),
   }
   // Parsed here as well as by the orchestrator: a typo in a roster should
   // print the field it is in, on this box, before a request goes out.
@@ -108,10 +120,42 @@ async function create(context: CommandContext): Promise<number> {
     throw new CliUsageError(`${path} is not a match request:\n${issuesOf(parsed.error.issues)}`)
 
   const match = await context.client().matches.create({ body: parsed.data })
-  out.say(`created ${match.id} (${match.clientMatchId}) — ${match.state}, ${match.gamemode}`)
+  out.say(
+    `created ${match.id} (${match.clientMatchId}) — ${match.state}, ${match.gamemode}${match.simulated ? ', played by puppets' : ''}`,
+  )
   out.say(`watch it: ezpug-iron matches watch ${match.id}`)
   out.emit(match)
   return EXIT.ok
+}
+
+/**
+ * The `simulation` block `--simulate` asks for, merged over any the document
+ * already carries, or `undefined` when the flags say nothing. `--scenario`
+ * and `--timescale` without `--simulate` are refused rather than quietly
+ * turning puppets on: a flag that changes who plays a match is typed out.
+ */
+function simulationOf(context: CommandContext, document: unknown): unknown {
+  const { args } = context
+  const simulate = boolFlag(args, 'simulate')
+  const scenario = flag(args, 'scenario')
+  const timeScale = flag(args, 'timescale')
+  if (!simulate) {
+    for (const [name, value] of [
+      ['scenario', scenario],
+      ['timescale', timeScale],
+    ] as const)
+      if (value !== undefined)
+        throw new CliUsageError(`--${name} is the puppets': pass --simulate too`, MATCHES_USAGE)
+    return undefined
+  }
+  if (timeScale !== undefined && !Number.isFinite(Number(timeScale)))
+    throw new CliUsageError(`--timescale is a number, not '${timeScale}'`, MATCHES_USAGE)
+  const existing = (document as { simulation?: unknown } | null)?.simulation
+  return {
+    ...(typeof existing === 'object' && existing !== null ? existing : {}),
+    ...(scenario !== undefined && { scenario }),
+    ...(timeScale !== undefined && { timeScale: Number(timeScale) }),
+  }
 }
 
 async function list(context: CommandContext): Promise<number> {
@@ -187,6 +231,7 @@ function describe(context: CommandContext, match: Match): void {
   out.say(`created       ${match.createdAt}`)
   out.say(`ready / live  ${orDash(match.readyAt)} / ${orDash(match.liveAt)}`)
   out.say(`ends by       ${match.expiresAt}${match.endedAt ? ` (ended ${match.endedAt})` : ''}`)
+  if (match.simulated) out.say('simulated     yes — puppets play it, nobody on it is a person')
   if (match.sim) out.say(`sim           ${JSON.stringify(match.sim)}`)
 }
 

@@ -304,6 +304,63 @@ describe('matches', () => {
     expect((await h.run('matches create')).code).toBe(EXIT.usage)
   })
 
+  /**
+   * PRD-03 T15: the operator's lever. The same document, played by puppets —
+   * `--simulate` patches the `simulation` block on, `--scenario` and
+   * `--timescale` fill it, and a key without the scope is refused by name.
+   */
+  it('plays the document with puppets under --simulate, and says so', async () => {
+    const h = await setup()
+    const created = await h.run(
+      'matches create --file - --simulate --timescale 2 --scenario happy-path --json',
+      { stdin: JSON.stringify(pugRequest()) },
+    )
+    expect(created.code, created.err).toBe(EXIT.ok)
+    const match = created.json<Match>()
+    expect(match.simulated).toBe(true)
+    const human = await h.run('matches create --file - --simulate --client-match-id cli-sim-2', {
+      stdin: JSON.stringify(pugRequest()),
+    })
+    expect(human.out).toContain('played by puppets')
+    expect((await h.run(`matches get ${match.id}`)).out).toContain('simulated     yes')
+
+    // Without the flag the document is what it says: a real match.
+    const real = await h.run('matches create --file - --client-match-id cli-real --json', {
+      stdin: JSON.stringify(pugRequest()),
+    })
+    expect(real.json<Match>().simulated).toBe(false)
+  })
+
+  it('refuses a puppet knob without --simulate, and a key without the scope by name', async () => {
+    const h = await setup()
+    for (const knob of ['--timescale 2', '--scenario no-show']) {
+      const refused = await h.run(`matches create --file - ${knob}`, {
+        stdin: JSON.stringify(pugRequest()),
+      })
+      expect(refused.code).toBe(EXIT.usage)
+      expect(refused.err).toContain('pass --simulate too')
+    }
+    const notANumber = await h.run('matches create --file - --simulate --timescale fast', {
+      stdin: JSON.stringify(pugRequest()),
+    })
+    expect(notANumber.code).toBe(EXIT.usage)
+
+    const minted = await h.run(
+      'keys create --name venue --scopes matches --monthly-cents 100000 --webhook-secret whsec-venue --json',
+    )
+    const venue = minted.json<ApiKeyCreated>()
+    const refused = await h.run('matches create --file - --simulate', {
+      env: { [API_KEY_VAR]: venue.secret, EZPUG_IRON_CLI_URL: h.listener.url },
+      stdin: JSON.stringify(
+        pugRequest({
+          callbacks: { webhookUrl: 'https://venue.invalid/hooks', webhookSecretId: 'whsec-venue' },
+        }),
+      ),
+    })
+    expect(refused.code).not.toBe(EXIT.ok)
+    expect(refused.err).toContain('simulation')
+  })
+
   it('commands a live match and hands back what the server said', async () => {
     const h = await setup()
     const match = await liveMatch(h)
