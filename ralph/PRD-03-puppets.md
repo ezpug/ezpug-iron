@@ -746,7 +746,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > closed. The account lists only the template (off). T14a fell out of reading the
     > console route.
 
-- [ ] **T14a: the fleet console route reads a tail once and never again.**
+- [x] **T14a: the fleet console route reads a tail once and never again.**
   `fleet/service.ts` `console` serves `channel.consoleTail()` whenever one is cached. The
   plugin sends its tail only when asked (`LinkClient` answers a `console` command, and it
   never pushes one unasked). So the first read on a link freezes the answer for the

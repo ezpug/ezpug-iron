@@ -158,6 +158,43 @@ describe('GET /v1/fleet/servers/:serverId/console', () => {
     await rig.app.close()
   })
 
+  it('asks afresh on every read, so a second read sees what the server printed since', async () => {
+    const rig = await createRig()
+    const at = rig.app.clock.date()
+    const printed = [{ uptimeMs: 1_000, line: 'map de_mirage' }]
+    tailChannel(rig.app, rig.serverId, undefined, () => ({
+      at,
+      uptimeMs: 1_000 + printed.length,
+      lines: [...printed],
+    }))
+    const read = async () =>
+      (
+        await rig.app.request(`/v1/fleet/servers/${rig.serverRowId}/console`, {
+          key: rig.secret,
+        })
+      ).body.lines.map((line: { line: string }) => line.line)
+    expect(await read()).toEqual(['map de_mirage'])
+    printed.push({ uptimeMs: 2_000, line: 'scoreboard: 3:1' })
+    expect(await read()).toEqual(['map de_mirage', 'scoreboard: 3:1'])
+    await rig.app.close()
+  })
+
+  it('serves the cached tail when the server does not answer the ask', async () => {
+    const rig = await createRig()
+    const at = rig.app.clock.date()
+    const channel = tailChannel(rig.app, rig.serverId, {
+      at,
+      uptimeMs: 1_000,
+      lines: [{ uptimeMs: 1_000, line: 'map de_mirage' }],
+    })
+    channel.console = () => Promise.reject(new Error('console: no answer inside the deadline'))
+    const answer = await rig.app.request(`/v1/fleet/servers/${rig.serverRowId}/console`, {
+      key: rig.secret,
+    })
+    expect(answer.body.lines).toEqual([{ at: at.toISOString(), line: 'map de_mirage' }])
+    await rig.app.close()
+  })
+
   it('falls back to the provider’s backlog before the link is up', async () => {
     const rig = await createRig({
       backlog: [

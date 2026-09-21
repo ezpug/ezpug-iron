@@ -151,24 +151,26 @@ export function createFleet(options: FleetOptions): Fleet {
      * the link is up there is only whatever the *control plane* kept — the
      * Dathost console backlog — which is the moment this route exists for.
      *
-     * A tail nobody has asked for yet is asked for now: the round trip is one
-     * frame, and an operator opening the console wants the console, not an
-     * empty page that fills in later. A server that does not answer inside
-     * the link's deadline falls through to the provider rather than failing;
-     * the whole route is a best effort by construction.
+     * Every read asks afresh: the plugin sends its tail only when asked, so a
+     * cache served in place of the ask would freeze on the first answer for
+     * the link's life (PRD-03 T14a). The round trip is one frame. A server
+     * that does not answer inside the link's deadline gets the tail it last
+     * sent, and one that never sent any falls through to the provider rather
+     * than failing; the whole route is a best effort by construction.
      */
     console: async serverId => {
       const row = await findRow(serverId)
       const channel = channelOf(row)
       if (channel) {
-        let tail = channel.consoleTail?.()
-        if (!tail && channel.console) {
+        let tail: ConsoleTail | undefined
+        if (channel.console) {
           try {
             tail = await channel.console(CONSOLE_LINES_MAX)
           } catch {
             tail = undefined
           }
         }
+        tail ??= channel.consoleTail?.()
         if (tail) return linesOf(tail).slice(-CONSOLE_LINES_MAX)
       }
       const provider = registry.get(row.provider)
