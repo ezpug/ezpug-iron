@@ -808,7 +808,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - `docs/pins.md`, `CLAUDE.md`, `README.md`.
   - `ralph/OPEN-POINTS.md` emptied of what landed.
 
-- [ ] **T18: the sweep.** Everything in "When the PRD is complete", with the closing note.
+- [x] **T18: the sweep.** Everything in "When the PRD is complete", with the closing note.
 
     > blocked (2026-09-21): **three of the sweep's five lines are T14's and T16's**, which
     > wait on the same thing: the Dathost smoke with its ledger line, the deploy from a
@@ -819,6 +819,56 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > proves the tree that gets deployed, and T14 or T16 may still move it. Order once the
     > platform's production carries ≥ 0.16.0: T16's deploy, then T14's live run, then this.
     > T16 is done (2026-09-21); T14 is what is left ahead of this.
+    >
+    > **Closing note (2026-09-22).**
+    >
+    > **Two green in a row took eight runs**, because the matrix was played whole six more
+    > times than T13 had played it, and each red was a new row. None was the product; all
+    > four are fixed with a test or an assertion that would have caught them:
+    > - run 2, `widget`: the grant tap met a corpse between death and respawn;
+    > - run 2, `pug-1v1`: the platform's lane released the shared lock six minutes before
+    >   its server left the fleet (OPEN-POINTS §5, and a wait on our side);
+    > - run 4, `drop`: two bots never met, so "somebody died" is now "a death or a bomb";
+    > - run 6, `pause`: the pause landed in a 1v1's halftime, where MatchZy refuses it
+    >   while the plugin still answers `applied` (OPEN-POINTS §6).
+    >
+    > Runs 7 and 8 on `51beac8` are both green: 1375 passed, 0 failed, 4 skipped each (the
+    > `radar` spike and the undemanded Dathost smoke). All 13 lane rows passed, in 85 and
+    > 75 minutes. The conformance and fault suites are inside that count.
+    >
+    > **Dathost**: T14's smoke, ledger `18924354` (1 c) and `02cff0f4` (2 c), both closed.
+    > The account was listed again today: the template (off) and ten untagged servers that
+    > are not ours, and no tagged clone.
+    >
+    > **Deploy**: `./scripts/deploy.sh` from a clean tree at `51beac8`, all seven smoke
+    > checks green. `gs.ezpug.com` serves `pug@0.3.0`, `flying-scoutsman@0.4.0`,
+    > `retakes@0.4.0` (1×10) and `powerup-dm@0.4.0`, every one claiming `simulation`. The
+    > Dathost template and the CS2 image carry MatchZy-Enhanced `1.4.32`, and nothing
+    > under `plugins/`, `docker/` or `gamemodes/` has moved since the template's stamp.
+    >
+    > **The platform's pin**: `@ezpug/match-api` **0.18.5** on its `main` (`90728ca`), and
+    > **0.17.0** in its production (`ezpug-prod-api`). `match-api@0.16.0` had shipped
+    > untagged and is now tagged locally at `ae1f877`. `CHANGELOG.md` carries the round's
+    > services under `Unreleased`: no `orchestrator@`, `node@`, `cs2@` or `plugins@` tag was
+    > cut, because pushing one publishes and nobody has authorised that here.
+    >
+    > **What this round left:**
+    > - **Real clients.** Each needs a Steam account and a Vulkan GPU, this box has no
+    >   `/dev/dri`, and the Steam Subscriber Agreement forbids automation. Puppets are
+    >   the answer, not a stopgap.
+    > - **Native input injection.** T12's finding is the one argument for it.
+    >   CounterStrikeSharp cannot credit a death to a chosen attacker, and the engine
+    >   stops killing under a teleport, so a usercmd hook is the only road to replaying
+    >   a demo's round. It is AGPL, native Metamod and broke on the 2026-08-04 update.
+    >   It is worth taking only once a radar replay is a goal of its own.
+    > - **Sim-only knobs.** `neverReady`, `crashAfterRound`, `pauses`, `overtimes` and
+    >   `comeback` are refused under simulation, with the table in `docs/sdk.md`.
+    >   `absentPlayers` and `idle` are puppets' only in the SDK's flows; under
+    >   `matchzy` both are refused.
+    > - **Upstream.** Nothing was filed against MatchZy-Enhanced. Its quirks were
+    >   recorded as properties and absorbed at the door.
+    > - **Open points.** §3 (retakes rating zero), §4 (the 108 ms ticker), §5 (the
+    >   platform's lock release) and §6 (a refused pause answered `applied`).
 
 ## Working rules
 
