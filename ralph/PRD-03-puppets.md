@@ -620,7 +620,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > lists and a note. Re-run on the dev node and the `sim` provider, 5.5 minutes, no
     > rounds, and they agree beat for beat.
 
-- [ ] **T12: movement that looks like a match** (radar; spike first, may end as a
+- [x] **T12: movement that looks like a match** (radar; spike first, may end as a
   finding).
   - Can `Teleport` per tick move a puppet smoothly enough for the SDK's position ticks
     and the platform's radar?
@@ -629,6 +629,47 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     once by the platform's parser from its corpus, checked in with its provenance (the
     iron never imports platform code), and replayed by puppets as a `radar` scenario.
   - If not: the finding, and puppets keep the engine's own movement.
+
+    > **It ends as the finding: puppets keep the engine's own movement.** The first
+    > question holds and was measured rather than argued — four puppets walked around a
+    > circle by `Teleport` once an engine frame come out of the Match API's stream
+    > *smoother than the engine's own bots*: step median 54.1 against a commanded 50, p95
+    > 55.6, max 56.6, standing still 2 % of samples, p95/median 1.03, where the same four
+    > bodies moved by their own AI ten seconds earlier read 28.1 / 49.9 / 61.6, 25 % and
+    > 1.77. Two runs agree to the decimal, every body is in every tick, nothing is
+    > dropped.
+    >
+    > **The second question is a flat no, and it takes the first down with it.**
+    > CounterStrikeSharp has no supported verb that credits a death to a chosen attacker:
+    > `CommitSuicide` credits nobody, there is no usercmd hook so a bot cannot be made to
+    > fire, and the only entry point that takes an attacker
+    > (`VirtualFunctions.CBaseEntity_TakeDamageOld` with a hand-built `CTakeDamageInfo`,
+    > whose one constructor takes a raw pointer) is bound to a **byte signature** in
+    > `server.so` — the class of fragility that ruled out input injection, and against
+    > which `CBaseEntity_Teleport` is a vtable offset. And the fallback of letting the AI
+    > kill while the feet follow a demo does not survive contact: **the engine stops
+    > telling its own story under a teleport.** Zero deaths in the durable log inside the
+    > twenty seconds the puppets were walked, against four in the ten seconds before, in
+    > a deathmatch that resumed within ten seconds after; the other run has none in the
+    > two buckets the walk falls in against ten in the thirty seconds before. A replayed
+    > round would be a round in which nobody ever dies, so there is no tracks fixture and
+    > no `radar` scenario.
+    >
+    > **What stays is the instrument and the number.** `IGameWorld.Teleport`,
+    > `PuppetWalk` (puppets only, a death restarts the circle where the body woke up),
+    > the core plugin's `ezpug_walk` behind the assignment's own `simulation`, and the
+    > lane's `radar` **spike** row — the one row that types at a match, declaring its
+    > single RCON, and the first row that is not part of the matrix: a demanded lane
+    > skips it and `EZPUG_CS2_CASES=radar` repeats it. `docs/sdk.md` carries the finding
+    > with the table, so a CounterStrikeSharp release with a damage verb has a number to
+    > beat.
+    >
+    > **One thing fell out of the measurement and is parked**, `OPEN-POINTS.md` §4: the
+    > 54.1 where 50 was commanded is the position ticker's real period — 108 ms, not the
+    > 100 the runtime asks for, because `GameThreadClock.Every` re-arms at `now +
+    > interval` on the frame it fires. Nothing on the wire claims otherwise (a tick
+    > carries no timestamp), but a radar interpolating on an assumed 100 ms runs 8 %
+    > ahead.
 
 - [ ] **T13: the lane is a tier.**
   - `EZPUG_CS2_TESTS=required` runs T5, T6, T8, T10 and T11 serially, under the lane's

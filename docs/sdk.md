@@ -424,6 +424,67 @@ how a test drives it.
 player wherever they stand, `unrostered` for a body the request never named while it plays
 on a side, `spec` while it is on none.
 
+### Movement: puppets keep the engine's own, and why (PRD-03 T12)
+
+A puppet moves itself. The SDK never drives a body along a path in a match anybody
+watches, and this is the measurement that decided it rather than a preference.
+
+**The question** was whether a round of movement parsed out of a real demo could be
+replayed by puppets — positions per player per tick — so that a radar, a minimap and
+everything else that draws a match could be developed against a server with nobody on it.
+Two things had to hold: a body had to *move* smoothly enough under `Teleport`, and a death
+at the demo's tick had to be creditable to the right attacker. The first holds. The second
+does not, and it takes the first down with it.
+
+**What the movement measures at.** `PuppetWalk` (behind the server console's `ezpug_walk`,
+refused unless the match asked for simulation) walks every puppet around a circle of a
+known radius at a known speed, teleporting once per engine frame; the lane's `radar` row
+plays a `powerup-dm` of four puppets and reads the `position_tick`s back off the Match
+API's stream — the same door a platform's radar has. Two windows in one match, ten seconds
+of the engine's own bot AI and twenty seconds of the walk, as the step between one tick and
+the next:
+
+| | median | p95 | max | standing still | p95/median |
+| --- | --- | --- | --- | --- | --- |
+| the engine's bots | 28.1 | 49.9 | 61.6 | 25 % | 1.77 |
+| teleported | 54.1 | 55.6 | 56.6 | 2 % | 1.03 |
+
+The commanded step was 50 units, every body was in every tick, and the two runs agree to
+the decimal. **Teleport per frame is smoother than a bot is**, and a radar drawing it would
+draw a player running.
+
+Two things fall out of that table. The 54.1 where 50 was asked for is the **position
+ticker's real period**: `GameThreadClock.Every` re-arms at `now + interval` on the frame it
+fires, so the stream's "every 100 ms" is 100 ms plus a frame — 108 ms here, measured twice.
+Nothing reads it today (a `position_tick` carries no timestamp, by design) but a consumer
+must not infer a speed from the tick rate. And the engine's own bots are the row above:
+they stand still a quarter of the time and their step varies by three quarters of its
+median, which is what real movement looks like from this door.
+
+**The death is what cannot be done.** CounterStrikeSharp offers no supported way to credit
+a death to a chosen attacker at a chosen instant: `CommitSuicide` credits nobody, there is
+no usercmd hook so a bot cannot be made to fire, and the one entry point that takes an
+attacker — `VirtualFunctions.CBaseEntity_TakeDamageOld` with a hand-built
+`CTakeDamageInfo`, whose only constructor takes a raw pointer — is bound to a **byte
+signature** in `server.so` (`CBaseEntity_Teleport`, by contrast, is a vtable offset). That
+is the class of thing that broke the input-injection route on 2026-08-04 and the reason
+this round rules it out.
+
+**And the engine stops telling its own story under a teleport**, which closes the fallback
+of letting the bots do the killing while their feet follow a demo. The second run wrote its
+windows down and counted the durable log inside them: **zero** deaths in the twenty seconds
+the four puppets were walked, against **four** in the ten seconds before, in a deathmatch
+that went back to two or three every ten seconds once the walk was over. The first run,
+whose windows were not yet recorded, has no death at all in the two ten-second buckets the
+walk falls in and ten in the thirty seconds before it. A replayed round would be a round in
+which nobody ever dies.
+
+So a `radar` scenario and a tracks fixture are not this round's, the demo remains the
+authoritative movement record, and puppets keep the engine's own movement. The instrument
+stays: `EZPUG_CS2_CASES=radar` repeats the measurement, and anything that would change the
+answer — a CounterStrikeSharp release with a supported damage verb, a native input path —
+has a number to beat.
+
 ## Player commands
 
 The manifest's `commands` are enforced in the SDK and never trusted to the phone

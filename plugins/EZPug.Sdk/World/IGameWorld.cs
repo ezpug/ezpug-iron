@@ -203,6 +203,16 @@ public interface IGameWorld
     /// </summary>
     void SetScoreboardRating(IGamePlayer player, int? rating);
     void SetTeam(IGamePlayer player, PlayerTeam team);
+    /// <summary>
+    /// <b>Put a body where you say</b> (PRD-03 T12). Engine world units for
+    /// <paramref name="position"/>, degrees for <paramref name="angles"/> as the engine
+    /// keeps them (pitch, yaw, roll), engine units a second for
+    /// <paramref name="velocity"/>; each of the last two left alone when <c>null</c>.
+    /// There is no collision check and no ground trace — the engine puts the body where
+    /// it is told, wall or no wall — so a path worth walking has to come from something
+    /// that knows the map.
+    /// </summary>
+    void Teleport(IGamePlayer player, Vector3 position, Vector3? angles = null, Vector3? velocity = null);
     void Kick(IGamePlayer player, string reason);
     /// <summary>Ask the engine for one more bot, on <paramref name="side"/> or wherever it puts one. It arrives through <see cref="PlayerConnected"/> a moment later, or not at all (a full server): nothing here promises it.</summary>
     void AddBot(PlayerTeam? side = null);

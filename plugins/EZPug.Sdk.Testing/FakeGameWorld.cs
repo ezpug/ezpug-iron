@@ -21,6 +21,8 @@ public sealed class FakePlayer : IGamePlayer
     public bool IsBot { get; set; }
     public bool IsPuppet { get; set; }
     public Vector3? Position { get; set; }
+    /// <summary>Where the last <see cref="FakeGameWorld.Teleport"/> pointed the body, if anywhere. The seam does not read angles back; a test does.</summary>
+    public Vector3? Angles { get; set; }
     public int Health { get; set; } = 100;
     public int Armor { get; set; }
     public float Speed { get; set; } = 1f;
@@ -180,6 +182,21 @@ public sealed class FakeGameWorld : IGameWorld
     {
         Fake(player).Armor = armor;
         Record(new WorldAction("armor", player.SteamId64, armor.ToString()));
+    }
+
+    /// <summary>
+    /// The engine would move the body; here the body simply is where it was told, which
+    /// is the whole of what a real teleport promises (PRD-03 T12) — no trace, no ground,
+    /// no collision. Recorded so a test can read the path back.
+    /// </summary>
+    public void Teleport(IGamePlayer player, Vector3 position, Vector3? angles = null, Vector3? velocity = null)
+    {
+        var fake = Fake(player);
+        fake.Position = position;
+        fake.Angles = angles;
+        Record(new WorldAction("teleport", player.SteamId64, string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"{position.X:0.##} {position.Y:0.##} {position.Z:0.##}")));
     }
 
     public void SetSpeed(IGamePlayer player, float multiplier)

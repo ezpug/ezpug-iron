@@ -579,6 +579,16 @@ public sealed class CounterStrikeWorld : IGameWorld
             Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_ArmorValue");
         });
 
+    /// <summary>
+    /// <b>The engine's own teleport</b> (PRD-03 T12): a vtable call CounterStrikeSharp
+    /// exposes on every entity (<c>CBaseEntity_Teleport</c>, an offset rather than a byte
+    /// signature, so it survives a game update the way a signature does not). It writes
+    /// the origin and lets the engine network it; it does not trace, so a body told to
+    /// stand inside a wall stands inside the wall.
+    /// </summary>
+    public void Teleport(IGamePlayer player, Vector3 position, Vector3? angles = null, Vector3? velocity = null) =>
+        WithPawn(player, pawn => pawn.Teleport(position, angles, velocity));
+
     public void SetSpeed(IGamePlayer player, float multiplier) =>
         WithPawn(player, pawn =>
         {

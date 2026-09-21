@@ -1678,6 +1678,17 @@ played: a four-round regulation ends 2–2 often enough to be seen — five of t
 the PRD's overtime case stays **sim-only**, where a seeded PRNG can force one, and this
 lane records what it happened to get.
 
+**And one row that is not a match but a question.** `radar` (PRD-03 T12) is a **spike**:
+it plays a `powerup-dm` of four puppets and, once the match is live, has the server walk
+every one of them around a circle by teleporting it once per engine frame
+(`ezpug_walk`, the core plugin's console command, refused unless the match asked for
+simulation), then measures the `position_tick`s the stream carried — against the same
+bodies moved by the engine's own bot AI ten seconds earlier. It is the one row that types
+at a match and it declares its single RCON, because there is no front door for "walk here"
+and the spike did not invent one. It is **not part of the matrix**: a demanded lane skips
+it, and `EZPUG_CS2_CASES=radar` is how it is repeated. What it measured, and why puppets
+keep the engine's own movement, is `docs/sdk.md`, "Movement".
+
 It is opt-in twice over — nothing happens unless `EZPUG_CS2_TESTS` is set, and
 `EZPUG_CS2_TESTS=required` turns "there is no dev node" from a printed skip into a
 failure. It is never part of `pnpm verify`. `EZPUG_CS2_CASES=knife,pause` runs one row of

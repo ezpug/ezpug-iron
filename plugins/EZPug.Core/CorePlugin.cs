@@ -1,3 +1,4 @@
+using System.Globalization;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
@@ -14,8 +15,9 @@ namespace EZPug.Core;
 /// <b>The plugin every server runs</b> (PRD-02 T8, decision 5): boot → read the sidecar →
 /// dial the link → <c>hello</c>; <c>assign</c> → the loader → <c>state: assigned</c>; the
 /// engine's hooks → the vocabulary, emitted once by the SDK's runtime; <c>release</c> →
-/// unload, the lobby map, <c>state: idle</c>. Three console commands for the operator
-/// (<c>ezpug_status</c>, <c>ezpug_announce</c>, <c>ezpug_restore</c>). Everything with a
+/// unload, the lobby map, <c>state: idle</c>. Four console commands for the operator
+/// (<c>ezpug_status</c>, <c>ezpug_announce</c>, <c>ezpug_restore</c>, and PRD-03 T12's
+/// <c>ezpug_walk</c>, which only a simulated match answers). Everything with a
 /// CounterStrikeSharp type in it is this file and <see cref="CounterStrikeWorld"/>; the
 /// rest is the SDK, proven on the harness.
 ///
@@ -50,6 +52,7 @@ public sealed class CorePlugin : BasePlugin
     private HttpDemoTransport? _demoTransport;
     private RuntimeHost? _host;
     private RosterLoadouts? _loadouts;
+    private PuppetWalk? _walk;
     private IPlatformLink? _link;
     private LinkClient? _client;
     private FileEventBuffer? _buffer;
@@ -118,6 +121,10 @@ public sealed class CorePlugin : BasePlugin
         _demos = new DemoFlow(_world, _runtime, _paths.CsgoDirectory, new DemoUploader(_demoTransport, _world.Clock, _log), _log);
         _demos.Bind();
         _world.MapStarted += OnMapStarted;
+        // The movement spike's instrument (PRD-03 T12), behind `ezpug_walk` and behind
+        // the assignment's own `simulation`: a released match leaves nobody walking.
+        _walk = new PuppetWalk(_world, _log);
+        _runtime.Released += _ => _walk?.Stop();
         _host = new RuntimeHost(_runtime, _log);
         GamemodeHost.Publish(_host);
         // The skins hand-off (decision 20, T28): the WeaponPaints fork reads a player's
@@ -166,6 +173,8 @@ public sealed class CorePlugin : BasePlugin
             _world.MapStarted -= OnMapStarted;
         }
 
+        _walk?.Stop();
+        _walk = null;
         _tap?.Remove();
         _tap = null;
         _puppets = null;
@@ -252,6 +261,45 @@ public sealed class CorePlugin : BasePlugin
         _world.Say(text);
         _runtime?.Console($"[announce] {text}");
     }
+
+    /// <summary>
+    /// <b>The movement spike</b> (PRD-03 T12): walk every puppet in a circle by
+    /// teleporting it once an engine frame, so the position ticks the SDK streams can be
+    /// held against a path nobody can argue with. Refused unless the match this server is
+    /// playing asked for simulation — the bodies it moves are puppets and nothing else
+    /// (<see cref="PuppetWalk"/>), and a production match cannot carry the scope that
+    /// makes one.
+    /// </summary>
+    [ConsoleCommand("ezpug_walk", "Spike (PRD-03 T12): walk every puppet in a circle by teleport. ezpug_walk [seconds] [speed] [radius].")]
+    [CommandHelper(usage: "[seconds] [speed] [radius]", whoCanExecute: CommandUsage.SERVER_ONLY)]
+    public void OnWalk(CCSPlayerController? player, CommandInfo info)
+    {
+        if (_walk is null || _runtime is null)
+        {
+            return;
+        }
+
+        if (_runtime.Assignment is not { Simulation: not null })
+        {
+            const string refused = "walk: this server is not playing a simulated match; there is nothing here to puppet";
+            info.ReplyToCommand(refused);
+            _runtime.Console($"[walk] {refused}");
+            return;
+        }
+
+        var outcome = _walk.Start(
+            Number(info, 1, PuppetWalk.DefaultSeconds),
+            Number(info, 2, PuppetWalk.RunUnitsPerSecond),
+            Number(info, 3, PuppetWalk.DefaultRadiusUnits));
+        info.ReplyToCommand(outcome.Message);
+        _runtime.Console($"[walk] {outcome.Message}");
+    }
+
+    /// <summary>An argument as a number, or the default when it is missing or is not one.</summary>
+    private static double Number(CommandInfo info, int index, double fallback) =>
+        index < info.ArgCount && double.TryParse(info.GetArg(index), CultureInfo.InvariantCulture, out var value)
+            ? value
+            : fallback;
 
     [ConsoleCommand("ezpug_restore", "Load a round backup already on disk under game/csgo: ezpug_restore <file> <round>.")]
     [CommandHelper(minArgs: 2, usage: "<file> <round>", whoCanExecute: CommandUsage.SERVER_ONLY)]

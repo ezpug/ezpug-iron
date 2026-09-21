@@ -95,6 +95,14 @@ const HELP = `iron-match — run one real match through the Match API and record
                          to meet \`not_alive\`, and tap once as a stranger the
                          request never rostered. Needs --simulate and a mode
                          whose manifest declares a widget and a verb
+  --walk <seconds>       the movement spike (PRD-03 T12): once the match is
+                         live, watch the engine move the puppets, then have the
+                         server walk every one of them around a circle by
+                         teleporting it once per engine frame, and measure both
+                         windows off the stream's position ticks — what a
+                         radar would draw. Sends one RCON command
+                         (\`ezpug_walk\`), which is the only door there is for
+                         it. Needs --simulate
   --ready-gate <n>       rules.warmup.minPlayersToReady across both teams;
                          default 0, which is "everybody connected must ready".
                          The builder halves it per team, and MatchZy-Enhanced
@@ -409,6 +417,37 @@ const WIDGET_CLAIMED = 'powerup_claimed'
 const WIDGET_STRANGER = '76561198000000042'
 /** How long a tap may take before the run stops waiting for its `command_result`. */
 const WIDGET_TAP_MS = 15_000
+/**
+ * **The movement spike** (PRD-03 T12), and the only row of this lane that
+ * types at a match on purpose. The question is whether a puppet moved by
+ * `Teleport` once an engine frame comes out of the Match API's stream looking
+ * like a player moving — because if it does, a round of positions parsed out
+ * of a real demo could be replayed by puppets and a radar could be developed
+ * against it without a single human on a server.
+ *
+ * There is no front door for "walk here" and inventing one would be a contract
+ * this spike has not earned, so the stimulus is the server console's own
+ * `ezpug_walk` over RCON, and the row declares its one command. What is
+ * measured is not the console's answer but what a *client* sees: the
+ * `position_tick`s the stream carries, held against the path that was asked
+ * for and against the same bodies moving themselves a few seconds earlier.
+ */
+const WALK_SECONDS = Number(flags.get('walk') ?? 0)
+if (WALK_SECONDS > 0 && !SIMULATE) die('--walk moves puppets and nothing else: pass --simulate')
+/**
+ * **A run, at the speed this server is running.** 250 units a second is a CS
+ * player's run in *game* time; the SDK's clock is a stopwatch
+ * (`GameThreadClock`), so it samples positions every 100 ms of **wall** time
+ * however fast `host_timescale` is driving the engine — and a body running
+ * beside the walk therefore covers the lane's time scale times as much ground
+ * between two samples. The walk is asked for that same apparent speed, so the
+ * two windows below are comparable rather than a measurement of the time
+ * scale. The circle is small enough to stay in one room.
+ */
+const WALK_SPEED = 250 * (TIMESCALE ?? 1)
+const WALK_RADIUS = 128
+/** How long the engine's own bots are watched first, so the walk has something to be unlike. */
+const WALK_BASELINE_MS = 10_000
 /**
  * **`rules.warmup.minPlayersToReady`, and the one way to play the floor**
  * (PRD-03 T5a). On the wire it is the whole match's count; the MatchZy
@@ -1341,12 +1380,26 @@ async function run() {
 
   // 5. The stream, from the moment the match exists.
   const streamFrames = []
+  /**
+   * **The ephemeral tier, kept** — only for `--walk` (PRD-03 T12), because a
+   * five-minute match is thousands of position ticks and nothing else in this
+   * run has a use for one. Each tick keeps its arrival, and the ticks of one
+   * frame keep their order: two samples of the same player in consecutive
+   * ticks are 100 ms of engine time apart by construction
+   * (`GamemodeRuntime.PositionTickIntervalMs`), which is the only clock the
+   * vocabulary gives a position at all.
+   */
+  const radarSamples = []
   const socket = new WebSocket(`${BASE_URL.replace(/^http/, 'ws')}/v1/matches/${matchId}/stream`, {
     headers: { authorization: `Bearer ${created.secret}` },
   })
   socket.on('message', data => {
     try {
-      streamFrames.push(JSON.parse(data.toString()))
+      const frame = JSON.parse(data.toString())
+      streamFrames.push(frame)
+      if (WALK_SECONDS > 0 && frame.type === 'tick')
+        for (const tick of frame.ticks)
+          radarSamples.push({ at: wall.now(), positions: tick.positions })
     } catch {
       // A frame that is not JSON is the orchestrator's problem, and it has none.
     }
@@ -1395,6 +1448,118 @@ async function run() {
       )
     } catch (error) {
       return `unreadable: ${error.message}`
+    }
+  }
+  /**
+   * **What the radar would draw**, out of the stream and nothing else
+   * (PRD-03 T12). A window of position ticks becomes, per player, the steps
+   * between one tick and the next — and only between *consecutive* ticks, so
+   * a body that died and came back somewhere else contributes no step across
+   * its own death. Each step is 100 ms of engine time, which makes the whole
+   * distribution a speed in engine units a second.
+   *
+   * The numbers that say whether a path looks like a player: `median` (a run
+   * is 250 u/s, so 25 units a step), `p95` and `max` (a snap the radar would
+   * draw as a jump), `still` (the share of steps under a unit — a body
+   * standing still, which the engine's own bots do constantly and a walked
+   * puppet never does) and `spread`, p95 over median, which is one number for
+   * how *even* the movement is.
+   */
+  const radarWindow = (from, to) => {
+    const byPlayer = new Map()
+    for (const [index, sample] of radarSamples.slice(from, to).entries())
+      for (const position of sample.positions) {
+        const seen = byPlayer.get(position.steamId64) ?? { at: -2, last: null, steps: [] }
+        if (seen.at === index - 1 && seen.last)
+          seen.steps.push(
+            Math.hypot(
+              position.x - seen.last.x,
+              position.y - seen.last.y,
+              position.z - seen.last.z,
+            ),
+          )
+        byPlayer.set(position.steamId64, { at: index, last: position, steps: seen.steps })
+      }
+    const steps = [...byPlayer.values()].flatMap(player => player.steps).sort((a, b) => a - b)
+    const at = fraction =>
+      steps.length === 0
+        ? null
+        : steps[Math.min(steps.length - 1, Math.floor(fraction * steps.length))]
+    const round = value => (value === null ? null : Math.round(value * 10) / 10)
+    const median = at(0.5)
+    return {
+      samples: to - from,
+      bodies: byPlayer.size,
+      steps: steps.length,
+      median: round(median),
+      p95: round(at(0.95)),
+      max: round(steps.at(-1) ?? null),
+      still:
+        steps.length === 0
+          ? null
+          : Math.round((steps.filter(step => step < 1).length / steps.length) * 100) / 100,
+      spread: median ? Math.round((at(0.95) / median) * 100) / 100 : null,
+    }
+  }
+  /**
+   * **The spike, on hardware** (PRD-03 T12). The engine's own bots first, then
+   * the same bodies on a circle nobody can argue with, measured through the
+   * same socket a platform's radar would use. The console's `[walk]` lines are
+   * read back afterwards as the server's own account of what it was asked to
+   * do — how many bodies it moved, how many teleports it commanded, and how
+   * many of them died and started a new circle where they woke up.
+   */
+  const measureWalk = async id => {
+    const from = radarSamples.length
+    const engineFrom = wall.now()
+    say(`walk: watching the engine move the puppets for ${WALK_BASELINE_MS / 1000} s`)
+    await wall.sleep(WALK_BASELINE_MS)
+    const engineTo = wall.now()
+    const engine = radarWindow(from, radarSamples.length)
+    const asked = await rcon(`ezpug_walk ${WALK_SECONDS} ${WALK_SPEED} ${WALK_RADIUS}`, 'walk')
+    // The command is `accepted` and runs a moment later; a second of grace, so
+    // the window holds the walk and not the tail of the engine's own bots.
+    await wall.sleep(1_000)
+    const walkFrom = radarSamples.length
+    const walkedFrom = wall.now()
+    // Real seconds, like the walk's own clock.
+    await wall.sleep(WALK_SECONDS * 1000)
+    const walkedTo = wall.now()
+    const teleported = radarWindow(walkFrom, radarSamples.length)
+    say(`walk: engine ${stringify(engine).replace(/\s+/g, ' ')}`)
+    say(`walk: teleported ${stringify(teleported).replace(/\s+/g, ' ')}`)
+    let lines = []
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      if (row) {
+        const tail = await api('GET', `/v1/fleet/servers/${row.id}/console`)
+        lines = tail.lines.map(entry => entry.line.trim()).filter(line => line.includes('[walk]'))
+      }
+    } catch {
+      // The console is a look on the way past, never a reason to lose a match.
+    }
+    return {
+      seconds: WALK_SECONDS,
+      speed: WALK_SPEED,
+      radius: WALK_RADIUS,
+      /** 25 units between two samples of a 250 u/s run — what the numbers are held against. */
+      expectedStep: Math.round(((WALK_SPEED * 100) / 1000) * 10) / 10,
+      accepted: asked?.status ?? null,
+      engine,
+      teleported,
+      /**
+       * When each window ran, so what the *rest* of the match did during it
+       * can be counted afterwards off the durable log — a body that stopped
+       * killing anybody while it was being teleported is the second half of
+       * this spike's answer, and a gap in a death timeline is only evidence
+       * if the window it sits in is written down.
+       */
+      window: {
+        engine: [new Date(engineFrom).toISOString(), new Date(engineTo).toISOString()],
+        teleported: [new Date(walkedFrom).toISOString(), new Date(walkedTo).toISOString()],
+      },
+      console: lines,
     }
   }
   /**
@@ -1594,6 +1759,8 @@ async function run() {
   let droppedAt = 0
   /** What `--widget` did: three taps and everything that came back (T8). */
   let widget = null
+  /** What `--walk` measured: the same bodies moved by the engine and by a teleport (T12). */
+  let walked = null
   let rated = false
   let ratedAt = 0
   let scoreboard = null
@@ -1628,6 +1795,15 @@ async function run() {
       continue
     }
     if (now.state !== 'ready' && now.state !== 'live') continue
+
+    // **The movement spike** (PRD-03 T12), once, on a live match: whatever the
+    // mode was going to do with these bodies it is doing by now, so the engine
+    // window is the engine at its most honest. It holds the poll loop for
+    // about half a minute, which is what a measurement costs.
+    if (WALK_SECONDS > 0 && walked === null && now.state === 'live') {
+      walked = await measureWalk(matchId)
+      continue
+    }
 
     // **A puppet leaves by the front door** (PRD-03 T7, T7a). Every puppet is
     // announced like a person now — the SDK's own for the modes it seats
@@ -1945,6 +2121,7 @@ async function run() {
     paused,
     dropped,
     widget,
+    walked,
   }
 }
 
@@ -2109,6 +2286,36 @@ function write(result) {
      * one was minted and the run says when it dies, which is the fact.
      */
     widget: result.widget ?? null,
+    /**
+     * **`--walk`: what a radar would have drawn** (PRD-03 T12). The same
+     * bodies in the same match, once as the engine moves them and once on a
+     * circle of a known radius at a known speed, measured off the stream's
+     * position ticks — the only door a platform has to a position at all.
+     * `null` when the run never walked anybody.
+     */
+    radar: result.walked
+      ? {
+          ...result.walked,
+          /**
+           * **What the engine went on doing while the bodies were ours.** The
+           * deaths the durable log holds inside each window: a mode whose
+           * story is deaths is still telling it under a teleport, or it is
+           * not, and that is the difference between replaying a round's
+           * movement and replaying a round.
+           */
+          deaths: Object.fromEntries(
+            Object.entries(result.walked.window).map(([name, [from, to]]) => [
+              name,
+              result.envelopes.filter(
+                envelope =>
+                  envelope.payload.type === 'player_death' &&
+                  envelope.occurredAt >= from &&
+                  envelope.occurredAt <= to,
+              ).length,
+            ]),
+          ),
+        }
+      : null,
     ledger: {
       rows: rows.length,
       open: rows.filter(row => row.releasedAt === null).length,

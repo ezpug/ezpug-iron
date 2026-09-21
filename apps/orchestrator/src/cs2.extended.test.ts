@@ -181,6 +181,20 @@ type Summary = {
       result: { status?: string; code?: string } | null
     } | null
   } | null
+  radar?: {
+    seconds: number
+    speed: number
+    radius: number
+    expectedStep: number
+    accepted: string | null
+    engine: RadarWindow
+    teleported: RadarWindow
+    /** When each window ran, so the durable log can be read inside it. */
+    window: { engine: [string, string]; teleported: [string, string] }
+    /** Deaths in the durable log inside each window — the engine's own story, under a teleport and not. */
+    deaths: { engine: number; teleported: number }
+    console: string[]
+  } | null
   matchzy?: Record<string, number>
   pluginEvents?: Record<string, number>
   demoTarget?: string | null
@@ -192,6 +206,22 @@ type Summary = {
     scenario?: string | null
     provider?: string | null
   } | null
+}
+
+/**
+ * **What a radar would draw**, out of one window of position ticks (PRD-03
+ * T12): how far each body moved between one tick and the next, 100 ms of
+ * engine time apart, as a distribution.
+ */
+type RadarWindow = {
+  samples: number
+  bodies: number
+  steps: number
+  median: number | null
+  p95: number | null
+  max: number | null
+  still: number | null
+  spread: number | null
 }
 
 /** One row of the matrix. */
@@ -227,6 +257,14 @@ type LaneCase = {
    * cannot hide behind it.
    */
   roundless?: true
+  /**
+   * **A spike, not a row of the matrix** (PRD-03 T12). It answers a question
+   * about what the hardware can do rather than holding a shape of match to
+   * its facts, so it runs only when `EZPUG_CS2_CASES` names it and a demanded
+   * lane does not pay for it. It is here because a measurement nobody can
+   * repeat is an anecdote.
+   */
+  spike?: true
   /** The facts only this case can produce. The invariants are in {@link play}. */
   facts?: (summary: Summary) => void
 }
@@ -652,6 +690,61 @@ const CASES: LaneCase[] = [
       expect(classes(sim), 'the simulator’s idle story is not the real one').toEqual(idleStory)
     },
   },
+  {
+    // **The movement spike** (PRD-03 T12), and the only row here that is not a
+    // shape of match: it is a question about hardware. Can a puppet be *moved*
+    // — by `Teleport`, once an engine frame — smoothly enough that the
+    // position ticks a platform draws a radar from look like a player running?
+    //
+    // The same four bodies are measured twice in the same match through the
+    // same socket: once while the engine's own bot AI moves them, and once
+    // while the server walks every one of them around a circle of a known
+    // radius at a known speed. Only the second window is asserted, because
+    // only it was commanded; the first is printed beside it, and what the two
+    // say about each other is the finding.
+    //
+    // **It types one RCON command and says so.** There is no front door for
+    // "walk here" and inventing one would be a contract this spike has not
+    // earned — the assertion an RCON usually skips here is about *going live*,
+    // and this row goes live the way every other does, with nobody typing at
+    // the match until it is already playing.
+    id: 'radar',
+    what: 'walks four puppets by teleport and measures what the stream carries',
+    puppets: 4,
+    spike: true,
+    rcon: 1,
+    roundless: true,
+    args: ['--gamemode', 'powerup-dm', '--walk', '20', '--no-demo', '--max-live-minutes', '12'],
+    facts: summary => {
+      const radar = summary.radar
+      expect(radar, 'the run never measured a walk').not.toBeNull()
+      expect(radar?.accepted, 'the server refused the walk').not.toBe('rejected')
+      // **The server did what it was asked**, in its own words, off the
+      // console buffer the fleet route hands back.
+      expect(radar?.console.join(' '), 'the plugin never said it was walking anybody').toContain(
+        '4 puppet(s)',
+      )
+
+      const walked = radar?.teleported
+      const expected = radar?.expectedStep ?? 0
+      // **Every rostered body is in the window**, which is what makes it a
+      // measurement of the walk rather than of the room.
+      expect(walked?.bodies, 'the walk did not reach every puppet').toBe(4)
+      expect(walked?.steps ?? 0, 'there were not enough samples to measure').toBeGreaterThan(100)
+      // **The path is the one that was asked for.** Twenty per cent either
+      // side of the commanded step — the chord of the arc is within half a
+      // per cent of it, so the rest of the band is the engine's own timing
+      // and a dropped tick here and there.
+      expect(walked?.median, `the median step is not the commanded ${expected}`).toBeGreaterThan(
+        expected * 0.8,
+      )
+      expect(walked?.median).toBeLessThan(expected * 1.2)
+      // **And it is even**: no snap a radar would draw as a jump, and no body
+      // standing still in a path that is moving at a constant speed.
+      expect(walked?.p95 ?? 0, 'one step in twenty is a jump').toBeLessThan(expected * 1.6)
+      expect(walked?.still ?? 1, 'a walked body stood still').toBeLessThan(0.05)
+    },
+  },
 ]
 
 /**
@@ -834,7 +927,9 @@ describe.skipIf(reason !== null && !DEMANDED)('puppets play real matches on the 
   })
 
   for (const lane of CASES) {
-    const chosen = ONLY.length === 0 || ONLY.includes(lane.id)
+    // A spike is never part of the matrix a round is judged on: it runs when
+    // `EZPUG_CS2_CASES` asks for it by name and not otherwise.
+    const chosen = ONLY.length === 0 ? lane.spike !== true : ONLY.includes(lane.id)
     it.skipIf(!chosen)(`${lane.id}: ${lane.what}`, () => void play(lane), BUDGET_MS + 30_000)
   }
 })
@@ -903,12 +998,22 @@ describe('the iron-match script', () => {
       // and run a second time on the simulator inside the row so the two can
       // be compared by the classes and order of their facts.
       'idle',
+      // **T12**'s spike, which is not part of the matrix and runs only when
+      // it is named: can a puppet be moved smoothly enough for a radar?
+      'radar',
     ])
     // **No row of the matrix types at the match.** Every one goes live because
     // players readied and nothing else, and every one takes its stimulus
     // through the Match API — `drop` included, since PRD-03 T7a announced the
     // puppets MatchZy seats and gave `kick` somebody to find. A row that
     // quietly grew an RCON would be caught here.
-    expect(CASES.filter(lane => (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual([])
+    expect(CASES.filter(lane => !lane.spike && (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual(
+      [],
+    )
+    // The spike does, once, and declares it: there is no front door for
+    // "walk here" and PRD-03 T12 did not invent one to have a spike.
+    expect(CASES.filter(lane => lane.spike).map(lane => `${lane.id}:${lane.rcon}`)).toEqual([
+      'radar:1',
+    ])
   })
 })
