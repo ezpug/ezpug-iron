@@ -362,6 +362,12 @@ if (!['ct', 't', 'knife'].includes(SIDES)) die('--sides is `ct`, `t` or `knife`'
  */
 const PAUSE = flags.get('pause') === 'true'
 /**
+ * How many times the pause is asked for, and how long each try waits for
+ * `match_paused`. A halftime at timescale 2 lasts well under one wait.
+ */
+const PAUSE_TRIES = 4
+const PAUSE_HOLD_MS = 20_000
+/**
  * **One puppet leaves and comes back, by the front door** (PRD-03 T6, T7a),
  * while the match is still in warmup — because that is the only window in
  * which a missing rostered player changes anything:
@@ -1719,6 +1725,16 @@ async function run() {
    * "accepted" for a command the plugin refused, so this waits for the late
    * answer and returns that.
    */
+  /** Whether the durable log carries a fact of this type yet. It reads the whole log, which is short while a match is live. */
+  const said = async type => {
+    for (let cursor = '0'; cursor !== null; ) {
+      const page = await api('GET', `/v1/matches/${matchId}/events?cursor=${cursor}&limit=200`)
+      if (page.items.some(envelope => envelope.payload.type === type)) return true
+      if (page.items.length === 0) return false
+      cursor = page.nextCursor
+    }
+    return false
+  }
   const command = async (body, waitMs = 10_000) => {
     let ack
     try {
@@ -2161,12 +2177,27 @@ async function run() {
     // plugin's — MatchZy's own pause events are dropped at the door because
     // the plugin already says it (T3) — so this is where that decision meets
     // hardware.
+    //
+    // **Until the pause holds** (PRD-03 T18). MatchZy refuses `css_forcepause`
+    // during halftime, and a 1v1 at four regulation rounds reaches halftime
+    // about when this fires. The core plugin still answers `applied`, because
+    // it cannot read MatchZy's refusal (OPEN-POINTS §6). So the run waits for
+    // the `match_paused` fact in the durable log, and asks again after a
+    // refused try. Every try is recorded.
     if (PAUSE && paused === null && liveAt > 0 && wall.now() - liveAt >= 20_000) {
-      paused = {
-        pause: await command({ correlationId: `${RUN_ID}-pause`, type: 'pause' }),
-        unpause: null,
+      paused = { pause: null, unpause: null, tries: 0, held: false }
+      while (paused.tries < PAUSE_TRIES && !paused.held) {
+        paused.tries += 1
+        const suffix = paused.tries === 1 ? '' : `-${paused.tries}`
+        paused.pause = await command({ correlationId: `${RUN_ID}-pause${suffix}`, type: 'pause' })
+        const until = wall.now() + PAUSE_HOLD_MS
+        while (!paused.held && wall.now() < until) {
+          await wall.sleep(1_000)
+          paused.held = await said('match_paused')
+        }
+        if (!paused.held) say(`pause ${paused.tries} did not hold (halftime?), asking again`)
       }
-      say('paused')
+      say(paused.held ? `paused (try ${paused.tries})` : 'the pause never held')
       continue
     }
     if (paused !== null && paused.unpause === null) {
