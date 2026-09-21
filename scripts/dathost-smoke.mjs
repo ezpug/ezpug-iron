@@ -24,7 +24,8 @@
 //   6. It reaches `ready` — which only happens when the clone booted, the
 //      plugin dialled the link out of a datacentre in Düsseldorf and said
 //      `server_ready`. This is the step the whole round is aimed at.
-//   7. `ezpug_status` is sent as an `rcon` command and travels down the link,
+//   7. `ezpug_status` is sent as an `rcon` command down the link and its
+//      report read back off the fleet's console route, over the same link,
 //      so the answer proves the link carries traffic in both directions.
 //   8. The connect facts and the GOTV relay are read off the match.
 //   9. The server is released — and *then* the ledger row is checked closed
@@ -560,12 +561,31 @@ export async function main(options = {}) {
     )
 
     // ── 7. `ezpug_status`, down the link and back ──────────────────────────
+    // Two doors, as in `iron-match.mjs`: the command goes down the link and
+    // its `applied` comes back up it, but the report does not travel with
+    // it — a `SERVER_ONLY` CounterStrikeSharp command answers on the server
+    // console, so the `output` is empty (measured on the dev node in PRD-02
+    // T27, and on a rented box in PRD-03 T14). The plugin also writes the
+    // report into its console buffer as `[status] …` lines, and the fleet's
+    // console route asks the plugin for that buffer over the same link. The
+    // engine runs the command on its next frame, so the read waits a beat.
     const status = await api('POST', `/v1/matches/${match.id}/commands`, {
       correlationId: `${runId}-status`,
       type: 'rcon',
       command: 'ezpug_status',
     })
-    const output = scrub(status.output ?? '')
+    let report = []
+    if (status.status === 'applied') {
+      await sleep(2_000)
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === match.id)
+      const tail = row ? await api('GET', `/v1/fleet/servers/${row.id}/console`) : { lines: [] }
+      report = tail.lines
+        .map(entry => entry.line)
+        .filter(line => line.startsWith('[status] '))
+        .map(line => line.slice('[status] '.length))
+    }
+    const output = scrub(report.join('\n'))
     result.status = {
       applied: status.status === 'applied',
       lines: output ? output.split('\n').length : 0,

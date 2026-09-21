@@ -51,6 +51,9 @@ const ORCHESTRATOR_URL = 'http://orchestrator.test'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '../../../../..')
 
+/** The beat the script gives the engine to run `ezpug_status` before it reads the console. */
+const STATUS_BEAT_MS = 2_000
+
 /** What the core plugin's `ezpug_status` prints, near enough for the check the script makes. */
 const STATUS_OUTPUT = [
   'EZPug.Core 0.1.0 / EZPug.Sdk 0.1.0 / CounterStrikeSharp 1.0.373',
@@ -287,8 +290,10 @@ async function createRig(options: { link?: boolean; story?: boolean } = {}): Pro
   /** The puppets' story, told one poll after `server_ready` — never inside the poll that saw it. */
   let story: (() => Promise<unknown>) | undefined
   /** Dial in as soon as `configure` has planted the sidecar on the clone. */
-  const dialIfReady = async (): Promise<void> => {
-    if (story) {
+  const dialIfReady = async (ms: number): Promise<void> => {
+    // The story waits out the script's short beat before it reads the console
+    // after `ezpug_status`: a real match plays for minutes, not inside it.
+    if (story && ms > STATUS_BEAT_MS) {
       const telling = story
       story = undefined
       await telling()
@@ -303,10 +308,15 @@ async function createRig(options: { link?: boolean; story?: boolean } = {}): Pro
       url: linkUrl,
       token: sidecar.token,
       hello: { map: 'de_dust2' },
-      onCommand: command =>
-        command.type === 'rcon' && command.command === 'ezpug_status'
-          ? { status: 'applied', output: STATUS_OUTPUT }
-          : undefined,
+      // As the core plugin does: the RCON reply is empty (a `SERVER_ONLY`
+      // command answers on the server console) and the report lands in the
+      // console buffer the fleet's console route reads.
+      onCommand: (command, server) => {
+        if (command.type !== 'rcon' || command.command !== 'ezpug_status') return undefined
+        for (const line of STATUS_OUTPUT.split('\n'))
+          server.consoleLines.push({ uptimeMs: server.uptimeMs(), line: `[status] ${line}` })
+        return { status: 'applied', output: '' }
+      },
     })
     plugin = dialling
     const welcome = await dialling.connect()
@@ -343,7 +353,7 @@ async function createRig(options: { link?: boolean; story?: boolean } = {}): Pro
       return Promise.reject(new Error(`the smoke asked for ${url}, which is nobody's`))
     }) as typeof fetch,
     sleep: async (ms: number) => {
-      await dialIfReady()
+      await dialIfReady(ms)
       await app.advance(ms)
     },
     plugin: () => plugin,

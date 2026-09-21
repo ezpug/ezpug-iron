@@ -706,7 +706,7 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     > ends `force_ended` with its ledger row closed rather than being cancelled by a
     > timeout — which is exactly what `wingman` did, at fourteen rounds.
 
-- [ ] **T14: puppets on Dathost.** One live smoke (`EZPUG_DATHOST_TESTS=required`): a
+- [x] **T14: puppets on Dathost.** One live smoke (`EZPUG_DATHOST_TESTS=required`): a
   2v2 `pug` of puppets on a rented box, end to end.
   - It proves the refreshed template, the new MatchZy and simulation under a GSLT.
   - One server-hour at most, deallocated in `finally`, the ledger line in the note, and
@@ -731,6 +731,30 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
     >
     > **Unblocked 2026-09-21**: T16 deployed `8028bbf` to `gs.ezpug.com` once the platform's
     > production moved to match-api 0.17.0. This is the next run's task.
+    >
+    > **Played 2026-09-21, green on the second rental.** Four puppets on `nordwind.dathost.net`
+    > readied through MatchZy-Enhanced under a GSLT, went live, crossed halftime and ended.
+    > Every fact carried `source.simulated`. The lane took 200 s. The first rental (1 min 50 s,
+    > €0.01) found two reds and neither was the product. **The template's stamp** was
+    > `7ed871a` while the CS2 image had been rebuilt from `35e1670`, with no plugin code
+    > between them, so only `build.json` differed; `pnpm dathost:image` refreshed that one file.
+    > **Step 7 read the wrong door.** PRD-02 T27 measured that `ezpug_status` over RCON
+    > answers on the server console and comes back empty. `iron-match.mjs` learned that. The
+    > smoke never did, because its fake answered the `rcon` with the report. The smoke now
+    > reads the `[status]` lines off `GET /v1/fleet/servers/:id/console`, and so does the
+    > rehearsal's fake. Ledger: `18924354` (1 c) and `02cff0f4` (2 c), both 40 c/h and both
+    > closed. The account lists only the template (off). T14a fell out of reading the
+    > console route.
+
+- [ ] **T14a: the fleet console route reads a tail once and never again.**
+  `fleet/service.ts` `console` serves `channel.consoleTail()` whenever one is cached. The
+  plugin sends its tail only when asked (`LinkClient` answers a `console` command, and it
+  never pushes one unasked). So the first read on a link freezes the answer for the
+  link's life: an operator's console never moves, and `iron-match.mjs`'s repeated
+  `scoreboard:` reads after the first one see the first tail. Ask the plugin afresh on
+  every read, keeping the cached tail as the fallback when the ask times out. Add a test
+  that reads twice around a new line and goes red today. Found by T14, which reads the
+  route once per server and so is not affected.
 
 - [x] **T15: the operator's lever.**
   - `ezpug-iron matches create --simulate [--scenario <name>] [--timescale <n>]`,
