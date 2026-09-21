@@ -1158,6 +1158,23 @@ Nine steps, in this order, and the order is the point:
 9. The server is released — and **then** the ledger row is checked closed and the account
    is counted again.
 
+**With puppets** (`--puppets <n>`, PRD-03 T14; `--timescale`, default 2). The match
+rosters `n` SteamIDs on alternating sides (4 is a 2v2, the same tk/maex roster the CS2 lane
+uses), asks for `simulation`, and the run key holds the `simulation` scope. MatchZy-Enhanced
+seats one bot per entry on the rented box and readies each one through its own ready system.
+Between steps 8 and 9 the run waits for the match to play out, reads the durable log back,
+and treats each of these as a problem if it is missing:
+
+- a puppet that did not ready;
+- no `going_live`, `round_end`, `map_end` or `series_end`;
+- a fact without `source.simulated`;
+- a match still running three minutes before the wall.
+
+A match still running then is force-ended by the release. Nothing is typed at the match
+along the way. This is what the `EZPUG_DATHOST_TESTS` lane runs: `--puppets 4` inside a
+45-minute wall. It proves the refreshed template, the fork and simulation under a GSLT on
+the same one server.
+
 **The money.** Exactly one server is ever allocated; the release is a `finally`; the run is
 bounded by `--budget-minutes` (default 60, the PRD's one server-hour) and the run's own key
 by `--budget-cents` (default 500) and one concurrent server; the match carries

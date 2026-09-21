@@ -7,7 +7,11 @@ import { loadRootEnv } from './env'
 
 /**
  * **The `EZPUG_DATHOST_TESTS` lane** (PRD-02 T19): one real server in
- * Frankfurt, rented and given back, asserted.
+ * Frankfurt, rented and given back, asserted — and since PRD-03 T14, a 2v2
+ * `pug` of puppets played on it end to end in between (`--puppets 4`), so the
+ * one server-hour also proves the refreshed template, MatchZy-Enhanced and
+ * simulation mode under a GSLT. The old ready-only run is `pnpm dathost:smoke`
+ * without the flag; the lane does not pay for both.
  *
  * It shells out to `scripts/dathost-smoke.mjs` — the same command an operator
  * runs — for the reason the CS2 lane shells out to `iron-match.mjs`: the flow
@@ -49,8 +53,13 @@ const BASE_URL = (
 const LANE = process.env.EZPUG_DATHOST_TESTS ?? ''
 const DEMANDED = LANE === 'required'
 
-/** The script's own wall, and the outer one this file holds it to. */
-const SCRIPT_MINUTES = 30
+/**
+ * The script's own wall, and the outer one this file holds it to: twelve
+ * minutes for the clone to boot, the rest for four puppets and four rounds
+ * at the lane's timescale, and the whole of it inside the PRD's server-hour.
+ */
+const PUPPETS = 4
+const SCRIPT_MINUTES = 45
 const BUDGET_MS = (SCRIPT_MINUTES + 5) * 60_000
 
 async function why(): Promise<string | null> {
@@ -100,7 +109,14 @@ describe.skipIf(reason !== null && !DEMANDED)(
       () => {
         const run = spawnSync(
           'node',
-          ['scripts/dathost-smoke.mjs', '--json', '--budget-minutes', String(SCRIPT_MINUTES)],
+          [
+            'scripts/dathost-smoke.mjs',
+            '--json',
+            '--budget-minutes',
+            String(SCRIPT_MINUTES),
+            '--puppets',
+            String(PUPPETS),
+          ],
           { cwd: REPO, encoding: 'utf8', timeout: BUDGET_MS },
         )
         const summary = JSON.parse(run.stdout.trim() || '{}') as {
@@ -113,6 +129,12 @@ describe.skipIf(reason !== null && !DEMANDED)(
           connect?: { host: string; port: number; passwordSet: boolean } | null
           tv?: { host: string; port: number; delaySeconds: number } | null
           status?: { applied: boolean; lines: number; output: string } | null
+          puppets?: {
+            simulated: boolean
+            readied: number
+            facts: Record<string, number>
+            unmarked: number
+          } | null
           ledger?: { rows: number; open: number; hourlyCents: number | null } | null
           clones?: { before: number; afterRelease: number; deleted: number }
         }
@@ -133,7 +155,6 @@ describe.skipIf(reason !== null && !DEMANDED)(
         // the plugin on the clone saying `server_ready` over its own outbound
         // socket, and `ezpug_status` only answers because a command went back
         // down it — decision 5, proven on rented hardware.
-        expect(summary.finalState).toBe('ready')
         expect(summary.status?.applied, 'ezpug_status was not applied').toBe(true)
         expect(summary.status?.output).toContain('link:')
 
@@ -143,6 +164,16 @@ describe.skipIf(reason !== null && !DEMANDED)(
         expect(summary.connect?.port).toBeGreaterThan(0)
         expect(summary.connect?.passwordSet).toBe(true)
         expect(summary.tv?.port, 'no GOTV relay on the clone').toBeGreaterThan(0)
+
+        // **The puppets played it out** (PRD-03 T14): every roster entry
+        // readied through MatchZy-Enhanced's own ready system, the map went
+        // live and ended, and every fact of it says it was simulated.
+        expect(summary.finalState).toBe('ended')
+        expect(summary.puppets).toMatchObject({ simulated: true, readied: PUPPETS, unmarked: 0 })
+        expect(summary.puppets?.facts.going_live).toBe(1)
+        expect(summary.puppets?.facts.round_end ?? 0).toBeGreaterThanOrEqual(1)
+        expect(summary.puppets?.facts.map_end).toBe(1)
+        expect(summary.puppets?.facts.series_end).toBe(1)
 
         // The money: a row was opened, it is closed, it cost something real,
         // and the account holds no server of ours afterwards.

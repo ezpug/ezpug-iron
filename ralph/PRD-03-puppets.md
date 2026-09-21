@@ -712,6 +712,23 @@ Traced 2026-09-19. Trust the file over this note. The platform checkout is at
   - One server-hour at most, deallocated in `finally`, the ledger line in the note, and
     the account listing no tagged server afterwards.
 
+    > blocked (2026-09-21): **the only orchestrator a datacentre can reach cannot take this
+    > tree yet.** A rented box dials `gs.ezpug.com`, which still runs T1's build: it knows
+    > no `simulation` (T4). Deploying it now would put `team: "unrostered"` (0.16.0) in
+    > front of the platform's **production**, which runs `@ezpug/match-api` **0.15.0**
+    > (`ezpug/api:latest`, revision `fb77243`) — the strict parser T7 warned about. The
+    > platform's `main` already pins 0.17.0 (`c36c3fa`). This unblocks when its production
+    > carries ≥ 0.16.0, or when a human gives a dev orchestrator a TLS route. The dev
+    > orchestrators listen on loopback only, and no tunnel tool is on the box.
+    > **Everything else is done**:
+    > - `pnpm dathost:smoke --puppets 4` is rehearsed offline in `smoke-script.test.ts`;
+    > - the `EZPUG_DATHOST_TESTS` lane runs it inside a 45-minute wall;
+    > - the CS2 image is rebuilt from `7ed871a`;
+    > - the Dathost template is refreshed (`6a9fe695…`, `--check` green, never started).
+    >
+    > The live run is one command once the deploy can happen:
+    > `EZPUG_DATHOST_TESTS=required EZPUG_IRON_BASE_URL=https://gs.ezpug.com`.
+
 - [ ] **T15: the operator's lever.**
   - `ezpug-iron matches create --simulate [--scenario <name>] [--timescale <n>]`,
     replacing the script-only `--bots`.

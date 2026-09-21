@@ -3,6 +3,7 @@
 // allocated, dialled home, spoken to, and given back.
 //
 //   pnpm dathost:smoke                  the whole smoke against dathost.net
+//   pnpm dathost:smoke --puppets 4      …and a 2v2 of puppets plays it out (PRD-03 T14)
 //   pnpm dathost:smoke --json           the summary and nothing else
 //   node scripts/dathost-smoke.mjs --help
 //
@@ -28,6 +29,17 @@
 //   8. The connect facts and the GOTV relay are read off the match.
 //   9. The server is released — and *then* the ledger row is checked closed
 //      and the account is counted again.
+//
+// **With `--puppets <n>`** (PRD-03 T14) the match is rostered with `n`
+// SteamIDs and asks for `simulation`, so MatchZy-Enhanced's simulation mode
+// seats one bot per entry on the rented box and readies each of them through
+// its own ready system. Between steps 8 and 9 the run then waits for the
+// match to play itself out and reads the durable log back: every puppet
+// readied, the map went live, rounds were played, `map_end` and `series_end`
+// arrived, and every fact says `source.simulated`. Nothing is typed at the
+// match on the way — `ezpug_status` is a read, not a nudge. It is what proves
+// the refreshed template, the fork and simulation under a GSLT together, on
+// the same one server-hour.
 //
 // **The money.** A rented server is the only thing in this repo that costs
 // real euros by the minute, so: exactly one is ever allocated, the release is
@@ -82,6 +94,9 @@ const HELP = `dathost-smoke — rent one real Dathost server and give it back (P
   --gamemode <id>        default pug
   --map <name>           default de_dust2
   --region <id>          requirements.region; default frankfurt
+  --puppets <n>          roster n puppets (alternate sides; 4 is a 2v2) and
+                         ask for simulation; the match is played to its end
+  --timescale <n>        simulation.timeScale for the puppets; default 2
   --budget-minutes <n>   the wall this run may never cross; default 60
   --budget-cents <n>     the run key's monthly ceiling in euro cents; default 500
   --boot-minutes <n>     how long the clone gets to boot and dial in; default 12
@@ -208,6 +223,7 @@ export async function main(options = {}) {
     provider: null,
     matchId: null,
     finalState: null,
+    puppets: null,
     connect: null,
     tv: null,
     status: null,
@@ -309,6 +325,20 @@ export async function main(options = {}) {
   const budgetCents = Number(flags.get('budget-cents') ?? 500)
   const bootMs = Number(flags.get('boot-minutes') ?? 12) * 60_000
   const wantImageCheck = flags.get('no-image-check') !== 'true'
+  /**
+   * Puppets (PRD-03 T14). `0` is the ready-only smoke PRD-02 T19 wrote; any
+   * other count is a roster of that many simulated players, played through.
+   */
+  const puppets = Number(flags.get('puppets') ?? 0)
+  const timeScale = Number(flags.get('timescale') ?? 2)
+  if (!Number.isInteger(puppets) || puppets < 0) {
+    problems.push('--puppets is a whole number of simulated players, 0 or more')
+    return finish()
+  }
+  if (flags.has('timescale') && puppets === 0) {
+    problems.push('--timescale is the puppets’: pass --puppets')
+    return finish()
+  }
   const deadline = startedAt + budgetMs
   const runId = `dathost-smoke-${startedAt}`
 
@@ -413,7 +443,9 @@ export async function main(options = {}) {
     const webhookSecret = `dathost-smoke-${startedAt}-not-a-real-secret`
     const created = await admin('POST', '/v1/keys', {
       name: runId,
-      scopes: ['matches', 'fleet', 'admin'],
+      // `simulation` only when this run asks for puppets: the door refuses a
+      // `simulation` block from a key without it (PRD-03 T4).
+      scopes: ['matches', 'fleet', 'admin', ...(puppets > 0 ? ['simulation'] : [])],
       budget: { maxConcurrentServers: 1, maxServerLifetimeMinutes: 60, monthlyCents: budgetCents },
       webhookSecrets: [{ id: WEBHOOK_SECRET_ID, secret: webhookSecret }],
     })
@@ -450,14 +482,21 @@ export async function main(options = {}) {
     step('counted the account', `${before.length} tagged server(s) before`)
 
     // ── 5. One match, on Dathost by name ───────────────────────────────────
+    const roster = puppetRoster(puppets)
     const request = {
       clientMatchId: runId,
       game: 'cs2',
       gamemode,
-      teams: { teamA: { name: 'EZPug A', players: [] }, teamB: { name: 'EZPug B', players: [] } },
+      teams: {
+        teamA: { name: 'EZPug A', players: roster.teamA },
+        teamB: { name: 'EZPug B', players: roster.teamB },
+      },
+      ...(puppets > 0 && { simulation: { timeScale } }),
       maps: [{ map, sides: 'ct' }],
       rules: {
-        regulationRounds: 2,
+        // The lane's four rounds for a played match (`iron-match.mjs`): two
+        // split 1-1 and end in a draw nobody asked for often enough to matter.
+        regulationRounds: puppets > 0 ? 4 : 2,
         overtime: { enabled: false, maxRounds: 6, startMoney: 10_000 },
         warmup: { minPlayersToReady: 0, minSpectatorsToReady: 0 },
         cvars: {},
@@ -496,7 +535,11 @@ export async function main(options = {}) {
     const bootBy = Math.min(now() + bootMs, deadline)
     let latest = match
     let state = match.state
-    while (now() < bootBy && latest.state !== 'ready' && !TERMINAL.includes(latest.state)) {
+    // Puppets ready themselves the moment they are seated, so a poll can find
+    // the match already past `ready`; that is the same proof the link dialled.
+    const booted = candidate =>
+      candidate.state === 'ready' || (puppets > 0 && candidate.state === 'live')
+    while (now() < bootBy && !booted(latest) && !TERMINAL.includes(latest.state)) {
       await sleep(5_000)
       latest = await api('GET', `/v1/matches/${match.id}`)
       if (latest.state !== state) {
@@ -505,7 +548,7 @@ export async function main(options = {}) {
       }
     }
     result.finalState = latest.state
-    if (latest.state !== 'ready')
+    if (!booted(latest))
       throw new Error(
         latest.state === 'failed'
           ? `the match failed: ${latest.endedReason?.kind ?? 'no reason given'}${latest.endedReason?.detail ? ` (${latest.endedReason.detail})` : ''}`
@@ -551,6 +594,31 @@ export async function main(options = {}) {
       'read the connect facts',
       `${result.connect?.host}:${result.connect?.port}${result.tv ? `, GOTV ${result.tv.host}:${result.tv.port}` : ''}`,
     )
+
+    // ── 8b. The puppets play it out (PRD-03 T14) ───────────────────────────
+    if (puppets > 0) {
+      // Three minutes kept back for the release and the two checks after it:
+      // a match still playing at the wall is force-ended by `cleanups`.
+      const playBy = deadline - 3 * 60_000
+      while (now() < playBy && !TERMINAL.includes(latest.state)) {
+        await sleep(10_000)
+        latest = await api('GET', `/v1/matches/${match.id}`)
+        if (latest.state !== state) {
+          say(`   ${state} → ${latest.state}`)
+          state = latest.state
+        }
+      }
+      result.finalState = latest.state
+      const envelopes = await readLog(api, match.id)
+      result.puppets = playedBy(envelopes, { puppets, roster, match: latest })
+      if (latest.state !== 'ended')
+        problems.push(`the puppets' match did not end (${latest.state} at the wall)`)
+      problems.push(...puppetProblems(result.puppets, puppets))
+      step(
+        'the puppets played it out',
+        `${result.puppets.readied}/${puppets} readied, ${result.puppets.facts.round_end ?? 0} round(s), ${latest.state}`,
+      )
+    }
     if (now() > deadline) problems.push('the run crossed its budget before it could finish')
   } catch (error) {
     problems.push(scrub(error instanceof Error ? error.message : String(error)))
@@ -619,6 +687,78 @@ export async function main(options = {}) {
   }
 
   return finish()
+}
+
+/**
+ * The puppets' identities — the fixtures' own tk and maex, then their
+ * neighbours, alternately on team A and team B — exactly the roster
+ * `iron-match.mjs` gives the CS2 lane, so a fact recorded off a rented box
+ * reads against the same fixtures as one recorded off the dev node.
+ */
+const PUPPET_STEAM_ID_BASE = 76561198279375306n
+const PUPPET_NAMES = ['tk', 'maex']
+function puppetRoster(count) {
+  const teams = { teamA: [], teamB: [] }
+  for (let index = 0; index < count; index++) {
+    ;(index % 2 === 0 ? teams.teamA : teams.teamB).push({
+      steamId64: String(PUPPET_STEAM_ID_BASE + BigInt(index)),
+      name: PUPPET_NAMES[index] ?? `puppet-${index + 1}`,
+      locale: index % 2 === 0 ? 'de' : 'en',
+    })
+  }
+  return teams
+}
+
+/**
+ * The whole durable log, a page at a time. An empty page is the end whatever
+ * the cursor says: the route only hands back a null cursor once the reader
+ * has caught up *and* the match is terminal, so a match the wall cut short
+ * would otherwise be read for ever.
+ */
+async function readLog(api, matchId) {
+  const envelopes = []
+  for (let cursor = '0'; cursor !== null; ) {
+    const page = await api('GET', `/v1/matches/${matchId}/events?cursor=${cursor}&limit=200`)
+    if (page.items.length === 0) break
+    envelopes.push(...page.items)
+    cursor = page.nextCursor
+  }
+  return envelopes
+}
+
+/** What the log says the puppets did — counts and names only, never a secret. */
+function playedBy(envelopes, { roster, match }) {
+  const facts = {}
+  for (const { payload } of envelopes) facts[payload.type] = (facts[payload.type] ?? 0) + 1
+  const rostered = new Set([...roster.teamA, ...roster.teamB].map(entry => entry.steamId64))
+  const readied = new Set(
+    envelopes
+      .filter(({ payload }) => payload.type === 'player_ready')
+      .map(({ payload }) => payload.player?.steamId64)
+      .filter(steamId64 => rostered.has(steamId64)),
+  )
+  // Every fact a server said carries a `source`; the orchestrator's own
+  // (`match.ended`, …) do not, and are not the server's to mark.
+  const sourced = envelopes.filter(({ payload }) => payload.source)
+  return {
+    simulated: match.simulated === true,
+    readied: readied.size,
+    facts: Object.fromEntries(Object.entries(facts).sort(([a], [b]) => (a < b ? -1 : 1))),
+    unmarked: sourced.filter(({ payload }) => payload.source.simulated !== true).length,
+  }
+}
+
+/** The five things a played puppet match has to show, as problems. */
+function puppetProblems(played, puppets) {
+  const problems = []
+  if (!played.simulated) problems.push('the match does not say `simulated: true`')
+  if (played.readied !== puppets)
+    problems.push(`${played.readied} of ${puppets} puppets readied through MatchZy`)
+  for (const type of ['going_live', 'round_end', 'map_end', 'series_end'])
+    if (!played.facts[type]) problems.push(`the log holds no \`${type}\``)
+  if (played.unmarked > 0)
+    problems.push(`${played.unmarked} fact(s) of a simulated match without \`source.simulated\``)
+  return problems
 }
 
 /**

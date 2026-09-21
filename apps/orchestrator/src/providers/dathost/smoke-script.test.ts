@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { GameserverEvent } from '@ezpug/match-api'
 import { createFakeServer, type FakeServer } from '@ezpug/protocol/fake-server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createTestApp, type TestApp } from '../../http/testing'
@@ -134,6 +135,12 @@ interface SmokeSummary {
   connect: { host: string; port: number; passwordSet: boolean } | null
   tv: { host: string; port: number; delaySeconds: number } | null
   status: { applied: boolean; lines: number; output: string } | null
+  puppets: {
+    simulated: boolean
+    readied: number
+    facts: Record<string, number>
+    unmarked: number
+  } | null
   ledger: { rows: number; open: number; hourlyCents: number | null } | null
   clones: { before: number; afterRelease: number; deleted: number }
   problems: string[]
@@ -141,7 +148,59 @@ interface SmokeSummary {
 
 const rigs: Rig[] = []
 
-async function createRig(options: { link?: boolean } = {}): Promise<Rig> {
+/**
+ * The story a rented box tells once its puppets are seated: every roster
+ * entry readies, the map goes live, two rounds, the map and the series end.
+ * What MatchZy-Enhanced would say through its door, said here over the link,
+ * which the vocabulary makes the same thing (decision 19: one language).
+ */
+function puppetStory(
+  matchId: string,
+  source: { provider: string; serverId: string },
+  steamIds: string[],
+): GameserverEvent[] {
+  const expected = steamIds.length
+  const ready = { teamA: 0, teamB: 0 }
+  const readies = steamIds.map((steamId64, index): GameserverEvent => {
+    const team = index % 2 === 0 ? 'team_a' : 'team_b'
+    if (team === 'team_a') ready.teamA += 1
+    else ready.teamB += 1
+    return {
+      type: 'player_ready',
+      matchId,
+      source,
+      player: { steamId64, name: `puppet-${index + 1}`, team },
+      tally: { ready: { ...ready }, expected },
+    }
+  })
+  const score = { teamA: 2, teamB: 0 }
+  return [
+    ...readies,
+    { type: 'going_live', matchId, source, mapNumber: 1, map: 'de_dust2' },
+    ...[1, 2].map(
+      (roundNumber): GameserverEvent => ({
+        type: 'round_end',
+        matchId,
+        source,
+        mapNumber: 1,
+        roundNumber,
+        winner: { team: 'team_a', side: 'ct' },
+        winCondition: 'elimination',
+        score: { teamA: roundNumber, teamB: 0 },
+      }),
+    ),
+    { type: 'map_end', matchId, source, mapNumber: 1, map: 'de_dust2', score, winner: 'team_a' },
+    {
+      type: 'series_end',
+      matchId,
+      source,
+      seriesScore: { teamA: 1, teamB: 0 },
+      winner: 'team_a',
+    },
+  ]
+}
+
+async function createRig(options: { link?: boolean; story?: boolean } = {}): Promise<Rig> {
   const app = createTestApp({ noProviders: true })
   const fake = createFakeDathost({ clock: app.clock, email: EMAIL, password: PASSWORD })
   const tree = writeTree()
@@ -225,8 +284,15 @@ async function createRig(options: { link?: boolean } = {}): Promise<Rig> {
   })
 
   let plugin: FakeServer | undefined
+  /** The puppets' story, told one poll after `server_ready` — never inside the poll that saw it. */
+  let story: (() => Promise<unknown>) | undefined
   /** Dial in as soon as `configure` has planted the sidecar on the clone. */
   const dialIfReady = async (): Promise<void> => {
+    if (story) {
+      const telling = story
+      story = undefined
+      await telling()
+    }
     if (plugin || linkUrl === '') return
     const clone = fake
       .servers()
@@ -245,12 +311,16 @@ async function createRig(options: { link?: boolean } = {}): Promise<Rig> {
     plugin = dialling
     const welcome = await dialling.connect()
     const assign = await dialling.next('assign')
-    await dialling.emit({
-      type: 'server_ready',
-      matchId: assign.matchId,
-      source: { provider: welcome.provider, serverId: welcome.serverId },
-      map: 'de_dust2',
-    })
+    const source = { provider: welcome.provider, serverId: welcome.serverId }
+    await dialling.emit({ type: 'server_ready', matchId: assign.matchId, source, map: 'de_dust2' })
+    // A match that asked for puppets plays itself out; one that did not waits.
+    const request = (await app.store.findMatch(assign.matchId))?.requestJson
+    if (request?.simulation && options.story !== false) {
+      const steamIds = [...request.teams.teamA.players, ...request.teams.teamB.players]
+        .sort((a, b) => (a.steamId64 < b.steamId64 ? -1 : 1))
+        .map(player => player.steamId64)
+      story = () => dialling.emit(puppetStory(assign.matchId, source, steamIds))
+    }
   }
 
   const rig: Rig = {
@@ -401,6 +471,64 @@ describe('the smoke, end to end against the fakes', () => {
     )
     expect(run).toHaveLength(1)
     expect(run[0]?.revokedAt).not.toBeNull()
+  })
+})
+
+describe('with puppets (PRD-03 T14)', () => {
+  it('rosters a 2v2 of puppets, asks for simulation, and waits for them to play it out', async () => {
+    const rig = await createRig()
+    const { code, summary, stderr } = await rig.run(['--puppets', '4'])
+    expect(code, `${JSON.stringify(summary.problems)}\n${stderr}`).toBe(0)
+    expect(summary.problems).toEqual([])
+    expect(summary.steps).toEqual([
+      'GET /account',
+      'dathost-image --check',
+      'the orchestrator is up and Dathost is registered',
+      'counted the account',
+      'created the match',
+      'the plugin dialled the link and the match is ready',
+      'ezpug_status through the link',
+      'read the connect facts',
+      'the puppets played it out',
+      'the ledger row is closed',
+      'the account lists no tagged server',
+    ])
+    expect(summary.finalState).toBe('ended')
+    expect(summary.puppets).toMatchObject({ simulated: true, readied: 4, unmarked: 0 })
+    expect(summary.puppets?.facts).toMatchObject({
+      player_ready: 4,
+      going_live: 1,
+      round_end: 2,
+      map_end: 1,
+      series_end: 1,
+    })
+    // The request the door took: four rostered SteamIDs, two a side, simulated
+    // at the lane's timescale — and a key that held the scope to ask.
+    const request = (await rig.app.store.findMatch(summary.matchId as string))?.requestJson
+    expect(request?.teams.teamA.players).toHaveLength(2)
+    expect(request?.teams.teamB.players).toHaveLength(2)
+    expect(request?.simulation).toEqual({ timeScale: 2 })
+    expect(summary.ledger).toMatchObject({ rows: 1, open: 0 })
+    expect(rig.fake.servers().map(view => view.id)).toEqual([rig.templateId])
+  })
+
+  it('calls a match whose puppets never readied a problem, and still gives the server back', async () => {
+    // The server dials in and says ready, then nothing: the match never goes
+    // live, the wall arrives, and the release has to cancel it.
+    const rig = await createRig({ story: false })
+    const { code, summary } = await rig.run(['--puppets', '4', '--budget-minutes', '20'])
+    expect(code).toBe(1)
+    expect(summary.problems.join(' ')).toMatch(/did not end|readied/)
+    expect(summary.ledger).toMatchObject({ open: 0 })
+    expect(rig.fake.servers().map(view => view.id)).toEqual([rig.templateId])
+  })
+
+  it('refuses a timescale without puppets', async () => {
+    const rig = await createRig()
+    const { code, summary } = await rig.run(['--timescale', '2'])
+    expect(code).toBe(1)
+    expect(summary.problems[0]).toContain('--puppets')
+    expect(summary.matchId).toBeNull()
   })
 })
 
