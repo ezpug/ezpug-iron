@@ -9,7 +9,7 @@
 # progress line, commits — then loops. Stops early on <promise>COMPLETE</promise>.
 #
 # Model routing (see PRD-TEMPLATE.md): tasks tagged '(fable)' run on claude-fable-5-1,
-# everything else on claude-opus-5. Override for a run with RALPH_MODEL=<model>.
+# everything else on claude-opus-5-5. Override for a run with RALPH_MODEL=<model>.
 # A '**Branch:** `x`' header in the PRD is enforced when present.
 
 set -e
@@ -43,14 +43,14 @@ for ((i=1; i<=ITERATIONS; i++)); do
   elif [[ "$NEXT_LINE" == *"(fable)"* ]]; then
     RUN_MODEL="claude-fable-5-1"
   else
-    RUN_MODEL="claude-opus-5"
+    RUN_MODEL="claude-opus-5-5"
   fi
 
   # Trailer must name the model that actually did the work.
   case "$RUN_MODEL" in
     *fable*) TRAILER="Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>" ;;
     *haiku*) TRAILER="Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>" ;;
-    *)       TRAILER="Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" ;;
+    *)       TRAILER="Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" ;;
   esac
 
   echo "=========================================="

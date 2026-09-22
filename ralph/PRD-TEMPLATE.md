@@ -16,7 +16,7 @@ searches twice.
 
 ## Model routing
 
-`claude-opus-5` is the default and needs no tag. Tag a task `(fable)` to run it on Claude
+`claude-opus-5-5` is the default and needs no tag. Tag a task `(fable)` to run it on Claude
 Fable 5.1 — reserve it for work that must be thought through once and right: contracts,
 package boundaries, the SDK's core abstractions, state machines, load-bearing algorithms,
 gnarly cross-language debugging. Mechanical follow-ups, adapters over a settled interface
@@ -29,7 +29,7 @@ and wiring stay on Opus.
     <2–5 sentences: the outcome of this round and why now. Which decisions it delivers.>
 
     **Branch:** `<branch>`. **Surface:** <folders this round may touch>.
-    **Model:** `claude-opus-5`; tasks tagged `(fable)` run on Fable 5.1.
+    **Model:** `claude-opus-5-5`; tasks tagged `(fable)` run on Fable 5.1.
     <standing budgets when relevant: migrations, money rules, flags.>
 
     ## Findings

@@ -112,5 +112,5 @@ the platform's pin is where it learns.
 
 `ralph/` holds the loop scripts, PRD conventions (`PRD-TEMPLATE.md`) and the per-round PRDs
 with their progress files. One task per iteration. Tasks tagged `(fable)` run on Claude
-Fable 5.1 (architecture, contracts, the SDK's core); everything else on Opus 5.
+Fable 5.1 (architecture, contracts, the SDK's core); everything else on Opus 5.5.
 `/next-task` and `/finish-task` bracket an iteration.

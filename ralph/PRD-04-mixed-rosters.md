@@ -12,7 +12,7 @@ has been seen working from this repo and not only from the platform's page.
 Runs in parallel with `/root/ezpug/ralph/PRD-11-the-night.md`. Its T21 waits for T1 here,
 its T23 for T2, its T12 reads T4's `rejected`.
 
-**Branch:** `main`. **Surface:** the whole repo. **Model:** `claude-opus-5`; tasks tagged
+**Branch:** `main`. **Surface:** the whole repo. **Model:** `claude-opus-5-5`; tasks tagged
 `(fable)` run on Fable 5.1.
 
 **Budgets:**
@@ -78,7 +78,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   two waiters and a matrix in the lane's tests. Close #1 with the commit. The platform's
   PRD-11 T21 implements the same page.
 
-- [ ] **T2 (fable): mixed rosters.** `matchSimulationSchema` names which roster entries
+- [x] **T2 (fable): mixed rosters.** `matchSimulationSchema` names which roster entries
   are puppets (a shape that keeps today's "all" as the default and is additive on the
   wire — e.g. `puppets: 'all' | steamId[]`), `matchSimulationProblem` refuses a name not
   on the roster, MatchZy-Enhanced's simulation mode spawns a bot only for the named
@@ -88,6 +88,14 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   rewritten. Lane row: nine puppets and one seat left empty ready up to nine and go live
   when the tenth (the lane's own client, or `bot_add` standing in for a human) arrives.
   Release with a changelog line naming the platform's PRD-11 T23.
+
+- [ ] **T2b: mixed rosters under `pug`.** OPEN-POINTS §7: MatchZy-Enhanced at the pin
+  seats every configured entry or none and force-starts without anybody, and it is never
+  patched here — so `pug` says `capabilities.mixedRoster: false` and the platform's T23
+  cannot seat the owner on the queue until the fork learns a per-seat switch. Needs an
+  owner call (a PR upstream, or a fork of ours against decision 19) before the lane row
+  "nine puppets ready up, the tenth arrives" can exist.
+  > blocked: an unpatched fork cannot do it; owner decides upstream PR vs. fork (§7).
 
 - [ ] **T3: scopes are edited by a route.** `PATCH /v1/keys/:keyId/scopes` (admin scope,
   audited like `rotate` and `budget`), `ezpug-iron keys scopes <id> --add/--remove`,

@@ -25,7 +25,7 @@ if [ -n "$RALPH_MODEL" ]; then
 elif [[ "$NEXT_LINE" == *"(fable)"* ]]; then
   RUN_MODEL="claude-fable-5-1"
 else
-  RUN_MODEL="claude-opus-5"
+  RUN_MODEL="claude-opus-5-5"
 fi
 echo "model: $RUN_MODEL"
 

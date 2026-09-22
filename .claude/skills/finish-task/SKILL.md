@@ -18,7 +18,7 @@ edits + commit. Stop on any failure — never close a task on broken work.
    server when the container is up, and says so in the progress line when it is not.
 3. **Tick the task's box** in the PRD (`- [ ]` → `- [x]`) and **commit** the task's work
    with a scoped conventional message ending in the Co-Authored-By trailer of the model
-   that did the work (Claude Fable 5.1 for `(fable)` tasks, Claude Opus 5 otherwise).
+   that did the work (Claude Fable 5.1 for `(fable)` tasks, Claude Opus 5.5 otherwise).
 4. **Append one line** to the PRD's progress file
    (`ralph/PRD-<nn>-<slug>.progress.txt`):
    `<task-id>: <what + notable decisions> — <short sha of step 3> — <date>`, then commit it
