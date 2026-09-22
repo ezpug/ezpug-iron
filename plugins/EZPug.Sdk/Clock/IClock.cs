@@ -18,7 +18,13 @@ public interface IClock
     /// <summary>Run <paramref name="callback"/> once after <paramref name="delayMs"/> of clock time. Delays at or below zero fire on the next advance.</summary>
     IClockTimer After(long delayMs, Action callback);
 
-    /// <summary>Run <paramref name="callback"/> every <paramref name="intervalMs"/> of clock time until cancelled.</summary>
+    /// <summary>
+    /// Run <paramref name="callback"/> every <paramref name="intervalMs"/> of clock time until
+    /// cancelled. The period is held: the <c>n</c>th beat is due at <c>armed + interval·n</c>,
+    /// and a beat that fires late does not push the next one back. A beat that could not
+    /// fire at all — the game thread stalled a whole period — is skipped, never made up in a
+    /// burst (<c>docs/sdk.md</c>, "Timers").
+    /// </summary>
     IClockTimer Every(long intervalMs, Action callback);
 }
 

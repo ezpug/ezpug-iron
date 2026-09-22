@@ -238,6 +238,10 @@ type Summary = {
     speed: number
     radius: number
     expectedStep: number
+    /** The ticker's period as the stream shows it, off the median step (PRD-04 T5). */
+    intervalMs: number | null
+    /** One engine frame at the run's time scale, in wall milliseconds. */
+    frameMs: number
     accepted: string | null
     engine: RadarWindow
     teleported: RadarWindow
@@ -922,6 +926,15 @@ const CASES: LaneCase[] = [
       // standing still in a path that is moving at a constant speed.
       expect(walked?.p95 ?? 0, 'one step in twenty is a jump').toBeLessThan(expected * 1.6)
       expect(walked?.still ?? 1, 'a walked body stood still').toBeLessThan(0.05)
+      // **The ticker holds its period** (PRD-04 T5): ten ticks a second, each
+      // within a frame of its beat. Before `GameThreadClock.Every` re-armed
+      // from the due time, every tick was a frame long and this read 108.
+      const interval = radar?.intervalMs ?? 0
+      const frame = radar?.frameMs ?? 0
+      expect(
+        Math.abs(interval - 100),
+        `the position ticker runs at ${interval} ms, more than a ${frame} ms frame off 100`,
+      ).toBeLessThanOrEqual(frame)
     },
   },
 ]

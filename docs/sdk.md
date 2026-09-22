@@ -121,6 +121,29 @@ Helpers on the base: `World`, `Link`, `Clock`, `Localizer`, `Facts`, `Match`,
 `SayAll`, `PrintCenter` (all localized per player); `PlayerState<T>(factory)`; `After`,
 `Every`.
 
+### Timers: a period is held, a stall is skipped
+
+`After` and `Every` are the world's clock — on a server, `GameThreadClock`, fired from the
+engine's frame, so a callback always runs on the game thread. What a mode may rely on
+(PRD-04 T5):
+
+- **A beat is up to one frame late, never earlier.** A timer fires on the first frame at or
+  after its due time: at 64 tick, up to 15.6 ms; at `host_timescale 2`, 7.8 ms.
+- **The lateness never adds up.** `Every(n)` re-arms from the beat's *due time*, not from
+  the frame that fired it, so its `k`th beat is due at `armed + n·k` however long the frames
+  are. `Every(100)` is ten beats a second, measured over any stretch, and the position
+  stream is ten ticks a second rather than a frame slower per tick.
+- **A stalled frame skips, never bursts.** A frame that arrives a whole period or more past
+  a beat (a map change, a hitch) fires the timer once and re-arms it at the next beat still
+  ahead; the beats in between are dropped, not owed. The price is that the beat after a late
+  one can come less than a period after it — the grid is kept, not the gap.
+- **The clock is a stopwatch**, not the engine's time: `host_timescale` does not speed a
+  timer up (a match's `length` is divided by `simulation.timeScale` for that reason).
+
+`FakeClock` visits every due instant as the test advances it, so a stall does not exist on
+the harness: `Advance(1000)` over an `Every(100)` fires ten times, as ten beats of a second
+would. `GameThreadClockTests` pins the server's rule on frames it lays down itself.
+
 ### Branding: the hostname, the voice, the card
 
 A mode writes nothing for this either. The runtime's `Branding` (`Runtime.Brand`) turns
@@ -482,11 +505,14 @@ The commanded step was 50 units, every body was in every tick, and the two runs 
 the decimal. **Teleport per frame is smoother than a bot is**, and a radar drawing it would
 draw a player running.
 
-Two things fall out of that table. The 54.1 where 50 was asked for is the **position
-ticker's real period**: `GameThreadClock.Every` re-arms at `now + interval` on the frame it
-fires, so the stream's "every 100 ms" is 100 ms plus a frame — 108 ms here, measured twice.
-Nothing reads it today (a `position_tick` carries no timestamp, by design) but a consumer
-must not infer a speed from the tick rate. And the engine's own bots are the row above:
+Two things fell out of that table. The 54.1 where 50 was asked for was the **position
+ticker's real period**: `GameThreadClock.Every` re-armed at `now + interval` on the frame it
+fired, so the stream's "every 100 ms" was 100 ms plus a frame — 108 ms, measured twice. It
+now re-arms from the due time ("Timers", above; PRD-04 T5), and the same row on
+2026-09-22 measured a median step of 48.6 — **97.2 ms, inside the 7.8 ms frame** the row
+now asserts — and 200 ticks in the 20-second window, ten a second exactly. A
+`position_tick` still carries no timestamp, by design, so ten a second is the rate a radar
+may interpolate on. And the engine's own bots are the row above:
 they stand still a quarter of the time and their step varies by three quarters of its
 median, which is what real movement looks like from this door.
 

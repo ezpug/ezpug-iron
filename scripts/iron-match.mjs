@@ -1738,6 +1738,24 @@ async function run() {
       radius: WALK_RADIUS,
       /** 25 units between two samples of a 250 u/s run — what the numbers are held against. */
       expectedStep: Math.round(((WALK_SPEED * 100) / 1000) * 10) / 10,
+      /**
+       * **The position ticker's period, as the stream shows it** (PRD-04 T5):
+       * the median step over the commanded speed. A walked body covers
+       * `speed` units a wall second, so a step of `speed / 10` is 100 ms
+       * between two ticks and anything longer is the ticker running slow —
+       * which it did, by a frame a tick, until `GameThreadClock.Every` began
+       * re-arming from the due time (OPEN-POINTS §4 as it was: 108 ms).
+       */
+      intervalMs:
+        teleported.median === null
+          ? null
+          : Math.round(((teleported.median * 1000) / WALK_SPEED) * 10) / 10,
+      /**
+       * One engine frame in wall milliseconds: CS2's 64 ticks a second, run
+       * `host_timescale` times as fast. A timer fires on the first frame at
+       * or after its due time, so this is the tolerance a period is held to.
+       */
+      frameMs: Math.round((1000 / (64 * (TIMESCALE ?? 1))) * 10) / 10,
       accepted: asked?.status ?? null,
       engine,
       teleported,

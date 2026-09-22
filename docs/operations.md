@@ -1737,8 +1737,11 @@ every one of them around a circle by teleporting it once per engine frame
 simulation), then measures the `position_tick`s the stream carried — against the same
 bodies moved by the engine's own bot AI ten seconds earlier. It is the one row that types
 at a match and it declares its single RCON, because there is no front door for "walk here"
-and the spike did not invent one. It is **not part of the matrix**: a demanded lane skips
-it, and `EZPUG_CS2_CASES=radar` is how it is repeated. What it measured, and why puppets
+and the spike did not invent one. Since PRD-04 T5 it also holds the position ticker to its
+period: the median step over the commanded speed (`radar.intervalMs`) must be within one
+engine frame (`radar.frameMs`, 1000 / (64 × the time scale)) of 100 ms. It is **not part
+of the matrix**: a demanded lane skips it, and `EZPUG_CS2_CASES=radar` is how it is
+repeated. What it measured, and why puppets
 keep the engine's own movement, is `docs/sdk.md`, "Movement".
 
 It is opt-in twice over — nothing happens unless `EZPUG_CS2_TESTS` is set, and
