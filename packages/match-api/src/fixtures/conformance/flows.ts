@@ -1259,6 +1259,148 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
   },
 
   {
+    id: 'key-scopes',
+    title: 'an operator moves a key’s scopes by route, and the door answers the new ones',
+    needs: ['admin'],
+    async run(ctx) {
+      // PRD-04 T3. On 2026-09-21 the production platform key was granted
+      // `simulation` by a hand-written `UPDATE`, because no route could do
+      // it. This is that route, proven the only way it matters: the key the
+      // suite itself calls with is widened, the door is asked again, and the
+      // key is put back the way it was found.
+      //
+      // The key calls are deliberately **not** recorded: an `ApiKey` carries
+      // its `prefix`, which is the first characters of a secret, and a golden
+      // in a public repo is grepped for exactly those. What the golden holds
+      // is the door's three answers, which is what a client builds on anyway.
+      const admin = (ctx.target.admin as NonNullable<typeof ctx.target.admin>).client
+      const keyId = (ctx.target.admin as NonNullable<typeof ctx.target.admin>).keyId
+      const { keys } = await admin.keys.list()
+      const before = keys.find(key => key.id === keyId)
+      ctx.require('the suite’s own key is listed', before !== undefined, keyId)
+      const held = (before as NonNullable<typeof before>).scopes
+      ctx.require(
+        'it does not hold simulation yet, so there is something to grant',
+        !held.includes('simulation'),
+        held.join(','),
+      )
+
+      // A request carrying the block is refused by the scope — before
+      // anything about the body is diagnosed, which is what makes the next
+      // answer proof that the grant landed.
+      const puppets = { puppets: ['76561197960265728'] }
+      const forbidden = await refusal(
+        ctx,
+        'the block is refused on a key without the scope',
+        ctx.api.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-key-scopes-before',
+            simulation: puppets,
+          }),
+        }),
+      )
+      ctx.check(
+        'the refusal is forbidden and names the scope',
+        forbidden.code === 'forbidden' && forbidden.details?.scope === 'simulation',
+        `${forbidden.code} ${JSON.stringify(forbidden.details)}`,
+      )
+
+      const granted = await admin.keys.setScopes({
+        params: { keyId },
+        body: { add: ['simulation'] },
+      })
+      ctx.check(
+        'the answer holds what it held and the new scope',
+        held.every(scope => granted.scopes.includes(scope)) &&
+          granted.scopes.includes('simulation'),
+        granted.scopes.join(','),
+      )
+      ctx.check(
+        'nothing else about the key moved',
+        JSON.stringify(granted.budget) ===
+          JSON.stringify((before as NonNullable<typeof before>).budget) &&
+          JSON.stringify(granted.webhookSecretIds) ===
+            JSON.stringify((before as NonNullable<typeof before>).webhookSecretIds),
+        JSON.stringify({ budget: granted.budget, secrets: granted.webhookSecretIds }),
+      )
+
+      // The same request on the same secret, one call later: the scope gate
+      // is open, so the body is judged at last — and the stranger on the
+      // puppet list is what it is judged on. Nothing caches a key.
+      const judged = await refusal(
+        ctx,
+        'the same request is now judged on its body',
+        ctx.api.matches.create({
+          body: ctx.request({ clientMatchId: 'conformance-key-scopes-after', simulation: puppets }),
+        }),
+      )
+      ctx.check(
+        'it is validation_failed on simulation.puppets, not forbidden',
+        judged.code === 'validation_failed' && judged.details?.field === 'simulation.puppets',
+        `${judged.code} ${JSON.stringify(judged.details)}`,
+      )
+
+      // Granting what a key already holds is the same key back.
+      const again = await admin.keys.setScopes({
+        params: { keyId },
+        body: { add: ['simulation'] },
+      })
+      ctx.check(
+        'a scope granted twice is granted once',
+        JSON.stringify(again.scopes) === JSON.stringify(granted.scopes),
+        again.scopes.join(','),
+      )
+
+      // The two refusals an operator meets on the wire. (A scope on both
+      // lists is the third, and it never gets here: the body is the
+      // contract's, so the published client refuses it before it is sent —
+      // `scopesPatchRequestSchema`'s own test holds that half.)
+      const emptied = await refusal(
+        ctx,
+        'emptying a key’s scopes is refused',
+        admin.keys.setScopes({ params: { keyId }, body: { remove: again.scopes } }),
+      )
+      ctx.check(
+        'that is validation_failed too — a key with no scopes is a revoke',
+        emptied.code === 'validation_failed',
+        emptied.code,
+      )
+      const stranger = await refusal(
+        ctx,
+        'a key nobody minted is not_found',
+        admin.keys.setScopes({
+          params: { keyId: '00000000-0000-4000-8000-000000000000' },
+          body: { add: ['fleet'] },
+        }),
+      )
+      ctx.check('the stranger is not_found', stranger.code === 'not_found', stranger.code)
+
+      // Put it back, and the door closes again.
+      const restored = await admin.keys.setScopes({
+        params: { keyId },
+        body: { remove: ['simulation'] },
+      })
+      ctx.check(
+        'the key is as it was found',
+        JSON.stringify(restored.scopes) === JSON.stringify(held),
+        restored.scopes.join(','),
+      )
+      const closed = await refusal(
+        ctx,
+        'the block is refused again',
+        ctx.api.matches.create({
+          body: ctx.request({ clientMatchId: 'conformance-key-scopes-back', simulation: puppets }),
+        }),
+      )
+      ctx.check(
+        'and it is forbidden once more',
+        closed.code === 'forbidden' && closed.details?.scope === 'simulation',
+        `${closed.code} ${JSON.stringify(closed.details)}`,
+      )
+    },
+  },
+
+  {
     id: 'budget-refused',
     title: 'a request beyond the key’s budget is refused with money, not capacity',
     needs: ['budget'],

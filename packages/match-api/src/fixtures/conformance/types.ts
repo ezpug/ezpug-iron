@@ -40,6 +40,8 @@ export const CONFORMANCE_CAPABILITIES = [
   'demoUploadPerMap',
   /** `target.simulation` — a key holding the `simulation` scope, for a puppets match (PRD-03 T4). */
   'simulation',
+  /** `target.admin` — an `admin` key, and the id of the suite's own, for the scope route (PRD-04 T3). */
+  'admin',
 ] as const
 export type ConformanceCapability = (typeof CONFORMANCE_CAPABILITIES)[number]
 
@@ -125,6 +127,16 @@ export interface ConformanceTarget {
    */
   simulation?: {
     client: ConformanceClient
+  }
+  /**
+   * **An `admin` key, and the id of the suite's own** (PRD-04 T3), for the
+   * flow that edits scopes. `keyId` is the key `client` calls with: the flow
+   * grants it `simulation`, watches the door open, and puts it back, so a
+   * target may hand over a key it still needs.
+   */
+  admin?: {
+    client: ConformanceClient
+    keyId: string
   }
   /** How long one `waitFor` sleeps between polls. Default 15 s of clock time. */
   pollIntervalMs?: number

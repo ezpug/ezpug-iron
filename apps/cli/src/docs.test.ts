@@ -28,7 +28,7 @@ const rootManifest = JSON.parse(read('package.json')) as { scripts: Record<strin
 
 /** The surface PRD-02 T33 asked for, plus the group T38b added, verb by verb. */
 const VERBS: Readonly<Record<string, readonly string[]>> = {
-  keys: ['create', 'list', 'revoke'],
+  keys: ['create', 'list', 'scopes', 'revoke'],
   gamemodes: ['list'],
   matches: ['create', 'get', 'watch', 'cancel', 'command'],
   servers: ['list', 'kill', 'console'],

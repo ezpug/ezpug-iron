@@ -197,6 +197,36 @@ describe('keys', () => {
   })
 
   /**
+   * T3. The verb that should have existed on 2026-09-21, when the live
+   * platform key was given `simulation` by a hand-written `UPDATE`.
+   */
+  it('moves a live key’s scopes, additively, and never empties one', async () => {
+    const h = await setup()
+    const created = await h.run('keys create --name rehearsal --scopes matches,fleet --json')
+    const { key } = created.json<ApiKeyCreated>()
+
+    const granted = await h.run(`keys scopes ${key.id} --add simulation --json`)
+    expect(granted.code).toBe(EXIT.ok)
+    expect(granted.json<{ scopes: string[] }>().scopes).toEqual(['matches', 'fleet', 'simulation'])
+    expect(granted.out).not.toContain('ezik_')
+
+    const said = await h.run(`keys scopes ${key.id} --add simulation`)
+    expect(said.out).toContain('now holds matches,fleet,simulation')
+
+    const taken = await h.run(`keys scopes ${key.id} --remove simulation,fleet --json`)
+    expect(taken.json<{ scopes: string[] }>().scopes).toEqual(['matches'])
+
+    // The last one is a revoke, and the route says so rather than this verb.
+    const emptied = await h.run(`keys scopes ${key.id} --remove matches`)
+    expect(emptied.code).not.toBe(EXIT.ok)
+
+    expect((await h.run('keys scopes --add fleet')).code).toBe(EXIT.usage)
+    expect((await h.run(`keys scopes ${key.id}`)).code).toBe(EXIT.usage)
+    expect((await h.run(`keys scopes ${key.id} --add`)).code).toBe(EXIT.usage)
+    expect((await h.run(`keys scopes ${key.id} --add wizard`)).code).toBe(EXIT.usage)
+  })
+
+  /**
    * T37b's first edge. Every match request must name a registered webhook
    * secret, so before `--webhook-secret` the one key a venue actually needs
    * could not be minted from a terminal at all. The proof is the whole round

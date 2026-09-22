@@ -11,7 +11,13 @@ import { euros, orDash } from '../output'
 
 /**
  * **`ezpug-iron keys`** — the `admin` scope's own verbs (decision 7): mint a
- * key, list what exists, revoke one.
+ * key, list what exists, move a live key's scopes, revoke one.
+ *
+ * **`keys scopes` exists because a scope edit reached production as SQL**
+ * (PRD-04 T3). On 2026-09-21 the owner's "test match with puppets" answered
+ * `forbidden` and the live platform key was given `simulation` by one
+ * `UPDATE` against `ezpug-iron-prod-postgres`, because there was no route and
+ * no verb. There is now one of each, and this is the one a human types.
  *
  * The mint's flag names and defaults are the orchestrator's
  * `keys:mint` script's, deliberately: an operator who learned the first door
@@ -50,6 +56,7 @@ export const KEYS_USAGE = `ezpug-iron keys — API keys and their ceilings (the 
               [--max-concurrent 4] [--max-lifetime-minutes 240] [--monthly-cents 0]
               [--webhook-secret <id>]...
   keys list
+  keys scopes <keyId> [--add matches,fleet,admin,simulation] [--remove ...]
   keys revoke <keyId>
 
 --monthly-cents is a ceiling, and its default of 0 is a ceiling of zero — not
@@ -63,6 +70,11 @@ for up to ${MAX_WEBHOOK_SECRETS}); the secret itself is drawn here and shown onc
 match request then names as callbacks.webhookSecretId. Never pass a secret on
 the command line — the flag takes the id.
 
+keys scopes moves what a live key may do, additively: the scopes you do not
+name stay where they are, and --add of one it already holds is the key back
+unchanged. The last scope cannot be removed — a key with none is a revoke, so
+revoke it. A revoked key is not re-scoped.
+
 Every secret is printed once, by the mint that made it, and never again: no
 route serves it and this command never echoes one back. Lose it and rotate.`
 
@@ -73,6 +85,8 @@ export async function runKeys(context: CommandContext): Promise<number> {
       return await create(context)
     case 'list':
       return await list(context)
+    case 'scopes':
+      return await scopes(context, argument)
     case 'revoke':
       return await revoke(context, argument)
     default:
@@ -145,6 +159,28 @@ async function list(context: CommandContext): Promise<number> {
   return EXIT.ok
 }
 
+/**
+ * Grant and take away scopes on one key. Both flags are lists, both optional,
+ * at least one of them given; the route decides everything else, so this verb
+ * never computes the new set itself and the two doors cannot disagree about
+ * what "add a scope it already holds" means.
+ */
+async function scopes(context: CommandContext, keyId: string | undefined): Promise<number> {
+  if (!keyId) throw new CliUsageError('keys scopes needs the key id', KEYS_USAGE)
+  const { args, out } = context
+  const add = parseScopeList(args, 'add')
+  const remove = parseScopeList(args, 'remove')
+  if (add.length === 0 && remove.length === 0)
+    throw new CliUsageError('keys scopes needs --add or --remove', KEYS_USAGE)
+  const key = await context.client().keys.setScopes({
+    params: { keyId },
+    body: { ...(add.length > 0 && { add }), ...(remove.length > 0 && { remove }) },
+  })
+  out.say(`${key.id} (${key.name}) now holds ${key.scopes.join(',')}`)
+  out.emit(key)
+  return EXIT.ok
+}
+
 async function revoke(context: CommandContext, keyId: string | undefined): Promise<number> {
   if (!keyId) throw new CliUsageError('keys revoke needs the key id', KEYS_USAGE)
   const key = await context.client().keys.revoke({ params: { keyId } })
@@ -191,18 +227,33 @@ function mintWebhookSecrets(ids: readonly string[]): WebhookSecretRegistration[]
   })
 }
 
-function parseScopes(raw: string): MatchApiScope[] {
-  const scopes = raw
+function parseScopes(raw: string, flagName = '--scopes'): MatchApiScope[] {
+  const list = raw
     .split(',')
     .map(scope => scope.trim())
     .filter(scope => scope.length > 0)
-  const parsed = matchApiScopesSchema.safeParse(scopes)
+  const parsed = matchApiScopesSchema.safeParse(list)
   if (!parsed.success)
     throw new CliUsageError(
-      `--scopes takes matches, fleet, admin and/or simulation, comma-separated; got '${raw}'`,
+      `${flagName} takes matches, fleet, admin and/or simulation, comma-separated; got '${raw}'`,
       KEYS_USAGE,
     )
   return parsed.data
+}
+
+/** `--add matches,fleet` — absent is an empty list, not a refusal. */
+function parseScopeList(args: CommandContext['args'], name: string): MatchApiScope[] {
+  const raw = flag(args, name)
+  if (raw === undefined) return []
+  // `--add` with nothing after it parses as the boolean `true` (`args.ts`);
+  // a scope list that silently became a scope named "true" is worse than a
+  // usage error naming the flag.
+  if (raw === 'true')
+    throw new CliUsageError(
+      `--${name} needs the scopes, comma-separated, e.g. --${name} simulation`,
+      KEYS_USAGE,
+    )
+  return parseScopes(raw, `--${name}`)
 }
 
 function integer(args: CommandContext['args'], name: string, fallback: number): number {

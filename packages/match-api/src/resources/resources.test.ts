@@ -11,7 +11,12 @@ import {
 } from './commands'
 import { pageQuerySchema } from './common'
 import { fleetServerSchema, nodeEnrolRequestSchema } from './fleet'
-import { apiKeyCreateRequestSchema, webhookSecretsRequestSchema } from './keys'
+import {
+  apiKeyCreateRequestSchema,
+  applyScopesPatch,
+  scopesPatchRequestSchema,
+  webhookSecretsRequestSchema,
+} from './keys'
 import { LOADOUT_SIDE_TEAM_NUMBER, loadoutSchema, STICKER_SLOTS } from './loadout'
 import { isTerminalMatchState, MATCH_STATES, matchSchema, TERMINAL_MATCH_STATES } from './match'
 import {
@@ -461,5 +466,32 @@ describe('the small shapes', () => {
         ],
       }),
     ).toThrow()
+  })
+
+  /**
+   * PRD-04 T3. The body is the contract's, so the published client refuses a
+   * contradictory patch before it reaches the wire — which is why the
+   * conformance flow asserts only the refusals a server gives.
+   */
+  it('patches a key’s scopes additively, and refuses a patch that says nothing', () => {
+    expect(scopesPatchRequestSchema.parse({ add: ['simulation'] })).toEqual({
+      add: ['simulation'],
+    })
+    expect(() => scopesPatchRequestSchema.parse({})).toThrow()
+    expect(() => scopesPatchRequestSchema.parse({ add: [], remove: [] })).toThrow()
+    expect(() => scopesPatchRequestSchema.parse({ add: ['fleet'], remove: ['fleet'] })).toThrow()
+    expect(() => scopesPatchRequestSchema.parse({ add: ['operator'] })).toThrow()
+
+    // The enum's order is what comes back, whatever order the patch named,
+    // so two `GET /v1/keys` a month apart are diffable.
+    expect(applyScopesPatch(['fleet'], { add: ['simulation', 'matches'] })).toEqual([
+      'matches',
+      'fleet',
+      'simulation',
+    ])
+    // Both halves idempotent, and an empty result is returned rather than refused.
+    expect(applyScopesPatch(['matches'], { add: ['matches'] })).toEqual(['matches'])
+    expect(applyScopesPatch(['matches'], { remove: ['fleet'] })).toEqual(['matches'])
+    expect(applyScopesPatch(['matches'], { remove: ['matches'] })).toEqual([])
   })
 })

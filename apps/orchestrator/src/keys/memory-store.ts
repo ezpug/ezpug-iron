@@ -88,6 +88,12 @@ export function createMemoryKeyStore(): KeyStore {
       row.key.prefix = secret.prefix
       return Promise.resolve(view(row))
     },
+    setScopes: (id, scopes) => {
+      const row = byId(id)
+      if (!row) return Promise.resolve(undefined)
+      row.key.scopes = [...scopes]
+      return Promise.resolve(view(row))
+    },
     setBudget: (id, patch) => {
       const row = byId(id)
       if (!row) return Promise.resolve(undefined)

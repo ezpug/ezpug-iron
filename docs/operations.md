@@ -1850,6 +1850,7 @@ exist here either. There is no admin surface that skips the API.
 ```sh
 pnpm iron --help                       # the map
 pnpm iron keys create --name platform --scopes matches,fleet --webhook-secret whsec-2026-09
+pnpm iron keys scopes <keyId> --add simulation   # what a live key may do
 pnpm iron gamemodes list               # what this orchestrator will play
 pnpm iron matches create --file req.json
 pnpm iron matches watch <matchId>      # the live stream until it closes
@@ -1865,7 +1866,7 @@ pnpm iron dathost image --check
 
 | Group | Verbs |
 | ----- | ----- |
-| `keys` | `create`, `list`, `revoke` — the `admin` scope's own. The mint's flags and defaults are `keys:mint`'s, so the two doors agree. `--webhook-secret <id>` (repeatable, up to 8) registers a webhook secret on the new key: the flag takes the **id**, the secret is drawn here and shown once. |
+| `keys` | `create`, `list`, `scopes`, `revoke` — the `admin` scope's own. The mint's flags and defaults are `keys:mint`'s, so the two doors agree. `--webhook-secret <id>` (repeatable, up to 8) registers a webhook secret on the new key: the flag takes the **id**, the secret is drawn here and shown once. `scopes <keyId> --add/--remove` moves what a live key may do (PRD-04 T3). |
 | `gamemodes` | `list` — the catalog, titles in DE and EN (`--locale` narrows to one). |
 | `matches` | `create` (`--simulate [--scenario] [--timescale]` for puppets; see below), `list`, `get`, `watch`, `cancel`, `command` |
 | `servers` | `list` (`--all` reads the ledger, closed rows included), `kill`, `console` |
@@ -1929,6 +1930,17 @@ terminal's rather than the API's, and all three cost a venue operator time.
   the door for rotating one without a gap. `--monthly-cents` is where the money goes: its
   default of `0` is a ceiling of zero, so a key minted without it can create matches only
   on free providers (T37d).
+- **`keys scopes <keyId> --add/--remove`** moves what a live key may do (PRD-04 T3).
+  Before it existed, a key that needed a capability it was not minted with had two
+  answers: mint a second key — new webhook secrets, orphaned in-flight matches — or an
+  `UPDATE` against the key table, which is what actually happened to production's platform
+  key on 2026-09-21. Both flags take comma-separated scopes, both are optional and at
+  least one is given. It is additive: the scopes you do not name stay where they are, so
+  granting one on a Saturday cannot take another away, and `--add` of a scope the key
+  already holds answers the key unchanged. The **last** scope cannot be removed — a key
+  with none is a revoke under another name, and `keys revoke` is the verb for that — and a
+  revoked key is not re-scoped. A scope granted is in force on that key's very next
+  request; nothing caches a key.
 - **`nodes remove <nodeId>`** un-enrols a node (`DELETE /v1/fleet/nodes/:id`): the token is
   revoked, the agent's socket is closed in force and the row is gone. What it does *not*
   do is stop anything that is playing — those containers belong to the ledger, not to the
@@ -1960,8 +1972,9 @@ it as real. The CLI replaces `iron-match.mjs --simulate --bots <n>` as the opera
 lever. The script stays as the CS2 lane's harness.
 
 ```sh
-# 1. A key that may ask for puppets. Production's platform key does not hold
-#    `simulation`, and must not. Mint a short-lived one with an admin key:
+# 1. A key that may ask for puppets. Production's platform key holds `simulation`
+#    for the admin console's own button (owner call, 2026-09-21); a demo still
+#    gets a short-lived key of its own, minted with an admin key:
 export EZPUG_IRON_API_KEY=<an admin key>          # never a flag
 pnpm iron --url https://gs.ezpug.com keys create --name demo-2026-09-26 \
   --scopes matches,simulation --monthly-cents 500 --webhook-secret whsec-demo

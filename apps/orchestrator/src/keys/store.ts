@@ -57,6 +57,15 @@ export interface KeyStore {
     secrets: readonly { id: string; secret: string }[],
     at: Date,
   ) => Promise<KeyRecord | undefined>
+  /**
+   * Replace the key's whole scope set — the caller has already applied the
+   * patch and refused an empty result. Undefined for an unknown id.
+   */
+  setScopes: (
+    id: string,
+    scopes: readonly MatchApiScope[],
+    at: Date,
+  ) => Promise<KeyRecord | undefined>
   /** Draw a new secret for a live key; the old hash is gone. Undefined for an unknown id. */
   rotateSecret: (
     id: string,

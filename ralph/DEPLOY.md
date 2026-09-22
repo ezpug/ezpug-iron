@@ -71,11 +71,29 @@ comes from the CLI**:
 
 ```bash
 EZPUG_IRON_CLI_URL=https://gs.ezpug.com pnpm iron keys create \
-  --name platform --scopes matches,fleet --max-concurrent 2 --monthly-cents 5000
+  --name platform --scopes matches,fleet,simulation --max-concurrent 2 --monthly-cents 5000
 ```
 
 The platform gets its own key with its own budget; the operator's key is not shared with
 anybody. Neither ever appears in a flag, a log line or a commit.
+
+**The platform key holds `simulation`** (owner call, 2026-09-21). This line used to mint
+`matches,fleet`, and the admin console's "test match with puppets" — the whole point of
+its fleet door — answered `forbidden` on production. A match is a rehearsal only when the
+request carries the `simulation` block explicitly, and every fact of one says
+`source.simulated`, so the scope is the door on who may ask and not on what counts.
+
+A key already minted is moved rather than replaced — a new key would mean new webhook
+secrets and orphaned in-flight matches:
+
+```bash
+EZPUG_IRON_CLI_URL=https://gs.ezpug.com pnpm iron keys scopes <keyId> --add simulation
+```
+
+That verb and `PATCH /v1/keys/:keyId/scopes` behind it are the **only** way this is done
+(PRD-04 T3). The first time it was needed there was neither, and it happened as one
+`UPDATE` against `ezpug-iron-prod-postgres`. Never again: production's key table is not
+edited by hand.
 
 ## What is on the box afterwards
 

@@ -289,6 +289,17 @@ it here.
     seconds after the bot spawns. So a puppet is a rostered player on every flow now: the
     `drop` row of the CS2 matrix takes a `kick` for the rostered SteamID and no row of it
     types anything at a match.
+    **Amended by PRD-04 T3, 2026-09-22 (owner decision, 2026-09-21): production's platform
+    key does hold `simulation`.** The original sentence read "a production platform key
+    never holds it". The owner pressed the admin console's "test match with puppets"
+    against production — the whole point of its fleet door — and got `forbidden`, and the
+    scope was appended to the live key by one `UPDATE`, because no route and no CLI verb
+    could do it. Both now exist (`PATCH /v1/keys/:keyId/scopes`, `ezpug-iron keys scopes`)
+    and the key table is never edited by hand again. The rule the sentence was protecting
+    survives in the two places that actually carry it: the block is never implied, so a
+    request is a rehearsal only by carrying `simulation` explicitly, and every fact of such
+    a match says `source.simulated` — the scope says who may *ask*, and the platform's own
+    `puppets` flag decides what counts.
 
 26. **A mode with nothing to win declares a length, and the SDK ends the match.** (PRD-03
     T9, 2026-09-20; `OPEN-POINTS` §1.) Production's first seven `powerup-dm` rooms never

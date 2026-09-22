@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { matchApiScopesSchema } from '../scopes'
+import {
+  MATCH_API_SCOPES,
+  type MatchApiScope,
+  matchApiScopeSchema,
+  matchApiScopesSchema,
+} from '../scopes'
 import { timestampSchema } from './common'
 import { budgetLimitsSchema } from './fleet'
 
@@ -96,3 +101,52 @@ export const budgetPatchRequestSchema = budgetLimitsSchema
   .partial()
   .refine(patch => Object.keys(patch).length > 0, 'name at least one ceiling')
 export type BudgetPatchRequest = z.infer<typeof budgetPatchRequestSchema>
+
+/**
+ * Body of `PATCH /v1/keys/:keyId/scopes` (PRD-04 T3): the scopes to grant
+ * and the scopes to take away, at least one of them. A patch and not a put,
+ * for the reason the budget is one — an operator granting `simulation` on a
+ * Monday evening should not have to restate the key's other scopes from
+ * memory and risk taking one away by accident.
+ *
+ * Both lists are idempotent: `add` a scope the key already holds, or
+ * `remove` one it never had, and the answer is the key as it was. A scope on
+ * **both** lists is refused here rather than resolved by an order the caller
+ * cannot see — there is no reading of "add `fleet`, remove `fleet`" that is
+ * not a mistake somewhere upstream.
+ */
+export const scopesPatchRequestSchema = z
+  .object({
+    add: z.array(matchApiScopeSchema).max(MATCH_API_SCOPES.length).optional(),
+    remove: z.array(matchApiScopeSchema).max(MATCH_API_SCOPES.length).optional(),
+  })
+  .refine(
+    patch => (patch.add?.length ?? 0) + (patch.remove?.length ?? 0) > 0,
+    'name at least one scope to add or remove',
+  )
+  .refine(
+    patch => !(patch.add ?? []).some(scope => (patch.remove ?? []).includes(scope)),
+    'a scope is both added and removed',
+  )
+export type ScopesPatchRequest = z.infer<typeof scopesPatchRequestSchema>
+
+/**
+ * **The one place a scope patch is applied**, so the fake, the orchestrator
+ * and the CLI's preview all answer the same key for the same body. The order
+ * is add-then-remove and it cannot matter: the schema already refused a scope
+ * that appears on both lists. Duplicates collapse, the order of
+ * {@link MATCH_API_SCOPES} is what comes back — a key's scopes are a set, and
+ * a stable order is what makes two `GET /v1/keys` diffable.
+ *
+ * An empty result is *returned*, not refused: what to do about a key left
+ * with no scopes belongs to the caller, which answers `validation_failed` and
+ * points at `DELETE /v1/keys/:keyId`.
+ */
+export function applyScopesPatch(
+  held: readonly MatchApiScope[],
+  patch: { add?: readonly MatchApiScope[]; remove?: readonly MatchApiScope[] },
+): MatchApiScope[] {
+  const next = new Set([...held, ...(patch.add ?? [])])
+  for (const scope of patch.remove ?? []) next.delete(scope)
+  return MATCH_API_SCOPES.filter(scope => next.has(scope))
+}

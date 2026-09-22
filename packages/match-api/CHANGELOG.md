@@ -6,6 +6,33 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.20.0 — 2026-09-22
+
+**A key's scopes are edited by a route** (PRD-04 T3). On 2026-09-21 production's platform
+key was granted `simulation` by a hand-written `UPDATE`, because there was no door for it.
+There is one now. Additive: nothing that existed changed shape.
+
+- **`PATCH /v1/keys/:keyId/scopes`** (scope `admin`), body
+  `{ add?: Scope[], remove?: Scope[] }` with at least one of them non-empty, answering the
+  key. The scopes not named do not move, so granting one cannot take another away by
+  accident; both halves are idempotent. A scope on both lists is `validation_failed` (the
+  published client refuses that body before it is sent), a removal that would leave the key
+  no scopes at all is `validation_failed` and points at `DELETE /v1/keys/:keyId`, and a
+  revoked key is `invalid_state`, as with `rotate`.
+- **`scopesPatchRequestSchema` / `ScopesPatchRequest`**, and **`applyScopesPatch(held,
+  patch)`** — the one reading of a patch, so the fake, the orchestrator and any client
+  agree on what it means. The answer is in `MATCH_API_SCOPES` order, whatever order the
+  patch named, so two `GET /v1/keys` a month apart are diffable.
+- **The conformance suite's `key-scopes` flow** and its `admin` capability: a target that
+  hands over an `admin` client and the id of the key the suite itself calls with gets the
+  round trip proven — the key is widened, the door answers the new scope on the very next
+  request, and the key is put back the way it was found.
+- **The truth about production's platform key.** `scopes.ts` and `docs/match-api.md` used
+  to say a production platform key never holds `simulation`. It does (owner call,
+  2026-09-21); what keeps a real match from becoming a rehearsal is that the block is never
+  implied and every fact of one says `source.simulated`.
+- **What you may need to change**: nothing.
+
 ## 0.19.0 — 2026-09-22
 
 **Mixed rosters: `simulation.puppets` names who is a puppet** (PRD-04 T2, for the platform's

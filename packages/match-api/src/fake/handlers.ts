@@ -143,6 +143,7 @@ export function createFakeHandlers(core: FakeCore): FakeHandlers {
       list: () => ({ keys: core.listKeys() }),
       revoke: ({ params }) => core.revokeKey(params.keyId),
       rotate: ({ params }) => core.rotateKey(params.keyId),
+      setScopes: ({ params, body }) => core.setKeyScopes(params.keyId, body),
       setBudget: ({ params, body }) => core.setKeyBudget(params.keyId, body),
       setWebhookSecrets: ({ params, body }) => core.setWebhookSecrets(params.keyId, body),
       setFleetWebhook: ({ params, body }) => core.setFleetWebhook(params.keyId, body),

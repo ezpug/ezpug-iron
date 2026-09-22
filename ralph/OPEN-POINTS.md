@@ -6,6 +6,9 @@ that takes one moves it into its PRD as a task and deletes it here.
 
 §1 (`powerup-dm` has no end) became PRD-03 T9 and landed as decision 26: a manifest
 `length` the SDK enforces. §2 (a body the request never named) closed with PRD-03 T7.
+"The production platform key holds `simulation`" became PRD-04 T3 and closed with it:
+`PATCH /v1/keys/:keyId/scopes` and `ezpug-iron keys scopes` exist, and `scopes.ts`,
+`docs/match-api.md` and `ralph/DEPLOY.md` say what is actually true of that key.
 
 ## §3 EZ Rating draws a zero on a retakes scoreboard
 
@@ -98,31 +101,6 @@ behind the other's release. Our lane's fleet-wide "no server running" assertion 
 right check under an exclusive lock and stays as it is. Our side now also waits up to ten
 minutes for an empty fleet after taking the lock, so our lane no longer fails behind an
 early release. The platform's lane still can, behind anyone's.
-
-## The production platform key holds `simulation` (owner call, 2026-09-21)
-
-**What happened.** The owner pressed "test match with puppets" on ezpug.com's fleet page
-and got `forbidden`, `details.scope: simulation`. The platform's fleet door (its PRD-10 T8)
-is built to send puppets through production. But `packages/match-api/src/scopes.ts` says
-"a production platform key does not hold it", and `ralph/DEPLOY.md` mints `platform` with
-`matches,fleet`. The two rounds disagreed, and the owner wants the button to work.
-
-**What was done.** The live `platform` key (`d22fcf5b…`, prefix `ezik_ocE9Mf0`) had
-`simulation` appended in `ezpug-iron-prod-postgres` by one scoped `UPDATE`. There is no
-scope-edit route, and a new key would have meant new webhook secrets and orphaned
-in-flight matches. It is undone by `array_remove(scopes, 'simulation')` on that row. Key
-lookups aren't cached, so the change took effect immediately.
-
-**Why it is safe enough.** The platform marks a puppeted match `puppets` from creation and
-never counts it (its PRD-10 T7). Every fact carries `source.simulated`. And the request
-must carry the `simulation` block explicitly. That block is set only by the admin fleet
-door.
-
-**What it needs.** Either (a) a `PATCH /v1/keys/:id/scopes` route and CLI verb so this is
-never a SQL line again, plus `scopes.ts`'s comment and `DEPLOY.md`'s mint line updated to
-say the platform key holds `simulation`. Or (b) a separate rehearsal key that the platform
-uses only on its fleet door, which is the path `scopes.ts` intended. Recommended: (a). The
-safety lives in the platform's `puppets` flag, not in which key asked.
 
 ## §6 A `pause` MatchZy refused comes back `applied`
 

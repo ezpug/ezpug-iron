@@ -126,6 +126,15 @@ describe('createPostgresKeyStore', () => {
       await store.clearBudgetNotices(row.id)
       expect(await store.markBudgetNotice(notice, at)).toBe(true)
       expect(await store.setBudget(randomUUID(), { monthlyCents: 1 }, at)).toBeUndefined()
+
+      // The scopes, edited by the route rather than by an UPDATE (T3).
+      const rescoped = await store.setScopes(row.id, ['matches', 'simulation'], at)
+      expect(rescoped?.key.scopes).toEqual(['matches', 'simulation'])
+      expect(await store.setScopes(randomUUID(), ['matches'], at)).toBeUndefined()
+      // A revoked key is not re-scoped, the way it is not rotated.
+      await store.revoke(row.id, at)
+      const afterRevoke = await store.setScopes(row.id, ['admin'], at)
+      expect(afterRevoke?.key.scopes).toEqual(['matches', 'simulation'])
     })
   })
 

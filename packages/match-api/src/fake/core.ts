@@ -55,12 +55,14 @@ import type {
   PlayerTokenRequest,
   ProviderHealth,
   RosterEntry,
+  ScopesPatchRequest,
   SimScenarioCatalog,
   SimStatus,
   WebhookSecretsRequest,
 } from '../resources'
 import {
   apiKeyCreateRequestSchema,
+  applyScopesPatch,
   CONSOLE_LINES_MAX,
   demoUploadUrlFor,
   gamemodeAllowsMap,
@@ -414,6 +416,25 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     record.key.prefix = secret.slice(0, 12)
     keysBySecret.set(secret, record.key.id)
     return { key: { ...record.key }, secret }
+  }
+
+  /**
+   * Grant or take away scopes on a live key (PRD-04 T3). The refusals are
+   * the orchestrator's, in the orchestrator's order: a revoked key first
+   * (rotation's rule — a key ends at `DELETE`, and widening a dead one is
+   * never what was meant), then the removal that would leave nothing behind.
+   */
+  const setKeyScopes = (keyId: string, patch: ScopesPatchRequest): ApiKey => {
+    const record = requireKey(keyId)
+    if (record.key.revokedAt) throw refuse('invalid_state', `key ${keyId} is revoked`)
+    const next = applyScopesPatch(record.key.scopes, patch)
+    if (next.length === 0)
+      throw refuse(
+        'validation_failed',
+        `that would leave key ${keyId} no scopes at all; revoke it instead`,
+      )
+    record.key.scopes = next
+    return { ...record.key }
   }
 
   const setKeyBudget = (keyId: string, patch: BudgetPatchRequest): ApiKey => {
@@ -2034,6 +2055,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     // keys
     mintKey,
     rotateKey,
+    setKeyScopes,
     setKeyBudget,
     authenticate,
     listKeys: (): ApiKey[] => [...keys.values()].map(k => ({ ...k.key })),

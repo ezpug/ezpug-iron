@@ -23,6 +23,7 @@ import {
   apiKeySchema,
   budgetPatchRequestSchema,
   fleetWebhookRequestSchema,
+  scopesPatchRequestSchema,
   webhookSecretsRequestSchema,
 } from './resources/keys'
 import { matchListFilterSchema, matchSchema } from './resources/match'
@@ -354,6 +355,23 @@ export const matchApiRoutes = {
       scope: 'admin',
       params: keyParams,
       response: apiKeyCreatedSchema,
+    }),
+    /**
+     * Grant or take away scopes on a live key (PRD-04 T3) — what used to be
+     * a hand-written `UPDATE` against production's `api_keys`. Additive: an
+     * operator names only what moves, and the scopes not named stay.
+     * `invalid_state` for a revoked key (revoking is how a key ends, and
+     * widening a dead one is never what was meant); `validation_failed` when
+     * the removal would leave the key no scopes at all, which is a revoke
+     * under another name and belongs at `DELETE /v1/keys/:keyId`.
+     */
+    setScopes: defineRoute({
+      method: 'patch',
+      path: '/v1/keys/:keyId/scopes',
+      scope: 'admin',
+      params: keyParams,
+      body: scopesPatchRequestSchema,
+      response: apiKeySchema,
     }),
     /** Move one or more of the key's three ceilings (decision 7). */
     setBudget: defineRoute({

@@ -188,6 +188,9 @@ export function createFakeConformanceTarget(
         return fake.client(puppeteer().secret)
       },
     },
+    // The fake's root key is the `admin` one, minted at creation; the key the
+    // scope flow edits is the one every other flow calls with (PRD-04 T3).
+    admin: { client: fake.client(fake.admin.secret), keyId: platform.key.id },
     close: () => {
       fake.close()
     },

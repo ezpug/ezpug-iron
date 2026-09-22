@@ -20,7 +20,7 @@ An API key holds one or more **scopes**:
 | --------- | --------------------------------------------------------------------------- |
 | `matches` | create, read, command and cancel matches; mint player tokens; read the catalog and capacity |
 | `fleet`   | read the ledger, providers, nodes, budget and GSLT pool; release, drain, undrain; console and RCON |
-| `admin`   | mint, list and revoke keys; set webhook secrets. Implies `matches`, `fleet` and `simulation` |
+| `admin`   | mint, list and revoke keys; edit their scopes, set budgets and webhook secrets. Implies `matches`, `fleet` and `simulation` |
 | `simulation` | send a match request that carries `simulation` — a match played by **puppets** (PRD-03 T4). Not a route scope: `POST /v1/matches` still needs `matches`, and this one is checked against the body |
 
 Every route declares the scope it needs (`scope` in the route table). A key without it
@@ -28,9 +28,15 @@ gets `forbidden`. One command, `rcon`, needs `admin` on top of the `matches` rou
 travels on; one body field, `simulation`, needs the `simulation` scope on top of it, and a
 request that carries it on a key without the scope is `forbidden` with `details.scope:
 "simulation"` — judged before anything about the body, because an unauthorised request is
-not owed a diagnosis. A production platform key holds `matches` and never `simulation`,
-which is how a real match can never be a simulated one by accident; the lane's key and an
-operator's rehearsal key hold both.
+not owed a diagnosis.
+
+**Production's platform key holds `simulation`** (owner call, 2026-09-21). This page used
+to say it never would; the admin console's "test match with puppets" is the point of the
+fleet door, and it answered `forbidden`. What keeps a real match from becoming a simulated
+one is narrower, and was always the guard that mattered: the block is never implied, so a
+request is a rehearsal only by carrying `simulation` explicitly, and every fact of such a
+match says `source.simulated`. Which scopes a live key holds is moved by
+`PATCH /v1/keys/:keyId/scopes`, never by a hand-written `UPDATE`.
 
 ## Errors
 
@@ -628,6 +634,24 @@ is `{ key, secret }`, the secret shown once, like a mint. Same id, scopes, budge
 webhook secrets; `invalid_state` for a revoked key. What an operator does when a key
 leaked: rotate, then hand the new secret over, rather than mint a second key and leave
 the first alive.
+
+### `PATCH /v1/keys/:keyId/scopes`
+
+Scope `admin`. Body `{ add?: Scope[], remove?: Scope[] }`, at least one of them non-empty;
+the answer is the key. What an operator does when a key needs a capability it was not
+minted with — before this route existed it was a hand-written `UPDATE` against production
+(2026-09-21, the platform key and `simulation`).
+
+Additive on purpose: the scopes that are not named do not change, so granting one on a
+Saturday cannot take another away by accident. Both halves are idempotent — adding a scope
+the key already holds, or removing one it never had, answers the key as it was. A scope on
+**both** lists is `validation_failed`, and the published client refuses that body before it
+reaches the wire. A removal that would leave the key no scopes at all is
+`validation_failed` too: a key with none is a revoke under another name, and
+`DELETE /v1/keys/:keyId` is the door for that. `invalid_state` for a revoked key, as with
+`rotate`.
+
+Nothing caches a key, so a scope granted here is in force on that key's very next request.
 
 ### `PATCH /v1/keys/:keyId/budget`
 

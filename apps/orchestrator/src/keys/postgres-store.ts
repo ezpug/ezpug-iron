@@ -163,6 +163,16 @@ export function createPostgresKeyStore(executor: DatabaseExecutor): KeyStore {
       return one((await executor.select().from(apiKeys).where(eq(apiKeys.id, id)))[0])
     },
 
+    setScopes: async (id, scopes) => {
+      // A revoked key's scopes are not edited — the service refuses it
+      // before this, and the WHERE says so again, as rotation's does.
+      await executor
+        .update(apiKeys)
+        .set({ scopes: [...scopes] })
+        .where(and(eq(apiKeys.id, id), isNull(apiKeys.revokedAt)))
+      return one((await executor.select().from(apiKeys).where(eq(apiKeys.id, id)))[0])
+    },
+
     setBudget: async (id, patch) => {
       const existing = (await executor.select().from(apiKeys).where(eq(apiKeys.id, id)))[0]
       if (!existing) return undefined

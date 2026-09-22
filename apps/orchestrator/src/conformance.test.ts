@@ -63,6 +63,12 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
     budget,
     webhookSecrets,
   })
+  const operator = await app.keys.mint({
+    name: 'conformance-admin',
+    scopes: ['admin'],
+    budget,
+    webhookSecrets: [],
+  })
   // The endpoint: a consumer that verifies, then acts. Verification hashes
   // on Web Crypto, whose promise settles on a macrotask; the worker's own
   // attempt timeout is on the fake clock, so the two never race here.
@@ -81,6 +87,7 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
   const client = createMatchApiClient({ ...clientOptions, apiKey: platform.secret })
   const budgetClient = createMatchApiClient({ ...clientOptions, apiKey: thrifty.secret })
   const puppeteerClient = createMatchApiClient({ ...clientOptions, apiKey: puppeteer.secret })
+  const adminClient = createMatchApiClient({ ...clientOptions, apiKey: operator.secret })
   const close = async (): Promise<void> => {
     await app.close()
   }
@@ -162,6 +169,9 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
     playerCommand: command => tapThroughWidget(app.widgets, command),
     budget: { client: budgetClient, maxServerLifetimeMinutes: 60 },
     simulation: { client: puppeteerClient },
+    // The scope route (PRD-04 T3): an `admin` key, and the id of the one the
+    // suite itself calls with — the flow widens it and puts it back.
+    admin: { client: adminClient, keyId: platform.key.id },
     close,
   }
 }

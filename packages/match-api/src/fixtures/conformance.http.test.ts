@@ -65,6 +65,10 @@ async function httpTarget(): Promise<ConformanceTarget> {
       maxServerLifetimeMinutes: base.budget?.maxServerLifetimeMinutes ?? 60,
     },
     simulation: { client: puppeteer },
+    admin: {
+      client: createMatchApiClient({ ...options, apiKey: base.fake.admin.secret }),
+      keyId: base.platform.key.id,
+    },
     // A socket arrives on the event loop, not on the clock: give it a turn.
     advance: async ms => {
       await base.clock.advance(ms)

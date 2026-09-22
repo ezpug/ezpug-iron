@@ -170,6 +170,7 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
       list: async () => ({ keys: await keys.list() }),
       revoke: ({ params }) => keys.revoke(params.keyId),
       rotate: ({ params }) => keys.rotate(params.keyId),
+      setScopes: ({ params, body }) => keys.setScopes(params.keyId, body),
       setBudget: ({ params, body }) => keys.setBudget(params.keyId, body),
       setWebhookSecrets: ({ params, body }) => keys.setWebhookSecrets(params.keyId, body),
       setFleetWebhook: ({ params, body }) => keys.setFleetWebhook(params.keyId, body),

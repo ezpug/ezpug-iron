@@ -348,6 +348,12 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
     budget,
     webhookSecrets,
   })
+  const operator = await o.keys.mint({
+    name: keyName(namespace, flow.id, mints, 'admin'),
+    scopes: ['admin'],
+    budget,
+    webhookSecrets: [],
+  })
   const options = {
     baseUrl: url,
     clock: systemClock,
@@ -359,6 +365,7 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
   const client = createMatchApiClient({ ...options, apiKey: platform.secret })
   const budgetClient = createMatchApiClient({ ...options, apiKey: thrifty.secret })
   const puppeteerClient = createMatchApiClient({ ...options, apiKey: puppeteer.secret })
+  const adminClient = createMatchApiClient({ ...options, apiKey: operator.secret })
   // Deliveries for this target only, by the path its own requests name.
   const path = `/hooks/${flow.id}-${mints}`
   const inbox = new Set<(envelope: WebhookEnvelope) => void>()
@@ -409,6 +416,10 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
     },
     budget: { client: budgetClient, maxServerLifetimeMinutes: 60 },
     simulation: { client: puppeteerClient },
+    // The scope route (PRD-04 T3): the flow widens this target's own
+    // `matches` key, asks the door again and puts it back. A key per flow, so
+    // nothing another flow holds is touched.
+    admin: { client: adminClient, keyId: platform.key.id },
     // The widget's tap over the real `/v1/widget` socket, as a browser would.
     playerCommand: command =>
       tapOverWidgetSocket(`${url.replace(/^http/, 'ws')}/v1/widget`, command, {

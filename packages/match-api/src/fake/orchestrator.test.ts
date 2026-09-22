@@ -383,6 +383,64 @@ describe('the door', () => {
       'invalid_state',
     )
   })
+
+  /**
+   * PRD-04 T3: the scope edit that reached production as a `UPDATE` on
+   * 2026-09-21. The key is minted `matches`; a `simulation` request is
+   * `forbidden`, the route grants the scope, and the very next request on the
+   * **same secret** goes through — nothing caches a key.
+   */
+  it('grants a scope by route, and the key’s next request is already allowed', async () => {
+    const h = setup()
+    const admin = h.fake.client(h.fake.admin.secret)
+    const client = h.fake.client(h.platform.secret)
+    // A fresh `clientMatchId` each time: a create is idempotent on it, so a
+    // replay would answer the first match instead of being judged again.
+    let asked = 0
+    const body = () => {
+      asked += 1
+      return { ...pugRequest(), clientMatchId: `scope-edit-${asked}`, simulation: {} }
+    }
+
+    const forbidden = await refusal(client.matches.create({ body: body() }))
+    expect(forbidden.code).toBe('forbidden')
+    expect(forbidden.details?.scope).toBe('simulation')
+
+    const granted = await admin.keys.setScopes({
+      params: { keyId: h.platform.key.id },
+      body: { add: ['simulation'] },
+    })
+    expect(granted.scopes).toEqual(['matches', 'simulation'])
+    expect(granted.budget).toEqual(h.platform.key.budget)
+    expect((await client.matches.create({ body: body() })).simulated).toBe(true)
+
+    // And taken away again, with the refusal back where it was.
+    const taken = await admin.keys.setScopes({
+      params: { keyId: h.platform.key.id },
+      body: { remove: ['simulation'] },
+    })
+    expect(taken.scopes).toEqual(['matches'])
+    expect((await refusal(client.matches.create({ body: body() }))).code).toBe('forbidden')
+
+    // The last scope cannot be taken away: that is what revoke is for.
+    const emptied = await refusal(
+      admin.keys.setScopes({ params: { keyId: h.platform.key.id }, body: { remove: ['matches'] } }),
+    )
+    expect(emptied.code).toBe('validation_failed')
+    expect((await client.matches.list({ query: {} })).items.length).toBeGreaterThan(0)
+
+    await admin.keys.revoke({ params: { keyId: h.platform.key.id } })
+    expect(
+      (
+        await refusal(
+          admin.keys.setScopes({
+            params: { keyId: h.platform.key.id },
+            body: { add: ['fleet'] },
+          }),
+        )
+      ).code,
+    ).toBe('invalid_state')
+  })
 })
 
 describe('cancel and commands', () => {

@@ -128,7 +128,7 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.19.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.20.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -179,7 +179,11 @@ PRD-10 T6 rehearses its countdown against in its dev world. **0.19.0** is mixed 
 are puppets and the rest are people, `capabilities.mixedRoster` says which modes can seat
 such a room — the three the SDK seats; `pug` refuses a partial list at the door because the
 fork seats every configured entry or none — and on the simulator a person's chair stays
-empty.
+empty. **0.20.0** is the scope route (PRD-04 T3): `PATCH /v1/keys/:keyId/scopes` and
+`ezpug-iron keys scopes <id> --add/--remove` move what a live key may do, additively, so
+the grant that reached production as a hand-written `UPDATE` on 2026-09-21 — the platform
+key and `simulation` — has a door. Production's platform key holds `simulation`, and the
+places that said it never would say what is true instead.
 
 ## Bumping one
 

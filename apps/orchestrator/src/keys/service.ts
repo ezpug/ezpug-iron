@@ -6,11 +6,14 @@ import {
   type ApiKeyCreated,
   type ApiKeyCreateRequest,
   apiKeyCreateRequestSchema,
+  applyScopesPatch,
   type BudgetPatchRequest,
   budgetPatchRequestSchema,
   type FleetWebhookRequest,
   fleetWebhookRequestSchema,
   MATCH_API_ERROR_STATUS,
+  type ScopesPatchRequest,
+  scopesPatchRequestSchema,
   type WebhookSecretsRequest,
   webhookSecretsRequestSchema,
 } from '@ezpug/match-api'
@@ -20,8 +23,9 @@ import { KeyNameTakenError, type KeyRecord, type KeyStore } from './store'
 
 /**
  * **API keys, the service**: mint (the secret shown once, only its hash
- * kept), authenticate a bearer, list, revoke, rotate the secret, move the
- * ceilings, rotate webhook secrets, and the throttled "last used" touch. The
+ * kept), authenticate a bearer, list, revoke, rotate the secret, edit the
+ * scopes, move the ceilings, rotate webhook secrets, and the throttled "last
+ * used" touch. The
  * scope gate is not here — it is the dispatch's, from the route table
  * (`http/dispatch.ts`) — and enforcing the ceilings is the budget service's
  * (`../budget/service.ts`); this is the identity half of decision 7.
@@ -76,6 +80,13 @@ export interface Keys {
    * rotation must never bring one back).
    */
   rotate: (id: string) => Promise<ApiKeyCreated>
+  /**
+   * Grant or take away scopes on a live key (PRD-04 T3). `not_found` for an
+   * unknown id, `invalid_state` for a revoked one (rotation's rule: a key
+   * ends at `revoke`, and widening a dead one is never what was meant),
+   * `validation_failed` when the removal would leave the key no scopes.
+   */
+  setScopes: (id: string, patch: ScopesPatchRequest) => Promise<ApiKey>
   /** Move one or more of the three ceilings; `not_found` for an unknown id. */
   setBudget: (id: string, patch: BudgetPatchRequest) => Promise<ApiKey>
   /** Replace the registered webhook secrets; `not_found` for an unknown id. */
@@ -199,6 +210,35 @@ export function createKeys(options: KeysOptions): Keys {
       // should still touch on its first use.
       touched.delete(id)
       return { key: record.key, secret }
+    },
+
+    /**
+     * The scopes a key holds, edited by a route rather than by an `UPDATE`
+     * against production (OPEN-POINTS, owner call 2026-09-21). Nothing
+     * caches a key lookup — `authenticate` reads the row per request — so a
+     * scope granted here is in force on the next call, including the caller's
+     * own if it edited itself.
+     */
+    async setScopes(id, patch) {
+      const carried = onContract(scopesPatchRequestSchema, patch, "the key's scopes")
+      const existing = await store.findById(id)
+      if (!existing) throw notFound(id)
+      if (existing.key.revokedAt)
+        throw new ApiError(
+          MATCH_API_ERROR_STATUS.invalid_state,
+          'invalid_state',
+          `API key ${id} was revoked`,
+        )
+      const scopes = applyScopesPatch(existing.key.scopes, carried)
+      if (scopes.length === 0)
+        throw new ApiError(
+          MATCH_API_ERROR_STATUS.validation_failed,
+          'validation_failed',
+          `that would leave API key ${id} no scopes at all; revoke it instead`,
+        )
+      const record = await store.setScopes(id, scopes, clock.date())
+      if (!record) throw notFound(id)
+      return record.key
     },
 
     async setBudget(id, patch) {

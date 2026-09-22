@@ -9,7 +9,10 @@ import type { KeyStore } from './store'
 
 const clock = useFakeClock()
 
-const request = (name: string, scopes: ('matches' | 'fleet' | 'admin')[] = ['matches']) => ({
+const request = (
+  name: string,
+  scopes: ('matches' | 'fleet' | 'admin' | 'simulation')[] = ['matches'],
+) => ({
   name,
   scopes,
   budget: { maxConcurrentServers: 4, maxServerLifetimeMinutes: 240, monthlyCents: 0 },
@@ -119,6 +122,58 @@ describe('createKeys', () => {
     expect((await refused(keys.revoke('00000000-0000-4000-8000-000000000000'))).code).toBe(
       'not_found',
     )
+  })
+
+  /**
+   * PRD-04 T3. The scope edit that production's platform key needed on
+   * 2026-09-21 was a hand-written `UPDATE`; this is the door it should have
+   * gone through. Additive on purpose — the operator names `simulation` and
+   * the key keeps `matches` and `fleet` without having to remember them.
+   */
+  it('grants and takes away scopes, additively, and holds the order of the enum', async () => {
+    const keys = createKeys({ store: createMemoryKeyStore(), clock })
+    const { key, secret } = await keys.mint(request('platform', ['matches', 'fleet']))
+
+    const granted = await keys.setScopes(key.id, { add: ['simulation'], remove: [] })
+    expect(granted.scopes).toEqual(['matches', 'fleet', 'simulation'])
+    // Nothing caches a lookup: the next authentication already sees it.
+    expect((await keys.authenticate(secret)).key.scopes).toContain('simulation')
+
+    // Both lists at once, and both idempotent.
+    const moved = await keys.setScopes(key.id, { add: ['simulation'], remove: ['admin'] })
+    expect(moved.scopes).toEqual(['matches', 'fleet', 'simulation'])
+
+    const taken = await keys.setScopes(key.id, { add: [], remove: ['simulation'] })
+    expect(taken.scopes).toEqual(['matches', 'fleet'])
+  })
+
+  it('refuses a scope edit that would empty a key, a revoked key and a stranger', async () => {
+    const keys = createKeys({ store: createMemoryKeyStore(), clock })
+    const { key } = await keys.mint(request('platform', ['matches']))
+
+    const emptied = await refused(keys.setScopes(key.id, { add: [], remove: ['matches'] }))
+    expect(emptied.code).toBe('validation_failed')
+    expect(emptied.message).toContain('revoke it instead')
+    // And the key kept what it had.
+    expect((await keys.list()).find(k => k.id === key.id)?.scopes).toEqual(['matches'])
+
+    const contradiction = await refused(
+      keys.setScopes(key.id, { add: ['fleet'], remove: ['fleet'] }),
+    )
+    expect(contradiction.code).toBe('validation_failed')
+    expect(issuePaths(contradiction)).toEqual([''])
+
+    const nothing = await refused(keys.setScopes(key.id, { add: [], remove: [] }))
+    expect(nothing.code).toBe('validation_failed')
+
+    expect(
+      (await refused(keys.setScopes('00000000-0000-4000-8000-000000000000', { add: ['fleet'] })))
+        .code,
+    ).toBe('not_found')
+
+    await keys.revoke(key.id)
+    const dead = await refused(keys.setScopes(key.id, { add: ['fleet'] }))
+    expect(dead.code).toBe('invalid_state')
   })
 
   it('revokes idempotently: the first moment is the one kept', async () => {
