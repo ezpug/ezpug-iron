@@ -104,7 +104,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   line both say the platform key holds `simulation` (owner call, 2026-09-21). Delete the
   OPEN-POINTS entry.
 
-- [ ] **T4: a pause that says no** (OPEN-POINTS §6). The core plugin answers
+- [x] **T4: a pause that says no** (OPEN-POINTS §6). The core plugin answers
   `css_forcepause` by reading the gamerules for a beat and returning `rejected` with a
   code (`halftime`, `post_game`, `timeout_active`, …) when nothing paused, `applied` only
   when it did; the same for `unpause`. `docs/match-api.md`'s command table says what

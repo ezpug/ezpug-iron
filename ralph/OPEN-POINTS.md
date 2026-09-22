@@ -8,7 +8,10 @@ that takes one moves it into its PRD as a task and deletes it here.
 `length` the SDK enforces. §2 (a body the request never named) closed with PRD-03 T7.
 "The production platform key holds `simulation`" became PRD-04 T3 and closed with it:
 `PATCH /v1/keys/:keyId/scopes` and `ezpug-iron keys scopes` exist, and `scopes.ts`,
-`docs/match-api.md` and `ralph/DEPLOY.md` say what is actually true of that key.
+`docs/match-api.md` and `ralph/DEPLOY.md` say what is actually true of that key. §6 (a
+pause MatchZy refused came back `applied`) became PRD-04 T4: the core plugin watches the
+gamerules for a beat after `css_forcepause` and answers `invalid_state` with a reason
+word when nothing stood — `docs/match-api.md`, "A pause that says no".
 
 ## §3 EZ Rating draws a zero on a retakes scoreboard
 
@@ -101,32 +104,6 @@ behind the other's release. Our lane's fleet-wide "no server running" assertion 
 right check under an exclusive lock and stays as it is. Our side now also waits up to ten
 minutes for an empty fleet after taking the lock, so our lane no longer fails behind an
 early release. The platform's lane still can, behind anyone's.
-
-## §6 A `pause` MatchZy refused comes back `applied`
-
-**What happened.** The sixth `verify:extended` of PRD-03 T18's sweep (2026-09-21) went
-red on the `pause` row with "the match never paused". Both commands came back `applied`
-over the link, yet the fork sent no `match_paused`, and neither did the core plugin
-(`.cache/iron-match/iron-match-2026-09-21T20-05-52-934Z`). The pause landed after round 2
-of a four-round 1v1. That is halftime (the run has one `side_swap`), and
-`ForcePauseMatch` returns early there (`references/MatchZy-Enhanced/src/Utility.cs`
-around line 2898: halftime, post-game, an active tactical timeout). It says why only in
-chat and on the console.
-
-**Why.** The core plugin relays `pause` as `css_forcepause` and answers `applied` once the
-command has run. It cannot read MatchZy's refusal, and `MatchZyFlow` reports the pause
-later off the gamerules, so a refusal is simply a fact that never comes. The platform's
-admin console reads `applied` as "the match is paused".
-
-**The decision.** Pick one:
-- `applied` means only that the server executed the command, and the pause is whatever
-  `match_paused` says (document it in `docs/match-api.md`);
-- the plugin watches the gamerules for a beat after `css_forcepause` and answers
-  `rejected` with a code when nothing changed;
-- the plugin refuses up front in the three states it can read off the gamerules itself.
-
-The lane now waits for `match_paused` and asks again (`iron-match.mjs`, `PAUSE_TRIES`),
-which is what a client has to do today.
 
 ## §7 A mixed roster under `pug` needs the fork to learn a per-seat switch
 
