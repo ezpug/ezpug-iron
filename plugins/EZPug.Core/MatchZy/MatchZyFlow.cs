@@ -17,7 +17,9 @@ namespace EZPug.Core;
 /// kind, a <c>pause</c> command relayed over the link is answered with MatchZy's own
 /// <c>css_forcepause</c> and reported as an admin pause. A pause is reported when it is
 /// <i>requested</i> (<c>mp_pause_match</c> takes effect at the next freeze time), which is
-/// when MatchZy itself says "paused" in chat.</item>
+/// when MatchZy itself says "paused" in chat. The command's own answer is the gamerules'
+/// too (PRD-04 T4): <c>applied</c> only once they say paused, <c>invalid_state</c> with a
+/// reason when MatchZy refused — see <see cref="Ask"/>.</item>
 /// <item><c>side_swap</c> at a round start, when the rostered team A stands on another
 /// side than the context holds — a knife winner's <c>.switch</c> and halftime alike — or,
 /// with nobody rostered (bots), when the engine said it swaps at the round reset.</item>
@@ -37,6 +39,15 @@ public sealed class MatchZyFlow
     /// <summary>How long after a round start MatchZy's backup file is looked for — it writes on the same event, in whichever order the plugins run.</summary>
     public const long BackupSettleMs = 1_500;
 
+    /// <summary>
+    /// How long the gamerules are watched after <c>css_forcepause</c> before the command
+    /// is refused. MatchZy's own <c>mp_pause_match</c> is a queued console command, so
+    /// the flag turns over a frame later; a whole second of polls is generous and stays
+    /// far inside the orchestrator's fifteen-second command deadline, which means the
+    /// client that asked is still holding the HTTP call when the answer lands.
+    /// </summary>
+    public const long PauseAnswerMs = 1_000;
+
     private readonly IGameWorld _world;
     private readonly GamemodeRuntime _runtime;
     private readonly string _csgoDirectory;
@@ -49,6 +60,7 @@ public sealed class MatchZyFlow
     private bool _adminPause;
     private bool _pendingSwap;
     private string? _lastBackup;
+    private PendingAnswer? _pending;
 
     public MatchZyFlow(IGameWorld world, GamemodeRuntime runtime, string csgoDirectory, ILinkLog? log = null)
     {
@@ -108,6 +120,14 @@ public sealed class MatchZyFlow
 
     private void Disarm()
     {
+        // A watched pause outlives nothing: answer it now rather than leave the client
+        // on the orchestrator's deadline for a match that no longer exists.
+        if (_pending is { } pending)
+        {
+            _pending = null;
+            _runtime.Link.AnswerCommand(pending.CorrelationId, Refused(PauseRefusal.Released));
+        }
+
         _poll?.Cancel();
         _poll = null;
         _backupScan?.Cancel();
@@ -141,6 +161,10 @@ public sealed class MatchZyFlow
         }
 
         _standing = standing;
+
+        // After the fact, never before it: the pause is on its way to the orchestrator
+        // before the answer that claims it is, whatever the two pipes do to them next.
+        Settle(rules);
     }
 
     /// <summary>What kind of pause the gamerules describe, and who asked, where that can be known.</summary>
@@ -175,19 +199,159 @@ public sealed class MatchZyFlow
             return null;
         }
 
-        switch (command)
+        return command switch
         {
-            case PauseCommand:
-                _adminPause = true;
-                _world.ExecCommand("css_forcepause");
-                return CommandAnswer.Applied;
-            case UnpauseCommand:
-                _world.ExecCommand("css_forceunpause");
-                return CommandAnswer.Applied;
-            default:
-                return null;
-        }
+            PauseCommand pause => Ask(pause.CorrelationId, wanted: true),
+            UnpauseCommand unpause => Ask(unpause.CorrelationId, wanted: false),
+            _ => null,
+        };
     }
+
+    /// <summary>
+    /// <b>A pause that says no</b> (PRD-04 T4, OPEN-POINTS §6). MatchZy's
+    /// <c>ForcePauseMatch</c> returns early at halftime, after the last round and during
+    /// a tactical timeout, and says so only in chat — so relaying the command and
+    /// answering <c>applied</c> because it ran told the platform's admin console that a
+    /// match it never paused was paused. The answer is the server's instead: the verb
+    /// runs, the gamerules are watched for <see cref="PauseAnswerMs"/>, and
+    /// <c>applied</c> means <c>mp_pause_match</c> actually took hold — anything else is
+    /// <c>invalid_state</c> with a <see cref="PauseRefusal"/> naming what the gamerules
+    /// said when the beat ran out.
+    ///
+    /// The one thing the beat cannot judge is a match that is already standing where it
+    /// was asked to stand: "did it become paused" has no answer when it was paused to
+    /// begin with (a tactical timeout holds <c>m_bMatchWaitingForResume</c> too). Those
+    /// two are decided up front, the way MatchZy decides them itself, and the verb is
+    /// never sent.
+    /// </summary>
+    private CommandAnswer Ask(string correlationId, bool wanted)
+    {
+        // Two asks in flight would race for one field; the older one is answered from
+        // what the gamerules say right now rather than left for the link's deadline.
+        Settle(_world.Rules, dueOnly: false);
+
+        if (_world.Rules is not { } rules)
+        {
+            return Refused(PauseRefusal.NoGamerules);
+        }
+
+        if (wanted && rules.Paused)
+        {
+            return Refused(rules.Timeout ? PauseRefusal.TimeoutActive : PauseRefusal.AlreadyPaused);
+        }
+
+        if (!wanted && !rules.Standing)
+        {
+            return Refused(PauseRefusal.NotPaused);
+        }
+
+        if (wanted)
+        {
+            _adminPause = true;
+        }
+
+        _world.ExecCommand(wanted ? "css_forcepause" : "css_forceunpause");
+        _pending = new PendingAnswer(correlationId, wanted, _world.Clock.NowMs + PauseAnswerMs);
+        return CommandAnswer.Deferred;
+    }
+
+    /// <summary>
+    /// Answer a watched pause, if the gamerules have decided it. <paramref name="dueOnly"/>
+    /// false forces a verdict now — a second command, or the match going away under it.
+    /// </summary>
+    private void Settle(GameRules? rules, bool dueOnly = true)
+    {
+        if (_pending is not { } pending)
+        {
+            return;
+        }
+
+        if (rules is { } read && Took(read, pending.Wanted))
+        {
+            _pending = null;
+            _runtime.Link.AnswerCommand(pending.CorrelationId, CommandAnswer.Applied);
+            return;
+        }
+
+        if (dueOnly && rules is not null && _world.Clock.NowMs < pending.DueAtMs)
+        {
+            return;
+        }
+
+        _pending = null;
+        if (pending.Wanted)
+        {
+            // Nothing the admin asked for happened, so the next pause is not theirs.
+            _adminPause = false;
+        }
+
+        _runtime.Link.AnswerCommand(pending.CorrelationId, Refused(Diagnose(rules, pending.Wanted)));
+    }
+
+    /// <summary>
+    /// Whether the verb took. A pause is <c>mp_pause_match</c> alone — a tactical timeout
+    /// that arrived in the meantime is not the admin's doing and must not read as their
+    /// pause — while an unpause has to leave the match running, whatever was holding it.
+    /// </summary>
+    private static bool Took(GameRules rules, bool wanted) => wanted ? rules.Paused : !rules.Standing;
+
+    /// <summary>Why nothing moved, as far as the gamerules can say. Best effort by design: the verdict is the observation, this is only the word for it.</summary>
+    private static PauseRefusal Diagnose(GameRules? rules, bool wanted)
+    {
+        if (rules is not { } read)
+        {
+            return PauseRefusal.NoGamerules;
+        }
+
+        return read.Phase switch
+        {
+            GamePhase.Halftime => PauseRefusal.Halftime,
+            GamePhase.MatchEnded => PauseRefusal.PostGame,
+            _ when read.Timeout => PauseRefusal.TimeoutActive,
+            _ when wanted && (read.Warmup || read.Phase == GamePhase.WarmupRound) => PauseRefusal.NotLive,
+            _ => PauseRefusal.Unknown,
+        };
+    }
+
+    /// <summary>
+    /// Every refusal is <c>invalid_state</c> — the command was understood and the match
+    /// was in no state for it — and the message names the reason first, so a client reads
+    /// one word before the sentence (<c>docs/match-api.md</c>, the command table).
+    /// </summary>
+    private static CommandAnswer Refused(PauseRefusal refusal) =>
+        CommandAnswer.Rejected(MatchApiErrorCode.InvalidState, $"{Word(refusal)}: {Sentence(refusal)}");
+
+    /// <summary>The reason word a client matches on. The set is closed and documented; a new one is a documented one.</summary>
+    public static string Word(PauseRefusal refusal) =>
+        refusal switch
+        {
+            PauseRefusal.AlreadyPaused => "already_paused",
+            PauseRefusal.NotPaused => "not_paused",
+            PauseRefusal.Halftime => "halftime",
+            PauseRefusal.PostGame => "post_game",
+            PauseRefusal.TimeoutActive => "timeout_active",
+            PauseRefusal.NotLive => "not_live",
+            PauseRefusal.Released => "released",
+            PauseRefusal.NoGamerules => "no_gamerules",
+            _ => "unknown",
+        };
+
+    private static string Sentence(PauseRefusal refusal) =>
+        refusal switch
+        {
+            PauseRefusal.AlreadyPaused => "the match is already standing",
+            PauseRefusal.NotPaused => "the match is not paused",
+            PauseRefusal.Halftime => "the match software refuses a pause during halftime",
+            PauseRefusal.PostGame => "the match is over",
+            PauseRefusal.TimeoutActive => "a timeout is running and holds the match",
+            PauseRefusal.NotLive => "the match is not live yet",
+            PauseRefusal.Released => "the match was released before the server answered",
+            PauseRefusal.NoGamerules => "the server has no map loaded to pause",
+            _ => "nothing paused and the gamerules name no reason",
+        };
+
+    /// <summary>A pause command relayed to MatchZy, waiting for the gamerules to say whether it took.</summary>
+    private readonly record struct PendingAnswer(string CorrelationId, bool Wanted, long DueAtMs);
 
     // ------------------------------------------------------------------ rounds
 
@@ -306,4 +470,34 @@ public sealed class MatchZyFlow
         });
         _runtime.Emit(_runtime.Facts.BackupWritten(roundNumber, found.FileName));
     }
+}
+
+/// <summary>
+/// <b>Why a pause did not happen</b> (PRD-04 T4). MatchZy says its refusal in chat and
+/// nowhere a plugin can read, so these are what the gamerules looked like when the beat
+/// ran out — a diagnosis, not a quote. The verdict itself is never a guess: it is whether
+/// <c>mp_pause_match</c> moved. Every one of them crosses the link as
+/// <c>invalid_state</c> with the word in front of the message; the words are the closed
+/// set <c>docs/match-api.md</c> lists.
+/// </summary>
+public enum PauseRefusal
+{
+    /// <summary>Nothing paused and the gamerules name no reason — MatchZy refused for something only it knows.</summary>
+    Unknown,
+    /// <summary>A pause asked for a match that is already standing.</summary>
+    AlreadyPaused,
+    /// <summary>An unpause asked for a match that is running.</summary>
+    NotPaused,
+    /// <summary>The break between the halves; MatchZy refuses a pause there.</summary>
+    Halftime,
+    /// <summary>The match is over and the scoreboard is up.</summary>
+    PostGame,
+    /// <summary>A tactical or technical timeout is holding the match.</summary>
+    TimeoutActive,
+    /// <summary>The match has not started; there is nothing to pause.</summary>
+    NotLive,
+    /// <summary>The match was released while the answer was being watched for.</summary>
+    Released,
+    /// <summary>No map is loaded, so nothing could be read or asked.</summary>
+    NoGamerules,
 }

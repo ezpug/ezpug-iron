@@ -59,8 +59,8 @@ public class MatchZyFlowTests
             return Runtime.Assignment!;
         }
 
-        public void Rules(bool paused = false, bool tTimeout = false, bool ctTimeout = false, bool technical = false, bool swapping = false, bool warmup = false, int played = 0) =>
-            World.Rules = new GameRules(warmup, played, paused, tTimeout, ctTimeout, technical, swapping);
+        public void Rules(bool paused = false, bool tTimeout = false, bool ctTimeout = false, bool technical = false, bool swapping = false, bool warmup = false, int played = 0, GamePhase phase = GamePhase.PlayingStandard) =>
+            World.Rules = new GameRules(warmup, played, paused, tTimeout, ctTimeout, technical, swapping, phase);
 
         /// <summary>The map comes up and the loader's second console frame lands a beat later (T22a).</summary>
         public void StartMap(string map)
@@ -70,6 +70,13 @@ public class MatchZyFlowTests
         }
 
         public void Poll() => World.Elapse(MatchZyFlow.PollIntervalMs);
+
+        /// <summary>Long enough for a watched pause to run out of beat and be answered.</summary>
+        public void Beat() => World.Elapse(MatchZyFlow.PauseAnswerMs + MatchZyFlow.PollIntervalMs);
+
+        /// <summary>The late answer to the command with that id, as the orchestrator would read it off the link.</summary>
+        public CommandResultServerFrame Answer(string correlationId) =>
+            Link.CommandResults.Single(result => result.CorrelationId == correlationId);
 
         public void Dispose()
         {
@@ -122,28 +129,140 @@ public class MatchZyFlowTests
         rig.StartPug();
         rig.Rules();
 
-        var result = rig.Link.Command(new PauseCommand { CorrelationId = "c-1" });
-        Assert.Equal(LinkCommandStatus.Applied, result!.Status);
+        // The answer is not the relay's: the verb goes out and the command waits on the
+        // gamerules (PRD-04 T4).
+        Assert.Null(rig.Link.Command(new PauseCommand { CorrelationId = "c-1" }));
         Assert.Contains("command css_forcepause", rig.World.Actions.Select(action => action.ToString()));
+        Assert.Empty(rig.Link.CommandResults);
 
         rig.Rules(paused: true);
         rig.Poll();
         var paused = Assert.Single(rig.Link.EventsOf<MatchPausedEvent>());
         Assert.Equal(PauseKind.Admin, paused.Kind);
         Assert.Equal(PauseSource.Admin, paused.PausedBy);
+        // The fact is emitted before the answer is given, so nothing the plugin says can
+        // arrive out of order — what the two pipes do to them after that is the link's.
+        Assert.Equal(LinkCommandStatus.Applied, rig.Answer("c-1").Status);
 
-        var unpause = rig.Link.Command(new UnpauseCommand { CorrelationId = "c-2" });
-        Assert.Equal(LinkCommandStatus.Applied, unpause!.Status);
+        Assert.Null(rig.Link.Command(new UnpauseCommand { CorrelationId = "c-2" }));
         Assert.Contains("command css_forceunpause", rig.World.Actions.Select(action => action.ToString()));
         rig.Rules();
         rig.Poll();
         Assert.Single(rig.Link.EventsOf<MatchUnpausedEvent>());
+        Assert.Equal(LinkCommandStatus.Applied, rig.Answer("c-2").Status);
 
         // The next pause is not the admin's unless the admin asked again.
         rig.Rules(paused: true);
         rig.Poll();
         Assert.Null(rig.Link.EventsOf<MatchPausedEvent>()[^1].Kind);
     }
+
+    /// <summary>
+    /// <b>A pause that says no</b> (PRD-04 T4, OPEN-POINTS §6). The sixth extended run of
+    /// PRD-03 T18 went red because both commands came back <c>applied</c> and the match
+    /// never paused: the pause landed at halftime, where MatchZy's <c>ForcePauseMatch</c>
+    /// returns early and says so only in chat. Now the beat runs out, the gamerules are
+    /// asked what they were doing, and the client is told.
+    /// </summary>
+    [Fact]
+    public void APauseMatchZyRefusedComesBackRejectedWithTheReasonInFront()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(swapping: true, phase: GamePhase.Halftime);
+
+        Assert.Null(rig.Link.Command(new PauseCommand { CorrelationId = "c-1" }));
+        Assert.Contains("command css_forcepause", rig.World.Actions.Select(action => action.ToString()));
+        // Nothing is said while the beat is still running.
+        rig.Poll();
+        Assert.Empty(rig.Link.CommandResults);
+
+        rig.Beat();
+        var refused = rig.Answer("c-1");
+        Assert.Equal(LinkCommandStatus.Rejected, refused.Status);
+        Assert.Equal(MatchApiErrorCode.InvalidState, refused.Code);
+        Assert.StartsWith("halftime: ", refused.Message);
+        Assert.Empty(rig.Link.EventsOf<MatchPausedEvent>());
+
+        // And the refusal is not remembered as an admin pause: the tactical timeout that
+        // comes after it is the team's, not the admin's.
+        rig.Rules(ctTimeout: true);
+        rig.Poll();
+        Assert.Equal(PauseKind.Tactical, Assert.Single(rig.Link.EventsOf<MatchPausedEvent>()).Kind);
+    }
+
+    /// <summary>
+    /// The reason word for every state the gamerules can name, and the two the beat
+    /// cannot judge — a match already standing where it was asked to stand — which are
+    /// refused up front, the way MatchZy refuses them itself, without sending the verb.
+    /// </summary>
+    [Theory]
+    [InlineData("pause", GamePhase.Halftime, false, false, "halftime", true)]
+    [InlineData("pause", GamePhase.MatchEnded, false, false, "post_game", true)]
+    [InlineData("pause", GamePhase.PlayingStandard, false, true, "timeout_active", true)]
+    [InlineData("pause", GamePhase.WarmupRound, false, false, "not_live", true)]
+    [InlineData("pause", GamePhase.PlayingStandard, false, false, "unknown", true)]
+    [InlineData("pause", GamePhase.Unknown, false, false, "unknown", true)]
+    [InlineData("pause", GamePhase.PlayingStandard, true, false, "already_paused", false)]
+    [InlineData("pause", GamePhase.PlayingStandard, true, true, "timeout_active", false)]
+    [InlineData("unpause", GamePhase.PlayingStandard, false, false, "not_paused", false)]
+    [InlineData("unpause", GamePhase.Halftime, true, false, "halftime", true)]
+    public void EveryRefusalNamesItsReasonAndIsInvalidState(string verb, GamePhase phase, bool paused, bool timeout, string word, bool relayed)
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(paused: paused, ctTimeout: timeout, phase: phase, warmup: phase == GamePhase.WarmupRound);
+
+        LinkCommand command = verb == "pause"
+            ? new PauseCommand { CorrelationId = "c-1" }
+            : new UnpauseCommand { CorrelationId = "c-1" };
+        var immediate = rig.Link.Command(command);
+        rig.Beat();
+
+        var answer = rig.Answer("c-1");
+        Assert.Equal(LinkCommandStatus.Rejected, answer.Status);
+        Assert.Equal(MatchApiErrorCode.InvalidState, answer.Code);
+        Assert.StartsWith($"{word}: ", answer.Message);
+        Assert.Equal(relayed, immediate is null);
+        Assert.Equal(relayed, rig.World.Actions.Any(action => action.ToString().StartsWith($"command css_force{verb}")));
+    }
+
+    /// <summary>
+    /// Nobody is left on the orchestrator's fifteen-second deadline: a match released
+    /// while its pause was being watched for answers the command on the way out, and one
+    /// asked of a server with no map never leaves the plugin.
+    /// </summary>
+    [Fact]
+    public void AWatchedPauseIsAnsweredWhenTheMatchGoesAwayUnderIt()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules();
+        Assert.Null(rig.Link.Command(new PauseCommand { CorrelationId = "c-1" }));
+
+        rig.Link.Release();
+        var answer = rig.Answer("c-1");
+        Assert.Equal(LinkCommandStatus.Rejected, answer.Status);
+        Assert.StartsWith("released: ", answer.Message);
+
+        rig.StartPug();
+        rig.World.Rules = null;
+        var noMap = rig.Link.Command(new PauseCommand { CorrelationId = "c-2" });
+        Assert.Equal(LinkCommandStatus.Rejected, noMap!.Status);
+        Assert.StartsWith("no_gamerules: ", noMap.Message);
+        // The verb never went out a second time: the one on the list is the first ask's.
+        Assert.Equal(1, rig.World.Actions.Count(action => action.ToString() == "command css_forcepause"));
+    }
+
+    /// <summary>The engine's <c>m_gamePhase</c> as the SDK names it: the numbers it knows, and anything else as unknown.</summary>
+    [Theory]
+    [InlineData(0, GamePhase.WarmupRound)]
+    [InlineData(4, GamePhase.Halftime)]
+    [InlineData(5, GamePhase.MatchEnded)]
+    [InlineData(-1, GamePhase.Unknown)]
+    [InlineData(9, GamePhase.Unknown)]
+    public void TheEnginesGamePhaseNumberIsNamedOrUnknown(int engine, GamePhase expected) =>
+        Assert.Equal(expected, CounterStrikeWorld.PhaseOf(engine));
 
     [Fact]
     public void SideSwapsFollowTheRosterAtARoundStartOutsideWarmup()

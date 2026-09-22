@@ -188,7 +188,13 @@ type Summary = {
   story?: string[]
   counts?: Record<string, number>
   commands?: { rcon: number; total: number }
-  paused?: { pause: unknown; unpause: unknown } | null
+  paused?: {
+    pause: { status?: string } | null
+    unpause: { status?: string } | null
+    again?: { status?: string; code?: string; message?: string } | null
+    held?: boolean
+    tries?: { status: string | null; code: string | null; reason: string | null }[]
+  } | null
   dropped?: {
     rostered: string
     state: string
@@ -347,6 +353,23 @@ type LaneCase = {
  */
 const SIZES = [2, 4, 6, 8, 10]
 
+/**
+ * The closed set of reason words `docs/match-api.md` lists for a refused pause
+ * (PRD-04 T4). A refusal outside it means the plugin grew a word the contract
+ * has not documented, which is the row's failure and not a flake.
+ */
+const PAUSE_REFUSALS = [
+  'halftime',
+  'post_game',
+  'timeout_active',
+  'already_paused',
+  'not_paused',
+  'not_live',
+  'released',
+  'no_gamerules',
+  'unknown',
+]
+
 const CASES: LaneCase[] = [
   ...SIZES.map(
     (puppets): LaneCase => ({
@@ -430,8 +453,18 @@ const CASES: LaneCase[] = [
     // facts are the core plugin's `MatchZyFlow` — MatchZy's own pause events
     // are dropped at the door because the plugin already says it (T3) — so
     // this is where that decision meets hardware.
+    //
+    // **And a pause that says no** (PRD-04 T4). A 1v1 at four regulation
+    // rounds reaches halftime about when this row asks, which is exactly where
+    // MatchZy's `ForcePauseMatch` returns early. The row used to answer that
+    // by asking again on a timer, because `applied` lied (OPEN-POINTS §6).
+    // Now every answer is the server's: an `applied` means the gamerules say
+    // the match stands, and a refusal names why in the error vocabulary and in
+    // one documented word. Both are asserted — the words a run may legitimately
+    // see here are halftime's and a timeout's, and anything else (least of all
+    // `applied` without the fact) is this row going red.
     id: 'pause',
-    what: 'pauses and unpauses a live match, and the core plugin is what says so',
+    what: 'pauses and unpauses a live match, says no in so many words when it cannot, and the core plugin is what says both',
     puppets: 2,
     args: ['--pause'],
     facts: summary => {
@@ -439,6 +472,30 @@ const CASES: LaneCase[] = [
       expect(summary.paused, 'the run never paused').not.toBeNull()
       expect(summary.payloads?.match_paused, 'the match never paused').toBe(1)
       expect(summary.payloads?.match_unpaused, 'the match never came back').toBe(1)
+      // The answer and the fact agree: that is the whole point of T4.
+      expect(summary.paused?.pause, 'the pause was not applied').toMatchObject({
+        status: 'applied',
+      })
+      expect(summary.paused?.unpause, 'the unpause was not applied').toMatchObject({
+        status: 'applied',
+      })
+      expect(summary.paused?.held, 'the pause answer and the fact disagree').toBe(true)
+      // **A refusal every run, not by luck.** Whether a run meets halftime is
+      // the map's business; an `unpause` for a match that is running is a
+      // refusal every time, and is where this row watches one come back.
+      expect(summary.paused?.again, 'an unpause nobody needed was not refused').toMatchObject({
+        status: 'rejected',
+        code: 'invalid_state',
+      })
+      expect(summary.paused?.again?.message, 'the refusal did not name its reason first').toMatch(
+        /^not_paused: /,
+      )
+      // Every try before that one was a refusal, and every refusal said why.
+      for (const refused of summary.paused?.tries?.slice(0, -1) ?? []) {
+        expect(refused.status, 'a pause try neither applied nor refused').toBe('rejected')
+        expect(refused.code, 'a refused pause came back with the wrong code').toBe('invalid_state')
+        expect(PAUSE_REFUSALS, `a refused pause said "${refused.reason}"`).toContain(refused.reason)
+      }
     },
   },
   {

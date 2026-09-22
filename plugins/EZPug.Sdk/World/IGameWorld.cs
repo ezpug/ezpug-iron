@@ -100,7 +100,7 @@ public sealed record MapStart(string Map, long StartedAtMs);
 
 /// <summary>
 /// The engine's match state as <c>cs_gamerules</c> keeps it, read on the game thread:
-/// warmup, the rounds played so far in the match (what the scoreboard counts; reset by
+/// warmup, the phase (<see cref="GamePhase"/>), the rounds played so far in the match (what the scoreboard counts; reset by
 /// <c>mp_restartgame</c>, so a knife round and warmup never count), whether a pause is
 /// requested or in force (<c>mp_pause_match</c>), the two tactical timeouts and the
 /// technical one, and whether the teams swap at the next round reset (halftime). What
@@ -115,10 +115,36 @@ public sealed record GameRules(
     bool TerroristTimeout,
     bool CounterTerroristTimeout,
     bool TechnicalTimeout,
-    bool SwitchingTeamsAtRoundReset)
+    bool SwitchingTeamsAtRoundReset,
+    GamePhase Phase = GamePhase.Unknown)
 {
     /// <summary>The match is standing still for any reason.</summary>
     public bool Standing => Paused || TerroristTimeout || CounterTerroristTimeout || TechnicalTimeout;
+
+    /// <summary>Any of the two tactical timeouts or the technical one is running.</summary>
+    public bool Timeout => TerroristTimeout || CounterTerroristTimeout || TechnicalTimeout;
+}
+
+/// <summary>
+/// The engine's <c>m_gamePhase</c>, which is the only way to tell the two states a match
+/// software refuses to be disturbed in — the break between halves and the scoreboard
+/// after the last round — from an ordinary live round. <see cref="Unknown"/> when the
+/// engine gave a number this enum has no name for, or when nothing read it (the
+/// harness's default): a caller that acts on the phase must treat it as "not known",
+/// never as "not halftime".
+/// </summary>
+public enum GamePhase
+{
+    /// <summary>Nothing read the phase, or the engine named one this SDK does not know.</summary>
+    Unknown = -1,
+    WarmupRound = 0,
+    PlayingStandard = 1,
+    PlayingFirstHalf = 2,
+    PlayingSecondHalf = 3,
+    /// <summary>The break between the two halves.</summary>
+    Halftime = 4,
+    /// <summary>The match is over and the scoreboard is up.</summary>
+    MatchEnded = 5,
 }
 
 /// <summary>Bomb site as the engine names it.</summary>

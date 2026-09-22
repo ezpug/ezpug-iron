@@ -208,7 +208,10 @@ is:
   name, and PRD-03 T3 the argument.
 - **What MatchZy cannot say, the core plugin observes** from the engine (`MatchZyFlow`):
   `match_paused` / `match_unpaused` off the gamerules (a tactical timeout names its team;
-  the `pause` command over the link is MatchZy's `css_forcepause` and an admin pause),
+  the `pause` command over the link is MatchZy's `css_forcepause` and an admin pause, and
+  its *answer* is the gamerules' too — `applied` once the match stands, `invalid_state`
+  with a reason word when MatchZy refused it, `docs/match-api.md`'s "A pause that says
+  no"),
   `side_swap` at a round start when the rostered team A stands on the other side (or, with
   nobody rostered, when the engine flagged the swap), and every round backup MatchZy writes
   as a `backup` frame plus `backup_written`, the token scrubbed out of it first.

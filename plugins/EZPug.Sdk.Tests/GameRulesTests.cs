@@ -50,6 +50,23 @@ public class GameRulesTests
         Assert.True((quiet with { TechnicalTimeout = true }).Standing);
     }
 
+    /// <summary>
+    /// The phase is the one thing that tells the break between halves and the scoreboard
+    /// after the last round from a live round (PRD-04 T4), and an engine number this SDK
+    /// has no name for reads as "not known" rather than as one of them.
+    /// </summary>
+    [Fact]
+    public void ThePhaseIsTheEnginesOrUnknown()
+    {
+        var quiet = new GameRules(false, 3, false, false, false, false, false);
+        Assert.Equal(GamePhase.Unknown, quiet.Phase);
+        Assert.False(quiet.Timeout);
+        Assert.True((quiet with { TechnicalTimeout = true }).Timeout);
+        Assert.True((quiet with { TerroristTimeout = true }).Timeout);
+        Assert.True((quiet with { CounterTerroristTimeout = true }).Timeout);
+        Assert.Equal(GamePhase.Halftime, (quiet with { Phase = GamePhase.Halftime }).Phase);
+    }
+
     [Fact]
     public void ASecondMapAdvancesTheMapNumberOnlyForAMatchZyFlow()
     {

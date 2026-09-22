@@ -210,7 +210,8 @@ public sealed class CounterStrikeWorld : IGameWorld
                         rules.TerroristTimeOutActive,
                         rules.CTTimeOutActive,
                         rules.TechnicalTimeOut,
-                        rules.SwitchingTeamsAtRoundReset);
+                        rules.SwitchingTeamsAtRoundReset,
+                        PhaseOf(rules.GamePhase));
             }
             catch (Exception)
             {
@@ -218,6 +219,14 @@ public sealed class CounterStrikeWorld : IGameWorld
             }
         }
     }
+
+    /// <summary>
+    /// The engine's <c>m_gamePhase</c> as the SDK names it. An unknown number is
+    /// <see cref="GamePhase.Unknown"/> rather than a guess: the one caller that acts on
+    /// this (the MatchZy flow's pause answer) names a reason only for a phase it knows.
+    /// </summary>
+    internal static GamePhase PhaseOf(int phase) =>
+        Enum.IsDefined(typeof(GamePhase), phase) && phase >= 0 ? (GamePhase)phase : GamePhase.Unknown;
 
     // ------------------------------------------------------------------ hooks
 

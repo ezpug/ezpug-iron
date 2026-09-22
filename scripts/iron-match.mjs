@@ -395,11 +395,16 @@ if (STAND_IN && HUMANS === 0) die('--stand-in stands in for a person: pass --hum
 /** How long after going live the stand-in is added: past the puppeteer's own seating, so the arrival is unmistakably not one it asked for. */
 const STAND_IN_AFTER_MS = 15_000
 /**
- * How many times the pause is asked for, and how long each try waits for
- * `match_paused`. A halftime at timescale 2 lasts well under one wait.
+ * **How long the row keeps asking for its pause** (PRD-04 T4). It no longer
+ * hopes: a pause MatchZy refuses now comes back `rejected` with a reason word,
+ * so the row asks again the moment it is told no, and only for as long as the
+ * reason can still pass — a halftime at timescale 2 is over well inside this.
+ * An answer that is not a refusal ends the asking, whichever way it went.
  */
-const PAUSE_TRIES = 4
-const PAUSE_HOLD_MS = 20_000
+const PAUSE_WINDOW_MS = 90_000
+const PAUSE_GAP_MS = 3_000
+/** How long the `match_paused` fact is given to catch up with the answer that already believed it. */
+const PAUSE_FACT_MS = 15_000
 /**
  * **One puppet leaves and comes back, by the front door** (PRD-03 T6, T7a),
  * while the match is still in warmup — because that is the only window in
@@ -1971,7 +1976,7 @@ async function run() {
   let emptied = false
   let filled = false
   let polls = 0
-  /** What `--pause` did, for the summary: the two answers and nothing else. */
+  /** What `--pause` did, for the summary: every answer the pause got, and the unpause's. */
   let paused = null
   /**
    * What `--drop-puppet` did: the kick the Match API answered, and whether the
@@ -2268,32 +2273,58 @@ async function run() {
     // the plugin already says it (T3) — so this is where that decision meets
     // hardware.
     //
-    // **Until the pause holds** (PRD-03 T18). MatchZy refuses `css_forcepause`
+    // **A pause that says no** (PRD-04 T4). MatchZy refuses `css_forcepause`
     // during halftime, and a 1v1 at four regulation rounds reaches halftime
-    // about when this fires. The core plugin still answers `applied`, because
-    // it cannot read MatchZy's refusal (OPEN-POINTS §6). So the run waits for
-    // the `match_paused` fact in the durable log, and asks again after a
-    // refused try. Every try is recorded.
+    // about when this fires. The core plugin used to answer `applied` anyway,
+    // so the row asked again on a timer and hoped (OPEN-POINTS §6, closed).
+    // Now the refusal is the answer — `invalid_state`, the reason word first —
+    // so the row asks again *because it was told no*, records the word every
+    // try came back with, and stops on the first answer that is not a refusal.
+    // Whether a run meets halftime at all is the map's business, so the
+    // refusal this row is *sure* of is asked for below, after the unpause.
     if (PAUSE && paused === null && liveAt > 0 && wall.now() - liveAt >= 20_000) {
-      paused = { pause: null, unpause: null, tries: 0, held: false }
-      while (paused.tries < PAUSE_TRIES && !paused.held) {
-        paused.tries += 1
-        const suffix = paused.tries === 1 ? '' : `-${paused.tries}`
-        paused.pause = await command({ correlationId: `${RUN_ID}-pause${suffix}`, type: 'pause' })
-        const until = wall.now() + PAUSE_HOLD_MS
-        while (!paused.held && wall.now() < until) {
-          await wall.sleep(1_000)
-          paused.held = await said('match_paused')
-        }
-        if (!paused.held) say(`pause ${paused.tries} did not hold (halftime?), asking again`)
+      paused = { pause: null, unpause: null, again: null, tries: [], held: false }
+      const until = wall.now() + PAUSE_WINDOW_MS
+      while (!paused.held && wall.now() < until) {
+        const suffix = paused.tries.length === 0 ? '' : `-${paused.tries.length + 1}`
+        const answer = await command({ correlationId: `${RUN_ID}-pause${suffix}`, type: 'pause' })
+        paused.tries.push({
+          at: new Date(wall.now()).toISOString(),
+          status: answer?.status ?? null,
+          code: answer?.code ?? null,
+          // The word alone: the sentence after it is for a human and may change.
+          reason: (answer?.message ?? '').split(':')[0] || null,
+        })
+        paused.pause = answer
+        if (answer?.status !== 'rejected') break
+        say(`pause ${paused.tries.length} refused (${paused.tries.at(-1).reason}), asking again`)
+        await wall.sleep(PAUSE_GAP_MS)
       }
-      say(paused.held ? `paused (try ${paused.tries})` : 'the pause never held')
+      // The answer is the server's, so `applied` is believed — the fact is only
+      // read back to prove the two agree. It is given a moment: the plugin
+      // emits it before it answers, but the fact travels the link, the log and
+      // the replay route while the answer comes straight back down the call.
+      if (paused.pause?.status === 'applied') {
+        const factBy = wall.now() + PAUSE_FACT_MS
+        while (!paused.held && wall.now() < factBy) {
+          paused.held = await said('match_paused')
+          if (!paused.held) await wall.sleep(1_000)
+        }
+      }
+      say(paused.held ? `paused (try ${paused.tries.length})` : 'the pause never held')
       continue
     }
     if (paused !== null && paused.unpause === null) {
       await wall.sleep(5_000)
       paused.unpause = await command({ correlationId: `${RUN_ID}-unpause`, type: 'unpause' })
-      say('unpaused')
+      say(`unpaused (${paused.unpause?.status ?? 'no status'})`)
+      // **And once more, into a match that is running** (PRD-04 T4). The
+      // halftime refusal is the one the field found, but whether a run meets
+      // halftime is luck; this one is not. An `unpause` for a match nobody
+      // paused has exactly one right answer, so every run of this row watches
+      // a refusal come back as a refusal, with the word in front of it.
+      paused.again = await command({ correlationId: `${RUN_ID}-unpause-again`, type: 'unpause' })
+      say(`asked again for an unpause nobody needed (${paused.again?.status ?? 'no status'})`)
       continue
     }
     // The bots, then the warmup, one poll apart — MatchZy's order, and
@@ -2574,7 +2605,12 @@ function write(result) {
         }, {}),
       ).sort(([a], [b]) => (a < b ? -1 : 1)),
     ),
-    /** `--pause`: the two answers, or null when the run never paused (T6). */
+    /**
+     * `--pause`: every answer the pause got, the unpause's, and the second
+     * unpause nobody needed — or null when the run never paused (T6). A
+     * refused try carries the reason word the plugin put in front of its
+     * message (PRD-04 T4).
+     */
     paused: result.paused ?? null,
     /** `--drop-puppet`: who left, how, and whether the room filled back up (T6). */
     dropped: result.dropped ?? null,

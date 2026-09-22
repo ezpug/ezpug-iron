@@ -352,8 +352,8 @@ id; a retried command with the same id is not applied twice):
 
 | Type            | Fields | Notes |
 | --------------- | ------ | ----- |
-| `pause`         | `kind?: tactical \| technical \| admin` | |
-| `unpause`       | | |
+| `pause`         | `kind?: tactical \| technical \| admin` | `applied` only once the server's own gamerules say the match stands; `invalid_state` when the match software refused it, the reason word first in `message` ([A pause that says no](#a-pause-that-says-no)) |
+| `unpause`       | | the same answer, the other way round: `applied` once the match is running again |
 | `restart_round` | | |
 | `force_end`     | `reason?` | the match ends `force_ended` |
 | `kick`          | `steamId64, reason?` | |
@@ -373,6 +373,41 @@ Result: `{ correlationId, type, status: applied | accepted | rejected, code?, me
 output?, sim?, stepped? }`. `accepted` means the answer comes later on the stream as a
 `command_result` frame with the same `correlationId`. `rejected` is still HTTP 200: the
 call worked, the command did not; `code` is from the error table.
+
+**`applied` is the server's word, not the relay's.** It means the match software did the
+thing, not that the command reached a box and ran. A server that needs a moment to find
+out holds the call while it looks (the orchestrator waits fifteen seconds for an answer,
+which is longer than any of them take) and answers `rejected` when nothing happened. So a
+client may read `applied` as the new truth and needs no confirming fact to believe it.
+The fact is always there too — the server emits it before it answers — but it travels the
+link, the durable log and the replay route while the answer comes straight back down the
+call, so it lands on the stream moments after, not before.
+
+#### A pause that says no
+
+MatchZy-Enhanced refuses `pause` during halftime, after the last round and while a
+timeout is running, and says so only in the server's chat. The plugin therefore watches
+the gamerules for a beat after relaying the command and answers from what they did:
+`applied` when the match stands, `invalid_state` when it does not, with the reason as the
+first word of `message`, followed by `: ` and a sentence for a human. The words are a
+closed set:
+
+| Word | What it says |
+| ---- | ------------ |
+| `halftime` | the break between the halves; the match software refuses a pause there |
+| `post_game` | the match is over and the scoreboard is up |
+| `timeout_active` | a tactical or technical timeout is holding the match |
+| `already_paused` | a `pause` for a match that is already standing |
+| `not_paused` | an `unpause` for a match that is running |
+| `not_live` | the match has not started; there is nothing to pause |
+| `released` | the match ended while the server was being watched for the answer |
+| `no_gamerules` | no map is loaded, so nothing could be asked |
+| `unknown` | nothing paused and the gamerules name no reason |
+
+A client that matches on the word matches on the word alone; the sentence after it is for
+a human and may change. `unknown` is the one to retry: everything else is a state the
+caller can see coming (the match's own `match_paused` / `match_unpaused` facts and its
+state say it). On the `sim` provider a pause is the story's own and never refused.
 
 ### PlayerToken
 

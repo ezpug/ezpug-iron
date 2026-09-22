@@ -183,7 +183,9 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   lobby map, state `idle`.
 - **Commands over the link.** `announce`, `kick`, `rcon` and `profile` are answered by the
   runtime; for a `matchzy` flow `pause` and `unpause` are MatchZy's `css_forcepause` /
-  `css_forceunpause`; `restart_round`, `force_end` and `reroll` are the flow owner's (the
+  `css_forceunpause`, answered from the gamerules a beat later rather than from the fact
+  that the verb ran (`MatchZyFlow.Ask`, PRD-04 T4) — the one place in the tree a command
+  is `CommandAnswer.Deferred`; `restart_round`, `force_end` and `reroll` are the flow owner's (the
   mode) and `command_unsupported` until then. `restore` never reaches a server: the
   orchestrator restores onto a *new* server through the assignment (above).
 - **A gamemode plugin attaches through the host capability.** `EZPug.Sdk.Hosting.GamemodeHost`
