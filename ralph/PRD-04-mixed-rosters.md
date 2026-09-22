@@ -97,7 +97,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   "nine puppets ready up, the tenth arrives" can exist.
   > blocked: an unpatched fork cannot do it; owner decides upstream PR vs. fork (§7).
 
-- [ ] **T3: scopes are edited by a route.** `PATCH /v1/keys/:keyId/scopes` (admin scope,
+- [x] **T3: scopes are edited by a route.** `PATCH /v1/keys/:keyId/scopes` (admin scope,
   audited like `rotate` and `budget`), `ezpug-iron keys scopes <id> --add/--remove`,
   the conformance suite's case, `docs/match-api.md`, and the truth in two places that
   lie today: `packages/match-api/src/scopes.ts`'s comment and `ralph/DEPLOY.md`'s mint
