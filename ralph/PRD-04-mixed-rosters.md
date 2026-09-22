@@ -123,7 +123,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   as a puppet-only artefact and leave the human half as the one line that needs a human.
   Either way §3 becomes a sentence with evidence, not a question.
 
-- [ ] **T7: the Dathost smoke, run.** `EZPUG_DATHOST_TESTS=required` once, from this
+- [x] **T7: the Dathost smoke, run.** `EZPUG_DATHOST_TESTS=required` once, from this
   checkout, against the real account: allocate, configure, start, the plugin's boot
   walk, `list()`'s scoping against whatever the account holds, deallocate, and the
   ledger row closed. Whatever it finds is a task here; the run's output (secrets
