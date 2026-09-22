@@ -137,7 +137,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   hour). `docs/match-api.md` states what a client may expect after `restore`
   (`accepted` then facts, or `applied`). Serves the platform's PRD-11 T3.
 
-- [ ] **T9: releases, as they go.** Every contract change above is its own release to
+- [x] **T9: releases, as they go.** Every contract change above is its own release to
   Verdaccio with its changelog line; the platform's T22 pins each. No task folds a
   release into another's commit.
 
