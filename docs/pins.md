@@ -128,7 +128,8 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.20.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.21.0`** in this tree — the box's Verdaccio (`http://172.17.0.1:4873/`) serves up to
+`0.19.0`, and publishing `0.20.0` and `0.21.0` there is PRD-04 T9's — and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -183,7 +184,11 @@ empty. **0.20.0** is the scope route (PRD-04 T3): `PATCH /v1/keys/:keyId/scopes`
 `ezpug-iron keys scopes <id> --add/--remove` move what a live key may do, additively, so
 the grant that reached production as a hand-written `UPDATE` on 2026-09-21 — the platform
 key and `simulation` — has a door. Production's platform key holds `simulation`, and the
-places that said it never would say what is true instead.
+places that said it never would say what is true instead. **0.21.0** is `restore` on a live
+match (PRD-04 T8, for the platform's PRD-11 T3): no schema moved, the command is answered
+where it used to be refused — the match is rewound on its own server to a round of the map
+being played, `applied` once the engine has started it again, a reason word when MatchZy
+said no.
 
 ## Bumping one
 

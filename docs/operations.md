@@ -666,12 +666,35 @@ because the match is `live` again from the restore rather than twenty minutes af
 `unpause` is refused outside `live`.
 
 **Commands** are idempotent on `correlationId` across a restart (`match_commands`):
-`force_end`, `restore` (`no_backup` with nothing to restore from, `invalid_state` while
-the orchestrator's own restore is under way — it always is, unless a restart left the
-window open with no walk running, which is the gap this door exists for), `profile` and
-the state checks are the machine's; everything else is relayed down the server's channel (`link/channels.ts`: the
-sim's in-process channel, or the `/link` socket a real plugin holds) and answered with what
-the server said. `rcon` needs `admin`. The **`sim.*` family** reaches a simulated server and
+`force_end`, `restore` while `recovering` (`no_backup` with nothing to restore from,
+`invalid_state` while the orchestrator's own restore is under way — it always is, unless a
+restart left the window open with no walk running, which is the gap this door exists for),
+`profile` and the state checks are the machine's; everything else is relayed down the
+server's channel (`link/channels.ts`: the sim's in-process channel, or the `/link` socket a
+real plugin holds) and answered with what the server said.
+
+**`restore` on a `live` match is relayed, as a round** (PRD-04 T8): the machine resolves
+the point from the `backups` table — `roundNumber` on the newest backup's map, or that
+backup when unsaid, `no_backup` otherwise — and sends the plugin a `restore` that always
+names the round, so a server never guesses what "the latest" means. The core plugin's
+`MatchZyFlow` loads MatchZy's own file for it (`matchzy_loadbackup`) and answers from the
+engine, the way it answers a pause: `applied` once a round has started again at the
+rounds played the file was written at (`RestoreAnswerMs`, eight seconds of watching; a
+restore asked mid-round took 139–268 ms on the dev node), `invalid_state` with the reason
+word when MatchZy refused (halftime, the scoreboard, a tactical timeout), `not_live` up
+front in warmup — and **`round_over` up front between two rounds**, the one window the
+engine cannot be rewound in: asked there, MatchZy accepts, the engine prints "Loaded server
+checkpoint … starting match with score 1:0 after round 1", and then sits in its round-over
+state for good (the dev node's second and fourth runs, seven minutes and an `unpause`
+without a round). The plugin tracks the gap off the world's own round hooks. An `applied` restore makes both sides
+forget the rounds after the point — the plugin deletes MatchZy's later files for that
+match and map, the machine drops the matching `backups` rows (`dropBackupsAfter`) — so a
+box lost afterwards resumes the match being played. The MatchZy door rewinds too: the
+translator's memory of the map's last start and score is cleared on MatchZy's
+`backup_loaded`, or the replayed round's start would be dropped as a go-live repeat and
+its end's winner read off the wrong delta (`translate.ts`). MatchZy then holds the
+restored round (`matchzy_pause_after_restore`) until an `unpause`. The dev lane's
+`restore` row plays this on the node, through the Match API only. `rcon` needs `admin`. The **`sim.*` family** reaches a simulated server and
 nothing else: on any other provider it is `command_unsupported` with the provider named,
 before a channel is ever asked.
 
@@ -1332,7 +1355,8 @@ rule, and `MATCHZY_DROPPED_EVENTS` in `translate.ts` carries a reason per name):
 | `knife_round_started`, `knife_round_ended` | `knife_start`, `knife_end` |
 | `player_connect`, `player_disconnect`, `side_swap`, `match_paused`, `match_unpaused`, `pause_requested`, `unpause_requested` | nothing — the core plugin speaks all of these from the engine |
 | `server_configured`, `server_health`, `test_event`, `cs2_update_required` | nothing — server-level, read for the log; a database that is not the local SQLite and a CS2 update notice each get a `warn` |
-| `warmup_ended`, `halftime_started`, `overtime_started`, `backup_loaded`, the demo pair, the four `demo_upload_*`, the veto trio, `series_start` | nothing — said better by the next event, by `side_swap`, by the round numbers, or owned by the core plugin (decision 10) |
+| `warmup_ended`, `halftime_started`, `overtime_started`, the demo pair, the four `demo_upload_*`, the veto trio, `series_start` | nothing — said better by the next event, by `side_swap`, by the round numbers, or owned by the core plugin (decision 10) |
+| `backup_loaded` | nothing on the stream — the core plugin says the restore — but the door forgets the map's last start and score, so a rewound round's start and end are not dropped as repeats (PRD-04 T8) |
 
 Two of those are worth knowing about as an operator. **A `pug` had no `round_start` at
 all** until T3: `MatchZyFlow` emits only what MatchZy cannot see, and the fork is the first

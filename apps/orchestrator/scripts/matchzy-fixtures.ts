@@ -636,6 +636,25 @@ const plan: Plan[] = [
       total_ready: 3,
     },
   },
+  // ------------------------------------------ a rewind on a live server
+  {
+    file: '49-backup-loaded.json',
+    source: 'upstream',
+    from: `${ENHANCED}/BackupManagement.cs`,
+    note: 'PRD-04 T8: MatchZy handed the engine the backup of round 4, the round being played (an admin’s restore — somebody’s machine crashed). Dropped, because the core plugin says the restore; what it changes is the door’s memory of map 1 — its last start and score are forgotten, so the round played again is not dropped as a go-live repeat (translate.test.ts plays that chain).',
+    state: {
+      scores: { 1: { team1: 1, team2: 2 } },
+      starts: { 1: { roundNumber: 4, team1: 1, team2: 2 } },
+      ready: {},
+    },
+    payload: {
+      event: 'backup_loaded',
+      matchid: SERIAL,
+      map_number: 0,
+      round_number: 3,
+      filename: `matchzy_${SERIAL}_0_round03.json`,
+    },
+  },
 ]
 
 // Only the fixtures: the folder's README is written by hand.

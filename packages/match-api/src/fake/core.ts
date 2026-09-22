@@ -1485,7 +1485,28 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     const { state } = record.match
     if (isTerminalMatchState(state)) return rejected('invalid_state', `the match is ${state}`)
     if (body.type === 'restore') {
-      if (state !== 'recovering') return rejected('invalid_state', 'restore only while recovering')
+      // A live match rewinds on its own server (PRD-04 T8): the point is
+      // resolved from the backups that server wrote, on the map being played,
+      // and then a scripted story cannot go back — the orchestrator's sim
+      // channel says the same.
+      if (state === 'live') {
+        const written = record.server?.backups() ?? []
+        const playing = written.at(-1)?.mapNumber
+        const point =
+          body.roundNumber === undefined
+            ? written.at(-1)
+            : written.find(b => b.mapNumber === playing && b.roundNumber === body.roundNumber)
+        if (!point)
+          return rejected(
+            'no_backup',
+            body.roundNumber === undefined
+              ? 'no backup to restore from'
+              : `no backup of round ${body.roundNumber} on the map being played`,
+          )
+        return rejected('command_unsupported', 'a simulated server plays a scripted story')
+      }
+      if (state !== 'recovering')
+        return rejected('invalid_state', 'restore only while live or recovering')
       if (record.restoring) return rejected('invalid_state', 'a restore is already in progress')
       const backup =
         body.roundNumber === undefined

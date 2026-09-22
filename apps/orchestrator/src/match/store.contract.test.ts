@@ -315,6 +315,15 @@ async function contract(store: MatchStore, keyId: string): Promise<void> {
   ])
   expect((await store.latestBackup(b.id))?.roundNumber).toBe(4)
   expect(await store.listBackups(a.id)).toEqual([])
+  // a live restore to round 2 (PRD-04 T8) forgets the rounds after it, of
+  // this map and of any later one, and nothing of another match
+  await store.upsertBackup({ ...backup(1), mapNumber: 2 }, 5)
+  await store.upsertBackup({ ...backup(9), matchId: a.id }, 5)
+  await store.dropBackupsAfter(b.id, 1, 2)
+  expect((await store.listBackups(b.id)).map(row => [row.mapNumber, row.roundNumber])).toEqual([
+    [1, 2],
+  ])
+  expect((await store.listBackups(a.id)).map(row => row.roundNumber)).toEqual([9])
   // the GSLT pool (T17): the claim is one write, the free lease is the
   // longest-idle one, and a lease whose ledger row closed is leaked
   const gslt = (steamId: string, createdAt: Date) => ({

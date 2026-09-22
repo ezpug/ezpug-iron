@@ -6,6 +6,36 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.21.0 — 2026-09-22
+
+**`restore` rewinds a live match** (PRD-04 T8, for the platform's PRD-11 T3 — `restore` in
+the admin's hand with a round picker built from the match's timeline). No schema moved:
+the command, its `roundNumber?` and its error codes are the ones 0.10.0 published. What
+changed is where it is answered — it used to be `invalid_state` everywhere but
+`recovering`.
+
+- **`restore` on a `live` match** takes it back to the start of a round on the server that
+  is playing it: `roundNumber` on the map being played, or the latest backup's round when
+  unsaid; `no_backup` when there is none. The answer is the server's, as for a pause:
+  `applied` once the round has started again, `invalid_state` with the reason word first
+  when the match software refused (`halftime`, `post_game`, `timeout_active`, `not_live`,
+  …), `command_unsupported` where no round backups are kept. One word is new to the closed
+  set: **`round_over`**, a restore asked between two rounds — the engine loads a backup
+  there and never restarts the round, so the server refuses the gap without asking and the
+  client asks again once the next round is under way. The stream then carries the
+  plugin's `backup_restored`, MatchZy's pause after a restore, and the round's
+  `round_start` at the score it started at the first time. `restore` in any state other
+  than `live` or `recovering` is still `invalid_state` ("restore only while live or
+  recovering").
+- **On the `sim` provider and the fake** a live `restore` resolves its point (`no_backup`
+  before the first backup) and is then `command_unsupported`: a scripted story cannot
+  rewind, as it cannot `restart_round`.
+- **The conformance suite's `happy-bo1`** asks for a live `restore` and holds the answer to
+  those two.
+- **What you may need to change**: a client that greyed `restore` out on a live match may
+  offer it; one that retried it on `invalid_state` should read the word first — `halftime`
+  passes, `post_game` does not.
+
 ## 0.20.0 — 2026-09-22
 
 **A key's scopes are edited by a route** (PRD-04 T3). On 2026-09-21 production's platform

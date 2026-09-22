@@ -318,6 +318,18 @@ export function createMemoryMatchStore(options: { deployment?: string } = {}): M
             .sort((a, b) => b.mapNumber - a.mapNumber || b.roundNumber - a.roundNumber)[0],
         ),
       ),
+    dropBackupsAfter: (matchId, mapNumber, roundNumber) => {
+      for (let i = backups.length - 1; i >= 0; i -= 1) {
+        const candidate = backups[i]
+        if (
+          candidate?.matchId === matchId &&
+          (candidate.mapNumber > mapNumber ||
+            (candidate.mapNumber === mapNumber && candidate.roundNumber > roundNumber))
+        )
+          backups.splice(i, 1)
+      }
+      return Promise.resolve()
+    },
     insertPlayerToken: row => {
       playerTokens.push(copy(row))
       return Promise.resolve()

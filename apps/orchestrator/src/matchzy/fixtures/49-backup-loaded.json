@@ -1,0 +1,31 @@
+{
+  "source": "upstream",
+  "from": "references/MatchZy-Enhanced/src/BackupManagement.cs",
+  "note": "PRD-04 T8: MatchZy handed the engine the backup of round 4, the round being played (an admin’s restore — somebody’s machine crashed). Dropped, because the core plugin says the restore; what it changes is the door’s memory of map 1 — its last start and score are forgotten, so the round played again is not dropped as a go-live repeat (translate.test.ts plays that chain).",
+  "state": {
+    "scores": {
+      "1": {
+        "team1": 1,
+        "team2": 2
+      }
+    },
+    "starts": {
+      "1": {
+        "roundNumber": 4,
+        "team1": 1,
+        "team2": 2
+      }
+    },
+    "ready": {}
+  },
+  "payload": {
+    "event": "backup_loaded",
+    "matchid": 1083740696,
+    "map_number": 0,
+    "round_number": 3,
+    "filename": "matchzy_1083740696_0_round03.json"
+  },
+  "expect": {
+    "dropped": "the core plugin says the restore (the command’s answer and backup_restored); this only rewinds what the door remembers of the map"
+  }
+}

@@ -1572,6 +1572,10 @@ export function createMatches(options: MatchesOptions): Matches {
     const { state } = row
     if (isTerminalMatchState(state)) return rejected('invalid_state', `the match is ${state}`)
     const runtime = runtimeOf(row)
+    /** What goes down the link: the client's command, or — for a live `restore` — the round it resolved to. */
+    let relayed: MatchCommand = body
+    /** The point a live `restore` rewinds to, so an `applied` answer can forget what came after it. */
+    let rewound: BackupRow | undefined
     switch (body.type) {
       case 'force_end':
         if (state !== 'ready' && state !== 'live' && state !== 'recovering')
@@ -1584,11 +1588,39 @@ export function createMatches(options: MatchesOptions): Matches {
         )
         return { ...base, status: 'applied' }
       case 'restore': {
+        // **A rewind on the server that is playing** (PRD-04 T8): the LAN
+        // case — a round a player's machine crashed in, played again from its
+        // start. The point is the orchestrator's to resolve, from the backups
+        // the server itself sent, so the plugin is always told a round and
+        // never guesses what "the latest" means; the map is the one being
+        // played, which is the newest backup's. Whether it took is the
+        // server's answer (MatchZy refuses a restore at halftime, after the
+        // last round and during a timeout), relayed below like any other.
+        if (state === 'live') {
+          const backups = await store.listBackups(row.id)
+          const playing = backups[0]?.mapNumber
+          rewound =
+            body.roundNumber === undefined
+              ? backups[0]
+              : backups.find(
+                  candidate =>
+                    candidate.mapNumber === playing && candidate.roundNumber === body.roundNumber,
+                )
+          if (!rewound)
+            return rejected(
+              'no_backup',
+              body.roundNumber === undefined
+                ? 'no backup to restore from'
+                : `no backup of round ${body.roundNumber} on the map being played`,
+            )
+          relayed = { ...body, roundNumber: rewound.roundNumber }
+          break
+        }
         // The orchestrator restores by itself the moment a live server is
         // lost; this is the door for the gap it cannot cover — a process
         // that restarted with the window open and no walk running.
         if (state !== 'recovering')
-          return rejected('invalid_state', 'restore only while recovering')
+          return rejected('invalid_state', 'restore only while live or recovering')
         const backups = await store.listBackups(row.id)
         const chosen =
           body.roundNumber === undefined
@@ -1658,7 +1690,7 @@ export function createMatches(options: MatchesOptions): Matches {
     }
     let answer: Awaited<ReturnType<typeof channel.send>>
     try {
-      answer = await channel.send(body)
+      answer = await channel.send(relayed)
     } catch (error) {
       report(error, { phase: `command:${body.type}`, matchId: row.id })
       return rejected('provider_unavailable', 'the server did not answer')
@@ -1672,6 +1704,11 @@ export function createMatches(options: MatchesOptions): Matches {
         armHeartbeat(row)
       }
     }
+    // The rounds after the point never happened now. The server forgets its
+    // own files of them; this forgets the copies, so a box lost before the
+    // replay catches up resumes the match that is being played.
+    if (answer.status === 'applied' && rewound)
+      await store.dropBackupsAfter(row.id, rewound.mapNumber, rewound.roundNumber)
     return { ...base, ...answer }
   }
 

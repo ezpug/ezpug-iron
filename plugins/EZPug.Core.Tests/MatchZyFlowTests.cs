@@ -74,6 +74,22 @@ public class MatchZyFlowTests
         /// <summary>Long enough for a watched pause to run out of beat and be answered.</summary>
         public void Beat() => World.Elapse(MatchZyFlow.PauseAnswerMs + MatchZyFlow.PollIntervalMs);
 
+        /// <summary>Long enough for a watched restore to run out of beat and be answered.</summary>
+        public void RestoreBeat() => World.Elapse(MatchZyFlow.RestoreAnswerMs + MatchZyFlow.PollIntervalMs);
+
+        /// <summary>MatchZy's round backups of this match on map 1, one per round started live: <c>round0N</c> restores to round N + 1.</summary>
+        public void WriteBackups(params int[] roundsCompleted)
+        {
+            Directory.CreateDirectory(BackupFolder);
+            foreach (var rounds in roundsCompleted)
+            {
+                File.WriteAllText(Path.Combine(BackupFolder, $"matchzy_{Serial}_0_round{rounds:D2}.json"), $$"""{"matchid":"{{Serial}}","round":"{{rounds:D2}}"}""");
+            }
+        }
+
+        public string[] BackupFiles() =>
+            Directory.GetFiles(BackupFolder).Select(path => Path.GetFileName(path)).Order(StringComparer.Ordinal).ToArray();
+
         /// <summary>The late answer to the command with that id, as the orchestrator would read it off the link.</summary>
         public CommandResultServerFrame Answer(string correlationId) =>
             Link.CommandResults.Single(result => result.CorrelationId == correlationId);
@@ -263,6 +279,155 @@ public class MatchZyFlowTests
     [InlineData(9, GamePhase.Unknown)]
     public void TheEnginesGamePhaseNumberIsNamedOrUnknown(int engine, GamePhase expected) =>
         Assert.Equal(expected, CounterStrikeWorld.PhaseOf(engine));
+
+    /// <summary>
+    /// <b>A rewind on the server that is playing</b> (PRD-04 T8): the round the
+    /// orchestrator named is MatchZy's own file, loaded with MatchZy's own verb, and
+    /// <c>applied</c> is said only once the engine has started that round again — the
+    /// fact first, then the answer, and what was written after the point is forgotten.
+    /// </summary>
+    [Fact]
+    public void ARestoreIsMatchZysLoadBackupAndAnsweredWhenTheRoundIsBack()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(played: 3);
+        rig.WriteBackups(0, 1, 2, 3);
+
+        Assert.Null(rig.Link.Command(new RestoreCommand { CorrelationId = "r-1", RoundNumber = 2 }));
+        Assert.Contains("command matchzy_loadbackup matchzy_4711_0_round01.json", rig.World.Actions.Select(action => action.ToString()));
+        rig.Poll();
+        Assert.Empty(rig.Link.CommandResults);
+
+        // The rounds played moving back is the load, not yet a match being played: on the
+        // dev node a load the engine never restarted from moved them all the same.
+        rig.Rules(played: 1, paused: true);
+        rig.Poll();
+        Assert.Empty(rig.Link.CommandResults);
+        rig.World.StartRound();
+
+        Assert.Equal(LinkCommandStatus.Applied, rig.Answer("r-1").Status);
+        var restored = Assert.Single(rig.Link.EventsOf<PluginEvent>());
+        Assert.Equal(GamemodeLoader.BackupRestoredEvent, restored.Name);
+        Assert.Equal(1, restored.Data["mapNumber"]!.GetValue<long>());
+        Assert.Equal(2, restored.Data["roundNumber"]!.GetValue<long>());
+        Assert.Equal("matchzy_4711_0_round01.json", restored.Data["filename"]!.GetValue<string>());
+        // The rounds after the point never happened now: their files are gone.
+        Assert.Equal(["matchzy_4711_0_round00.json", "matchzy_4711_0_round01.json"], rig.BackupFiles());
+
+        // The replayed round's start sends nothing old, and the next round's backup is the replay's own.
+        rig.World.Elapse(MatchZyFlow.BackupSettleMs);
+        Assert.Empty(rig.Link.Backups);
+        rig.Rules(played: 2);
+        rig.WriteBackups(2);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.BackupSettleMs);
+        Assert.Equal(3, Assert.Single(rig.Link.Backups).Backup.RoundNumber);
+    }
+
+    /// <summary>
+    /// A restore to the round being played leaves the rounds played where they were, so the
+    /// count alone would read "applied" before anything happened: the round start is the
+    /// other half of the verdict. And one MatchZy refused comes back with the word in front.
+    /// </summary>
+    [Fact]
+    public void ARestoreOfTheRoundBeingPlayedWaitsForTheRoundStartAndARefusalSaysWhy()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(played: 3);
+        rig.WriteBackups(2, 3);
+
+        Assert.Null(rig.Link.Command(new RestoreCommand { CorrelationId = "r-1" }));
+        Assert.Contains("command matchzy_loadbackup matchzy_4711_0_round03.json", rig.World.Actions.Select(action => action.ToString()));
+        rig.Poll();
+        Assert.Empty(rig.Link.CommandResults);
+        rig.World.StartRound();
+        Assert.Equal(LinkCommandStatus.Applied, rig.Answer("r-1").Status);
+
+        // Halftime: MatchZy returns early and says so in chat; the beat runs out and says so here.
+        rig.Rules(played: 3, swapping: true, phase: GamePhase.Halftime);
+        Assert.Null(rig.Link.Command(new RestoreCommand { CorrelationId = "r-2", RoundNumber = 3 }));
+        rig.RestoreBeat();
+        var refused = rig.Answer("r-2");
+        Assert.Equal(LinkCommandStatus.Rejected, refused.Status);
+        Assert.Equal(MatchApiErrorCode.InvalidState, refused.Code);
+        Assert.StartsWith("halftime: ", refused.Message);
+
+        // A round that starts on its own with other rounds played is not the restore.
+        rig.Rules(played: 4);
+        Assert.Null(rig.Link.Command(new RestoreCommand { CorrelationId = "r-3", RoundNumber = 3 }));
+        rig.World.StartRound();
+        Assert.DoesNotContain(rig.Link.CommandResults, result => result.CorrelationId == "r-3");
+        rig.RestoreBeat();
+        Assert.StartsWith("unknown: ", rig.Answer("r-3").Message);
+        Assert.Single(rig.Link.EventsOf<PluginEvent>());
+    }
+
+    /// <summary>
+    /// <b>The gap after a round</b> (PRD-04 T8, the dev node's fourth run): asked there,
+    /// MatchZy accepts, the engine loads the file and never restarts the round. So the gap
+    /// is refused up front and the verb never sent — halftime and the scoreboard by their
+    /// own words, any other gap as <c>round_over</c> — and the next round start opens it.
+    /// </summary>
+    [Theory]
+    [InlineData(GamePhase.PlayingFirstHalf, "round_over")]
+    [InlineData(GamePhase.Halftime, "halftime")]
+    [InlineData(GamePhase.MatchEnded, "post_game")]
+    public void ARestoreBetweenRoundsIsRefusedWithoutAsking(GamePhase phase, string word)
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(played: 2);
+        rig.World.StartRound();
+        rig.WriteBackups(0, 1, 2);
+
+        rig.Rules(played: 3, phase: phase);
+        rig.World.EndRound(PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, 1, 2);
+        var refused = rig.Link.Command(new RestoreCommand { CorrelationId = "r-1", RoundNumber = 2 });
+        Assert.Equal(MatchApiErrorCode.InvalidState, refused!.Code);
+        Assert.StartsWith($"{word}: ", refused.Message);
+        Assert.DoesNotContain(rig.World.Actions, action => action.ToString().StartsWith("command matchzy_loadbackup"));
+
+        // The next round is under way: the same ask is MatchZy's again.
+        rig.Rules(played: 3);
+        rig.World.StartRound();
+        Assert.Null(rig.Link.Command(new RestoreCommand { CorrelationId = "r-2", RoundNumber = 2 }));
+        Assert.Contains("command matchzy_loadbackup matchzy_4711_0_round01.json", rig.World.Actions.Select(action => action.ToString()));
+    }
+
+    /// <summary>
+    /// What is decided without asking MatchZy: a file this server does not hold, a match in
+    /// warmup (MatchZy would not refuse there but hold the file for the next match start),
+    /// no map. And a watched restore is answered when the match goes away under it.
+    /// </summary>
+    [Fact]
+    public void ARestoreWithNothingToLoadOrNoLiveMatchIsRefusedWithoutAsking()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(played: 3);
+        rig.WriteBackups(1);
+
+        var missing = rig.Link.Command(new RestoreCommand { CorrelationId = "r-1", RoundNumber = 4 });
+        Assert.Equal(MatchApiErrorCode.NoBackup, missing!.Code);
+        Assert.Equal("no backup of round 4 of this map on the server", missing.Message);
+
+        rig.Rules(warmup: true, phase: GamePhase.WarmupRound);
+        var warmup = rig.Link.Command(new RestoreCommand { CorrelationId = "r-2", RoundNumber = 2 });
+        Assert.Equal(MatchApiErrorCode.InvalidState, warmup!.Code);
+        Assert.StartsWith("not_live: ", warmup.Message);
+
+        rig.World.Rules = null;
+        Assert.StartsWith("no_gamerules: ", rig.Link.Command(new RestoreCommand { CorrelationId = "r-3", RoundNumber = 2 })!.Message);
+        Assert.DoesNotContain(rig.World.Actions, action => action.ToString().StartsWith("command matchzy_loadbackup"));
+
+        rig.Rules(played: 3);
+        Assert.Null(rig.Link.Command(new RestoreCommand { CorrelationId = "r-4", RoundNumber = 2 }));
+        rig.Link.Release();
+        Assert.StartsWith("released: ", rig.Answer("r-4").Message);
+        Assert.Equal(["matchzy_4711_0_round01.json"], rig.BackupFiles());
+    }
 
     [Fact]
     public void SideSwapsFollowTheRosterAtARoundStartOutsideWarmup()

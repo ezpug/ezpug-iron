@@ -1,6 +1,6 @@
 import type { MatchState } from '@ezpug/match-api'
 import type { LinkServerState } from '@ezpug/protocol'
-import { and, asc, desc, eq, gte, isNull, lte, notInArray, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, gte, isNull, lte, notInArray, or, sql } from 'drizzle-orm'
 import type { DatabaseExecutor } from '../db/client'
 import {
   backups,
@@ -397,6 +397,19 @@ export function createPostgresMatchStore(
           .orderBy(desc(backups.mapNumber), desc(backups.roundNumber))
           .limit(1),
       ),
+    dropBackupsAfter: async (matchId, mapNumber, roundNumber) => {
+      await executor
+        .delete(backups)
+        .where(
+          and(
+            eq(backups.matchId, matchId),
+            or(
+              gt(backups.mapNumber, mapNumber),
+              and(eq(backups.mapNumber, mapNumber), gt(backups.roundNumber, roundNumber)),
+            ),
+          ),
+        )
+    },
     insertPlayerToken: async row => {
       await executor.insert(playerTokens).values(row)
     },

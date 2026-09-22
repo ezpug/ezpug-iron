@@ -184,10 +184,13 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
 - **Commands over the link.** `announce`, `kick`, `rcon` and `profile` are answered by the
   runtime; for a `matchzy` flow `pause` and `unpause` are MatchZy's `css_forcepause` /
   `css_forceunpause`, answered from the gamerules a beat later rather than from the fact
-  that the verb ran (`MatchZyFlow.Ask`, PRD-04 T4) — the one place in the tree a command
-  is `CommandAnswer.Deferred`; `restart_round`, `force_end` and `reroll` are the flow owner's (the
-  mode) and `command_unsupported` until then. `restore` never reaches a server: the
-  orchestrator restores onto a *new* server through the assignment (above).
+  that the verb ran (`MatchZyFlow.Ask`, PRD-04 T4); `restore` on a live match is MatchZy's
+  `matchzy_loadbackup` of its own file for the round the orchestrator named, answered
+  `applied` once the engine has started that round again and refused with the same words
+  otherwise (`MatchZyFlow.Restore`, PRD-04 T8) — the two places in the tree a command is
+  `CommandAnswer.Deferred`. A recovery's restore still reaches a *new* server through the
+  assignment (above). `restart_round`, `force_end` and `reroll` are the flow owner's (the
+  mode) and `command_unsupported` until then.
 - **A gamemode plugin attaches through the host capability.** `EZPug.Sdk.Hosting.GamemodeHost`
   is a CounterStrikeSharp `PluginCapability` the core publishes; a mode's plugin derives
   from `GamemodePlugin`, which finds the host on load and attaches the mode. A mode

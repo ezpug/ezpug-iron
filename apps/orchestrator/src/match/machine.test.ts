@@ -1226,6 +1226,94 @@ describe('recovery', () => {
     expect(taken).toMatchObject({ message: 'no server while live' })
     await app.close()
   })
+
+  /**
+   * **A rewind on the server that is playing** (PRD-04 T8): the LAN case,
+   * a round somebody's machine crashed in. The orchestrator resolves the
+   * point from the backups the server sent and tells the plugin a round; the
+   * answer is the server's; and an `applied` one forgets the rounds after the
+   * point, so a box lost later resumes the match that is being played.
+   */
+  it('relays a restore of a live match as a round, and forgets what came after it once it took', async () => {
+    const provider = createPhantomProvider()
+    const app = createTestApp({ providers: [provider] })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, request({ rules }))
+    await app.settle()
+    const source = { provider: PHANTOM, serverId: 'devbox-1' }
+    const say = async (event: Record<string, unknown> & { type: GameserverEvent['type'] }) =>
+      app.matches.ingest(source, { ...event, matchId: match.id, source } as GameserverEvent)
+    await say({ type: 'server_ready', map: 'de_mirage' })
+
+    const early = await app.matches.command(key, match.id, { type: 'restore', correlationId: 'r0' })
+    expect(early).toMatchObject({
+      status: 'rejected',
+      code: 'invalid_state',
+      message: 'restore only while live or recovering',
+    })
+
+    await say({ type: 'going_live', mapNumber: 1, map: 'de_mirage' })
+    await app.settle()
+    const none = await app.matches.command(key, match.id, { type: 'restore', correlationId: 'r1' })
+    expect(none).toMatchObject({ status: 'rejected', code: 'no_backup' })
+
+    for (const round of [2, 3, 4])
+      await app.matches.backup(source, {
+        mapNumber: 1,
+        roundNumber: round,
+        filename: `matchzy_1_0_round0${round - 1}.json`,
+        content: `{"round":"${round}"}`,
+      })
+    const sent: unknown[] = []
+    let answer: { status: 'applied' | 'rejected'; code?: 'invalid_state'; message?: string } = {
+      status: 'rejected',
+      code: 'invalid_state',
+      message: 'halftime: the match software refuses a restore during halftime',
+    }
+    app.links.attach({
+      server: source,
+      send: command => {
+        sent.push(command)
+        return Promise.resolve(answer)
+      },
+    })
+
+    const missing = await app.matches.command(key, match.id, {
+      type: 'restore',
+      correlationId: 'r2',
+      roundNumber: 9,
+    })
+    expect(missing).toMatchObject({
+      code: 'no_backup',
+      message: 'no backup of round 9 on the map being played',
+    })
+    expect(sent).toEqual([])
+
+    // MatchZy said no: the refusal is the client's answer, and nothing is forgotten.
+    const refusedHere = await app.matches.command(key, match.id, {
+      type: 'restore',
+      correlationId: 'r3',
+      roundNumber: 3,
+    })
+    expect(refusedHere).toMatchObject({ status: 'rejected', message: /^halftime: / })
+    expect(sent).toEqual([{ type: 'restore', correlationId: 'r3', roundNumber: 3 }])
+    expect((await app.store.listBackups(match.id)).map(b => b.roundNumber)).toEqual([4, 3, 2])
+
+    answer = { status: 'applied' }
+    const took = await app.matches.command(key, match.id, {
+      type: 'restore',
+      correlationId: 'r4',
+      roundNumber: 3,
+    })
+    expect(took).toMatchObject({ status: 'applied' })
+    expect((await app.store.listBackups(match.id)).map(b => b.roundNumber)).toEqual([3, 2])
+
+    // "The latest" is resolved here, never guessed at on the server.
+    await app.matches.command(key, match.id, { type: 'restore', correlationId: 'r5' })
+    expect(sent.at(-1)).toEqual({ type: 'restore', correlationId: 'r5', roundNumber: 3 })
+    expect((await app.matches.get(key, match.id)).state).toBe('live')
+    await app.close()
+  })
 })
 
 describe('webhooks', () => {

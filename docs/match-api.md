@@ -359,7 +359,7 @@ id; a retried command with the same id is not applied twice):
 | `kick`          | `steamId64, reason?` | |
 | `announce`      | `text` ≤512 | the plugin prints it, as the client wrote it and behind no prefix of ours; a sim echoes it as a `plugin_event`. Sanitized into one chat line first — control characters, `;`, `"` and `\` out, 127 code points — and `validation_failed` when nothing is left |
 | `rcon`          | `command` | needs `admin`; `command_unsupported` on a sim |
-| `restore`       | `roundNumber?` | latest backup when unsaid; `no_backup` when none |
+| `restore`       | `roundNumber?` | **`live`**: the match is rewound on its own server to the start of that round of the map being played, the latest backup's round when unsaid — `applied` once the round has started again, `invalid_state` with the reason word first when the match software refused ([A restore on a live match](#a-restore-on-a-live-match)). **`recovering`**: the backup the replacement resumes from. `no_backup` when there is none; `invalid_state` in any other state |
 | `reroll`        | | the match over on the same server, rosters kept |
 | `reprovision`   | | the same match on **another box**: before `live` the server is released and the walk runs again for the same `clientMatchId`; from `live` it is the recovery a lost server starts by itself, started by hand (`match.recovering` → a replacement handed the newest backup → `match.recovered`). `no_backup` from `live` with nothing to resume from, `invalid_state` while `recovering` |
 | `profile`       | `player: RosterEntry` | push or refresh one player's profile |
@@ -402,12 +402,67 @@ closed set:
 | `not_live` | the match has not started; there is nothing to pause |
 | `released` | the match ended while the server was being watched for the answer |
 | `no_gamerules` | no map is loaded, so nothing could be asked |
+| `round_over` | `restore` only: a round has ended and the next has not started — the one gap a restore cannot land in ([A restore on a live match](#a-restore-on-a-live-match)) |
 | `unknown` | nothing paused and the gamerules name no reason |
 
 A client that matches on the word matches on the word alone; the sentence after it is for
 a human and may change. `unknown` is the one to retry: everything else is a state the
 caller can see coming (the match's own `match_paused` / `match_unpaused` facts and its
 state say it). On the `sim` provider a pause is the story's own and never refused.
+
+#### A restore on a live match
+
+`restore` on a `live` match takes it back to the start of a round on the server that is
+playing it — the LAN case, a round somebody's machine crashed in, played again. The point
+is a round of **the map being played** (the newest backup's map), `roundNumber` or the
+latest backup when unsaid; the orchestrator resolves it from the backups the server itself
+sent, so `no_backup` is answered before anything reaches the server. On a `matchzy` flow
+the server loads MatchZy's own file for that round with MatchZy's own restore
+(`matchzy_loadbackup`): its sides, scores, money and timeouts are the round's again.
+
+**The answer is the server's, as for a pause.** MatchZy refuses a restore at halftime,
+after the last round and while a tactical timeout runs, and says so only in chat, so the
+plugin watches the engine after asking and answers:
+
+- **`applied`** once a round has started since the ask with the rounds played the backup
+  was written at. The call is held while the engine restarts the round — 268 ms end to
+  end on the dev node, and never past the fifteen-second command deadline — and there is
+  no `accepted` step to wait through; `applied` is the new truth.
+- **`invalid_state`** when nothing was restored, with the same closed words as a refused
+  pause in front of the message: `round_over`, `halftime`, `post_game`, `timeout_active`,
+  `not_live`, `released`, `no_gamerules`, `unknown`. Three of them are said without asking
+  the match software at all, because asking would do harm: **`round_over`** — the round has
+  ended and the next has not started, and a backup loaded there leaves the engine waiting
+  for a round restart that never comes (measured on the dev node: seven minutes, an
+  `unpause`, nothing); `halftime` and `post_game` in that same gap; and `not_live` in warmup,
+  where MatchZy would hold the file and apply it at the next match start instead.
+  `round_over` and `halftime` pass — asking again once the next round is under way is the
+  whole remedy, a few seconds later.
+- **`command_unsupported`** where no match software keeps round backups (a mode whose flow
+  is the SDK's) and on a simulated server.
+
+**What follows on the stream**, moments after the answer:
+
+- **`round_start`** with the restored `roundNumber` and the score that round started at the
+  first time — a second `round_start` for a round number the log already holds — and from
+  there on the match as it is played again: every `round_end` counts on from the rewound
+  round.
+- `plugin_event` **`backup_restored`** `{ mapNumber, roundNumber, filename }` — the same
+  word a replacement server says when a recovery resumes, here on the same server. It
+  comes over the server's link while `round_start` comes from the match software's own
+  report, so **the two are not ordered**: on the dev node the `round_start` landed first.
+  Read the rewind off the round numbers, and `backup_restored` as its label.
+- `match_paused` — MatchZy holds a restored round until somebody lifts it
+  (`matchzy_pause_after_restore`, its default): both teams' `.unpause`, or the Match API's
+  `unpause`, which is the only one a room of puppets has.
+
+The round the restore interrupted is not ended on the stream: the engine closes it with no
+winning side, and that report is dropped.
+
+The rounds after the point never happened now. The durable log keeps what it said about
+them — it is a log — but the orchestrator forgets their backups, and so does the server:
+a box lost later resumes the match being played, never the one that was rewound away. A
+client drawing a timeline cuts it where a `round_start` names a round it has already seen.
 
 ### PlayerToken
 
@@ -1109,8 +1164,10 @@ seed and options: same envelopes, same deliveries — the recorded fixtures rely
 `server_ready` and `going_live`, which is what a real plugin prints in the same window; `pause` parks the story (and the loss detector) and emits `match_paused`,
 `unpause` resumes with `match_unpaused`; `force_end` ends `force_ended`; `kick` removes a
 present player (`player_disconnected`, `player.left`); `profile` teaches the server a
-player; `restore` works while `recovering`; `restart_round`, `reroll` and `rcon` are
-`command_unsupported` (a scripted story cannot restart, a sim has no RCON); the `sim.*`
+player; `restore` works while `recovering`, and on a `live` match resolves its point
+(`no_backup` before the first backup) and is then `command_unsupported`, as are
+`restart_round`, `reroll` and `rcon` (a scripted story cannot restart or rewind, a sim has
+no RCON); the `sim.*`
 family drives the engine and answers with its `sim` status (`sim.step` also `stepped`).
 Every result is also a `command_result` frame. A `correlationId` seen before returns the
 first result.

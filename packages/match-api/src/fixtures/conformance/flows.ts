@@ -279,6 +279,20 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         body: { type: 'unpause', correlationId: 'conformance-unpause' },
       })
       ctx.check('an unpause is accepted', unpaused.status !== 'rejected', unpaused.code ?? '')
+      // A live match rewinds on its own server (PRD-04 T8). On a simulated
+      // one the point is resolved first (`no_backup` before the first backup)
+      // and then a scripted story cannot go back — never the refusal a
+      // recovery-only `restore` used to give.
+      const rewound = await ctx.api.matches.command({
+        params,
+        body: { type: 'restore', correlationId: 'conformance-restore' },
+      })
+      ctx.check(
+        'a restore of a live simulated match is no_backup or command_unsupported',
+        rewound.status === 'rejected' &&
+          (rewound.code === 'no_backup' || rewound.code === 'command_unsupported'),
+        `${rewound.status} ${rewound.code ?? ''}`,
+      )
 
       const { final, envelopes } = await playToEnd(ctx, created.id)
       ctx.require('the match ends', final.state === 'ended', `${final.state}`)

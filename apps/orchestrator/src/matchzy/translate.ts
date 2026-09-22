@@ -104,9 +104,16 @@ import { z } from 'zod'
  * - **Nor is `halftime_started` or `overtime_started`:** `side_swap` says the
  *   first and the round numbers say the second. Nor `demo_recording_start` /
  *   `_stop` or the four `demo_upload_*`, because the core plugin owns the
- *   demo (decision 10) and MatchZy's own upload URL is never set. Nor
- *   `backup_loaded`: the restore has no vocabulary yet, and inventing one
- *   here would be a contract the plugin's `backup_written` does not match.
+ *   demo (decision 10) and MatchZy's own upload URL is never set.
+ * - **`backup_loaded` is not vocabulary either, but it is not nothing**
+ *   (PRD-04 T8). The core plugin says the restore — the command's own answer
+ *   and its `backup_restored` — so the name stays dropped; what it changes is
+ *   this door's memory. A restore takes the map back to a round the door has
+ *   already seen start, at a score it has already seen, so the last start
+ *   and the last score of that map are forgotten, and the first
+ *   `round_started` after it seeds the score from its own payload — or the
+ *   rewound round's start would be dropped as a go-live repeat and its end's
+ *   winner read off the wrong delta.
  */
 
 /** What a MatchZy payload needs from the match it is about. */
@@ -335,6 +342,18 @@ const knifeRoundEndedSchema = base.extend({
   winner: z.string(),
 })
 
+/**
+ * `backup_loaded` (`Events.cs` `MatchZyBackupLoadedEvent`), sent the moment
+ * MatchZy has handed the engine a backup — dropped as a fact, read for the
+ * map whose memory it rewinds (PRD-04 T8).
+ */
+const backupLoadedSchema = base.extend({
+  event: z.literal('backup_loaded'),
+  map_number: z.number().int().nonnegative(),
+  round_number: z.number().int().nonnegative(),
+  filename: z.string(),
+})
+
 const roundStartedSchema = base.extend({
   event: z.literal('round_started'),
   map_number: z.number().int().nonnegative(),
@@ -359,7 +378,7 @@ export const MATCHZY_DROPPED_EVENTS: Readonly<Record<string, string>> = {
   halftime_started: 'side_swap says it, and the core plugin owns side_swap',
   overtime_started: 'the round numbers say it',
   backup_loaded:
-    'a restore has no vocabulary yet; backup_written is the plugin’s and means the other direction',
+    'the core plugin says the restore (the command’s answer and backup_restored); this only rewinds what the door remembers of the map',
   // The core plugin already says it; decision 19 — neither double-speaks.
   player_connect: 'the core plugin emits player_connected from the engine',
   player_disconnect: 'the core plugin emits player_disconnected from the engine',
@@ -673,6 +692,16 @@ export function translateMatchZyEvent(
 
   if (name === '?') return drop('no event name')
   const reason = MATCHZY_DROPPED_EVENTS[name]
+  if (name === 'backup_loaded' && reason !== undefined) {
+    const loaded = backupLoadedSchema.safeParse(payload)
+    if (!loaded.success || loaded.data.matchid !== context.serial) return drop(reason)
+    const mapNumber = loaded.data.map_number + 1
+    const starts = { ...state.starts }
+    const scores = { ...state.scores }
+    delete starts[mapNumber]
+    delete scores[mapNumber]
+    return { events: [], state: { ...state, starts, scores }, name, dropped: reason }
+  }
   if (reason !== undefined) return drop(reason)
   if ((MATCHZY_INTERNAL_EVENTS as readonly string[]).includes(name)) {
     return { events: [], state, name, ...internalNoteOf(name, payload) }
@@ -722,6 +751,12 @@ export function translateMatchZyEvent(
         last.team2 === score.teamB
       )
         return drop(`round ${event.round_number} already started at ${score.teamA}–${score.teamB}`)
+      // The first start of a map, or the first after a restore forgot it:
+      // the score it carries is where the next `round_end`'s delta counts
+      // from (0–0 on a fresh map, which is what an absent score reads as).
+      const seeded = last
+        ? state.scores
+        : { ...state.scores, [mapNumber]: { team1: score.teamA, team2: score.teamB } }
       return {
         events: [
           {
@@ -735,6 +770,7 @@ export function translateMatchZyEvent(
         ],
         state: {
           ...state,
+          scores: seeded,
           starts: {
             ...state.starts,
             [mapNumber]: {

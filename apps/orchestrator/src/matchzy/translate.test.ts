@@ -667,6 +667,71 @@ describe('MatchZy-Enhanced, event by event', () => {
     })
   })
 
+  /**
+   * **A rewind of the round being played** (PRD-04 T8): the same round number
+   * at the same score — exactly what the go-live rule drops — and then the
+   * same end, which the repeat rule drops too. MatchZy's `backup_loaded`
+   * between them is what tells the two apart.
+   */
+  it('lets the round a restore played again into the log, start and end, after backup_loaded', () => {
+    const started = {
+      event: 'round_started',
+      matchid: context.serial,
+      map_number: 0,
+      round_number: 4,
+      team1_score: 1,
+      team2_score: 2,
+    }
+    const ended = {
+      event: 'round_end',
+      matchid: context.serial,
+      map_number: 0,
+      round_number: 4,
+      reason: 8,
+      winner: { side: '3', team: 'team1' },
+      team1: { id: '', name: 'A', series_score: 0, score: 2, score_ct: 0, score_t: 0, players: [] },
+      team2: { id: '', name: 'B', series_score: 0, score: 2, score_ct: 0, score_t: 0, players: [] },
+    }
+    const loaded = {
+      event: 'backup_loaded',
+      matchid: context.serial,
+      map_number: 0,
+      round_number: 3,
+      filename: `matchzy_${context.serial}_0_round03.json`,
+    }
+    let state: MatchZyState = {
+      scores: { 1: { team1: 1, team2: 2 } },
+      starts: {},
+      ready: {},
+    }
+    state = translateMatchZyEvent(started, context, state).state
+    state = translateMatchZyEvent(ended, context, state).state
+
+    // Without the word from MatchZy, the replayed round is two repeats.
+    expect(translateMatchZyEvent(started, context, state).dropped).toMatch(/already started/)
+
+    const rewound = translateMatchZyEvent(loaded, context, state)
+    expect(rewound.events).toEqual([])
+    expect(rewound.dropped).toMatch(/the core plugin says the restore/)
+    state = rewound.state
+    const again = translateMatchZyEvent(started, context, state)
+    expect(again.events[0]).toMatchObject({ type: 'round_start', roundNumber: 4 })
+    state = again.state
+    // And its end is a round the players played, with the winner off the delta
+    // from the rewound start — not a repeat, and no schedule guess.
+    const endedAgain = translateMatchZyEvent(ended, context, state)
+    expect(endedAgain.events[0]).toMatchObject({
+      type: 'round_end',
+      roundNumber: 4,
+      winner: { team: 'team_a' },
+    })
+    expect(endedAgain.note).toBeUndefined()
+
+    // Another match's word rewinds nothing.
+    const foreign = translateMatchZyEvent({ ...loaded, matchid: 1 }, context, endedAgain.state)
+    expect(foreign.state).toEqual(endedAgain.state)
+  })
+
   it('names a knife winner, and credits nobody when MatchZy says "none"', () => {
     const knife = (winner: string) =>
       translateMatchZyEvent(

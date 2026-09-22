@@ -30,14 +30,21 @@ public static class MatchZyBackups
     public sealed record Found(string Path, string FileName, int RoundsCompleted);
 
     /// <summary>The newest backup of one match and map in <paramref name="folder"/> by its round number, or <c>null</c>.</summary>
-    public static Found? Newest(string folder, long serial, int mapIndex)
+    public static Found? Newest(string folder, long serial, int mapIndex) =>
+        Of(folder, serial, mapIndex).MaxBy(found => found.RoundsCompleted);
+
+    /// <summary>The backup of one match and map written after <paramref name="roundsCompleted"/> rounds — what restores to the round after them — or <c>null</c>.</summary>
+    public static Found? Find(string folder, long serial, int mapIndex, int roundsCompleted) =>
+        Of(folder, serial, mapIndex).FirstOrDefault(found => found.RoundsCompleted == roundsCompleted);
+
+    /// <summary>Every backup of one match and map in <paramref name="folder"/>, in no particular order; other matches' and maps' files are not theirs.</summary>
+    public static IEnumerable<Found> Of(string folder, long serial, int mapIndex)
     {
         if (!Directory.Exists(folder))
         {
-            return null;
+            yield break;
         }
 
-        Found? newest = null;
         foreach (var path in Directory.GetFiles(folder, "matchzy_*.json"))
         {
             var name = Path.GetFileName(path);
@@ -51,13 +58,8 @@ public static class MatchZyBackups
                 continue;
             }
 
-            if (newest is null || round > newest.RoundsCompleted)
-            {
-                newest = new Found(path, name, round);
-            }
+            yield return new Found(path, name, round);
         }
-
-        return newest;
     }
 
     /// <summary>

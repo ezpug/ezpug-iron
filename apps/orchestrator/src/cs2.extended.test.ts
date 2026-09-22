@@ -195,6 +195,19 @@ type Summary = {
     held?: boolean
     tries?: { status: string | null; code: string | null; reason: string | null }[]
   } | null
+  /** `--restore` (PRD-04 T8): the answers, and round 2 as the durable log told it twice. */
+  rewind?: {
+    round: number
+    restore: { status?: string; code?: string; message?: string } | null
+    /** Whether MatchZy's pause after a restore showed in the log after the ask. */
+    pausedAfter?: boolean
+    unpause: { status?: string } | null
+    tries: { status: string | null; code: string | null; reason: string | null }[]
+    first: { roundNumber: number; score: { teamA: number; teamB: number } } | null
+    restored: { mapNumber?: number; roundNumber?: number; filename?: string } | null
+    again: { roundNumber: number; score: { teamA: number; teamB: number } } | null
+    endsAfter: { roundNumber: number; score: { teamA: number; teamB: number } }[]
+  } | null
   dropped?: {
     rostered: string
     state: string
@@ -376,6 +389,8 @@ const PAUSE_REFUSALS = [
   'not_live',
   'released',
   'no_gamerules',
+  // PRD-04 T8: a restore asked between two rounds, which the engine cannot land.
+  'round_over',
   'unknown',
 ]
 
@@ -505,6 +520,78 @@ const CASES: LaneCase[] = [
         expect(refused.code, 'a refused pause came back with the wrong code').toBe('invalid_state')
         expect(PAUSE_REFUSALS, `a refused pause said "${refused.reason}"`).toContain(refused.reason)
       }
+    },
+  },
+  {
+    // **A rewind through the front door** (PRD-04 T8). The platform's admin
+    // console puts `restore` in an admin's hand with a round picker built
+    // from the match's own timeline — the LAN case of a round somebody's
+    // machine crashed in. Until this row the contract refused it outside
+    // `recovering`; now a live match is rewound on its own server:
+    // the orchestrator names the round from the backups the server sent,
+    // MatchZy loads its own file, and the core plugin answers from what the
+    // engine did (`applied` once round 2 has started again, a word when
+    // MatchZy refused — halftime, like a pause). **It asks in the gap after a
+    // round on purpose**: the engine loads a file there and never restarts
+    // the round (the dev node's second and fourth runs sat in `RoundOver`
+    // until force-ended), so the plugin refuses the gap as `round_over` and
+    // the row asks again once the next round is under way — every run
+    // watches that refusal and the rewind after it. Eight regulation rounds, so
+    // three played is never the end of the map and the rewound round has a
+    // match left to be played in. MatchZy holds the restored round until an
+    // admin unpauses it, and a puppet never types `.unpause`, so the row
+    // lifts it through the same door.
+    id: 'restore',
+    what: 'rewinds a live match to round 2 through the Match API, and round 2 is played again at the score it had',
+    puppets: 2,
+    // A 1v1 of bots ties often enough to wander into overtime (the first run
+    // did, to round 22), and everything this row asks about is over a minute
+    // after the rewind — so the match is ended early rather than paid for.
+    args: ['--restore', '--rounds', '8', '--max-live-minutes', '8'],
+    facts: summary => {
+      readiedUp(summary, 2)
+      const rewind = summary.rewind
+      expect(rewind, 'the run never rewound').toBeTruthy()
+      expect(rewind?.restore, 'the restore was not applied').toMatchObject({ status: 'applied' })
+      // The first ask landed between two rounds and was told so, without the
+      // verb ever reaching MatchZy; every try before the one that took was a
+      // refusal that could pass, and said why.
+      expect(rewind?.tries[0]?.reason, 'the ask between rounds was not refused round_over').toBe(
+        'round_over',
+      )
+      for (const refused of rewind?.tries.slice(0, -1) ?? []) {
+        expect(refused.code, 'a refused restore came back with the wrong code').toBe(
+          'invalid_state',
+        )
+        expect(PAUSE_REFUSALS, `a refused restore said "${refused.reason}"`).toContain(
+          refused.reason,
+        )
+      }
+      expect(rewind?.restored, 'the plugin never said backup_restored').toMatchObject({
+        mapNumber: 1,
+        roundNumber: 2,
+      })
+      // **The score**: round 2 starts again exactly where it started the first time.
+      expect(rewind?.first?.roundNumber, 'the log never held round 2').toBe(2)
+      expect(rewind?.again, 'the round that followed the restore is not round 2 as it was').toEqual(
+        rewind?.first,
+      )
+      expect(rewind?.unpause, "MatchZy's pause after the restore was not lifted").toMatchObject({
+        status: 'applied',
+      })
+      // And the rewound round is played: the first round the map ends after the
+      // rewind is round 2 again, one point on from where it started.
+      const replayed = rewind?.endsAfter[0]
+      expect(replayed?.roundNumber, 'the rewound round never ended').toBe(2)
+      const before = rewind?.first?.score
+      expect(
+        (replayed?.score.teamA ?? 0) + (replayed?.score.teamB ?? 0),
+        'round 2 did not end one point on from where it started',
+      ).toBe((before?.teamA ?? 0) + (before?.teamB ?? 0) + 1)
+      expect(
+        rewind?.endsAfter.map(end => end.roundNumber),
+        'the rounds after the rewind are not counted on from it',
+      ).toEqual(rewind?.endsAfter.map((_, index) => index + 2))
     },
   },
   {
@@ -1278,7 +1365,7 @@ describe('the iron-match script', () => {
    * be a lane case nobody missed.** Cheap, and it runs in `pnpm verify` where
    * the lane itself never does.
    */
-  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone and PRD-04 T2's mixed roster", () => {
+  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's mixed roster and T8's rewind", () => {
     const ids = CASES.map(lane => lane.id)
     expect(ids).toEqual([
       'pug-1v1',
@@ -1290,6 +1377,8 @@ describe('the iron-match script', () => {
       'wingman',
       'knife',
       'pause',
+      // PRD-04 T8's: a live match rewound to round 2 through the Match API.
+      'restore',
       'drop',
       // T10's: three puppets in `retakes`, the mode whose one-team shape and
       // whose puppet claim that task decided.

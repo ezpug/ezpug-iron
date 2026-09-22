@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using EZPug.Sdk;
 using EZPug.Sdk.Protocol;
 
@@ -26,6 +27,9 @@ namespace EZPug.Core;
 /// <item>a <c>backup</c> frame and <c>backup_written</c> a moment after a live round starts,
 /// from the newest file MatchZy wrote for this match and map, scrubbed of the token
 /// (<see cref="MatchZyBackups"/>).</item>
+/// <item>a <c>restore</c> relayed over the link on a live match (PRD-04 T8), answered
+/// with MatchZy's own <c>matchzy_loadbackup</c> and, like a pause, by what the engine
+/// did — see <see cref="Restore"/>.</item>
 /// </list>
 ///
 /// Pure over <see cref="IGameWorld"/> and the runtime, proven on the harness; inactive for
@@ -48,6 +52,16 @@ public sealed class MatchZyFlow
     /// </summary>
     public const long PauseAnswerMs = 1_000;
 
+    /// <summary>
+    /// How long the engine is watched after <c>matchzy_loadbackup</c> for the restored
+    /// round to start. MatchZy runs <c>mp_backup_restore_load_file</c> on its next timer
+    /// tick and the engine restarts the round from the file at once — the whole
+    /// <c>restore</c> call took 268 ms end to end on the dev node (PRD-04 T8) — so the
+    /// beat is headroom for a loaded box, not the wait, and it still ends well inside the
+    /// orchestrator's fifteen-second command deadline.
+    /// </summary>
+    public const long RestoreAnswerMs = 8_000;
+
     private readonly IGameWorld _world;
     private readonly GamemodeRuntime _runtime;
     private readonly string _csgoDirectory;
@@ -61,6 +75,10 @@ public sealed class MatchZyFlow
     private bool _pendingSwap;
     private string? _lastBackup;
     private PendingAnswer? _pending;
+    private PendingRestore? _restore;
+    private string? _restoreSeen;
+    private long _roundStarts;
+    private bool _roundOver;
 
     public MatchZyFlow(IGameWorld world, GamemodeRuntime runtime, string csgoDirectory, ILinkLog? log = null)
     {
@@ -83,6 +101,7 @@ public sealed class MatchZyFlow
         _runtime.Released += OnReleased;
         _runtime.CommandHook = OnCommand;
         _world.RoundStarted += OnRoundStarted;
+        _world.RoundEnded += OnRoundEnded;
     }
 
     private void OnAssigned(Assignment assignment)
@@ -94,6 +113,7 @@ public sealed class MatchZyFlow
         _adminPause = false;
         _pendingSwap = false;
         _lastBackup = null;
+        _roundOver = false;
         if (!_active)
         {
             return;
@@ -126,6 +146,12 @@ public sealed class MatchZyFlow
         {
             _pending = null;
             _runtime.Link.AnswerCommand(pending.CorrelationId, Refused(PauseRefusal.Released));
+        }
+
+        if (_restore is { } restore)
+        {
+            _restore = null;
+            _runtime.Link.AnswerCommand(restore.CorrelationId, RestoreRefused(PauseRefusal.Released));
         }
 
         _poll?.Cancel();
@@ -165,6 +191,7 @@ public sealed class MatchZyFlow
         // After the fact, never before it: the pause is on its way to the orchestrator
         // before the answer that claims it is, whatever the two pipes do to them next.
         Settle(rules);
+        SettleRestore(rules);
     }
 
     /// <summary>What kind of pause the gamerules describe, and who asked, where that can be known.</summary>
@@ -191,7 +218,7 @@ public sealed class MatchZyFlow
 
     // ------------------------------------------------------------------ commands
 
-    /// <summary>The runtime's command hook: <c>pause</c> and <c>unpause</c> are MatchZy's admin verbs for this flow; everything else is somebody else's.</summary>
+    /// <summary>The runtime's command hook: <c>pause</c>, <c>unpause</c> and <c>restore</c> are MatchZy's admin verbs for this flow; everything else is somebody else's.</summary>
     public CommandAnswer? OnCommand(LinkCommand command)
     {
         if (!_active)
@@ -203,6 +230,7 @@ public sealed class MatchZyFlow
         {
             PauseCommand pause => Ask(pause.CorrelationId, wanted: true),
             UnpauseCommand unpause => Ask(unpause.CorrelationId, wanted: false),
+            RestoreCommand restore => Restore(restore.CorrelationId, restore.RoundNumber),
             _ => null,
         };
     }
@@ -333,6 +361,7 @@ public sealed class MatchZyFlow
             PauseRefusal.NotLive => "not_live",
             PauseRefusal.Released => "released",
             PauseRefusal.NoGamerules => "no_gamerules",
+            PauseRefusal.RoundOver => "round_over",
             _ => "unknown",
         };
 
@@ -347,11 +376,185 @@ public sealed class MatchZyFlow
             PauseRefusal.NotLive => "the match is not live yet",
             PauseRefusal.Released => "the match was released before the server answered",
             PauseRefusal.NoGamerules => "the server has no map loaded to pause",
+            PauseRefusal.RoundOver => "the round is over and the next has not started",
             _ => "nothing paused and the gamerules name no reason",
         };
 
     /// <summary>A pause command relayed to MatchZy, waiting for the gamerules to say whether it took.</summary>
     private readonly record struct PendingAnswer(string CorrelationId, bool Wanted, long DueAtMs);
+
+    // ------------------------------------------------------------------ restores
+
+    /// <summary>
+    /// <b>A rewind on the server that is playing</b> (PRD-04 T8): the LAN case, a round a
+    /// player's machine crashed in, played again from its start. The orchestrator names
+    /// the round (it resolved "the latest" from the backups this server sent); the file is
+    /// the one MatchZy wrote here at that round's start, and <c>matchzy_loadbackup</c> is
+    /// MatchZy's own restore — its sides, its timeouts, its pause after a restore
+    /// (<c>matchzy_pause_after_restore</c>, which an <c>unpause</c> lifts).
+    ///
+    /// MatchZy refuses a restore at halftime, after the last round and during a tactical
+    /// timeout, and says so only in chat — so, as for a pause, the answer is what the
+    /// engine did: <c>applied</c> once a round has started since the verb with the
+    /// rounds played the file was written at, otherwise <c>invalid_state</c> with a
+    /// <see cref="PauseRefusal"/> word once <see cref="RestoreAnswerMs"/> runs out. The
+    /// round start is the proof and the rounds played alone are not: a restore of the
+    /// round being played leaves them where they were, and a load the engine never
+    /// restarts from (below) moves them all the same.
+    ///
+    /// Three things are decided up front and the verb never sent: a file that is not on
+    /// this server (<c>no_backup</c>); a match in warmup, where MatchZy would not refuse
+    /// but hold the file for the next match start — a restore nobody asked for; and
+    /// <b>a round that is over while the next has not started</b>. Measured on the dev
+    /// node (PRD-04 T8): asked mid-round, the engine ends the round and restarts it from
+    /// the file within a quarter of a second; asked in the gap after a round, MatchZy
+    /// accepts, the engine logs "Loaded server checkpoint … starting match with score 1:0
+    /// after round 1", takes the rounds played back — and stays in its round-over state
+    /// for good, the restart it was waiting for gone. Seven minutes and an unpause later
+    /// the match had not moved. MatchZy's own <c>.stop</c> restore is cancelled when the
+    /// round ends for the same reason, so the gap is refused with <c>round_over</c> (or
+    /// the phase's own word at halftime and after the last round) and the caller asks
+    /// again once the next round is under way.
+    /// </summary>
+    private CommandAnswer Restore(string correlationId, long? roundNumber)
+    {
+        SettleRestore(_world.Rules, dueOnly: false);
+
+        if (_world.Rules is not { } rules)
+        {
+            return RestoreRefused(PauseRefusal.NoGamerules);
+        }
+
+        var folder = Path.Combine(_csgoDirectory, MatchZyBackups.Folder);
+        var mapIndex = (int)_runtime.Match.MapNumber - 1;
+        var found = _serial == 0
+            ? null
+            : roundNumber is { } round
+                ? MatchZyBackups.Find(folder, _serial, mapIndex, (int)round - 1)
+                : MatchZyBackups.Newest(folder, _serial, mapIndex);
+        if (found is null)
+        {
+            return CommandAnswer.Rejected(
+                MatchApiErrorCode.NoBackup,
+                roundNumber is { } missing ? $"no backup of round {missing} of this map on the server" : "no backup of this map on the server");
+        }
+
+        if (rules.Warmup)
+        {
+            return RestoreRefused(PauseRefusal.NotLive);
+        }
+
+        if (_roundOver)
+        {
+            return RestoreRefused(rules.Phase switch
+            {
+                GamePhase.Halftime => PauseRefusal.Halftime,
+                GamePhase.MatchEnded => PauseRefusal.PostGame,
+                _ => PauseRefusal.RoundOver,
+            });
+        }
+
+        _world.ExecCommand($"matchzy_loadbackup {found.FileName}");
+        _restore = new PendingRestore(correlationId, found, _roundStarts, _world.Clock.NowMs, _world.Clock.NowMs + RestoreAnswerMs);
+        _restoreSeen = Describe(rules, 0);
+        _log.Info($"restore of round {found.RoundsCompleted + 1} from {found.FileName} asked: {_restoreSeen}");
+        return CommandAnswer.Deferred;
+    }
+
+    /// <summary>What the engine looked like while a restore is watched — said on the console once per change, so a verdict can be argued with from the server's own log.</summary>
+    private string Describe(GameRules rules, long roundStarts) =>
+        $"rounds played {rules.RoundsPlayed}, {(rules.Paused ? "paused" : "running")}, phase {rules.Phase}, {roundStarts} round start(s) since";
+
+    /// <summary>Answer a watched restore, if the engine has decided it; <paramref name="dueOnly"/> false forces a verdict now.</summary>
+    private void SettleRestore(GameRules? rules, bool dueOnly = true)
+    {
+        if (_restore is not { } pending)
+        {
+            return;
+        }
+
+        if (rules is { } seen && Describe(seen, _roundStarts - pending.RoundStartsBefore) is var now && now != _restoreSeen)
+        {
+            _restoreSeen = now;
+            _log.Info($"restore of round {pending.Backup.RoundsCompleted + 1} watched after {_world.Clock.NowMs - pending.AskedAtMs} ms: {now}");
+        }
+
+        if (rules is { } read && Took(read, pending))
+        {
+            _restore = null;
+            Restored(pending);
+            return;
+        }
+
+        if (dueOnly && rules is not null && _world.Clock.NowMs < pending.DueAtMs)
+        {
+            return;
+        }
+
+        _restore = null;
+        // A restore, like a pause, needs a live match: the diagnosis is the same one.
+        var refusal = Diagnose(rules, wanted: true);
+        _log.Warn($"restore of round {pending.Backup.RoundsCompleted + 1} refused ({Word(refusal)}) after {_world.Clock.NowMs - pending.AskedAtMs} ms: {_restoreSeen}");
+        _runtime.Link.AnswerCommand(pending.CorrelationId, RestoreRefused(refusal));
+    }
+
+    /// <summary>Whether the engine is playing the backup's round: one has started since the ask, at the rounds played the file was written at.</summary>
+    private bool Took(GameRules rules, PendingRestore pending) =>
+        _roundStarts > pending.RoundStartsBefore && rules.RoundsPlayed == pending.Backup.RoundsCompleted;
+
+    /// <summary>
+    /// The round is back. What MatchZy wrote after it belongs to rounds that no longer
+    /// happened, so its files go — the orchestrator forgets its copies on the same
+    /// answer — and the next backup this server sends is the replay's own. The fact is
+    /// the one a restored replacement says (<see cref="GamemodeLoader.BackupRestoredEvent"/>),
+    /// emitted before the answer.
+    /// </summary>
+    private void Restored(PendingRestore pending)
+    {
+        var folder = Path.Combine(_csgoDirectory, MatchZyBackups.Folder);
+        var mapIndex = (int)_runtime.Match.MapNumber - 1;
+        foreach (var later in MatchZyBackups.Of(folder, _serial, mapIndex).Where(found => found.RoundsCompleted > pending.Backup.RoundsCompleted).ToList())
+        {
+            try
+            {
+                File.Delete(later.Path);
+            }
+            catch (IOException error)
+            {
+                _log.Warn($"could not forget MatchZy's backup {later.FileName} after the restore: {error.Message}");
+            }
+        }
+
+        _lastBackup = pending.Backup.FileName;
+        var roundNumber = (long)pending.Backup.RoundsCompleted + 1;
+        _log.Info($"restored map {_runtime.Match.MapNumber} round {roundNumber} from {pending.Backup.FileName} after {_world.Clock.NowMs - pending.AskedAtMs} ms: {_restoreSeen}");
+        _runtime.Emit(_runtime.Facts.Plugin(GamemodeLoader.BackupRestoredEvent, new JsonObject
+        {
+            ["mapNumber"] = _runtime.Match.MapNumber,
+            ["roundNumber"] = roundNumber,
+            ["filename"] = pending.Backup.FileName,
+        }));
+        _runtime.Link.AnswerCommand(pending.CorrelationId, CommandAnswer.Applied);
+    }
+
+    private static CommandAnswer RestoreRefused(PauseRefusal refusal) =>
+        CommandAnswer.Rejected(MatchApiErrorCode.InvalidState, $"{Word(refusal)}: {RestoreSentence(refusal)}");
+
+    private static string RestoreSentence(PauseRefusal refusal) =>
+        refusal switch
+        {
+            PauseRefusal.Halftime => "the match software refuses a restore during halftime",
+            PauseRefusal.PostGame => "the match is over",
+            PauseRefusal.TimeoutActive => "a timeout is running and holds the match",
+            PauseRefusal.NotLive => "the match is not live yet",
+            PauseRefusal.Released => "the match was released before the server answered",
+            PauseRefusal.NoGamerules => "the server has no map loaded to restore on",
+            PauseRefusal.RoundOver => "the round is over and the next has not started; ask again once it has",
+            _ => "no round was restored and the gamerules name no reason",
+        };
+
+    /// <summary>A backup handed to MatchZy, waiting for the engine to start the round it holds.</summary>
+    private readonly record struct PendingRestore(string CorrelationId, MatchZyBackups.Found Backup, long RoundStartsBefore, long AskedAtMs, long DueAtMs);
 
     // ------------------------------------------------------------------ rounds
 
@@ -361,6 +564,10 @@ public sealed class MatchZyFlow
         {
             return;
         }
+
+        _roundStarts++;
+        _roundOver = false;
+        SettleRestore(_world.Rules);
 
         var rules = _world.Rules;
         if (rules is { Warmup: true })
@@ -388,6 +595,14 @@ public sealed class MatchZyFlow
         {
             _backupScan?.Cancel();
             _backupScan = _world.Clock.After(BackupSettleMs, ScanBackups);
+        }
+    }
+
+    private void OnRoundEnded(RoundEnd end)
+    {
+        if (_active)
+        {
+            _roundOver = true;
         }
     }
 
@@ -500,4 +715,6 @@ public enum PauseRefusal
     Released,
     /// <summary>No map is loaded, so nothing could be read or asked.</summary>
     NoGamerules,
+    /// <summary>A round has ended and the next has not started — the gap a restore cannot land in (PRD-04 T8).</summary>
+    RoundOver,
 }

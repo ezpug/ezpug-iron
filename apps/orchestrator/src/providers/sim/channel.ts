@@ -13,7 +13,8 @@ import type {
  * and report `player_disconnected`, print a line — the engine does here, and
  * reports through the same sink, so the machine sees a server answering a
  * command exactly as it would over a socket. What a scripted story cannot
- * do (`restart_round`, `reroll`) and what a sim has not got (`rcon`) is
+ * do (`restart_round`, `reroll`, a live `restore` — it cannot be rewound)
+ * and what a sim has not got (`rcon`) is
  * `command_unsupported`.
  *
  * On top of that this channel takes the **`sim.*` family** (PRD-02 T4,
@@ -103,6 +104,7 @@ export function createSimChannel(options: SimChannelOptions): ServerChannel {
           return applied
         case 'restart_round':
         case 'reroll':
+        case 'restore':
           return rejected('command_unsupported', 'a simulated server plays a scripted story')
         case 'rcon':
           return rejected('command_unsupported', 'a simulated server has no RCON')

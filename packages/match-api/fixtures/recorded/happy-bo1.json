@@ -577,6 +577,26 @@
         "type": "unpause",
         "status": "applied"
       }
+    },
+    {
+      "route": "matches.command",
+      "input": {
+        "params": {
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7"
+        },
+        "body": {
+          "type": "restore",
+          "correlationId": "conformance-restore"
+        }
+      },
+      "ok": true,
+      "response": {
+        "correlationId": "conformance-restore",
+        "type": "restore",
+        "status": "rejected",
+        "code": "no_backup",
+        "message": "no backup to restore from"
+      }
     }
   ],
   "envelopes": [

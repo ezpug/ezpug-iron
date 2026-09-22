@@ -414,6 +414,14 @@ export interface MatchStore {
   /** Every backup of a match, newest round first. */
   listBackups: (matchId: string) => Promise<BackupRow[]>
   latestBackup: (matchId: string) => Promise<BackupRow | undefined>
+  /**
+   * **Forget the rounds a restore rewound** (PRD-04 T8): every backup of the
+   * match past round `roundNumber` of map `mapNumber` — later rounds of that
+   * map, and any later map. A live `restore` takes the match back to that
+   * round, so what was written after it is a timeline that no longer exists,
+   * and a server lost before the replay catches up must not resume from it.
+   */
+  dropBackupsAfter: (matchId: string, mapNumber: number, roundNumber: number) => Promise<void>
   /** A widget's key to one match and one SteamID64 (T24), hashed. */
   insertPlayerToken: (row: PlayerTokenRow) => Promise<void>
   findPlayerTokenByHash: (tokenHash: string) => Promise<PlayerTokenRow | undefined>

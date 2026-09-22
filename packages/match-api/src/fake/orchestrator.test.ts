@@ -734,14 +734,33 @@ describe('losing a server', () => {
     const client = h.fake.client(h.platform.secret)
     const match = await client.matches.create({ body: pugRequest() })
     const params = { matchId: match.id }
-    await h.clock.advance(120_000)
     const notYet = await client.matches.command({
       params,
       body: { type: 'restore', correlationId: 'r0' },
     })
-    expect(notYet.code).toBe('invalid_state')
-    // Play into the map, then press the kill button.
+    expect(notYet).toMatchObject({
+      code: 'invalid_state',
+      message: 'restore only while live or recovering',
+    })
+    // Play into the map. A live match rewinds on its own server (PRD-04 T8):
+    // the point is resolved from what that server wrote, and then a scripted
+    // story cannot go back — the real orchestrator's sim says the same.
     await h.clock.advance(10 * 60_000)
+    expect((await client.matches.get({ params })).state).toBe('live')
+    const liveMissing = await client.matches.command({
+      params,
+      body: { type: 'restore', correlationId: 'l1', roundNumber: 99 },
+    })
+    expect(liveMissing).toMatchObject({
+      code: 'no_backup',
+      message: 'no backup of round 99 on the map being played',
+    })
+    const liveRewind = await client.matches.command({
+      params,
+      body: { type: 'restore', correlationId: 'l2' },
+    })
+    expect(liveRewind.code).toBe('command_unsupported')
+    // Then press the kill button.
     const killed = await client.matches.command({
       params,
       body: { type: 'sim.kill', correlationId: 'k1' },

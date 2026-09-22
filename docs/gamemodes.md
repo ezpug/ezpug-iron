@@ -211,7 +211,8 @@ is:
   the `pause` command over the link is MatchZy's `css_forcepause` and an admin pause, and
   its *answer* is the gamerules' too — `applied` once the match stands, `invalid_state`
   with a reason word when MatchZy refused it, `docs/match-api.md`'s "A pause that says
-  no"),
+  no"; a `restore` of a live match is MatchZy's own `matchzy_loadbackup`, answered the same
+  way — "A restore on a live match"),
   `side_swap` at a round start when the rostered team A stands on the other side (or, with
   nobody rostered, when the engine flagged the swap), and every round backup MatchZy writes
   as a `backup` frame plus `backup_written`, the token scrubbed out of it first.

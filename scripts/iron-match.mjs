@@ -103,6 +103,9 @@ const HELP = `iron-match — run one real match through the Match API and record
                          RCON command of the row, declared as such
   --pause                pause the live match through the Match API and
                          unpause it two polls later (PRD-03 T6)
+  --restore              the moment round 3 ends, restore the live match
+                         to round 2 through the Match API and lift the pause
+                         MatchZy puts on a restored round (PRD-04 T8)
   --drop-puppet          take one puppet off the server while it is still in
                          warmup and let it come back, which is the only thing
                          that ever holds a loaded match at the gate. The kick
@@ -373,6 +376,26 @@ if (!['ct', 't', 'knife'].includes(SIDES)) die('--sides is `ct`, `t` or `knife`'
  * one lane case that proves that decision on hardware.
  */
 const PAUSE = flags.get('pause') === 'true'
+/**
+ * **A rewind through the front door** (PRD-04 T8): the moment the third
+ * round ends, `restore` to round 2 — the platform's admin console's round
+ * picker, and the LAN case of a round somebody's machine crashed in. The
+ * answer is the server's (`applied` once the engine started round 2 again,
+ * or a refusal with a word, like a pause), and a refusal that can pass —
+ * halftime — is asked again. MatchZy then holds the restored round
+ * (`matchzy_pause_after_restore`) until somebody unpauses it, and a puppet
+ * never types `.unpause`, so the row lifts it with the Match API's own
+ * `unpause` once the pause is in the log.
+ */
+const RESTORE = flags.get('restore') === 'true'
+/** How many rounds are played before the rewind, and the round it rewinds to. */
+const RESTORE_AFTER_ROUNDS = 3
+const RESTORE_ROUND = 2
+/** How long the row waits on the stream for the round it asks after. */
+const RESTORE_ROUND_WAIT_MS = 180_000
+/** How long the row keeps asking while the refusal can still pass, and how long MatchZy's pause after the restore is given to show. */
+const RESTORE_WINDOW_MS = 90_000
+const RESTORE_PAUSE_MS = 20_000
 /**
  * **A mixed roster** (PRD-04 T2): `--humans n` leaves the last `n` rostered
  * entries to people, so `simulation.puppets` names only the first
@@ -2050,6 +2073,8 @@ async function run() {
   let polls = 0
   /** What `--pause` did, for the summary: every answer the pause got, and the unpause's. */
   let paused = null
+  /** What `--restore` did: every answer the restore got, and the unpause that let the rewound round play. */
+  let rewind = null
   /**
    * What `--drop-puppet` did: the kick the Match API answered, and whether the
    * room emptied by one and filled back up. Read off `presence` frames, which
@@ -2398,6 +2423,84 @@ async function run() {
       say(paused.held ? `paused (try ${paused.tries.length})` : 'the pause never held')
       continue
     }
+    // Live, three rounds in. **A rewind through the front door** (PRD-04 T8):
+    // one `restore` to round 2, asked again only while the refusal is one
+    // that passes (halftime), then MatchZy's own pause after a restore lifted
+    // the way an admin would. What round 2 looked like the first time and
+    // the second is read off the durable log in the summary.
+    //
+    // **Asked in the gap after a round, on purpose.** Asked mid-round, the
+    // engine ends the round and restarts it from the file at once; asked
+    // after a round has ended, MatchZy accepts and the engine loads the file
+    // and never restarts — the dev node's second and fourth runs sat in
+    // `RoundOver` until they were force-ended. The plugin refuses that gap
+    // up front (`round_over`), so the row waits on the live stream for the
+    // third `round_end`, asks the moment it arrives, is told no in so many
+    // words, and asks again once the next round is under way.
+    if (
+      RESTORE &&
+      rewind === null &&
+      liveAt > 0 &&
+      (await countSaid('round_end')) >= RESTORE_AFTER_ROUNDS - 1
+    ) {
+      const ended = () =>
+        streamFrames.filter(
+          frame => frame.type === 'event' && frame.envelope.payload.type === 'round_end',
+        ).length
+      const roundBy = wall.now() + RESTORE_ROUND_WAIT_MS
+      while (ended() < RESTORE_AFTER_ROUNDS && wall.now() < roundBy) await wall.sleep(100)
+      rewind = {
+        round: RESTORE_ROUND,
+        tries: [],
+        restore: null,
+        at: null,
+        pausedAfter: false,
+        unpause: null,
+      }
+      const until = wall.now() + RESTORE_WINDOW_MS
+      const pausesBefore = await countSaid('match_paused')
+      while (wall.now() < until) {
+        const suffix = rewind.tries.length === 0 ? '' : `-${rewind.tries.length + 1}`
+        const answer = await command(
+          {
+            correlationId: `${RUN_ID}-restore${suffix}`,
+            type: 'restore',
+            roundNumber: RESTORE_ROUND,
+          },
+          20_000,
+        )
+        rewind.tries.push({
+          at: new Date(wall.now()).toISOString(),
+          status: answer?.status ?? null,
+          code: answer?.code ?? null,
+          reason: (answer?.message ?? '').split(':')[0] || null,
+        })
+        rewind.restore = answer
+        if (answer?.status !== 'rejected' || answer.code !== 'invalid_state') break
+        if (!['round_over', 'halftime', 'timeout_active'].includes(rewind.tries.at(-1).reason))
+          break
+        say(`restore ${rewind.tries.length} refused (${rewind.tries.at(-1).reason}), asking again`)
+        await wall.sleep(PAUSE_GAP_MS)
+      }
+      rewind.at = new Date(wall.now()).toISOString()
+      say(`restore to round ${RESTORE_ROUND}: ${rewind.restore?.status ?? 'no status'}`)
+      // MatchZy pauses a round it restored, and only one it restored — so a
+      // pause after the ask is lifted whatever the answer said: a refusal
+      // with a pause behind it is a run worth reading to the end, and the
+      // rewound round shows only once the pause is gone.
+      const pauseBy = wall.now() + RESTORE_PAUSE_MS
+      while (wall.now() < pauseBy && (await countSaid('match_paused')) <= pausesBefore)
+        await wall.sleep(1_000)
+      rewind.pausedAfter = (await countSaid('match_paused')) > pausesBefore
+      if (rewind.pausedAfter) {
+        rewind.unpause = await command({
+          correlationId: `${RUN_ID}-restore-unpause`,
+          type: 'unpause',
+        })
+        say(`lifted MatchZy's pause after the restore (${rewind.unpause?.status ?? 'no status'})`)
+      }
+      continue
+    }
     if (paused !== null && paused.unpause === null) {
       await wall.sleep(5_000)
       paused.unpause = await command({ correlationId: `${RUN_ID}-unpause`, type: 'unpause' })
@@ -2511,6 +2614,7 @@ async function run() {
     ratingProbe,
     skins,
     paused,
+    rewind,
     dropped,
     standIn,
     humans: HUMAN_STEAM_IDS,
@@ -2531,6 +2635,39 @@ async function run() {
  * batch earned goes with it, or the recording would acknowledge frames it
  * does not contain.
  */
+/**
+ * **Round 2, twice** (PRD-04 T8): what `--restore` asked and was answered,
+ * with the log's own account of it — the round's two `round_start`s, the
+ * `backup_restored` the plugin said, and the rounds that ended after the
+ * second start, in order. The two starts are found by round number and not
+ * by where `backup_restored` sits: that fact comes over the link and the
+ * start over MatchZy's remote log, and on the dev node the start won.
+ */
+function rewoundRounds(rewind, envelopes) {
+  const facts = envelopes.map(envelope => envelope.payload)
+  const start = payload =>
+    payload ? { roundNumber: payload.roundNumber, score: payload.score } : null
+  const starts = facts.filter(
+    payload => payload.type === 'round_start' && payload.roundNumber === rewind.round,
+  )
+  const again = facts.indexOf(starts[1])
+  return {
+    ...rewind,
+    first: start(starts[0]),
+    restored:
+      facts.find(payload => payload.type === 'plugin_event' && payload.name === 'backup_restored')
+        ?.data ?? null,
+    again: start(starts[1]),
+    endsAfter:
+      again === -1
+        ? []
+        : facts
+            .slice(again + 1)
+            .filter(payload => payload.type === 'round_end')
+            .map(payload => ({ roundNumber: payload.roundNumber, score: payload.score })),
+  }
+}
+
 /** What `match.ended` said became of this match's demos, or `null` before it landed. */
 function demoOutcome(envelopes) {
   return envelopes.find(envelope => envelope.payload.type === 'match.ended')?.payload.demo ?? null
@@ -2699,6 +2836,14 @@ function write(result) {
      * message (PRD-04 T4).
      */
     paused: result.paused ?? null,
+    /**
+     * `--restore` (PRD-04 T8): every answer the restore got and the unpause
+     * after it, plus round 2 as the durable log tells it twice — its first
+     * `round_start` and its second — the plugin's `backup_restored`, and every
+     * round the map ended on after the rewind. `null` when the run never
+     * rewound.
+     */
+    rewind: result.rewind ? rewoundRounds(result.rewind, result.envelopes) : null,
     /** `--drop-puppet`: who left, how, and whether the room filled back up (T6). */
     dropped: result.dropped ?? null,
     /**
