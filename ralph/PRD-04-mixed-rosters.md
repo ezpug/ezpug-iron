@@ -131,7 +131,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   (`EZPUG_IRON_DATHOST_LOCATION`) and its region label are documented in
   `docs/operations.md` and that `EZPUG_IRON_PROVIDERS` on production names `dathost`.
 
-- [ ] **T8: `restore` works on hardware.** A lane row on the dev node: play three rounds
+- [x] **T8: `restore` works on hardware.** A lane row on the dev node: play three rounds
   with puppets, `restore` to round 2, assert the score and the `round_start` that
   follows; then the same once on Dathost (the T7 budget's sibling: one server, one
   hour). `docs/match-api.md` states what a client may expect after `restore`
