@@ -1055,6 +1055,17 @@ with `dathost` in `EZPUG_IRON_PROVIDERS` is a warning at startup and a fleet tha
 the password. Neither the password nor the Basic-auth header is ever logged, put in an
 error or written into the ledger's `provider_meta`.
 
+**The location and its region label.** `EZPUG_IRON_DATHOST_LOCATION` is Dathost's own
+location id. It is sent as `location` on every `duplicate`, so a clone lands there
+whatever the template's location is. The id is not what a client asks for. The offering
+wears a **region label**, and `requirements.region` has to name that label:
+`DATHOST_LOCATION_REGIONS` (`providers/dathost/provider.ts`) maps `dusseldorf` to
+`frankfurt`, which is also what a ledger row's `region` and `match.allocated` say. Any
+other location id becomes its own label, so moving the fleet to another Dathost location
+also renames the region clients must ask for, unless a line is added to that map.
+Production sets `EZPUG_IRON_DATHOST_LOCATION=dusseldorf` explicitly and names `dathost` in
+`EZPUG_IRON_PROVIDERS` (`dathost,nodes`), confirmed for PRD-04 T7.
+
 **Allocation is a clone of one template.** `scripts/dathost-image.mjs` (T18) builds the
 template server once — Metamod, CounterStrikeSharp, MatchZy, retakes, our plugins, our
 cfgs — and its id is the environment variable above. Then, per match:
@@ -1221,6 +1232,18 @@ or a tunnel to a dev one before it. Against a remote orchestrator, pass `--key` 
 on a real port and the fake server dialling in — including the release after a failure, the
 stray clone the provider could not delete, and a grep of the summary for every secret the
 run knows.
+
+**How it is run from here** (PRD-04 T7, 2026-09-22). First, `pnpm cs2:build` and
+`pnpm dathost:image` so that step 2 is green. Then the lane, from `apps/orchestrator`,
+with the operator key read out of `.env.production` into the environment so it never
+appears in argv:
+`EZPUG_IRON_ADMIN_KEY=… EZPUG_IRON_BASE_URL=https://gs.ezpug.com EZPUG_DATHOST_TESTS=required vitest run src/dathost.extended.test.ts`.
+Refreshing the template changes what production's next clone runs, so the plugin tree it
+carries has to speak the protocol of the orchestrator deployed at `gs.ezpug.com`.
+The account is shared with servers that are not ours. On that run it held ten, untagged
+and not cloned from the template. While our clone was up, `list()` under production's
+tag claimed exactly that clone and nothing else, and under another deployment's tag it
+claimed nothing.
 
 ## The GSLT pool
 
