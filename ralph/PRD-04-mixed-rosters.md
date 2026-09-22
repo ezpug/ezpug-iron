@@ -116,7 +116,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   (skip, never burst); the position stream measures 100 ms within a frame in the T12
   spike harness; `docs/sdk.md` documents the guarantee. Delete §4.
 
-- [ ] **T6: the retakes rating** (OPEN-POINTS §3). The two-read run: `ezpug_status`
+- [x] **T6: the retakes rating** (OPEN-POINTS §3). The two-read run: `ezpug_status`
   right after `round_start` and again mid-round, on a retakes match with puppets; if the
   number is cleared by the respawn, redraw after the retake's spawn pass; if
   `SetScoreboardRating` never sticks on a bot controller, say so in `docs/gamemodes.md`
