@@ -36,7 +36,7 @@ import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { describeLaneLock, takeLaneLock } from './cs2-lane-lock.mjs'
+import { describeLaneLock, describeLaneQueue, takeLaneLock } from './cs2-lane-lock.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(join(repo, 'apps/orchestrator/package.json'))
@@ -1130,7 +1130,7 @@ async function run() {
       what: `${RUN_ID} — ${GAMEMODE}, ${BOTS} ${SIMULATE ? 'puppets' : 'bodies'}`,
       waitMs: LOCK_WAIT_MS,
       clock: wall,
-      onWait: ({ held, broke, waitedMs }) => {
+      onWait: ({ held, broke, ahead, waitedMs }) => {
         if (broke)
           return say(
             `the CS2 lane was held by a run that is gone (${describeLaneLock(held)}) — taking it`,
@@ -1141,7 +1141,12 @@ async function run() {
         const minutes = Math.floor(waitedMs / 60_000)
         if (minutes === told) return
         told = minutes
-        say(`waiting for the CS2 lane — held by ${describeLaneLock(held)}`)
+        // Behind a queue, the lane can be free and still not ours: whoever
+        // asked first goes first (docs/operations.md, "The lane lock").
+        say(
+          `waiting for the CS2 lane — held by ${describeLaneLock(held)}` +
+            (ahead.length > 0 ? `, ${describeLaneQueue(ahead)} ahead of this run` : ''),
+        )
       },
     })
     cleanups.push(() => {

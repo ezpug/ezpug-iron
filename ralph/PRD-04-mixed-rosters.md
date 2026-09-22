@@ -71,7 +71,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
 
 ## Tasks
 
-- [ ] **T1: the lane lock queues fairly.** Decide #1 on `docs/operations.md` ("The lane
+- [x] **T1: the lane lock queues fairly.** Decide #1 on `docs/operations.md` ("The lane
   lock"): the ticket queue as proposed unless a reason on the page says otherwise —
   stale-ticket rules, the handover interval, backward compatibility with a waiter that
   knows no queue. Implement the page in `scripts/iron-match.mjs`'s lock and prove it with

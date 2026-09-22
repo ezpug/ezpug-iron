@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { hostname, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,6 +46,13 @@ type LaneLockEntry = {
 type LaneLockModule = {
   LANE_LOCK_PATH: string
   LANE_LOCK_TTL_MS: number
+  wallClock: { now: () => number }
+  laneQueuePath: (path?: string) => string
+  readLaneQueue: (
+    path?: string,
+    options?: { ttlMs?: number; clock?: { now: () => number } },
+  ) => (LaneLockEntry & { file: string; name: string })[]
+  describeLaneQueue: (queue: LaneLockEntry[]) => string
   readLaneLock: (path?: string) => LaneLockEntry | null
   describeLaneLock: (entry: LaneLockEntry | null) => string
   releaseLaneLock: (path: string, token?: string | null) => boolean
@@ -53,7 +68,12 @@ type LaneLockModule = {
     ttlMs?: number
     pollMs?: number
     clock?: { now: () => number; sleep: (ms: number) => Promise<void> }
-    onWait?: (event: { held: LaneLockEntry; broke: boolean; waitedMs: number }) => void
+    onWait?: (event: {
+      held: LaneLockEntry | null
+      broke: boolean
+      ahead: LaneLockEntry[]
+      waitedMs: number
+    }) => void
   }) => Promise<{
     path: string
     entry: LaneLockEntry
@@ -170,7 +190,7 @@ describe('the CS2 lane lock', () => {
       holder: 'ezpug-iron',
       pollMs: 5_000,
       waitMs: 45 * 60_000,
-      onWait: ({ held: who, broke }) => waits.push(`${broke ? 'broke' : 'waited'}:${who.holder}`),
+      onWait: ({ held: who, broke }) => waits.push(`${broke ? 'broke' : 'waited'}:${who?.holder}`),
     })
 
     expect(polls, 'the waiter did not wait for the holder').toBe(3)
@@ -262,12 +282,15 @@ describe('the CS2 lane lock', () => {
     taken.release()
     // The break moves the corpse aside before it removes it (the rename is
     // what keeps two waiters from both taking a dead lane); nothing of that
-    // may survive in the directory.
+    // may survive in the directory. The queue directory may — it is never
+    // removed, so nobody's ticket can lose a race with an `rmdir` — but it
+    // is empty.
     expect(existsSync(path)).toBe(false)
     expect(
-      spawnSync('ls', [dir], { encoding: 'utf8' }).stdout.trim(),
+      spawnSync('ls', ['-A', dir], { encoding: 'utf8' }).stdout.trim().split('\n').filter(Boolean),
       'the break left a file behind',
-    ).toBe('')
+    ).toEqual(existsSync(lock.laneQueuePath(path)) ? ['lane.lock.queue'] : [])
+    expect(lock.readLaneQueue(path)).toEqual([])
   })
 
   it('answers an operator from the command line', () => {
@@ -300,5 +323,250 @@ describe('the CS2 lane lock', () => {
     // protocol (`docs/operations.md`), so this default is a contract between
     // two repositories and not an implementation detail.
     expect(lock.LANE_LOCK_PATH).toBe('/tmp/ezpug-cs2-lane.lock')
+  })
+})
+
+/**
+ * **A clock the test turns by hand.** Two waiters in one process are two
+ * `takeLaneLock` loops interleaved, and the only honest way to say *who looks
+ * when* is to hold each one's sleep until the test lets it go — which is
+ * exactly the race issue #1 lost: the waiter asleep for five seconds while the
+ * matrix's next row is born and takes the lock.
+ */
+function steppedClock(startMs: number) {
+  let now = startMs
+  let wake: (() => void) | null = null
+  return {
+    now: () => now,
+    sleep: (ms: number) =>
+      new Promise<void>(resolve => {
+        wake = () => {
+          now += ms
+          resolve()
+        }
+      }),
+    asleep: () => wake !== null,
+    /** Let the waiter look again, and give its loop the microtasks it runs on. */
+    step: async () => {
+      const w = wake
+      wake = null
+      w?.()
+      await settle()
+    },
+  }
+}
+
+async function settle() {
+  for (let i = 0; i < 20; i++) await Promise.resolve()
+}
+
+/** A waiter started, not awaited: the test drives it through its clock. */
+function waiter(holder: string, what: string, startMs: number) {
+  const clock = steppedClock(startMs)
+  const waits: { held: string; ahead: string[] }[] = []
+  let taken: Awaited<ReturnType<LaneLockModule['takeLaneLock']>> | null = null
+  const done = lock
+    .takeLaneLock({
+      path,
+      clock,
+      holder,
+      what,
+      pollMs: 5_000,
+      waitMs: 45 * 60_000,
+      onWait: ({ held: who, ahead }) =>
+        waits.push({ held: who?.holder ?? 'nobody', ahead: ahead.map(t => t.what) }),
+    })
+    .then(t => {
+      taken = t
+      return t
+    })
+  return { clock, waits, done, taken: () => taken }
+}
+
+describe('the lane queue (issue #1)', () => {
+  const T0 = 1_764_000_000_000
+
+  it('gives the lane to the waiter who asked first, not the one who polls fastest', async () => {
+    // Row 0 of the iron's matrix is playing.
+    const row0 = held({ holder: 'ezpug-iron', what: 'row 0', token: 'row-0' })
+
+    // The platform asks, finds it held, and queues.
+    const platform = waiter('ezpug-platform', 'the golden path', T0 + 1_000)
+    await settle()
+    expect(platform.clock.asleep(), 'the platform did not wait for a held lane').toBe(true)
+    const queue = lock.readLaneQueue(path, { clock: platform.clock })
+    expect(queue.map(t => t.holder)).toEqual(['ezpug-platform'])
+    expect(queue[0]?.name).toMatch(/^\d{13}-[0-9a-f-]{36}\.json$/)
+
+    // Row 0 lets go, and row 1 — a new process, born in the same second —
+    // asks while the platform is still asleep. Before the queue, row 1 won.
+    lock.releaseLaneLock(path, row0.token)
+    const row1 = waiter('ezpug-iron', 'row 1', T0 + 2_000)
+    await settle()
+    expect(row1.taken(), 'row 1 jumped the queue').toBeNull()
+    expect(existsSync(path), 'the lane was taken by somebody who asked second').toBe(false)
+    expect(row1.waits.at(-1)).toEqual({ held: 'nobody', ahead: ['the golden path'] })
+
+    // Row 1 may look as often as it likes; the lane stays the platform's next.
+    await row1.clock.step()
+    await row1.clock.step()
+    expect(row1.taken()).toBeNull()
+
+    await platform.clock.step()
+    const theirs = await platform.done
+    expect(lock.readLaneLock(path)?.holder).toBe('ezpug-platform')
+    expect(
+      lock.readLaneQueue(path, { clock: platform.clock }).map(t => t.what),
+      'the platform kept its ticket after it took the lane',
+    ).toEqual(['row 1'])
+
+    // Row 1 now waits for a holder, and goes the moment the platform is done.
+    await row1.clock.step()
+    expect(row1.taken()).toBeNull()
+    expect(theirs.release()).toBe(true)
+    await row1.clock.step()
+    expect((await row1.done).entry.what).toBe('row 1')
+    expect(lock.readLaneQueue(path, { clock: row1.clock })).toEqual([])
+  })
+
+  it('lets one waiter in between a matrix whose rows arrive back to back', async () => {
+    // The 2026-09-21 shape: six rows, each a new process taking the lane the
+    // instant the last one let go, and a waiter that looks every 5 s. The
+    // order the lane is played in is the assertion.
+    const order: string[] = []
+    let current = held({ holder: 'ezpug-iron', what: 'row 0', token: 'row-0' })
+    order.push('row 0')
+
+    const platform = waiter('ezpug-platform', 'the golden path', T0 + 1_000)
+    await settle()
+
+    let at = T0 + 10_000
+    let platformPlayed = false
+    for (let row = 1; row <= 5; row++) {
+      lock.releaseLaneLock(path, current.token)
+      at += 60_000
+      const next = waiter('ezpug-iron', `row ${row}`, at)
+      await settle()
+      if (next.taken() === null) {
+        // Queued behind the platform: the platform's next look takes the lane,
+        // plays, and gives it back; then the row goes.
+        expect(platformPlayed, 'the platform played twice').toBe(false)
+        await platform.clock.step()
+        const theirs = await platform.done
+        order.push('the golden path')
+        platformPlayed = true
+        theirs.release()
+        await next.clock.step()
+      }
+      const mine = await next.done
+      order.push(mine.entry.what)
+      current = mine.entry
+    }
+    lock.releaseLaneLock(path, current.token)
+
+    expect(order).toEqual(['row 0', 'the golden path', 'row 1', 'row 2', 'row 3', 'row 4', 'row 5'])
+  })
+
+  it('takes a free lane at once when nobody is queued', async () => {
+    const clock = testClock()
+    const taken = await lock.takeLaneLock({ path, clock })
+    expect(taken.waitedMs).toBe(0)
+    // A run that found the lane free never queued.
+    expect(lock.readLaneQueue(path)).toEqual([])
+    taken.release()
+  })
+
+  it('steps over a ticket whose process is gone, or that is not the JSON', async () => {
+    const queue = lock.laneQueuePath(path)
+    mkdirSync(queue, { recursive: true })
+    const gone = deadPid()
+    writeFileSync(
+      join(queue, `${T0}-dead.json`),
+      JSON.stringify({
+        token: 'dead',
+        holder: 'ezpug-platform',
+        what: 'killed',
+        pid: gone,
+        host: hostname(),
+        since: '',
+        sinceMs: T0,
+      }),
+    )
+    writeFileSync(join(queue, `${T0 + 1}-garbage.json`), 'not a ticket\n')
+
+    const clock = testClock()
+    const taken = await lock.takeLaneLock({ path, clock })
+    expect(taken.waitedMs, 'a dead ticket was waited for').toBe(0)
+    expect(readdirSync(queue), 'the corpses were left in the queue').toEqual([])
+    taken.release()
+  })
+
+  it('steps over a ticket older than the TTL, whatever its pid says', async () => {
+    const queue = lock.laneQueuePath(path)
+    mkdirSync(queue, { recursive: true })
+    // Our own pid — alive by construction — so only age can judge it.
+    writeFileSync(
+      join(queue, `${T0}-old.json`),
+      JSON.stringify({
+        token: 'old',
+        holder: 'ezpug-platform',
+        what: 'forgotten',
+        pid: process.pid,
+        host: hostname(),
+        since: '',
+        sinceMs: T0,
+      }),
+    )
+    const clock = testClock()
+    clock.jump(lock.LANE_LOCK_TTL_MS + 60_000)
+    const taken = await lock.takeLaneLock({ path, clock })
+    expect(taken.waitedMs).toBe(0)
+    taken.release()
+  })
+
+  it('gives up its place when it gives up the wait', async () => {
+    held({ what: 'a golden-path match that will not end' })
+    const clock = testClock()
+    await expect(
+      lock.takeLaneLock({ path, clock, pollMs: 60_000, waitMs: 10 * 60_000 }),
+    ).rejects.toThrow(/golden-path match that will not end/)
+    expect(lock.readLaneQueue(path), 'a waiter that gave up kept its place').toEqual([])
+  })
+
+  it('refuses a wait longer than the TTL its own ticket is judged by', async () => {
+    await expect(
+      lock.takeLaneLock({ path, clock: testClock(), waitMs: lock.LANE_LOCK_TTL_MS }),
+    ).rejects.toThrow(/TTL/)
+  })
+
+  it('still queues behind a holder that knows no queue', async () => {
+    // A side that predates the queue takes the lock with one bare `wx` and
+    // drops no ticket. Its lock is waited for like any other; it is only
+    // fairness it does not get, and not safety.
+    const theirs = held({ holder: 'ezpug-platform', what: 'an old lane' })
+    let polls = 0
+    const clock = testClock(() => {
+      if (++polls === 2) lock.releaseLaneLock(path, theirs.token)
+    })
+    const taken = await lock.takeLaneLock({ path, clock })
+    expect(polls).toBe(2)
+    expect(lock.readLaneLock(path)?.token).toBe(taken.entry.token)
+    taken.release()
+  })
+
+  it('names the queue for an operator, and only looks', async () => {
+    // The verb is a separate process on the wall clock, so the lock and the
+    // ticket must be young by *its* clock — the module's own, not a bare read.
+    const now = lock.wallClock.now()
+    held({ holder: 'ezpug-iron', what: 'row 0', sinceMs: now })
+    waiter('ezpug-platform', 'the golden path', now + 1_000)
+    await settle()
+    const status = spawnSync('node', [modulePath, 'status'], {
+      encoding: 'utf8',
+      env: { ...process.env, EZPUG_CS2_LANE_LOCK: path },
+    })
+    expect(status.stdout).toContain('held by ezpug-iron')
+    expect(status.stdout).toContain('ezpug-platform (the golden path) queued')
+    expect(readdirSync(lock.laneQueuePath(path))).toHaveLength(1)
   })
 })

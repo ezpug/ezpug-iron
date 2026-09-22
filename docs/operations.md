@@ -1758,7 +1758,7 @@ loops that play matches on it: this lane, and the platform's real-server lane in
 between them is a file:
 
 ```sh
-node scripts/cs2-lane-lock.mjs status   # who holds the lane, or nobody (exit 1 when held)
+node scripts/cs2-lane-lock.mjs status   # who holds the lane and who is queued (exit 1 when held)
 node scripts/cs2-lane-lock.mjs break    # take it from a run that was killed
 ```
 
@@ -1780,6 +1780,30 @@ checkout and never imports this repo — forty lines on either side):
   what it is playing, for the line the other side prints), `pid`, `host`, `since` (ISO)
   and `sinceMs`.
 - A waiter looks again every 5 s and prints who it is waiting for, once a minute.
+- **Whoever asked first goes first** (PRD-04 T1, issue #1). Beside the lock is a queue,
+  the directory `<lock path>.queue/` (`/tmp/ezpug-cs2-lane.lock.queue/`). A run that finds
+  the lock held, or finds a living ticket in the queue, drops a **ticket** there: one
+  exclusive create of `<sinceMs>-<token>.json`, holding the same JSON as the lock. Before
+  every attempt to create the lock, a run reads the queue and may create it only if no
+  **living** ticket is older than its own — by `sinceMs`, then by file name. A run with no
+  ticket counts as the newest, so a run that arrives at a free lane with an empty queue
+  takes it at once, as it always has. A run removes its own ticket once it holds the lock,
+  and in its `finally` when it gives up.
+- **A ticket is judged by the lock's own corpse rules**: its `pid` on this `host` answering
+  no signal, an age above 90 minutes, or contents that are not this JSON. Anyone may
+  remove a dead ticket, with a plain unlink — a ticket's name carries its token, so nobody
+  ever creates a successor under it. Because a ticket ages from the moment it is dropped,
+  **a wait must stay below the 90 minutes**; `takeLaneLock` refuses a longer one. The
+  directory is created on demand and **never removed**, so no ticket can lose a race with
+  an `rmdir`.
+- **There is no handover interval.** A released lane can sit free for up to one poll (5 s)
+  while the oldest waiter wakes up. Nobody else may take it in that gap, because whoever
+  arrives finds the older ticket. That is the fix for 2026-09-21: the matrix's next row
+  is a new process born the instant its predecessor lets go, and it now queues behind a
+  waiter that was already there instead of winning the race six times in a row.
+- **Backward compatible, in one direction.** The lock file is unchanged, so a side that
+  knows no queue still waits for a held lock and is still waited for. It just gets no
+  fairness: it can take a free lane over somebody's ticket. Both sides implement the queue.
 - A lock may be **broken** only when its holder is provably gone: `pid` on this `host`
   answering no signal, an age above **90 minutes** (longer than any budget on the ladder
   and longer than the platform's golden path), or contents that are not this JSON. The
