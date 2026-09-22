@@ -1511,6 +1511,20 @@ player carrying team2's label. Which side the replacement lands on is the engine
 so this row asserts one `player_ready` per puppet and leaves the whole gate to the other
 nine rows. A vendor property recorded rather than filed.
 
+**`--humans <n>`** is a mixed roster (PRD-04 T2): the last `n` rostered entries are people
+rather than puppets, so the request's `simulation.puppets` names the rest and the person's
+chair stays empty for the whole run — the lane has no CS2 client and a simulated server has
+nobody at the keyboard. What the row proves is the negative, which is the whole contract:
+the puppeteer seats exactly who is named, the person's SteamID is never announced, and a body
+that turns up later is not cast as them. **`--stand-in`** is that body: once the match is
+live, one `bot_add` per person over RCON — the one command the `mixed` row types, declared
+as `rcon: 1` — and the summary's `simulation.people[].announced` must stay `false` after it.
+Only a mode whose manifest claims `capabilities.mixedRoster` takes the request; `pug` refuses
+it at the door, because MatchZy-Enhanced's simulation mode seats every configured entry or
+none, kicks a bot it did not map outside that mode, and force-starts from its warmup watchdog
+whether or not anybody came — so the "ready up to nine and go live when the tenth arrives"
+run waits on the fork, and the `mixed` row plays `retakes`.
+
 **`--widget`** is a puppet with a phone (PRD-03 T8), and it is the one flag that does not
 speak to the match over `/v1/matches/:id/commands` at all. It mints a player token for the
 first rostered SteamID (`POST /v1/matches/:id/player-tokens`), opens `GET /v1/widget` with

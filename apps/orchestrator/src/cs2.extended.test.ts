@@ -247,6 +247,10 @@ type Summary = {
   demo?: { uploaded: number; skipped?: string } | null
   simulation?: {
     puppets: number
+    /** A mixed roster (PRD-04 T2): how many entries were left to people, and whether any was ever announced. */
+    humans?: number
+    people?: { steamId64: string; announced: boolean }[]
+    standIn?: { at: string; status: string | null; connectedBefore: number } | null
     timeScale: number
     simulated: boolean
     scenario?: string | null
@@ -276,8 +280,15 @@ type LaneCase = {
   id: string
   /** The sentence the test is called by. */
   what: string
-  /** How many puppets are rostered — and so how many `player_ready` are owed. */
+  /** How many players are rostered — and, less {@link humans}, how many puppets there are and how many `player_ready` a ready-gated flow owes. */
   puppets: number
+  /**
+   * **A mixed roster** (PRD-04 T2): how many of the rostered entries are
+   * left to people, whose chairs stay empty for the whole run. The row's own
+   * `--humans` says the same number to the script; this is what the summary
+   * is held to.
+   */
+  humans?: number
   /** Everything after `--simulate --bots <puppets>`. */
   args: string[]
   /**
@@ -573,6 +584,49 @@ const CASES: LaneCase[] = [
         ).toBeNull()
         expect(summary.length?.seriesEnd).toBeNull()
       }
+    },
+  },
+  {
+    // **A mixed roster, on the flow the SDK seats** (PRD-04 T2). Three are
+    // rostered, two are puppets and the third chair is a person's: the
+    // puppeteer seats exactly who is named, the person's SteamID is never
+    // announced, and the plain bot `--stand-in` adds once the match is live
+    // — a `bot_add` over RCON, the one command this row types and declares —
+    // is furniture, not the person. `retakes` because it is the cheapest
+    // mode that claims `mixedRoster` and plays a whole match out in minutes;
+    // the ready gate a `pug` would hold for the tenth is exactly what this
+    // row cannot show, because the fork seats every seat or none and the
+    // door refuses a partial list to it (`docs/match-api.md`).
+    id: 'mixed',
+    what: 'seats two of three retakes puppets, leaves the third chair to a person, and never casts a bot into it',
+    puppets: 3,
+    humans: 1,
+    rcon: 1,
+    args: [
+      '--gamemode',
+      'retakes',
+      '--humans',
+      '1',
+      '--stand-in',
+      '--no-demo',
+      '--max-live-minutes',
+      '12',
+    ],
+    facts: summary => {
+      expect(summary.payloads?.player_ready ?? 0, 'a plugin flow ran a ready system').toBe(0)
+      expect(summary.simulation?.people, 'the run left nobody to a person').toHaveLength(1)
+      expect(summary.simulation?.standIn, 'the stand-in was never added').not.toBeNull()
+      expect(
+        summary.simulation?.standIn?.connectedBefore ?? 0,
+        'the two puppets were not announced before the stand-in came',
+      ).toBeGreaterThanOrEqual(2)
+      // The stand-in is furniture: the durable log announces the puppets and
+      // nobody else, before the bot came and after.
+      expect(
+        summary.payloads?.player_connected ?? 0,
+        'somebody besides the two puppets was announced',
+      ).toBe(2)
+      expect(summary.length?.winner, 'a one-team mode named a winning team').toBeNull()
     },
   },
   {
@@ -951,9 +1005,18 @@ function play(lane: LaneCase): Summary {
   // the match was simulated, so every fact of it carries `source.simulated`
   // and nobody can mistake it for a real one.
   expect(summary.simulation, 'the run did not ask for puppets').toMatchObject({
-    puppets: lane.puppets,
+    puppets: lane.puppets - (lane.humans ?? 0),
+    humans: lane.humans ?? 0,
     simulated: true,
   })
+  // **A person's chair is nobody else's** (PRD-04 T2): a rostered entry the
+  // request left to a human is never announced by anybody, on every row —
+  // most rows have none, and the `mixed` row is the one that has.
+  for (const person of summary.simulation?.people ?? []) {
+    expect(person.announced, `${person.steamId64} was left to a person and got announced`).toBe(
+      false,
+    )
+  }
   // **Nothing was typed at the match** (Attitude 2). This is the assertion the
   // escape hatch used to stand in front of: a `--simulate` match that went
   // live with a zero here went live because players readied.
@@ -1124,7 +1187,7 @@ describe('the iron-match script', () => {
    * be a lane case nobody missed.** Cheap, and it runs in `pnpm verify` where
    * the lane itself never does.
    */
-  it("covers every shape PRD-03 T6 names, T10's retakes and T8's phone", () => {
+  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone and PRD-04 T2's mixed roster", () => {
     const ids = CASES.map(lane => lane.id)
     expect(ids).toEqual([
       'pug-1v1',
@@ -1140,6 +1203,8 @@ describe('the iron-match script', () => {
       // T10's: three puppets in `retakes`, the mode whose one-team shape and
       // whose puppet claim that task decided.
       'retakes',
+      // PRD-04 T2's: two puppets and a person's empty chair, on the same mode.
+      'mixed',
       // T6's matrix is the ten above `retakes`. `widget` is **T8**'s:
       // `powerup-dm`, the SDK's own flow and the SDK's own puppets, tapped
       // from a phone.
@@ -1156,10 +1221,13 @@ describe('the iron-match script', () => {
     // players readied and nothing else, and every one takes its stimulus
     // through the Match API — `drop` included, since PRD-03 T7a announced the
     // puppets MatchZy seats and gave `kick` somebody to find. A row that
-    // quietly grew an RCON would be caught here.
-    expect(CASES.filter(lane => !lane.spike && (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual(
-      [],
-    )
+    // quietly grew an RCON would be caught here. **The one exception is
+    // declared**: `mixed` (PRD-04 T2) leaves a chair to a person, and there
+    // is no door on this box a person can come through — no CS2 client, no
+    // Steam — so its stand-in is one `bot_add` the row types and says so.
+    expect(CASES.filter(lane => !lane.spike && (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual([
+      'mixed',
+    ])
     // The spike does, once, and declares it: there is no front door for
     // "walk here" and PRD-03 T12 did not invent one to have a spike.
     expect(CASES.filter(lane => lane.spike).map(lane => `${lane.id}:${lane.rcon}`)).toEqual([

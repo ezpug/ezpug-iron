@@ -42,7 +42,8 @@
     "widget": true,
     "backups": false,
     "scoreboardRating": false,
-    "simulation": true
+    "simulation": true,
+    "mixedRoster": true
   },
   "commands": [
     {

@@ -6,6 +6,39 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.19.0 — 2026-09-22
+
+**Mixed rosters: `simulation.puppets` names who is a puppet** (PRD-04 T2, for the platform's
+PRD-11 T23 — the owner as the tenth in a rehearsal queue). Additive: every request written
+before the field asks for what it always did.
+
+- **`simulation.puppets?: SteamID64[]`** on `matchSimulationSchema`. Unsaid, every roster
+  entry is a puppet; a list names the entries that are, and the rest of the roster are
+  people, expected through the mode's ordinary door and announced as the rostered players
+  they are when they connect. A list naming everybody is the same request as no list. An
+  empty list does not parse, nor does a SteamID named twice; at most 32 names.
+- **`capabilities.mixedRoster`** on the gamemode manifest (default `false`, implies
+  `simulation`): the mode's match software can seat some puppets and leave the other chairs
+  to people. `retakes`, `powerup-dm` and `flying-scoutsman` claim it — the SDK's puppeteer
+  seats exactly who is named. **`pug` does not**: MatchZy-Enhanced's simulation mode seats
+  every configured entry or none, kicks a bot it did not map outside that mode and
+  force-starts without anybody, so a partial list to it is refused at the door rather than
+  played as a different match.
+- **Two refusals on `simulation.puppets`**, both `validation_failed`, decided once in
+  `matchSimulationProblem` for the fake and the orchestrator alike: a name the roster does
+  not hold, and a partial list to a mode without `mixedRoster`.
+- **`matchPuppets(request)` and `matchHumans(request)`**: the one reading of the field, in
+  roster order.
+- **On the `sim` provider and the fake** a person's seat stays empty — the simulator has no
+  door for a human and invents none — so a mixed `pug` waits at the gate for the join
+  deadline and a mixed drop-in mode is played by the puppets that came. The match is
+  `simulated` however many of its players are people, and every fact says so.
+- **The conformance suite's `simulation-switch` flow** now refuses a stranger and a partial
+  list to `pug`, and plays a mixed `flying-scoutsman` on which the person is never announced.
+- **What you may need to change**: nothing. A client that wants a human in the room sends
+  `simulation.puppets` with everybody else's SteamID64 to a mode whose manifest says
+  `mixedRoster`.
+
 ## 0.18.5 — 2026-09-20
 
 **An empty server goes live where a real one of its modes would** (PRD-03 T11a, for the

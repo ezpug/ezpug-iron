@@ -12,6 +12,16 @@ namespace EZPug.Sdk;
 /// simulation mode seats the bodies and keeps its own private map of who is who, so this
 /// class stays out of it rather than hold a second opinion.
 ///
+/// <para><b>A mixed roster seats exactly who is named</b> (PRD-04 T2). When
+/// <c>simulation.puppets</c> lists a subset of the roster, only those entries get a seat
+/// here (<see cref="Assignment.IsPuppet"/>); the rest are people, who arrive through the
+/// mode's ordinary door — a drop-in mode goes live on its own clock and they join it live,
+/// like anybody else — and are announced as the rostered players they are when they do.
+/// A bot that turns up while such a seat is empty is <i>not</i> cast into it: the seat
+/// was never a puppet's, so the body stays a plain bot and the person's SteamID is never
+/// spoken for. Under <c>matchzy</c> the door refuses a partial list, because the fork
+/// seats every configured entry or none.</para>
+///
 /// <para><b>A puppet and a bot are two things.</b> A plain bot is never rostered and never
 /// announced, and is named by <see cref="BotIdentity"/>. A puppet is a roster entry made
 /// flesh. The difference is decided once, when the engine adds the body
@@ -80,18 +90,19 @@ public sealed class Puppeteer
 
         _assignment = assignment;
         // Team A and team B by turns, so a room that is still filling is an even one.
+        // Only the entries that are puppets get a seat: a person's chair stays empty.
         var teamA = assignment.Teams.TeamA.Players;
         var teamB = assignment.Teams.TeamB.Players;
         for (var index = 0; index < Math.Max(teamA.Count, teamB.Count); index++)
         {
             if (index < teamA.Count)
             {
-                Add(teamA[index], MatchTeam.TeamA);
+                Add(assignment, teamA[index], MatchTeam.TeamA);
             }
 
             if (index < teamB.Count)
             {
-                Add(teamB[index], MatchTeam.TeamB);
+                Add(assignment, teamB[index], MatchTeam.TeamB);
             }
         }
 
@@ -116,9 +127,9 @@ public sealed class Puppeteer
         _log.Info($"puppets: scenario {script.Scenario} leaves {absent} roster entry(s) without a body");
     }
 
-    private void Add(RosterEntry entry, MatchTeam team)
+    private void Add(Assignment assignment, RosterEntry entry, MatchTeam team)
     {
-        if (ulong.TryParse(entry.SteamId64, out var steamId64))
+        if (ulong.TryParse(entry.SteamId64, out var steamId64) && assignment.IsPuppet(steamId64))
         {
             _seats.Add(new Seat(steamId64, entry.Name, team));
         }
@@ -150,7 +161,10 @@ public sealed class Puppeteer
         // Never in the frame of the kick: the engine reconciles its bot population once
         // per frame, and an add beside a kick is no add (PRD-02 T22a).
         _ticker = _world.Clock.Every(SeatIntervalMs, Reconcile);
-        _log.Info($"puppets: seating {_seats.Count} rostered player(s)");
+        var people = assignment.HumansAmongPuppets;
+        _log.Info(people == 0
+            ? $"puppets: seating {_seats.Count} rostered player(s)"
+            : $"puppets: seating {_seats.Count} rostered player(s); {people} seat(s) are people's and stay empty until they come");
     }
 
     internal void OnPlayerDisconnected(IGamePlayer player)

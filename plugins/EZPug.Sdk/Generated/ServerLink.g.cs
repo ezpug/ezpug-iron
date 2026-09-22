@@ -1878,6 +1878,11 @@ public sealed record MatchSimulation
     [JsonPropertyOrder(1)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? TimeScale { get; init; }
+
+    [JsonPropertyName("puppets")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Puppets { get; init; }
 }
 
 /// <summary>What the puppets do beyond playing the match out — a scenario resolved into knobs (PRD-03 T11).</summary>
@@ -2008,6 +2013,10 @@ public sealed record GamemodeCapabilities
     [JsonPropertyName("simulation")]
     [JsonPropertyOrder(6)]
     public bool Simulation { get; init; } = false;
+
+    [JsonPropertyName("mixedRoster")]
+    [JsonPropertyOrder(7)]
+    public bool MixedRoster { get; init; } = false;
 }
 
 /// <summary>What a charge is counted against.</summary>
@@ -2099,6 +2108,8 @@ public enum GamemodeCapability
     ScoreboardRating,
     [JsonStringEnumMemberName("simulation")]
     Simulation,
+    [JsonStringEnumMemberName("mixedRoster")]
+    MixedRoster,
 }
 
 /// <summary>The versions a server runs.</summary>

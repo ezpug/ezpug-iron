@@ -23,7 +23,8 @@
     "widget": false,
     "backups": false,
     "scoreboardRating": false,
-    "simulation": true
+    "simulation": true,
+    "mixedRoster": true
   },
   "commands": [],
   "version": "0.4.0",

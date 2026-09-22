@@ -56,8 +56,28 @@ public sealed class Assignment
 
     public RoundBackup? Restore => Frame.Restore;
 
-    /// <summary>The request's <c>simulation</c> block: present means every roster entry is played by a puppet (PRD-03 T7). Who seats them is <see cref="Puppeteer.Seats"/>'s question.</summary>
+    /// <summary>The request's <c>simulation</c> block: present means the roster is played by puppets (PRD-03 T7) — every entry, or the ones its <c>puppets</c> list names (PRD-04 T2, <see cref="IsPuppet"/>). Who seats them is <see cref="Puppeteer.Seats"/>'s question.</summary>
     public MatchSimulation? Simulation => Frame.Simulation;
+
+    /// <summary>
+    /// Whether the roster entry <paramref name="steamId64"/> is played by a puppet (PRD-04 T2):
+    /// the match is simulated, the player is rostered, and <c>simulation.puppets</c> either
+    /// names them or names nobody in particular. A rostered player a partial list leaves out
+    /// is a person, expected through the mode's ordinary door, and the seat is never a bot's.
+    /// </summary>
+    public bool IsPuppet(ulong steamId64)
+    {
+        if (Simulation is not { } simulation || !IsRostered(steamId64))
+        {
+            return false;
+        }
+
+        return simulation.Puppets is not { } named || named.Contains(steamId64.ToString());
+    }
+
+    /// <summary>How many roster entries a partial <c>simulation.puppets</c> leaves to people; zero for an all-puppet or a real match.</summary>
+    public int HumansAmongPuppets =>
+        Simulation is null ? 0 : _rostered.Keys.Count(steamId64 => !IsPuppet(steamId64));
 
     /// <summary>What the puppets do beyond playing the match out (PRD-03 T11): the scenario the request named, resolved into knobs by the orchestrator. Absent is "just play it".</summary>
     public PuppetScript? Puppets => Frame.Puppets;

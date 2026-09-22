@@ -128,7 +128,7 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.18.5`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
+is **`0.19.0`**, served by the box's Verdaccio (`http://172.17.0.1:4873/`) and waiting on an
 `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -174,7 +174,12 @@ will actually play. **0.18.5** is the `sim` again (PRD-03 T11a): a simulated ser
 joined now goes live and ends as a match wherever a real server of that mode would — the
 manifest's `flow` reaches the story, so `powerup-dm`, `retakes` and `flying-scoutsman` are
 told the SDK's version of an empty room rather than MatchZy's, which is what the platform's
-PRD-10 T6 rehearses its countdown against in its dev world.
+PRD-10 T6 rehearses its countdown against in its dev world. **0.19.0** is mixed rosters
+(PRD-04 T2, for the platform's PRD-11 T23): `simulation.puppets` names which roster entries
+are puppets and the rest are people, `capabilities.mixedRoster` says which modes can seat
+such a room — the three the SDK seats; `pug` refuses a partial list at the door because the
+fork seats every configured entry or none — and on the simulator a person's chair stays
+empty.
 
 ## Bumping one
 

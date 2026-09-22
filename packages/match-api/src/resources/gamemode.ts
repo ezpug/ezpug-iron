@@ -239,6 +239,13 @@ export type GamemodeCvars = z.infer<typeof gamemodeCvarsSchema>
  * config-only mode may claim it too; `false` (the default, and what every manifest written
  * before the field said) refuses such a request `validation_failed` at the
  * door rather than waiting in warmup for players who are never coming.
+ * `mixedRoster` — the puppets can be *some* of the roster (PRD-04 T2):
+ * `simulation.puppets` may name a subset, the match software seats a bot for
+ * exactly those and takes the rest of the roster as people through its
+ * ordinary door. Implies `simulation`. The SDK's puppeteer does this for every
+ * flow it seats; MatchZy-Enhanced's simulation mode does not (it fills every
+ * configured seat and force-starts without anybody), so `pug` says `false`
+ * and a partial list to it is `validation_failed` on `simulation.puppets`.
  */
 export const gamemodeCapabilitiesSchema = z.object({
   positions: z.boolean(),
@@ -248,6 +255,7 @@ export const gamemodeCapabilitiesSchema = z.object({
   backups: z.boolean(),
   scoreboardRating: z.boolean(),
   simulation: z.boolean().default(false),
+  mixedRoster: z.boolean().default(false),
 })
 export type GamemodeCapabilities = z.infer<typeof gamemodeCapabilitiesSchema>
 export type GamemodeCapability = keyof GamemodeCapabilities
@@ -259,6 +267,7 @@ export const GAMEMODE_CAPABILITIES = [
   'backups',
   'scoreboardRating',
   'simulation',
+  'mixedRoster',
 ] as const satisfies readonly GamemodeCapability[]
 
 /**
@@ -445,6 +454,11 @@ function checkManifestConsistency(
     refuse('capabilities', 'a widget needs player commands to tap')
   if (capabilities.backups && manifest.flow === 'none')
     refuse('capabilities', 'a round backup needs a flow owner to restore into')
+  if (capabilities.mixedRoster && !capabilities.simulation)
+    refuse(
+      'capabilities',
+      'a mixed roster is some puppets among people: `mixedRoster` needs `simulation`',
+    )
 }
 
 /**

@@ -8,7 +8,7 @@ import type {
   RosterEntry,
   SimStatus,
 } from '@ezpug/match-api'
-import { demoUploadUrlFor } from '@ezpug/match-api'
+import { demoUploadUrlFor, matchHumans } from '@ezpug/match-api'
 import type { MatchAssignment, SimPlan, SimulatedServer, SimulatorScenario } from '@ezpug/sim'
 import {
   assignmentFromMatchRequest,
@@ -163,6 +163,9 @@ export function simAssignmentFor(
       // Said out loud while the simulated server waits, exactly as a plugin
       // would print them (T30).
       ...(request.warmupLines && { warmupLines: request.warmupLines }),
+      // The seats `simulation.puppets` left to people, which this server has
+      // no door for (PRD-04 T2): held open or played around, as a real one would.
+      humans: matchHumans(request),
     }),
     invented,
   }

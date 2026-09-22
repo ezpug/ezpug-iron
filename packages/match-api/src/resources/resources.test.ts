@@ -20,9 +20,12 @@ import {
   hasDemoUploadUrl,
   MATCH_TTL_MINUTES_MAX,
   type MatchRequestInput,
+  matchHumans,
+  matchPuppets,
   matchRequestSchema,
   matchSimulationProblem,
   rosterEntrySchema,
+  SIMULATION_PUPPETS_MAX,
   SIMULATION_TIME_SCALE_MAX,
   SIMULATION_TIME_SCALE_MIN,
 } from './match-request'
@@ -228,6 +231,49 @@ describe('MatchRequest', () => {
     expect(matchSimulationProblem(disagreeing, capable)).toMatchObject({
       field: 'simulation.scenario',
     })
+  })
+
+  // Mixed rosters (PRD-04 T2): `puppets` names who is a puppet; the rest are
+  // people, and only a mode that can seat such a room takes the request.
+  it('names the puppets among the roster, and refuses a stranger or a mode that seats all or none', () => {
+    const mixes = { id: 'powerup-dm', capabilities: { simulation: true, mixedRoster: true } }
+    const allOrNone = { id: 'pug', capabilities: { simulation: true, mixedRoster: false } }
+    const base = matchRequestSchema.parse(pugRequest())
+    const roster = [...base.teams.teamA.players, ...base.teams.teamB.players].map(
+      player => player.steamId64,
+    )
+    expect(roster.length).toBeGreaterThanOrEqual(2)
+    const [first = '', ...rest] = roster
+    // Unsaid is everybody, and so is a list that names everybody.
+    const everybody = matchRequestSchema.parse(pugRequest({ simulation: {} }))
+    expect(matchPuppets(everybody)).toEqual(roster)
+    expect(matchHumans(everybody)).toEqual([])
+    const listed = matchRequestSchema.parse(pugRequest({ simulation: { puppets: roster } }))
+    expect(matchSimulationProblem(listed, allOrNone)).toBeUndefined()
+    expect(matchHumans(listed)).toEqual([])
+    // A real match has no puppets and, as far as this field is concerned, no people.
+    expect(matchPuppets(base)).toEqual([])
+    expect(matchHumans(base)).toEqual([])
+    // A partial list: the named are puppets, the rest people, in roster order.
+    const mixed = matchRequestSchema.parse(pugRequest({ simulation: { puppets: rest } }))
+    expect(matchPuppets(mixed)).toEqual(rest)
+    expect(matchHumans(mixed)).toEqual([first])
+    expect(matchSimulationProblem(mixed, mixes)).toBeUndefined()
+    expect(matchSimulationProblem(mixed, allOrNone)).toMatchObject({ field: 'simulation.puppets' })
+    // A stranger is refused on every mode, and before the mode's own answer.
+    const stranger = matchRequestSchema.parse(
+      pugRequest({ simulation: { puppets: ['76561197960265728'] } }),
+    )
+    expect(matchSimulationProblem(stranger, mixes)).toMatchObject({ field: 'simulation.puppets' })
+    expect(matchSimulationProblem(stranger, allOrNone)).toMatchObject({
+      field: 'simulation.puppets',
+    })
+    // An empty list is not a way to ask for a real match, and a name is said once.
+    expect(() => matchRequestSchema.parse(pugRequest({ simulation: { puppets: [] } }))).toThrow()
+    expect(() =>
+      matchRequestSchema.parse(pugRequest({ simulation: { puppets: [first, first] } })),
+    ).toThrow()
+    expect(SIMULATION_PUPPETS_MAX).toBe(32)
   })
 
   it('carries what the server shows about a person and nothing the platform owns', () => {

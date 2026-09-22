@@ -68,6 +68,7 @@ import {
   isTerminalMatchState,
   matchDemoOutcome,
   matchFormatProblem,
+  matchHumans,
   matchSimulationProblem,
 } from '../resources'
 import { matchRequestScopes, scopeAllows } from '../scopes'
@@ -1036,6 +1037,9 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       // Said out loud while the simulated server waits, exactly as a plugin
       // would print them (T30).
       ...(request.warmupLines && { warmupLines: request.warmupLines }),
+      // The seats `simulation.puppets` left to people, which this server has
+      // no door for (PRD-04 T2): held open or played around, as a real one would.
+      humans: matchHumans(request),
     })
 
     matches.set(matchId, record)

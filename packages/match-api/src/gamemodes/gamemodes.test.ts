@@ -62,6 +62,7 @@ function sdkManifest(overrides: Partial<GamemodeManifestInput> = {}): GamemodeMa
       backups: false,
       scoreboardRating: false,
       simulation: false,
+      mixedRoster: false,
     },
     commands: [{ name: 'tap', title: { de: 'Tippen', en: 'Tap' } }],
     widget: { entry: 'widget/test-mode.js', needs: ['tokens', 'locale', 'playerToken'] },
@@ -215,6 +216,17 @@ describe('what the tier allows', () => {
     const backups = { ...sdkManifest().capabilities, backups: true }
     expect(issuesOf(sdkManifest({ capabilities: backups, flow: 'none' }))).toEqual(['capabilities'])
     expect(issuesOf(sdkManifest({ capabilities: backups, flow: 'plugin' }))).toEqual([])
+    // A mixed roster is some puppets among people (PRD-04 T2): no puppets, no mix.
+    const mixedButNoPuppets = { ...sdkManifest().capabilities, mixedRoster: true }
+    expect(issuesOf(sdkManifest({ capabilities: mixedButNoPuppets }))).toEqual(['capabilities'])
+    const mixed = { ...sdkManifest().capabilities, simulation: true, mixedRoster: true }
+    expect(issuesOf(sdkManifest({ capabilities: mixed }))).toEqual([])
+    // Absent is `false`, which is what every manifest written before the field said.
+    const { mixedRoster: _unsaid, ...withoutTheField } = sdkManifest().capabilities
+    expect(
+      gamemodeManifestSchema.parse(sdkManifest({ capabilities: withoutTheField })).capabilities
+        .mixedRoster,
+    ).toBe(false)
   })
 
   it('refuses a repeated command name and more than the bound', () => {

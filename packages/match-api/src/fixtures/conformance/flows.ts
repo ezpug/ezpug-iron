@@ -1088,6 +1088,134 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         `${impossible.code} ${JSON.stringify(impossible.details)}`,
       )
 
+      // **Who the puppets are** (PRD-04 T2): `simulation.puppets` names the
+      // roster entries a bot plays, and the rest are people. A name the
+      // roster does not hold is refused on the field, on every mode; a partial
+      // list is refused on the same field by a mode whose match software
+      // seats every seat or none (`capabilities.mixedRoster` unsaid — `pug`,
+      // whose bodies are MatchZy-Enhanced's), and taken by one that seats
+      // exactly who is named. Which mode is which comes from the catalog.
+      const rostered = ctx.request().teams
+      const [firstEntry, ...restOfTeamA] = rostered.teamA.players
+      const stranger = await refusal(
+        ctx,
+        'a puppet for somebody the roster does not hold is refused',
+        puppeteer.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-simulation-switch-stranger',
+            simulation: { puppets: ['76561197960265728'] },
+          }),
+        }),
+      )
+      ctx.check(
+        'the refusal names simulation.puppets',
+        stranger.code === 'validation_failed' && stranger.details?.field === 'simulation.puppets',
+        `${stranger.code} ${JSON.stringify(stranger.details)}`,
+      )
+      const allOrNoneMode = catalog.gamemodes.find(
+        mode => mode.capabilities.simulation && !mode.capabilities.mixedRoster,
+      )
+      if (allOrNoneMode === undefined) {
+        ctx.check('every puppet-seating mode in the catalog seats a mixed roster', true, '')
+      } else {
+        const allOrNone = await refusal(
+          ctx,
+          'a mode that seats every seat or none refuses a partial list',
+          puppeteer.matches.create({
+            body: ctx.request({
+              clientMatchId: 'conformance-simulation-switch-all-or-none',
+              gamemode: allOrNoneMode.id,
+              simulation: {
+                puppets: [...restOfTeamA, ...rostered.teamB.players].map(
+                  player => player.steamId64,
+                ),
+              },
+            }),
+          }),
+        )
+        ctx.check(
+          'that refusal names simulation.puppets too',
+          allOrNone.code === 'validation_failed' &&
+            allOrNone.details?.field === 'simulation.puppets',
+          `${allOrNone.code} ${JSON.stringify(allOrNone.details)}`,
+        )
+      }
+      // The three SDK-seated modes claim `mixedRoster`; the flow plays the
+      // config-only one because its roster is the suite's own two teams. One
+      // seat is left to a person, and nobody is at the keyboard: the seat
+      // stays empty, the puppets play the match out around it, and the
+      // person's SteamID is never announced — a simulated server has no door
+      // for a human and invents none.
+      const mixedMode = catalog.gamemodes.find(
+        mode => mode.capabilities.mixedRoster && mode.slots.teams === 2 && mode.id !== 'pug',
+      )
+      if (mixedMode === undefined || firstEntry === undefined) {
+        ctx.check('no two-team mode in the catalog seats a mixed roster', true, '')
+      } else {
+        const puppets = [...restOfTeamA, ...rostered.teamB.players].map(player => player.steamId64)
+        const mixedBody = ctx.request({
+          clientMatchId: 'conformance-simulation-switch-mixed',
+          gamemode: mixedMode.id,
+          ...(mixedMode.maps !== 'any' && {
+            maps: [{ map: mixedMode.maps.catalog[0] as string, sides: 'ct' as const }],
+          }),
+          simulation: { puppets },
+          sim: { timeScale: PLAY_OUT_TIME_SCALE },
+        })
+        const mixed = await puppeteer.matches.create({ body: mixedBody })
+        ctx.require('a mixed roster is accepted by a mode that seats one', UUID.test(mixed.id))
+        ctx.check(
+          'a match with one person in it is still a simulated match',
+          mixed.simulated === true,
+        )
+        const mixedParams = { matchId: mixed.id }
+        const mixedFinal = await ctx.waitFor('the mixed match to end', async () => {
+          const match = await target.client.matches.get({ params: mixedParams })
+          return isTerminalMatchState(match.state) ? match : null
+        })
+        await ctx.settle()
+        const mixedEnvelopes: WebhookEnvelope[] = []
+        let mixedCursor = '0'
+        for (let guard = 0; guard < 1_000; guard += 1) {
+          const page = await target.client.matches.events({
+            params: mixedParams,
+            query: { cursor: mixedCursor, limit: 200 },
+          })
+          mixedEnvelopes.push(...page.items)
+          if (page.nextCursor === null) break
+          mixedCursor = page.nextCursor
+        }
+        ctx.require('the mixed match ends', mixedFinal.state === 'ended', terminal(mixedFinal))
+        const connected = mixedEnvelopes.filter(
+          envelope => envelope.payload.type === 'player_connected',
+        )
+        const announced = new Set(
+          connected.map(envelope =>
+            envelope.payload.type === 'player_connected' ? envelope.payload.player.steamId64 : '',
+          ),
+        )
+        ctx.check(
+          'every puppet was announced',
+          puppets.every(steamId64 => announced.has(steamId64)),
+          [...announced].join(', '),
+        )
+        ctx.check(
+          'the person was never announced: nobody sat down in that seat',
+          !announced.has(firstEntry.steamId64),
+          firstEntry.steamId64,
+        )
+        const mixedUnmarked = mixedEnvelopes.filter(
+          envelope =>
+            'source' in envelope.payload &&
+            !('source' in envelope.payload && envelope.payload.source.simulated === true),
+        )
+        ctx.check(
+          'every gameserver event of the mixed match carries source.simulated',
+          mixedUnmarked.length === 0,
+          mixedUnmarked.map(envelope => envelope.payload.type).join(', '),
+        )
+      }
+
       // Then the match: the same Bo1 every other flow plays, with puppets in
       // the ten seats, and the marker on the resource and on every event. A
       // match belongs to the key that made it, so the puppeteer's own client

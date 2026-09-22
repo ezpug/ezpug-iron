@@ -2089,6 +2089,15 @@
           "type": "number",
           "minimum": 0.1,
           "maximum": 10
+        },
+        "puppets": {
+          "minItems": 1,
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{17}$"
+          }
         }
       },
       "additionalProperties": false
@@ -2235,6 +2244,10 @@
         "simulation": {
           "default": false,
           "type": "boolean"
+        },
+        "mixedRoster": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "required": [
@@ -2244,7 +2257,8 @@
         "widget",
         "backups",
         "scoreboardRating",
-        "simulation"
+        "simulation",
+        "mixedRoster"
       ],
       "additionalProperties": false
     },
@@ -2342,7 +2356,8 @@
         "widget",
         "backups",
         "scoreboardRating",
-        "simulation"
+        "simulation",
+        "mixedRoster"
       ]
     },
     "ServerVersions": {

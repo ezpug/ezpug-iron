@@ -366,14 +366,27 @@ simulation mode seats them and the SDK only learns who is who. Either way a pupp
 roster entry on the wire. How to run one is in `docs/operations.md`: "Puppets, and the escape
 hatch" for the lane, and "A puppet match" for `ezpug-iron matches create --simulate`.
 
+**A mixed roster** (PRD-04 T2): `simulation.puppets` may name a subset of the roster, and
+`Assignment.IsPuppet(steamId64)` is the one reading of it — the match is simulated, the
+player is rostered, and the list names them or names nobody in particular. The puppeteer
+seats exactly those; a roster entry the list leaves out is a person, whose chair stays empty
+(`Assignment.HumansAmongPuppets` counts them) until they connect through the mode's ordinary
+door, at which point they are the rostered player they always were. A bot that arrives while
+such a chair is empty is a plain bot: `Casting` only ever fills a puppet's seat, so the
+person's SteamID is never spoken for. The flows the SDK tells the story of have no ready gate
+— `GenericFlow` goes live on its own clock — so a person joins such a match *live*, as on any
+drop-in server. Under `matchzy` the door refuses a partial list (`capabilities.mixedRoster`
+is `false` on `pug`): the fork seats every configured entry or none.
+
 ### Seating a puppet
 
 **Puppets** are the other kind of body the engine plays (PRD-03 T7), and the two are never
 mixed up: a plain bot is never rostered and never announced, a puppet is a roster entry made
 flesh. When the assignment carries `simulation` and the flow is not `matchzy` (MatchZy seats
 its own), the runtime's `Puppeteer` sends home whatever bots the mode's cfg brought, then
-asks the engine for one bot per roster entry — one at a time, team A and team B by turns,
-asked again after five seconds if it never arrives — and casts each as it arrives.
+asks the engine for one bot per roster entry that is a puppet — one at a time, team A and
+team B by turns, asked again after five seconds if it never arrives — and casts each as it
+arrives.
 
 - **Identity is decided before the first hook.** `IGameWorld.Casting` is asked about every
   bot the engine adds; one that comes back with a `PuppetRole` is `IsBot` *and* `IsPuppet`,

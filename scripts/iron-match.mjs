@@ -89,6 +89,18 @@ const HELP = `iron-match — run one real match through the Match API and record
                          side, and a room of puppets never types .stay — so
                          the side-selection timer T3a turned on is what
                          decides it (PRD-03 T6)
+  --humans <n>           a mixed roster (PRD-04 T2): the last n rostered
+                         entries are people, not puppets — simulation.puppets
+                         names the rest — so their chairs stay empty and the
+                         run proves nothing sits down in them. Needs
+                         --simulate, fewer than --bots, and a mode whose
+                         manifest claims capabilities.mixedRoster (pug's
+                         does not: the fork seats every seat or none)
+  --stand-in             once the match is live, bot_add one plain bot per
+                         --humans over RCON, standing in for a person who
+                         never came: the assertion is that it is furniture —
+                         never announced, never cast as the person. The one
+                         RCON command of the row, declared as such
   --pause                pause the live match through the Match API and
                          unpause it two polls later (PRD-03 T6)
   --drop-puppet          take one puppet off the server while it is still in
@@ -361,6 +373,27 @@ if (!['ct', 't', 'knife'].includes(SIDES)) die('--sides is `ct`, `t` or `knife`'
  * one lane case that proves that decision on hardware.
  */
 const PAUSE = flags.get('pause') === 'true'
+/**
+ * **A mixed roster** (PRD-04 T2): `--humans n` leaves the last `n` rostered
+ * entries to people, so `simulation.puppets` names only the first
+ * `BOTS - n` and their chairs stay empty for the whole run — a simulated
+ * server has nobody at the keyboard, and the lane has no CS2 client of its
+ * own. What the row proves is the negative: the puppeteer seats exactly who
+ * is named, the person's SteamID is never announced, and a body that turns up
+ * later (`--stand-in`, a `bot_add` over RCON, the one command the row types)
+ * is a plain bot and not the person. Only a mode whose manifest claims
+ * `capabilities.mixedRoster` takes such a request; `pug` refuses it at the
+ * door, because MatchZy-Enhanced's simulation mode seats every configured
+ * entry or none and force-starts without anybody.
+ */
+const HUMANS = Number(flags.get('humans') ?? 0)
+if (!Number.isInteger(HUMANS) || HUMANS < 0) die('--humans is a whole number')
+if (HUMANS > 0 && !SIMULATE) die('--humans is simulation’s: pass --simulate')
+if (HUMANS > 0 && HUMANS >= BOTS) die('--humans leaves no puppet: keep it below --bots')
+const STAND_IN = flags.get('stand-in') === 'true'
+if (STAND_IN && HUMANS === 0) die('--stand-in stands in for a person: pass --humans')
+/** How long after going live the stand-in is added: past the puppeteer's own seating, so the arrival is unmistakably not one it asked for. */
+const STAND_IN_AFTER_MS = 15_000
 /**
  * How many times the pause is asked for, and how long each try waits for
  * `match_paused`. A halftime at timescale 2 lasts well under one wait.
@@ -1335,6 +1368,10 @@ async function run() {
     )
   if (SIMULATE && !manifest.capabilities.simulation)
     die(`${GAMEMODE} does not claim capabilities.simulation — the door would refuse the request`)
+  if (HUMANS > 0 && !manifest.capabilities.mixedRoster)
+    die(
+      `${GAMEMODE} does not claim capabilities.mixedRoster — the door would refuse simulation.puppets on it`,
+    )
   // **A phone needs a mode that has one** (PRD-03 T8). The catalog is asked
   // rather than the checkout, and the verb too: the widget socket's `hello`
   // answers with the verbs the *served* manifest declares, and a tap for one
@@ -1347,6 +1384,17 @@ async function run() {
   }
   /** The puppets, rostered (PRD-03 T5), or nobody. */
   const PUPPETS = SIMULATE ? puppetRoster(BOTS) : null
+  /** The rostered SteamIDs a bot plays, and the ones left to people (`--humans`): the last of the seating order. */
+  const PUPPET_STEAM_IDS = PUPPETS
+    ? Array.from({ length: BOTS - HUMANS }, (_, index) =>
+        String(PUPPET_STEAM_ID_BASE + BigInt(index)),
+      )
+    : []
+  const HUMAN_STEAM_IDS = PUPPETS
+    ? Array.from({ length: HUMANS }, (_, index) =>
+        String(PUPPET_STEAM_ID_BASE + BigInt(BOTS - HUMANS + index)),
+      )
+    : []
   if (PUPPETS)
     say(
       `puppets: ${PUPPETS.teamA.length}v${PUPPETS.teamB.length}` +
@@ -1417,6 +1465,8 @@ async function run() {
       simulation: {
         ...(TIMESCALE === null ? {} : { timeScale: TIMESCALE }),
         ...(SCENARIO === null ? {} : { scenario: SCENARIO }),
+        // A mixed roster names its puppets (PRD-04 T2); an all-puppet one says nothing.
+        ...(HUMANS > 0 ? { puppets: PUPPET_STEAM_IDS } : {}),
       },
     }),
     maps: [{ map: MAP, sides: SIDES }],
@@ -1740,6 +1790,17 @@ async function run() {
     }
     return false
   }
+  /** How many facts of this type the durable log holds right now (`--stand-in` reads the room before it adds to it). */
+  const countSaid = async type => {
+    let count = 0
+    for (let cursor = '0'; cursor !== null; ) {
+      const page = await api('GET', `/v1/matches/${matchId}/events?cursor=${cursor}&limit=200`)
+      count += page.items.filter(envelope => envelope.payload.type === type).length
+      if (page.items.length === 0) break
+      cursor = page.nextCursor
+    }
+    return count
+  }
   const command = async (body, waitMs = 10_000) => {
     let ack
     try {
@@ -1924,6 +1985,7 @@ async function run() {
    */
   let dropped = null
   let droppedAt = 0
+  let standIn = null
   /** What `--widget` did: three taps and everything that came back (T8). */
   let widget = null
   /** What `--walk` measured: the same bodies moved by the engine and by a teleport (T12). */
@@ -2168,6 +2230,29 @@ async function run() {
       continue
     }
 
+    // **A stand-in for the person who never came** (PRD-04 T2): once the
+    // match is live and the puppeteer has long finished seating, one plain
+    // bot per empty chair over RCON — the row's one typed command, declared.
+    // Nothing is asserted about the bot beyond that it is furniture: the
+    // summary reads the durable log for whether the person's SteamID was ever
+    // announced, and it must not have been.
+    if (STAND_IN && standIn === null && liveAt > 0 && wall.now() - liveAt >= STAND_IN_AFTER_MS) {
+      const connectedBefore = await countSaid('player_connected')
+      const answer = await rcon(
+        Array.from({ length: HUMANS }, () => 'bot_add').join('; '),
+        'stand-in',
+      )
+      standIn = {
+        at: new Date(wall.now()).toISOString(),
+        status: answer.status ?? null,
+        connectedBefore,
+      }
+      say(
+        `stood in for ${HUMANS} person(s) with a plain bot each (${answer.status ?? 'no status'})`,
+      )
+      continue
+    }
+
     // Live, and a phone in a puppet's hand (PRD-03 T8). As early as the match
     // allows: a tap is refused `not_live` before this point, and the corpse
     // hunt wants as many of this puppet's deaths as the match has left.
@@ -2311,6 +2396,8 @@ async function run() {
     skins,
     paused,
     dropped,
+    standIn,
+    humans: HUMAN_STEAM_IDS,
     widget,
     walked,
   }
@@ -2407,8 +2494,23 @@ function write(result) {
      */
     simulation: result.request.simulation
       ? {
+          /** How many roster entries a bot plays: everybody, less the people (PRD-04 T2). */
           puppets:
-            result.request.teams.teamA.players.length + result.request.teams.teamB.players.length,
+            result.request.teams.teamA.players.length +
+            result.request.teams.teamB.players.length -
+            result.humans.length,
+          /** How many roster entries were left to people, and who: never announced, never cast. */
+          humans: result.humans.length,
+          people: result.humans.map(steamId64 => ({
+            steamId64,
+            announced: result.envelopes.some(
+              envelope =>
+                envelope.payload.type === 'player_connected' &&
+                envelope.payload.player?.steamId64 === steamId64,
+            ),
+          })),
+          /** `--stand-in`: when the plain bots were added and how many announcements the log held before. */
+          standIn: result.standIn ?? null,
           timeScale: result.request.simulation.timeScale ?? 1,
           simulated: result.match.simulated === true,
           /** The story the puppets were asked to play (PRD-03 T11), or null for "just play it". */

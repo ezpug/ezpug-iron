@@ -171,10 +171,11 @@ decision 2026-09-19).
   that cfg — they are re-applied after it — so send the rounds you mean.
 
 **`simulation` is a match played by puppets** (PRD-03 T4, decision 25): a body on the
-server for every roster entry, carrying that entry's SteamID and name, that connects,
-readies up through the match plugin's own ready system, plays and leaves by the paths a
-human takes — so a client sees exactly the facts a real match sends about exactly the
-players it rostered, with nobody at a keyboard. It is not the `sim` block: `sim` steers
+server for every roster entry — or for the entries `simulation.puppets` names (PRD-04 T2) —
+carrying that entry's SteamID and name, that connects, readies up through the match
+plugin's own ready system, plays and leaves by the paths a human takes — so a client sees
+exactly the facts a real match sends about exactly the players it rostered, with nobody at
+a keyboard. It is not the `sim` block: `sim` steers
 the simulator *provider*, where no server exists at all; `simulation` asks a real server —
 rented, LAN or the simulator alike — to play without people, and **costs what a real
 server costs**: the ledger row, the budget check and the reaper are exactly a real match's.
@@ -186,11 +187,27 @@ Four things a consumer needs to know:
   match carries neither; nor does a match on the `sim` provider that did not ask for it,
   whose players are the simulator's own inventions and whose `source.provider` has
   always said so.
-- **It is all or nothing this round.** MatchZy-Enhanced fills every roster seat with a
-  puppet or none, so there is no field for "these two are humans" — a request that wants
-  a mixed room is a request for a later contract, not a quietly different match. A roster
-  with nobody on it is refused (`validation_failed` on `teams`): a puppet is a roster entry
-  made flesh.
+- **Who the puppets are is `simulation.puppets`** (PRD-04 T2, for the platform's PRD-11
+  T23). Unsaid, every roster entry is a puppet — what every request written before the
+  field asked for. A list of SteamID64s names the entries that are, and **the rest of the
+  roster are people**, expected through the mode's ordinary door: a drop-in mode goes live
+  on its own clock and they join it live like anybody else, and when they connect they are
+  announced as the rostered players they are. A bot that turns up while such a seat is
+  empty is never cast into it. A list that names everybody is the same request as no list.
+  Three refusals, all `validation_failed`: a name the roster does not hold, on
+  `simulation.puppets`; a partial list to a mode without `capabilities.mixedRoster`, on
+  `simulation.puppets` — **`pug` is that mode**: MatchZy-Enhanced's simulation mode spawns
+  one bot per configured player, kicks any bot it did not map as "not a player in this
+  game" outside that mode, and force-starts from its own warmup watchdog whether or not
+  anybody came, so at the pinned release the fork can seat every seat or none and a
+  request to it for a mixed room is refused rather than played as a different match; and a
+  roster with nobody on it, on `teams` — a puppet is a roster entry made flesh. An empty
+  list is not a way to ask for a real match and does not parse. The match is simulated
+  however many of its players are people: `Match.simulated` and `source.simulated` say so on
+  every fact, the human's included. On the `sim` provider the person's seat simply stays
+  empty — the simulator has no door for a human and invents none — so a mixed `pug` on the
+  simulator waits at the gate for the join deadline and a mixed drop-in mode is played by
+  the puppets that came.
 - **One scenario language.** `simulation.scenario` takes a name from `GET /v1/sim/scenarios`,
   the same catalog `sim.scenario` reads — what the puppets do beyond playing the match
   out. On the simulator it *is* the scenario played (and `simulation.timeScale` the
@@ -219,7 +236,8 @@ Four things a consumer needs to know:
   minted for the rostered id, and announced again when its seat is refilled. A plain bot
   is never announced and is `unrostered`. **All four bundled modes claim the capability**
   since T10, `retakes` last: what seats a puppet there is the engine's own `bot_add` and
-  not the community plugin's queue, which keeps bots out of it.
+  not the community plugin's queue, which keeps bots out of it. **The three the SDK seats
+  claim `mixedRoster` too** (PRD-04 T2); `pug` does not, for the reason above.
 
 **Wingman seats two a side, and the map is yours to name.** A roster with a third player
 on a side is refused `validation_failed` on `teams.<side>.players`, because the engine's

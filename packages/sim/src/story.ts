@@ -516,11 +516,23 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
    */
   const sdkTold = tellsItsOwnStory(assignment)
   const keptBack = sdkTold ? [0, assignment.teamA.players.length] : []
+  // **The people among the puppets never come** (PRD-04 T2): a simulated
+  // server has no door for a human, so a seat `simulation.puppets` left to one
+  // is an empty seat here, by the same rules as a no-show — held open under
+  // MatchZy, played around by a flow the SDK tells. The door guarantees at
+  // least one puppet, so the room is never empty by this route alone.
+  const humans = new Set(assignment.humans ?? [])
   const order = prng
     .shuffle(players)
     .filter(state => !keptBack.some(index => players[index] === state))
-  const absentCount = Math.min(scenario.absentPlayers ?? 0, players.length - 1, order.length)
-  const absent = new Set(order.slice(0, absentCount).map(p => p.player.steamId64))
+    .filter(state => !humans.has(state.player.steamId64))
+  const seated = players.filter(state => !humans.has(state.player.steamId64))
+  const drawn = Math.min(scenario.absentPlayers ?? 0, seated.length - 1, order.length)
+  const absent = new Set([
+    ...humans,
+    ...order.slice(0, Math.max(0, drawn)).map(p => p.player.steamId64),
+  ])
+  const absentCount = players.filter(p => absent.has(p.player.steamId64)).length
   const arrivals = players
     .filter(p => !absent.has(p.player.steamId64))
     .map(state => ({ state, atMs: t + prng.int(2_000, 25_001) }))

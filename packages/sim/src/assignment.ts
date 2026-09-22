@@ -127,6 +127,16 @@ export interface MatchAssignment {
    * T30). Absent for a server nobody gave any: the wait is quiet.
    */
   warmupLines?: readonly string[]
+  /**
+   * **The people among the puppets** (PRD-04 T2): the roster entries a
+   * request's `simulation.puppets` left to humans, by SteamID64. A simulated
+   * server has no door for a person, so these seats are never filled by the
+   * story — a MatchZy flow holds its warmup open for them until the join
+   * deadline gives up, and a flow the SDK tells the story of plays the match
+   * short-handed — exactly what a real server does with nobody at the
+   * keyboard. Absent or empty: everybody rostered is played.
+   */
+  humans?: readonly string[]
 }
 
 /**
@@ -255,6 +265,8 @@ export interface MatchRequestHandoff {
   flow?: GamemodeFlow
   /** The request's `warmupLines`, verbatim — the platform rendered them, the server prints them. */
   warmupLines?: readonly string[]
+  /** The roster entries left to people by `simulation.puppets` (`matchHumans`), whose seats the story never fills (PRD-04 T2). */
+  humans?: readonly string[]
 }
 
 /**
@@ -288,5 +300,7 @@ export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchA
     ...(handoff.records !== undefined && { records: handoff.records }),
     ...(handoff.flow !== undefined && { flow: handoff.flow }),
     ...(handoff.warmupLines !== undefined && { warmupLines: [...handoff.warmupLines] }),
+    ...(handoff.humans !== undefined &&
+      handoff.humans.length > 0 && { humans: [...handoff.humans] }),
   })
 }

@@ -68,7 +68,8 @@
           "widget": false,
           "backups": false,
           "scoreboardRating": true,
-          "simulation": true
+          "simulation": true,
+          "mixedRoster": true
         },
         "commands": [],
         "sdkVersion": "0.1.0"

@@ -91,7 +91,8 @@
             "widget": false,
             "backups": true,
             "scoreboardRating": true,
-            "simulation": true
+            "simulation": true,
+            "mixedRoster": false
           },
           "commands": [],
           "sdkVersion": "0.1.0"
@@ -492,7 +493,8 @@
             "widget": false,
             "backups": true,
             "scoreboardRating": true,
-            "simulation": true
+            "simulation": true,
+            "mixedRoster": false
           },
           "commands": [],
           "sdkVersion": "0.1.0"

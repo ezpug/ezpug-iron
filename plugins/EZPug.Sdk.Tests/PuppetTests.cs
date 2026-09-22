@@ -146,6 +146,44 @@ public class PuppetTests
         Assert.Contains(new WorldAction("command", null, "host_timescale 1; sv_cheats 0"), host.World.Actions);
     }
 
+    /// <summary>
+    /// <b>A mixed roster</b> (PRD-04 T2): <c>simulation.puppets</c> names who is a puppet,
+    /// and the rest of the roster are people whose chairs stay empty — a bot that arrives
+    /// while one is empty is a plain bot, never the person.
+    /// </summary>
+    [Fact]
+    public void AMixedRosterSeatsOnlyWhoIsNamedAndNeverCastsABotAsThePerson()
+    {
+        using var host = new GamemodeTestHost(new PowerupDemo());
+        var assignment = Simulated(Manifest("powerup-dm")) with
+        {
+            Simulation = new MatchSimulation { Puppets = [Tk.ToString(), Maex.ToString()] },
+        };
+        host.Start(assignment);
+        Assert.True(host.Runtime.Puppets.Active);
+        Assert.True(host.Runtime.Assignment!.IsPuppet(Tk));
+        Assert.True(host.Runtime.Assignment.IsPuppet(Maex));
+        Assert.False(host.Runtime.Assignment.IsPuppet(Third));
+        Assert.Equal(1, host.Runtime.Assignment.HumansAmongPuppets);
+        Fill(host);
+
+        // Two seats asked for, two bodies, the third chair empty.
+        Assert.Equal(2, host.World.Actions.Count(action => action.Verb == "add_bot"));
+        Assert.Equal(2, host.Runtime.Puppets.Seated);
+        Assert.Equal([Tk, Maex], host.World.Players.Select(player => player.SteamId64));
+        Assert.Equal(["tk", "maex"], host.Link.EventsOf<PlayerConnectedEvent>().Select(fact => fact.Player.Name));
+
+        // A bot nobody asked for turns up: it is furniture, not the person, and nothing
+        // is announced for the SteamID the request left to a human.
+        host.World.ArriveBot("BOT Cliff");
+        Fill(host);
+        Assert.Equal(2, host.Runtime.Puppets.Seated);
+        Assert.Null(host.World.Find(Third));
+        Assert.Contains(host.World.Players, player => player is { IsBot: true, IsPuppet: false });
+        Assert.DoesNotContain(host.Link.EventsOf<PlayerConnectedEvent>(), fact => fact.Player.SteamId64 == Third.ToString());
+        Assert.Equal(2, host.Link.EventsOf<PlayerConnectedEvent>().Count);
+    }
+
     [Fact]
     public void MatchZySeatsItsOwnAndARealMatchSeatsNobody()
     {

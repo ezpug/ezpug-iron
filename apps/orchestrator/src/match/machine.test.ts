@@ -393,6 +393,85 @@ describe('the simulation switch', () => {
     await app.close()
   })
 
+  /**
+   * **A mixed roster** (PRD-04 T2): `simulation.puppets` names who is a
+   * puppet and the rest are people. A stranger is refused on the field; so is
+   * a partial list to `pug`, whose bodies are MatchZy-Enhanced's and which
+   * seats every configured entry or none; a mode the SDK seats takes it, and
+   * on the simulator — which has no door for a person — the human's seat
+   * stays empty while the puppets play the match out.
+   */
+  it('names the puppets among the roster, and refuses a stranger or pug', async () => {
+    const app = createTestApp()
+    const key = await puppeteerKey(app)
+    const stranger = await refused(
+      app.matches.create(key, request({ simulation: { puppets: ['76561197960265728'] } })),
+    )
+    expect(stranger.code).toBe('validation_failed')
+    expect(stranger.details).toEqual({ field: 'simulation.puppets' })
+
+    const everybody = request().teams
+    const allButOne = [...everybody.teamA.players.slice(1), ...everybody.teamB.players].map(
+      player => player.steamId64,
+    )
+    const forkSeated = await refused(
+      app.matches.create(key, request({ simulation: { puppets: allButOne } })),
+    )
+    expect(forkSeated.code).toBe('validation_failed')
+    expect(forkSeated.message).toContain('every roster entry')
+    expect(forkSeated.details).toEqual({ field: 'simulation.puppets' })
+
+    // A list that names everybody is the same request as no list, on pug too.
+    const all = [...everybody.teamA.players, ...everybody.teamB.players].map(
+      player => player.steamId64,
+    )
+    const played = await app.matches.create(
+      key,
+      request({ clientMatchId: 'pug-all-named', simulation: { puppets: all } }),
+    )
+    expect(played.match.simulated).toBe(true)
+    expect(app.store.rows.matches).toHaveLength(1)
+    await app.close()
+  })
+
+  it('plays a mixed roster the SDK seats for: the person never comes, the puppets play', async () => {
+    const app = createTestApp({ sim: { positionTickIntervalMs: null } })
+    const key = await puppeteerKey(app)
+    const everybody = request().teams
+    const [person, ...restOfA] = everybody.teamA.players
+    const puppets = [...restOfA, ...everybody.teamB.players].map(player => player.steamId64)
+    const { match } = await app.matches.create(
+      key,
+      request({
+        gamemode: 'flying-scoutsman',
+        maps: [{ map: 'de_dust2', sides: 'ct' }],
+        rules: undefined,
+        simulation: { puppets },
+        sim: { timeScale: 20 },
+      }),
+    )
+    expect(match.simulated).toBe(true)
+    await app.settle()
+    await app.advance(60 * 60_000)
+    await app.settle()
+    const ended = await app.matches.get(key, match.id)
+    expect(ended.state).toBe('ended')
+    expect(ended.endedReason?.kind).toBe('completed')
+    const page = await app.matches.events(key, match.id, 0, 200)
+    const connected = page.items
+      .filter(envelope => envelope.payload.type === 'player_connected')
+      .map(envelope =>
+        envelope.payload.type === 'player_connected' ? envelope.payload.player.steamId64 : '',
+      )
+    expect(connected.sort()).toEqual([...puppets].sort())
+    expect(connected).not.toContain(person?.steamId64)
+    const unmarked = page.items.filter(
+      envelope => 'source' in envelope.payload && envelope.payload.source.simulated !== true,
+    )
+    expect(unmarked, 'a fact of the mixed match is not marked simulated').toEqual([])
+    await app.close()
+  })
+
   it('plays one the SDK seats for: nobody ever connects, and the mode ends it', async () => {
     const app = createTestApp({ sim: { positionTickIntervalMs: null } })
     const key = await puppeteerKey(app)

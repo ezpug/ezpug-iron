@@ -300,25 +300,36 @@ export type MatchSimOptions = z.infer<typeof matchSimOptionsSchema>
 export const SIMULATION_TIME_SCALE_MIN = 0.1
 export const SIMULATION_TIME_SCALE_MAX = 10
 
+/** The most roster entries a `simulation.puppets` list may name: two full teams and change. */
+export const SIMULATION_PUPPETS_MAX = 32
+
 /**
- * **Puppets** (PRD-03 T4): the match is played by simulated players. Every
- * rostered player gets one — a body on the server carrying that entry's
- * SteamID and name, connecting, readying up and playing through the doors a
- * human takes — so a client sees exactly the facts a real match would send,
- * about exactly the players it rostered. There is no half measure this
- * round: the match software fills every roster seat or none
- * (`references/MatchZy-Enhanced/src/SimulationMode.cs` spawns one bot per
- * configured player), so a request that wants some humans and some puppets
- * is a request for a later contract, not a quietly different match.
+ * **Puppets** (PRD-03 T4): the match is played by simulated players. A
+ * rostered player named as a puppet gets one — a body on the server carrying
+ * that entry's SteamID and name, connecting, readying up and playing through
+ * the doors a human takes — so a client sees exactly the facts a real match
+ * would send, about exactly the players it rostered.
+ *
+ * **Which entries** is `puppets` (PRD-04 T2, for the platform's PRD-11 T23):
+ * absent, every roster entry is a puppet, which is what every request written
+ * before the field asked for; a list names the entries that are, and the rest
+ * of the roster is *people*, expected through the mode's ordinary door — a
+ * `matchzy` ready gate, a drop-in mode's live server. Whether the mode's match
+ * software can seat such a room is the manifest's `capabilities.mixedRoster`
+ * ({@link matchSimulationProblem}): MatchZy-Enhanced's simulation mode fills
+ * every configured seat or none and force-starts without anybody, so `pug`
+ * refuses a partial list at the door rather than seating a bot in the
+ * human's chair; the SDK's puppeteer seats exactly who is named.
  *
  * Needs the `simulation` scope on the key ({@link matchRequestScopes}) and
  * `capabilities.simulation` on the gamemode ({@link matchSimulationProblem});
  * every gameserver event of the match then carries `source.simulated: true`
- * and the `Match` says `simulated: true`, so no consumer can count it as
- * real. It is **not** {@link matchSimOptionsSchema}: that block steers the
- * simulator *provider*, where no server exists; this one asks a real
- * server — rented, LAN or the simulator alike — to play without people, and
- * costs what a real server costs.
+ * and the `Match` says `simulated: true` — the *match* is simulated, however
+ * many of its players are people — so no consumer can count it as real. It is
+ * **not** {@link matchSimOptionsSchema}: that block steers the simulator
+ * *provider*, where no server exists; this one asks a real server — rented,
+ * LAN or the simulator alike — to play without people, and costs what a real
+ * server costs.
  */
 export const matchSimulationSchema = z.object({
   /**
@@ -336,8 +347,54 @@ export const matchSimulationSchema = z.object({
    * at series end.
    */
   timeScale: z.number().min(SIMULATION_TIME_SCALE_MIN).max(SIMULATION_TIME_SCALE_MAX).optional(),
+  /**
+   * The roster entries played by puppets, by SteamID64; everybody else on the
+   * roster is a person. Absent is every entry. A name not on the roster and
+   * a partial list on a mode without `capabilities.mixedRoster` are both
+   * `validation_failed` on this field; an empty list is not a way to ask for
+   * a real match and is refused by the schema.
+   */
+  puppets: z
+    .array(steamId64Schema)
+    .min(1)
+    .max(SIMULATION_PUPPETS_MAX)
+    .refine(ids => new Set(ids).size === ids.length, { message: 'a SteamID64 is named once' })
+    .optional(),
 })
 export type MatchSimulation = z.infer<typeof matchSimulationSchema>
+
+/**
+ * **Who the puppets are**, for a request with `simulation`: the SteamID64s of
+ * the roster entries a bot plays, in roster order (team A then team B) —
+ * every entry when `puppets` is unsaid. Empty for a request without
+ * `simulation`. The one reading of the field, so the orchestrator's match
+ * file, the simulator's story and the plugin's seating never disagree about
+ * a seat.
+ */
+export function matchPuppets(request: Pick<MatchRequest, 'simulation' | 'teams'>): string[] {
+  if (request.simulation === undefined) return []
+  const roster = [...request.teams.teamA.players, ...request.teams.teamB.players].map(
+    player => player.steamId64,
+  )
+  const named = request.simulation.puppets
+  if (named === undefined) return roster
+  const wanted = new Set(named)
+  return roster.filter(steamId64 => wanted.has(steamId64))
+}
+
+/**
+ * **Who the people are** in a simulated match: the roster entries
+ * {@link matchPuppets} leaves out, in roster order. Empty for an all-puppet
+ * request and for a request without `simulation` — a real match's roster is
+ * all people, but nobody asked this function about it.
+ */
+export function matchHumans(request: Pick<MatchRequest, 'simulation' | 'teams'>): string[] {
+  if (request.simulation === undefined) return []
+  const puppets = new Set(matchPuppets(request))
+  return [...request.teams.teamA.players, ...request.teams.teamB.players]
+    .map(player => player.steamId64)
+    .filter(steamId64 => !puppets.has(steamId64))
+}
 
 /**
  * **Whether a gamemode can play this request with puppets**, decided once
@@ -346,22 +403,45 @@ export type MatchSimulation = z.infer<typeof matchSimulationSchema>
  * `validation_failed` with the field that has to change. The scope is not
  * judged here — that is {@link matchRequestScopes}' business and comes first.
  *
- * Three refusals: the mode does not claim `capabilities.simulation` (its
+ * Five refusals: the mode does not claim `capabilities.simulation` (its
  * match software cannot seat a puppet, so the request would wait in warmup
  * for people who are never coming); nobody is rostered (a puppet is a roster
  * entry made flesh, and a match with no entries has nobody to simulate);
- * and `sim.scenario` names a different story than `simulation.scenario`.
+ * `simulation.puppets` names a SteamID64 the roster does not hold (a puppet
+ * for nobody's seat); `simulation.puppets` leaves a roster entry to a person
+ * and the mode does not claim `capabilities.mixedRoster` (PRD-04 T2 — under
+ * `pug` the fork would seat a bot in that chair and start without them, which
+ * is a different match from the one asked for); and `sim.scenario` names a
+ * different story than `simulation.scenario`. A list that names every roster
+ * entry is the same request as no list, on every mode.
  */
 export function matchSimulationProblem(
   request: Pick<MatchRequest, 'simulation' | 'sim' | 'teams'>,
-  mode: { id: string; capabilities: { simulation: boolean } },
+  mode: { id: string; capabilities: { simulation: boolean; mixedRoster?: boolean } },
 ): { message: string; field: string } | undefined {
   const simulation = request.simulation
   if (simulation === undefined) return undefined
   if (!mode.capabilities.simulation)
     return { message: `${mode.id} cannot play with simulated players`, field: 'simulation' }
-  if (request.teams.teamA.players.length + request.teams.teamB.players.length === 0)
+  const roster = [...request.teams.teamA.players, ...request.teams.teamB.players].map(
+    player => player.steamId64,
+  )
+  if (roster.length === 0)
     return { message: 'a simulated match needs at least one rostered player', field: 'teams' }
+  if (simulation.puppets !== undefined) {
+    const stranger = simulation.puppets.find(steamId64 => !roster.includes(steamId64))
+    if (stranger !== undefined)
+      return {
+        message: `simulation.puppets names ${stranger}, who is not rostered`,
+        field: 'simulation.puppets',
+      }
+    const humans = matchHumans(request)
+    if (humans.length > 0 && mode.capabilities.mixedRoster !== true)
+      return {
+        message: `${mode.id} seats a puppet in every roster entry's place or none; it cannot leave ${humans.length} seat(s) to people`,
+        field: 'simulation.puppets',
+      }
+  }
   const other = request.sim?.scenario
   if (simulation.scenario !== undefined && other !== undefined && other !== simulation.scenario)
     return {
