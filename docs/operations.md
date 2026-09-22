@@ -694,7 +694,11 @@ translator's memory of the map's last start and score is cleared on MatchZy's
 `backup_loaded`, or the replayed round's start would be dropped as a go-live repeat and
 its end's winner read off the wrong delta (`translate.ts`). MatchZy then holds the
 restored round (`matchzy_pause_after_restore`) until an `unpause`. The dev lane's
-`restore` row plays this on the node, through the Match API only. `rcon` needs `admin`. The **`sim.*` family** reaches a simulated server and
+`restore` row plays this on the node, through the Match API only, and the same run was
+made once on Dathost against `gs.ezpug.com` (2026-09-22: `round_over`, then `applied`
+three seconds later, round 2 back at 0–1, the match completed 5–3 on its own; one clone,
+seven server-minutes, 4 c) with the production recipe below plus
+`--simulate --bots 2 --timescale 2 --restore --rounds 8 --no-demo`. `rcon` needs `admin`. The **`sim.*` family** reaches a simulated server and
 nothing else: on any other provider it is `command_unsupported` with the provider named,
 before a channel is ever asked.
 
