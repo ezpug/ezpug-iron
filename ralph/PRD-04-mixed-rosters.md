@@ -111,7 +111,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   `applied` means. Lane: the pause row loses its retry loop and asserts the code at
   halftime instead. Delete §6.
 
-- [ ] **T5: timers hold their period** (OPEN-POINTS §4). `GameThreadClock.Every` re-arms
+- [x] **T5: timers hold their period** (OPEN-POINTS §4). `GameThreadClock.Every` re-arms
   from the due time, with a catch-up rule for a frame that stalls past two periods
   (skip, never burst); the position stream measures 100 ms within a frame in the T12
   spike harness; `docs/sdk.md` documents the guarantee. Delete §4.
