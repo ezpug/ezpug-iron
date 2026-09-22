@@ -15,44 +15,23 @@ word when nothing stood — `docs/match-api.md`, "A pause that says no". §4 (th
 "every 100 ms" was every 108) became PRD-04 T5: `GameThreadClock.Every` re-arms from the
 due time and skips the beats a stalled frame swallowed — `docs/sdk.md`, "Timers".
 
-## §3 EZ Rating draws a zero on a retakes scoreboard
+## §3 EZ Rating on a human's scoreboard has never been seen
 
-**What happened.** PRD-03 T10's lane row is the first time this box has ever run the
-rating path on hardware: `RATED` in `scripts/iron-match.mjs` is
-`capabilities.scoreboardRating && slots.openJoin`, and `retakes` is the only mode that is
-both — `pug` rates but closes its roster, `powerup-dm` and `flying-scoutsman` open theirs
-but ask for no number. Every earlier run in `.cache/iron-match/` records
-`scoreboard: null`.
+**What is known** (PRD-04 T6, run `iron-match-2026-09-22T19-41-10-467Z`, `retakes`, three
+puppets, dev node): `ezpug_status` read every puppet at Premier's rank type and a ranking of
+`0` at a round's `round_start`, six seconds into the same round, and a second after the
+same three profiles were pushed again mid-round and answered `applied` — a draw with no
+spawn anywhere between it and the read. So cs2-retakes' spawn pass does not clear the
+number after `RatingBoard`'s round-start redraw (it teleports, it never respawns); a bot
+controller keeps the type and never the number, which is what PRD-02 T27 measured for
+plain bots too. The lane's `retakes` row now asserts the path (three reads, every puppet
+rated) and not the number; `docs/gamemodes.md` records the artefact.
 
-Run `iron-match-2026-09-20T20-53-18-977Z`, three puppets, `de_dust2`: three `profile`
-commands carrying `rating` 1000, 1111 and 1222 were accepted while the match was `ready`,
-and `ezpug_status` read back on a **live** server — after `going_live` and at least one
-`round_start`, so after a `RatingBoard.DrawAll` — said
-
-    [status] scoreboard: 3 rated: tk 0, maex 0, puppet-3 0
-
-The three bodies are the puppets, under the roster's own names, and
-`IGamePlayer.ScoreboardRating` is non-null for each: the number was written and the engine
-is holding **zero**.
-
-**What it is not.** It is not the profiles going to the wrong ids — that was a harness bug
-in the same run and is fixed (the first attempt addressed `BotIdentity`'s synthetic
-SteamIDs while the bodies carried the roster's, and read
-`scoreboard: 1 rated: SourceTV 1000`). It is not the read landing too early: call 15 of
-that run is after three `live` polls.
-
-**The two candidates, neither isolated.** Either the engine clears a bot's competitive
-fields at the respawn cs2-retakes performs every round — which would mean the
-`round_start` redraw `RatingBoard` relies on runs *before* the retake's own spawn pass and
-loses — or `SetScoreboardRating` does not stick on a bot controller at all, in which case
-a puppet can never show one and only a human would.
-
-**Why it needs a decision rather than an iteration.** Nobody knows which, because no human
-has played `retakes` on this box, and the answer decides whether this is a puppet-only
-measurement artefact (record it and move on) or decision 21 quietly failing for the one
-shipped mode that opens its roster. Cheapest next step: one retakes run that reads
-`ezpug_status` twice, once right after a `round_start` and once a few seconds into the
-round, and one with a human on the server.
+**What only a human can close.** Whether the cell shows the number for a person: join a
+`retakes` match on the dev node with a CS2 client, have the platform (or
+`POST /v1/matches/:id/commands` with a `profile`) push a rating, and look at the
+scoreboard, then read `ezpug_status`. If it says `0` for a human too, decision 21 is
+failing for every open-roster mode and it becomes a task.
 
 ## §5 The platform's lane releases the CS2 lane before its server is gone
 

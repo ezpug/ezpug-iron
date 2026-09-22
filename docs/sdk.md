@@ -263,7 +263,9 @@ names the rating and the rank and nothing else.
   refused, warned about once and drawn nowhere — never thrown, because a throw inside a
   link command eats the answer the orchestrator is waiting for.
 - **A bot's number is the engine's, not ours.** A bot takes the rank *type* and keeps it,
-  and reads its ranking back as `0` however often it is written. So a bots run proves the
+  and reads its ranking back as `0` however often it is written — a puppet too, and not
+  because a spawn clears it: PRD-04 T6 wrote it again mid-round, with no spawn near, and
+  read `0` a second later (`docs/gamemodes.md`, `scoreboardRating`). So a bots run proves the
   path — profile pushed, link crossed, controller written, read back — and proves nothing
   about the cell a human sees; that half is a human with a client, and is written as
   visual where it is claimed.

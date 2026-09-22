@@ -1625,7 +1625,14 @@ async function run() {
    * hands that back. Null rather than a failure at every step — this is a check
    * on the way past, never a reason to lose a match.
    */
-  const readScoreboard = async id => {
+  const readScoreboard = async id => (await readScoreboardAt(id))?.line ?? null
+  /**
+   * The same read, with the console's own stamp on the line, and — given
+   * `after`, the stamp of an earlier read — only a line newer than that one:
+   * the tail keeps every earlier report, so a status the server had not
+   * printed yet would otherwise read back as the previous one.
+   */
+  const readScoreboardAt = async (id, after = null) => {
     try {
       const rows = await api('GET', '/v1/fleet/servers')
       const row = rows.servers.find(server => server.matchId === id)
@@ -1633,15 +1640,62 @@ async function run() {
       await api('POST', `/v1/fleet/servers/${row.id}/rcon`, { command: 'ezpug_status' })
       await wall.sleep(1_000)
       const tail = await api('GET', `/v1/fleet/servers/${row.id}/console`)
-      return (
-        tail.lines
-          .map(entry => entry.line.trim())
-          .filter(line => line.includes('scoreboard:'))
-          .at(-1) ?? null
-      )
+      const entry = tail.lines
+        .filter(entry => entry.line.includes('scoreboard:'))
+        .filter(entry => after === null || entry.at > after)
+        .at(-1)
+      return entry ? { at: entry.at, line: entry.line.trim() } : null
     } catch (error) {
-      return `unreadable: ${error.message}`
+      return { at: null, line: `unreadable: ${error.message}` }
     }
+  }
+  /**
+   * **Where EZ Rating's number goes on a puppet** (PRD-04 T6, OPEN-POINTS §3).
+   * A retakes scoreboard read `tk 0, maex 0, puppet-3 0` once, and two causes
+   * fit: the engine clears the number at a spawn that runs after the
+   * `round_start` redraw, or it never keeps one on a bot controller at all.
+   * Three reads in one round tell them apart: the first the moment the
+   * stream carries a `round_start` (the SDK draws, then emits, so the draw is
+   * older than the fact), the second several seconds into the same round,
+   * and the third just after the same profiles are pushed *again* mid-round,
+   * which `RatingBoard.OnProfile` draws at once with no spawn anywhere near
+   * it. A number that survives the first read and not the second was cleared
+   * by something in the round; a zero on the third was never kept.
+   */
+  const probeRating = async (id, profiles) => {
+    const rounds = () =>
+      streamFrames.filter(
+        frame => frame.type === 'event' && frame.envelope.payload.type === 'round_start',
+      ).length
+    const seen = rounds()
+    const until = wall.now() + 90_000
+    while (rounds() === seen && wall.now() < until) await wall.sleep(100)
+    if (rounds() === seen) return { round: null, reads: [] }
+    const roundAt = wall.now()
+    // Nothing printed before this round counts: the orchestrator stamps a
+    // console line when it lands, on this box's clock, so after the fact did.
+    let after = wall.at().toISOString()
+    const reads = []
+    const read = async label => {
+      const startedMs = wall.now() - roundAt
+      const got = await readScoreboardAt(id, after)
+      if (got?.at) after = got.at
+      reads.push({ label, afterMs: startedMs, line: got?.line ?? null })
+      say(
+        `rating probe, ${label} (+${(startedMs / 1_000).toFixed(1)} s): ${got?.line ?? 'no new line'}`,
+      )
+    }
+    await read('round_start')
+    await wall.sleep(Math.max(0, 6_000 - (wall.now() - roundAt)))
+    await read('mid-round')
+    for (const [index, who] of profiles.entries())
+      await api('POST', `/v1/matches/${id}/commands`, {
+        correlationId: `${RUN_ID}-profile-again-${index}`,
+        type: 'profile',
+        player: { ...who, rating: 1000 + index * 111, rankName: 'Iron' },
+      })
+    await read('after a mid-round write')
+    return { round: seen + 1, reads }
   }
   /**
    * **What the radar would draw**, out of the stream and nothing else
@@ -2016,6 +2070,9 @@ async function run() {
   let rated = false
   let ratedAt = 0
   let scoreboard = null
+  /** The profiles the rating path pushed, and what three reads in one round made of them (PRD-04 T6). */
+  let ratedProfiles = []
+  let ratingProbe = null
   let skins = null
   let warmupEnded = false
   let started = false
@@ -2154,6 +2211,7 @@ async function run() {
             name: `EZ Bot ${slot}`,
             locale: slot % 2 === 0 ? 'de' : 'en',
           }))
+      ratedProfiles = profiles
       for (const [index, who] of profiles.entries()) {
         await api('POST', `/v1/matches/${matchId}/commands`, {
           correlationId: `${RUN_ID}-profile-${index}`,
@@ -2175,11 +2233,12 @@ async function run() {
     }
 
     // …and read the numbers back a few polls later, off the controllers rather
-    // than off what was asked for. Later on purpose: a bot's competitive fields
-    // are reset by the engine at every spawn, so the only honest moment to look
-    // is once the match is standing and everybody has spawned at least once
-    // (measured — read at `ready`, only the players who had already spawned
-    // showed a number).
+    // than off what was asked for. Later on purpose: the only honest moment to
+    // look is once the match is standing and everybody has spawned at least
+    // once (measured — read at `ready`, only the players who had already
+    // spawned were rated at all). What a puppet is rated *with* is always `0`:
+    // a bot controller keeps the rank type and never the number (PRD-04 T6,
+    // `docs/gamemodes.md`), which is why the probe below reads three times.
     if (rated && scoreboard === null && polls++ > ratedAt + 3) {
       scoreboard = await readScoreboard(matchId)
       say(`scoreboard: ${scoreboard ?? 'not readable'}`)
@@ -2189,6 +2248,13 @@ async function run() {
           `skins: ${skins ? `${skins.lines} console lines, last: ${skins.last}` : 'not readable'}`,
         )
       }
+    }
+
+    // …and once more, three times inside one live round (PRD-04 T6): only a
+    // live match has rounds to start, and the probe waits for the next one.
+    if (scoreboard !== null && ratingProbe === null && now.state === 'live') {
+      ratingProbe = await probeRating(matchId, ratedProfiles)
+      continue
     }
 
     // **Everything from here to `mp_warmup_end` is the escape hatch**
@@ -2442,6 +2508,7 @@ async function run() {
     demoStored,
     demoRelay: demoRelay?.seen ?? null,
     scoreboard,
+    ratingProbe,
     skins,
     paused,
     dropped,
@@ -2585,6 +2652,8 @@ function write(result) {
     demoRelay: result.demoRelay ?? null,
     /** `ezpug_status`'s `scoreboard:` line while the match was up, or null when this gamemode does not show a rating (T27). */
     scoreboard: result.scoreboard ?? null,
+    /** Three `scoreboard:` reads in one live round — at its `round_start`, mid-round, and after the same profiles were pushed again — or null when there was no rating to read or no live round to read it in (PRD-04 T6). */
+    ratingProbe: result.ratingProbe ?? null,
     /** The core plugin's `skins:` console lines — how many, and the last — while the match was up, or null when no loadout was on the roster (T28). */
     skins: result.skins ?? null,
     /**

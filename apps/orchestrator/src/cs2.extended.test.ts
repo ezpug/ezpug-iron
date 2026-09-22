@@ -251,6 +251,11 @@ type Summary = {
     deaths: { engine: number; teleported: number }
     console: string[]
   } | null
+  /** Three `scoreboard:` reads inside one live round, the last just after the profiles were pushed again (PRD-04 T6). */
+  ratingProbe?: {
+    round: number | null
+    reads: { label: string; afterMs: number; line: string | null }[]
+  } | null
   matchzy?: Record<string, number>
   pluginEvents?: Record<string, number>
   demoTarget?: string | null
@@ -634,6 +639,22 @@ const CASES: LaneCase[] = [
       // the engine keeps a CT and a T score in a retake too, and the side that
       // happened to lead did not win anything a client should record.
       expect(summary.length?.winner, 'a one-team mode named a winning team').toBeNull()
+      // **EZ Rating on a puppet** (PRD-04 T6): three reads in one live round
+      // — at its `round_start`, mid-round, and just after the same profiles
+      // were drawn again with no spawn near it — each finding every puppet's
+      // controller holding the Premier rank type, so the path reached all
+      // three every time. The *number* is not asserted: the engine keeps none
+      // on a bot controller (it read `0` at all three, the mid-round write
+      // included), which is the puppet-only artefact `docs/gamemodes.md`
+      // records; the cell a human sees is a human's line.
+      expect(summary.ratingProbe?.round, 'no live round was probed for its rating').not.toBeNull()
+      expect(summary.ratingProbe?.reads.map(read => read.label)).toEqual([
+        'round_start',
+        'mid-round',
+        'after a mid-round write',
+      ])
+      for (const read of summary.ratingProbe?.reads ?? [])
+        expect(read.line, `the ${read.label} read`).toMatch(/scoreboard: 3 rated:/)
       // **The game's own end, which is what "ends on its rounds" means**:
       // `mp_maxrounds` from the request's rules, the win panel, and a terminal
       // fact with no `reason` — the mode's `length` is an idle timeout only,
