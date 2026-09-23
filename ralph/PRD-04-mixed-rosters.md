@@ -95,7 +95,19 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   cannot seat the owner on the queue until the fork learns a per-seat switch. Needs an
   owner call (a PR upstream, or a fork of ours against decision 19) before the lane row
   "nine puppets ready up, the tenth arrives" can exist.
-  > blocked: an unpatched fork cannot do it; owner decides upstream PR vs. fork (§7).
+  > **Decided 2026-09-23 (owner): we fork.** Carry our own fork of MatchZy-Enhanced under
+  > the `ezpug` GitHub org, pinned by sha like the upstream binary was, with the smallest
+  > patch that does the job: a per-player `simulated` flag in the match file's `players`
+  > map, no identity built for a human in `BuildSimulationConfigPlayers`, humans counted
+  > through the ordinary ready gate in `IsTeamReady`, and no watchdog start while a
+  > configured human is missing (OPEN-POINTS §7 names the three places). Keep the patch a
+  > rebaseable commit series on top of an upstream tag, write down in `docs/operations.md`
+  > how to rebase it onto a new upstream release, and build the plugin from the fork in
+  > the image and the Dathost template. Amend decision 19 and decision 28 in
+  > `docs/decisions.md` to say so. Then `pug` claims `mixedRoster: true` in its own
+  > match-api release, the lane row "nine puppets ready up, the tenth arrives" exists and
+  > is green on the dev node, `gs.ezpug.com` and the Dathost template are redeployed, and
+  > §7 is deleted. The platform's PRD-11 T23 is waiting on that release.
 
 - [x] **T3: scopes are edited by a route.** `PATCH /v1/keys/:keyId/scopes` (admin scope,
   audited like `rotate` and `budget`), `ezpug-iron keys scopes <id> --add/--remove`,
