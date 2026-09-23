@@ -201,6 +201,21 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   > 19); OPEN-POINTS §3's human read of the retakes scoreboard. No `orchestrator@`, `node@`,
   > `cs2@` or `plugins@` tag was cut, since cutting one publishes and stays the owner's.
 
+- [ ] **T11: a puppeted match records its demo** ([#2](https://github.com/ezpug/ezpug-iron/issues/2),
+  raised by the platform's PRD-11 T10a, 2026-09-23; added by the owner's session). Every
+  puppeted `pug` match on Dathost has ended `demo: {skipped: "no_demo", uploaded: 0}`, 5 of
+  5, the last one (#85, platform match `9149e884`) with a presigned PUT into Hetzner that
+  the platform had proved works. Human matches did record a file. The likely cause is
+  already written in `docs/operations.md` (`bot_quota_mode`, PRD-02 T21a): a bot quota that
+  drops evicts SourceTV with the bots, and GOTV needs a level change to come back. Find the
+  real cause on the dev node first (a puppeted `pug` with `--demo`, reading `tv_status`
+  through the match), fix it in the image, the plugin or the fork's series, whichever owns
+  it, and add a lane row that asserts a puppeted match uploads a `.dem` with the CS2 magic.
+  Then redeploy `gs.ezpug.com` and re-sync the Dathost template, release if the contract
+  moved, and prove it once on Dathost (one server, one hour, `finally`). Close #2 with the
+  commit. The platform's T10a reruns `pnpm rehearse --prod` after this lands.
+  **Verify:** the fast gate and the lane row this task adds; no full extended tier.
+
 ## Working rules
 
 - **Production is `./scripts/deploy.sh` and nothing else** — the box's `docker` shim
