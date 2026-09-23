@@ -89,7 +89,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   when the tenth (the lane's own client, or `bot_add` standing in for a human) arrives.
   Release with a changelog line naming the platform's PRD-11 T23.
 
-- [ ] **T2b: mixed rosters under `pug`.** OPEN-POINTS §7: MatchZy-Enhanced at the pin
+- [x] **T2b: mixed rosters under `pug`.** OPEN-POINTS §7: MatchZy-Enhanced at the pin
   seats every configured entry or none and force-starts without anybody, and it is never
   patched here — so `pug` says `capabilities.mixedRoster: false` and the platform's T23
   cannot seat the owner on the queue until the fork learns a per-seat switch. Needs an
@@ -108,6 +108,13 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   > match-api release, the lane row "nine puppets ready up, the tenth arrives" exists and
   > is green on the dev node, `gs.ezpug.com` and the Dathost template are redeployed, and
   > §7 is deleted. The platform's PRD-11 T23 is waiting on that release.
+  >
+  > **Done 2026-09-23, with one half left to a person.** The lane row proves the hold and
+  > not the arrival. Nine puppets ready up, and the warmup waits past every watchdog pass
+  > and is cancelled. Nothing on this box can take the tenth seat: a plain bot is never
+  > counted at MatchZy's gate, and the lane has no CS2 client. Decision 28 says why a fork
+  > patch to count one was not chosen. The arrival is OPEN-POINTS §8, and the platform's
+  > PRD-11 T23 closes it.
 
 - [x] **T3: scopes are edited by a route.** `PATCH /v1/keys/:keyId/scopes` (admin scope,
   audited like `rotate` and `budget`), `ezpug-iron keys scopes <id> --add/--remove`,
