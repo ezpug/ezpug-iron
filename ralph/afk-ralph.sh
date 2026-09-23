@@ -36,7 +36,7 @@ echo ""
 
 for ((i=1; i<=ITERATIONS; i++)); do
   NEXT_LINE=$(grep -m1 '^- \[ \]' "$PRD" || true)
-  NEXT_TASK=$(echo "$NEXT_LINE" | grep -oE 'T[0-9]+' | head -1 || true)
+  NEXT_TASK=$(echo "$NEXT_LINE" | grep -oE 'T[0-9]+[a-z]?' | head -1 || true)
 
   if [ -n "$RALPH_MODEL" ]; then
     RUN_MODEL="$RALPH_MODEL"
@@ -84,7 +84,12 @@ exactly: <promise>COMPLETE</promise>"
 
   # A crashed run must NOT kill the loop (set -e): capture rc, warn, retry next iteration.
   set +e
-  result=$(claude --dangerously-skip-permissions --model "$RUN_MODEL" -p "$PROMPT")
+  # Effort (the owner, 2026-09-23): Fable xhigh, Opus high, a lettered repair task medium.
+  if [[ "$RUN_MODEL" == *fable* ]]; then EFFORT="${RALPH_EFFORT_FABLE:-xhigh}"
+  elif echo "${NEXT_TASK:-}" | grep -qE '^T[0-9]+[a-z]$'; then EFFORT="${RALPH_EFFORT_REPAIR:-medium}"
+  else EFFORT="${RALPH_EFFORT:-high}"; fi
+  echo "  effort: $EFFORT"
+  result=$(claude --dangerously-skip-permissions --model "$RUN_MODEL" --effort "$EFFORT" -p "$PROMPT")
   rc=$?
   set -e
 
