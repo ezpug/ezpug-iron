@@ -36,12 +36,50 @@ fi
 # `+@sSteamCmdForcePlatformType linux` because the sniper runtime reports itself
 # in ways steamcmd occasionally reads as something else; anonymous login is what
 # a dedicated server uses for CS2.
-"$STEAMCMD/steamcmd.sh" \
-  +@sSteamCmdForcePlatformType linux \
-  +force_install_dir "$ROOT" \
-  +login anonymous \
-  +app_update "$APP_ID" ${validate} \
-  +quit
+update() {
+  "$STEAMCMD/steamcmd.sh" \
+    +@sSteamCmdForcePlatformType linux \
+    +force_install_dir "$ROOT" \
+    +login anonymous \
+    +app_update "$APP_ID" "$@" \
+    +quit
+}
+
+# **An install Steam no longer serves a delta from** (PRD-04 T11a). To update a
+# depot, steamcmd first fetches the manifest of the build that is installed, to
+# diff against. Steam hands an anonymous login the request code for a manifest
+# only while a branch still carries it, and Valve prunes the versioned branches
+# (`1.41.7.8` went in September 2026). So an install that fell a few releases
+# behind gets "Failed to get manifest request code, 'Access Denied'" for its own
+# manifests, the update ends `state is 0x6`, and `--validate` alone does not help,
+# because it asks for the same old manifests. Forgetting those depots in the app
+# manifest and validating makes steamcmd check the files on disk against the new
+# manifest instead: the same download a delta would have been, give or take.
+content_log="$HOME/Steam/logs/content_log.txt"
+seen="$(wc -l < "$content_log" 2>/dev/null || echo 0)"
+if ! update ${validate}; then
+  refused="$(tail -n "+$((seen + 1))" "$content_log" 2>/dev/null \
+    | sed -n "s/.*Depot: \([0-9]*\), Manifest: [0-9]*, branch: [^)]*): Failed to get manifest request code, 'Access Denied'.*/\1/p" \
+    | sort -u | tr '\n' ' ')"
+  acf="$ROOT/steamapps/appmanifest_${APP_ID}.acf"
+  [[ -n "$refused" && -f "$acf" ]] || {
+    printf '\033[31m[ezpug-cs2] error:\033[0m steamcmd failed; its log is %s\n' "$content_log" >&2
+    exit 1
+  }
+  log "Steam refused the installed manifests of depots ${refused}(a build no branch carries any more)."
+  log 'forgetting them in the app manifest and validating the files against the new build instead'
+  cp "$acf" "$acf.before-revalidate"
+  for depot in $refused; do
+    # Only the entry under "InstalledDepots": `"<depot>" { "manifest" … "size" … }`.
+    perl -0 -i -pe 's/("InstalledDepots"\n\t\{(?:(?!\n\t\}).)*?)\n\t\t"'"$depot"'"\n\t\t\{[^}]*\}/$1/s' "$acf"
+  done
+  update validate || {
+    printf '\033[31m[ezpug-cs2] error:\033[0m steamcmd failed again; its log is %s\n' "$content_log" >&2
+    printf '        the app manifest before the edit is %s\n' "$acf.before-revalidate" >&2
+    exit 1
+  }
+  rm -f "$acf.before-revalidate"
+fi
 
 [[ -x "$ROOT/game/bin/linuxsteamrt64/cs2" ]] || {
   printf '\033[31m[ezpug-cs2] error:\033[0m steamcmd finished but %s/game/bin/linuxsteamrt64/cs2 is missing\n' "$ROOT" >&2

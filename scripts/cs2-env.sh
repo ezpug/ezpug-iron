@@ -138,7 +138,12 @@ cmd_status() {
     return 0
   fi
   if installed; then
-    printf '  \033[32mok\033[0m    game installed in the cs2-data volume\n'
+    # The build is what to compare with production's (docs/operations.md, "The
+    # dev build and production's").
+    local build
+    build="$("${COMPOSE[@]}" run --rm --no-deps --entrypoint /bin/bash cs2 -c \
+      'sed -n "s/^PatchVersion=//p" "${EZPUG_CS2_ROOT}/game/csgo/steam.inf"' 2>/dev/null | tr -d '\r')"
+    printf '  \033[32mok\033[0m    game installed in the cs2-data volume (CS2 %s)\n' "${build:-unknown}"
   else
     printf '  \033[33m--\033[0m    game not installed (pnpm cs2:install)\n'
   fi

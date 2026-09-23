@@ -165,6 +165,34 @@ installs its own game at boot is a server that downloads 67 GB on a Saturday bec
 volume was pruned. The entrypoint refuses to start and names the command instead. Nothing
 else in this repo downloads anything at runtime (decision 16).
 
+**The dev build and production's** (PRD-04 T11a). Dathost updates its servers' CS2 itself
+when Valve ships one. The `cs2-data` volume moves only when `pnpm cs2:install` runs, so the
+dev node falls behind without anybody noticing, and the lane stops seeing what production
+plays. T11's demo bug lived in exactly that gap. So the rule is: **when Valve ships a CS2
+update, run `pnpm cs2:install` on this box**, with the lane free
+(`node scripts/cs2-lane-lock.mjs status`) and no `ezpug-iron-cs2` container running,
+because steamcmd writes into the files a running server has open. You can tell Valve
+has shipped from either of two signs: a Dathost server boots a newer version than the dev
+node, or the orchestrator logs MatchZy's `cs2_update_required` as a warn. `pnpm cs2:status`
+names the installed build (`steam.inf`'s `PatchVersion`). Steam's `public` branch is what
+a Dathost server updates to, and an up-to-date `pnpm cs2:install` lands on the same build.
+The gap matters: on 2026-09-23 the volume was on 1.41.7.8 and production on a build that
+writes demos somewhere else (below, "Where the file lands"). After T11a brought it to
+1.41.8.2, the dev node wrote them where Dathost does.
+
+**When Steam will not serve a delta.** To update a depot, steamcmd first fetches the
+manifest of the build that is installed. An anonymous login only gets a manifest's request
+code while some branch still carries that build, and Valve prunes its versioned branches.
+So a volume that fell a few releases behind fails with `App '730' state is 0x6 after update
+job`, even with `--validate`. The content log shows the cause as `Failed to get manifest
+request code, 'Access Denied'` for the *installed* manifests. The new ones download fine.
+That is what happened in September 2026, when 1.41.7.8 left the branch list. It is not
+a login Valve now wants. `install-game.sh` handles it by itself. It reads the refused
+depots from the content log, removes them from the app manifest's `InstalledDepots`, and
+runs the update again with `validate`. That makes steamcmd check the files on disk against
+the new manifest and download only what differs. The app manifest from before the edit
+stays as `appmanifest_730.acf.before-revalidate` until the second pass has succeeded.
+
 Two things the first real boot taught, both now handled by the image and worth knowing
 when one of them resurfaces:
 
@@ -1463,7 +1491,8 @@ for any other flow the core plugin runs `tv_record` and `tv_stoprecord` itself.
 
 **Where the file lands depends on the CS2 build** (PRD-04 T11, issue #2). `tv_record`
 takes a relative path, and CS2 1.41.7.8 resolves it under `game/csgo`. Newer builds, such
-as the one Dathost ran on 2026-09-23 (network version 10924), resolve it under the engine's `DEFAULT_WRITE_PATH`, the first `Game` search path in
+as the one Dathost ran on 2026-09-23 (network version 10924) and 1.41.8.2 on the dev node
+(PRD-04 T11a), resolve it under the engine's `DEFAULT_WRITE_PATH`, the first `Game` search path in
 `gameinfo.gi`. With Metamod installed, that is `csgo/addons/metamod`, because its loader
 line goes first. The engine never creates a folder. MatchZy makes `MatchZy/` under
 `game/csgo` only, so on Dathost's newer build `tv_record MatchZy/…` answered `couldn't

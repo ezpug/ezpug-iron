@@ -67,8 +67,12 @@ changelog has every line.
   - The lane's `pause`, `radar`, `retakes`, `mixed` and `restore` rows assert what those
     changes promise.
   - The lane's full `pug` row reads the stored demo's first bytes back and asserts the
-    CS2 magic (`PBDEMS2\0`). The dev node's game install was updated to the build
-    Dathost runs.
+    CS2 magic (`PBDEMS2\0`).
+  - The dev node's game install is on the build Dathost runs, 1.41.8.2 (PRD-04 T11a).
+    When Steam refuses the manifests of a build no branch carries any more, the CS2
+    image's `install-game.sh` forgets those depots and validates against the new
+    build, where it used to fail with `state is 0x6`. `pnpm cs2:status` names the
+    installed build.
 
 **Puppets** (`ralph/PRD-03-puppets.md`). This work is deployed on `gs.ezpug.com` from local
 builds, but no `orchestrator@`, `node@`, `cs2@` or `plugins@` tag has been cut for it
