@@ -233,8 +233,17 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   > T10a `pnpm rehearse --prod` is the same proof, since the template now carries the fix.
   > Everything else is done: the lane row, the template sync, the deploy, and a comment
   > on #2. #2 stays open until a Dathost demo lands, and then this box is ticked.
+  >
+  > blocked (2026-09-23, T11a's run): the Dathost proof. This task's one server went to
+  > the diagnosis, and a second is the owner's call. The platform's T10a is waiting on
+  > "a release that says it is fixed", and CHANGELOG `Unreleased` already says so (the
+  > plugins, PRD-04 T11). Its next `pnpm rehearse --prod` is the proof that ticks this box.
+  > Since T11a, the dev node runs 1.41.8.2, writes MatchZy's demo under
+  > `addons/metamod/MatchZy/` as Dathost does, and its `pug-5v5` row uploaded that
+  > file with the magic. So the fix is now proven on the newer build, but not yet on
+  > Dathost.
 
-- [ ] **T11a: the dev node's CS2 cannot update.** Found by T11 on 2026-09-23.
+- [x] **T11a: the dev node's CS2 cannot update.** Found by T11 on 2026-09-23.
   `pnpm cs2:install`, with or without `--validate`, ends `App '730' state is 0x6`. The
   content log says Valve refused the anonymous manifest requests for depots `2347770` and
   `2347773` (`Failed to get manifest request code, 'Access Denied'`). So the dev volume
