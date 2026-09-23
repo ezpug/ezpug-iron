@@ -215,6 +215,35 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   moved, and prove it once on Dathost (one server, one hour, `finally`). Close #2 with the
   commit. The platform's T10a reruns `pnpm rehearse --prod` after this lands.
   **Verify:** the fast gate and the lane row this task adds; no full extended tier.
+  > **Found and fixed 2026-09-23; the Dathost proof is left to the owner.** The cause was
+  > not the bot quota. the CS2 build Dathost runs (network version 10924; the dev node's 1.41.7.8 is 10896) resolves `tv_record` under the engine's
+  > `DEFAULT_WRITE_PATH`, which is `csgo/addons/metamod` because Metamod's line leads
+  > `gameinfo.gi`, and the engine creates no folder there. On Dathost's newer build,
+  > MatchZy's `tv_record MatchZy/…` answered "couldn't open file … for writing" and
+  > recorded nothing. Nothing about that is specific to puppets. No human `pug` had been played on Dathost since the build changed.
+  > The fix is the core plugin's: at assignment it makes the folder under both roots, and
+  > it looks for the finished file under both.
+  >
+  > **The dev node could not reproduce it.** It runs CS2 1.41.7.8 and cannot update (T11a),
+  > so its lane row proves the magic and no regression, not the newer build.
+  >
+  > **Dathost.** The one T11 server went to the diagnostic run that found the cause
+  > (~15 server-minutes, ~10 c). Proving the fix there needs a second server, and that
+  > is outside this task's budget. It is the owner's call. Alternatively, the platform's
+  > T10a `pnpm rehearse --prod` is the same proof, since the template now carries the fix.
+  > Everything else is done: the lane row, the template sync, the deploy, and a comment
+  > on #2. #2 stays open until a Dathost demo lands, and then this box is ticked.
+
+- [ ] **T11a: the dev node's CS2 cannot update.** Found by T11 on 2026-09-23.
+  `pnpm cs2:install`, with or without `--validate`, ends `App '730' state is 0x6`. The
+  content log says Valve refused the anonymous manifest requests for depots `2347770` and
+  `2347773` (`Failed to get manifest request code, 'Access Denied'`). So the dev volume
+  stays on 1.41.7.8, while Dathost runs a newer build (`Version 10924` against `10896`),
+  and the lane cannot see what the newer build changes; T11's demo bug was one such
+  change. Find out what Valve now wants: a logged-in steamcmd, a different branch, or a
+  depot the dedicated server no longer needs. Bring the volume to production's build, say
+  in `docs/operations.md` how the two are kept in step, and run the lane's `pug-5v5` row
+  on it.
 
 ## Working rules
 
