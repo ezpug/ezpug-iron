@@ -59,12 +59,14 @@ rather than shipping something nobody looked at.
 
 ## The vendored community plugins
 
-Pinned, never patched, except the WeaponPaints data layer (decision 20). PRD-02 vendors
-them under `plugins/vendor/` and updates the "Vendored at" column with the commit it took.
+Pinned, never patched, with two exceptions: the WeaponPaints data layer (decision 20) and
+MatchZy-Enhanced's simulation mode, which runs as our own fork's release (decision 19 as
+amended by PRD-04 T2b). PRD-02 vendors them under `plugins/vendor/` and updates the
+"Vendored at" column with the commit it took.
 
 | Plugin | Pin | Builds against | Vendored at |
 | ------ | --- | -------------- | ----------- |
-| [MatchZy-Enhanced](https://github.com/sivert-io/MatchZy-Enhanced) (MIT; a fork of [MatchZy](https://github.com/shobhit-pathak/MatchZy), which it replaced at `0.8.15` — decision 19 as amended, PRD-03 T2) | `1.4.32` (tag `v1.4.32`, commit `ef76a748`) | CounterStrikeSharp.API 1.0.342, `net8.0` — the same pair stock 0.8.15 built against | the **upstream release binary, never a build of ours**: `docker/cs2/Dockerfile`, `MATCHZY_VERSION` (+ `MATCHZY_SHA256`, which is also the digest GitHub publishes for the asset), unzipped out of its `MatchZy-<version>/` wrapper into `plugins/disabled/MatchZy/` with its `cfg/MatchZy/` set. One maintainer ships several releases a day, so the checksum is the point. The one thing of ours is the end of `cfg/MatchZy/config.cfg`: `docker/cs2/cfg/MatchZy/ezpug.cfg` is appended and decides two things — every path the fork opens a socket on by itself is off, and the player features a match must not be able to lose are pinned (the side-pick timer on, `.gg` and forfeit-on-disconnect off, auto-ready left to the request; PRD-03 T3a) — and the build runs `docker/cs2/matchzy-cfg-check.sh` over the result. Its own xUnit project (`tests/MatchZy.Tests`, 236 tests) builds and passes on this repo's toolchain with the .NET 8 runtime installed, but is not part of `pnpm verify`: the source is a gitignored reference clone (`references/MatchZy-Enhanced`), the pin is a binary, and verify never needs the network |
+| [MatchZy-Enhanced](https://github.com/Auto-Tournament/cs2-plugin) (MIT; a fork of [MatchZy](https://github.com/shobhit-pathak/MatchZy), which it replaced at `0.8.15` — decision 19 as amended, PRD-03 T2), **as our fork** [`ezpug/MatchZy-Enhanced`](https://github.com/ezpug/MatchZy-Enhanced) (PRD-04 T2b) | `1.4.32-ezpug.1` (tag `v1.4.32-ezpug.1`, commit `120e4c3`: upstream `v1.4.32` / `ef76a748` plus the four `ezpug:` commits `EZPUG.md` lists) | CounterStrikeSharp.API 1.0.342, `net8.0` — the same pair stock 0.8.15 built against | **our fork's release binary**, built from the tag by its `ezpug-release.yml` in upstream's zip layout: `docker/cs2/Dockerfile`, `MATCHZY_VERSION` (+ `MATCHZY_SHA256`, which the workflow also attaches beside the zip), unzipped out of its `MatchZy-<version>/` wrapper into `plugins/disabled/MatchZy/` with its `cfg/MatchZy/` set. The patch is the smallest that lets a simulated match leave a seat to a person — a per-player `simulated` flag in the match file's `players` map, the ordinary ready gate for that person, no watchdog start without them — kept as a rebaseable series on an upstream tag (`docs/operations.md`, "MatchZy-Enhanced, our fork"). Everything else is upstream's, and the sha is still the point. The one thing of ours outside the fork is the end of `cfg/MatchZy/config.cfg`: `docker/cs2/cfg/MatchZy/ezpug.cfg` is appended and decides two things — every path the fork opens a socket on by itself is off, and the player features a match must not be able to lose are pinned (the side-pick timer on, `.gg` and forfeit-on-disconnect off, auto-ready left to the request; PRD-03 T3a) — and the build runs `docker/cs2/matchzy-cfg-check.sh` over the result. Its own xUnit project (`tests/MatchZy.Tests`, 251 tests with the series') builds and passes on this repo's toolchain with the .NET 8 runtime installed and runs in the fork's release workflow, but is not part of `pnpm verify`: the source is a gitignored reference clone (`references/MatchZy-Enhanced`, whose `ezpug` branch is the fork's), the pin is a binary, and verify never needs the network |
 | [cs2-retakes](https://github.com/B3none/cs2-retakes) | `3.1.0` | CounterStrikeSharp.API 1.0.369, `net10.0` | source, `plugins/vendor/cs2-retakes/` at tag `3.1.0` (commit `157d2bbd`), built by `plugins/vendor/build.sh` into `plugins/disabled/RetakesPlugin/` with its `map_config/` spawn set; `RetakesPluginShared` 2.0.0 goes to `shared/` |
 | [cs2-retakes-weapon-allocator](https://github.com/Ravid-A/cs2-retakes-weapon-allocator) | `3.2.5` | CounterStrikeSharp.API 1.0.373, `net10.0`, RetakesPluginShared 2.0.0 | the release binary, not source: `docker/cs2/Dockerfile`, `RETAKES_ALLOCATOR_VERSION` (+ `RETAKES_ALLOCATOR_SHA256`), unzipped into `plugins/disabled/RetakesAllocator/` with the `gamedata/panoramamanager.json` PanoramaManager reads. The one allocator built against the API we actually ship — `plugins/vendor/README.md` says why this fork and not the original, and why its source is not in this repo |
 | [cs2-WeaponPaints](https://github.com/Nereziel/cs2-WeaponPaints) | commit `fa8936f3` (tag `build-459`, `ModuleVersion` `3.3a`) | **the fork's:** CounterStrikeSharp.API 1.0.373, `net10.0`, Newtonsoft.Json 13.0.5-beta1, `EZPug.Sdk` from `shared/`. Upstream built that commit for 1.0.367 / `net8.0` with Dapper 2.1.72 and MySqlConnector 2.5.0, both gone with the data layer | source, `plugins/vendor/WeaponPaints/` — the one patched vendor; `PATCHES.md` beside it is every patch, in words, to re-apply on a bump. Built by `plugins/vendor/build.sh` into `plugins/disabled/WeaponPaints/` (with its `lang/`, the English item catalogue under `data/` and its own `Newtonsoft.Json.dll`), `gamedata/weaponpaints.json` beside the plugins folder; `pnpm verify` builds and tests it as part of `EZPug.sln`. The commit is the platform's recorded one, whose `CREATE TABLE`s the `Loadout` schema mirrors field for field |
@@ -83,7 +85,7 @@ commit, and the line of source that carries the version) — that file is what
 against a copy of it. A vendor that publishes a release is pinned like MatchZy instead: a
 version and a checksum in the image, and nothing of theirs in our tree.
 
-The WeaponPaints fork is the one exception to "never patched": its data layer takes the
+The WeaponPaints fork is one exception to "never patched": its data layer takes the
 in-memory loadout the core plugin hands it instead of querying MySQL (decision 20), and
 `plugins/vendor/WeaponPaints/PATCHES.md` lists every patch. The schema it mirrors is the
 pinned commit's — `Loadout` in `@ezpug/match-api` is a mapping of those tables, so a plugin
@@ -180,9 +182,9 @@ told the SDK's version of an empty room rather than MatchZy's, which is what the
 PRD-10 T6 rehearses its countdown against in its dev world. **0.19.0** is mixed rosters
 (PRD-04 T2, for the platform's PRD-11 T23): `simulation.puppets` names which roster entries
 are puppets and the rest are people, `capabilities.mixedRoster` says which modes can seat
-such a room — the three the SDK seats; `pug` refuses a partial list at the door because the
-fork seats every configured entry or none — and on the simulator a person's chair stays
-empty. **0.20.0** is the scope route (PRD-04 T3): `PATCH /v1/keys/:keyId/scopes` and
+such a room — the three the SDK seats; `pug` refused a partial list at the door because
+upstream's MatchZy-Enhanced seats every configured entry or none — and on the simulator a
+person's chair stays empty. **0.20.0** is the scope route (PRD-04 T3): `PATCH /v1/keys/:keyId/scopes` and
 `ezpug-iron keys scopes <id> --add/--remove` move what a live key may do, additively, so
 the grant that reached production as a hand-written `UPDATE` on 2026-09-21 — the platform
 key and `simulation` — has a door. Production's platform key holds `simulation`, and the
@@ -190,7 +192,10 @@ places that said it never would say what is true instead. **0.21.0** is `restore
 match (PRD-04 T8, for the platform's PRD-11 T3): no schema moved, the command is answered
 where it used to be refused — the match is rewound on its own server to a round of the map
 being played, `applied` once the engine has started it again, a reason word when MatchZy
-said no.
+said no. **0.22.0** is `pug` claiming `capabilities.mixedRoster` (PRD-04 T2b, for the
+platform's PRD-11 T23): no schema moved. The image runs our fork of MatchZy-Enhanced, which
+leaves a seat to a person, so the door takes a partial `simulation.puppets` for the 5v5
+queue.
 
 ## Bumping one
 

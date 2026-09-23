@@ -147,7 +147,7 @@
               "backups": true,
               "scoreboardRating": true,
               "simulation": true,
-              "mixedRoster": false
+              "mixedRoster": true
             },
             "commands": [],
             "sdkVersion": "0.1.0"
@@ -667,7 +667,7 @@
       "route": "matches.create",
       "input": {
         "body": {
-          "clientMatchId": "conformance-simulation-switch-all-or-none",
+          "clientMatchId": "conformance-simulation-switch-held",
           "game": "cs2",
           "gamemode": "pug",
           "teams": {
@@ -761,13 +761,85 @@
               "76561198000000103",
               "76561198000000104"
             ]
+          },
+          "sim": {
+            "timeScale": 20
           }
         }
       },
-      "ok": false,
-      "status": 400,
-      "code": "validation_failed",
-      "message": "pug seats a puppet in every roster entry's place or none; it cannot leave 1 seat(s) to people"
+      "ok": true,
+      "response": {
+        "id": "010ec1da-9911-44fb-b817-7de8e3740ba7",
+        "clientMatchId": "conformance-simulation-switch-held",
+        "state": "allocating",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": null,
+        "serverId": null,
+        "fleetServerId": "f49c7035-24d8-4869-a431-79be9d39b5d6",
+        "connect": null,
+        "tv": null,
+        "seq": 0,
+        "createdAt": "2026-09-05T18:00:00.000Z",
+        "updatedAt": "2026-09-05T18:00:00.000Z",
+        "readyAt": null,
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-09-05T20:00:00.000Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "matches.cancel",
+      "input": {
+        "params": {
+          "matchId": "010ec1da-9911-44fb-b817-7de8e3740ba7"
+        }
+      },
+      "ok": true,
+      "response": {
+        "id": "010ec1da-9911-44fb-b817-7de8e3740ba7",
+        "clientMatchId": "conformance-simulation-switch-held",
+        "state": "cancelled",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "sim",
+        "serverId": "sim-1",
+        "fleetServerId": "f49c7035-24d8-4869-a431-79be9d39b5d6",
+        "connect": {
+          "host": "sim-1.sim.invalid",
+          "port": 27015,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "sim-1.sim.invalid",
+          "port": 27020,
+          "delaySeconds": 90
+        },
+        "seq": 39,
+        "createdAt": "2026-09-05T18:00:00.000Z",
+        "updatedAt": "2026-09-05T18:00:10.000Z",
+        "readyAt": "2026-09-05T18:00:01.200Z",
+        "liveAt": null,
+        "endedAt": "2026-09-05T18:00:10.000Z",
+        "expiresAt": "2026-09-05T20:00:00.000Z",
+        "endedReason": {
+          "kind": "cancelled"
+        },
+        "sim": {
+          "scenario": "happy-path",
+          "seed": "ezpug-fake#010ec1da-9911-44fb-b817-7de8e3740ba7#sim-1",
+          "mode": "auto",
+          "timeScale": 20,
+          "remainingBeats": 0,
+          "finished": false,
+          "outcome": "idle",
+          "chaos": null
+        },
+        "simulated": true
+      }
     },
     {
       "route": "matches.create",
@@ -875,23 +947,23 @@
       },
       "ok": true,
       "response": {
-        "id": "010ec1da-9911-44fb-b817-7de8e3740ba7",
+        "id": "31e6c020-f132-4387-977e-d18f23ae45e8",
         "clientMatchId": "conformance-simulation-switch-mixed",
         "state": "allocating",
         "game": "cs2",
         "gamemode": "flying-scoutsman",
         "provider": null,
         "serverId": null,
-        "fleetServerId": "f49c7035-24d8-4869-a431-79be9d39b5d6",
+        "fleetServerId": "4f95bf2b-e47f-4216-98e3-20cc43d8ce8e",
         "connect": null,
         "tv": null,
         "seq": 0,
-        "createdAt": "2026-09-05T18:00:00.000Z",
-        "updatedAt": "2026-09-05T18:00:00.000Z",
+        "createdAt": "2026-09-05T18:00:10.000Z",
+        "updatedAt": "2026-09-05T18:00:10.000Z",
         "readyAt": null,
         "liveAt": null,
         "endedAt": null,
-        "expiresAt": "2026-09-05T20:00:00.000Z",
+        "expiresAt": "2026-09-05T20:00:10.000Z",
         "endedReason": null,
         "sim": null,
         "simulated": true
@@ -991,23 +1063,23 @@
       },
       "ok": true,
       "response": {
-        "id": "7a7acdc9-47ab-4c7f-a609-fba5117e20a6",
+        "id": "28df7473-4731-4d58-af19-c3b10e54bb4e",
         "clientMatchId": "conformance-simulation-switch",
         "state": "allocating",
         "game": "cs2",
         "gamemode": "pug",
         "provider": null,
         "serverId": null,
-        "fleetServerId": "88fe9470-86a3-46a5-a3c0-3c40c0b2be7a",
+        "fleetServerId": "931a7457-c507-4ca7-95d5-a3ffa01025b3",
         "connect": null,
         "tv": null,
         "seq": 0,
-        "createdAt": "2026-09-05T18:00:20.000Z",
-        "updatedAt": "2026-09-05T18:00:20.000Z",
+        "createdAt": "2026-09-05T18:00:30.000Z",
+        "updatedAt": "2026-09-05T18:00:30.000Z",
         "readyAt": null,
         "liveAt": null,
         "endedAt": null,
-        "expiresAt": "2026-09-05T20:00:20.000Z",
+        "expiresAt": "2026-09-05T20:00:30.000Z",
         "endedReason": null,
         "sim": null,
         "simulated": true
@@ -1114,6 +1186,162 @@
     },
     {
       "seq": 25,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 26,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 27,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 28,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 29,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 30,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 31,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 32,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 33,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 34,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 35,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 36,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 37,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 38,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 39,
+      "type": "match.ended"
+    },
+    {
+      "seq": 1,
+      "type": "match.allocated"
+    },
+    {
+      "seq": 2,
+      "type": "server_ready"
+    },
+    {
+      "seq": 3,
+      "type": "match.server_ready"
+    },
+    {
+      "seq": 4,
+      "type": "player_connected"
+    },
+    {
+      "seq": 5,
+      "type": "player.joined"
+    },
+    {
+      "seq": 6,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 7,
+      "type": "player_connected"
+    },
+    {
+      "seq": 8,
+      "type": "player.joined"
+    },
+    {
+      "seq": 9,
+      "type": "player_connected"
+    },
+    {
+      "seq": 10,
+      "type": "player.joined"
+    },
+    {
+      "seq": 11,
+      "type": "player_connected"
+    },
+    {
+      "seq": 12,
+      "type": "player.joined"
+    },
+    {
+      "seq": 13,
+      "type": "player_connected"
+    },
+    {
+      "seq": 14,
+      "type": "player.joined"
+    },
+    {
+      "seq": 15,
+      "type": "player_connected"
+    },
+    {
+      "seq": 16,
+      "type": "player.joined"
+    },
+    {
+      "seq": 17,
+      "type": "player_connected"
+    },
+    {
+      "seq": 18,
+      "type": "player.joined"
+    },
+    {
+      "seq": 19,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 20,
+      "type": "player_connected"
+    },
+    {
+      "seq": 21,
+      "type": "player.joined"
+    },
+    {
+      "seq": 22,
+      "type": "player_connected"
+    },
+    {
+      "seq": 23,
+      "type": "player.joined"
+    },
+    {
+      "seq": 24,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 25,
       "type": "chat_message"
     },
     {
@@ -1138,7 +1366,7 @@
     },
     {
       "seq": 31,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 32,
@@ -1150,11 +1378,11 @@
     },
     {
       "seq": 34,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 35,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 36,
@@ -1170,7 +1398,7 @@
     },
     {
       "seq": 39,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 40,
@@ -1178,11 +1406,11 @@
     },
     {
       "seq": 41,
-      "type": "round_end"
+      "type": "player_death"
     },
     {
       "seq": 42,
-      "type": "chat_message"
+      "type": "heartbeat"
     },
     {
       "seq": 43,
@@ -1190,23 +1418,23 @@
     },
     {
       "seq": 44,
-      "type": "side_swap"
+      "type": "round_end"
     },
     {
       "seq": 45,
-      "type": "heartbeat"
+      "type": "chat_message"
     },
     {
       "seq": 46,
-      "type": "backup_written"
+      "type": "heartbeat"
     },
     {
       "seq": 47,
-      "type": "round_start"
+      "type": "heartbeat"
     },
     {
       "seq": 48,
-      "type": "heartbeat"
+      "type": "side_swap"
     },
     {
       "seq": 49,
@@ -1214,15 +1442,15 @@
     },
     {
       "seq": 50,
-      "type": "player_death"
+      "type": "backup_written"
     },
     {
       "seq": 51,
-      "type": "player_death"
+      "type": "round_start"
     },
     {
       "seq": 52,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 53,
@@ -1234,54 +1462,62 @@
     },
     {
       "seq": 55,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 56,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 57,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 58,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 59,
       "type": "player_death"
     },
     {
-      "seq": 60,
+      "seq": 59,
       "type": "heartbeat"
+    },
+    {
+      "seq": 60,
+      "type": "player_death"
     },
     {
       "seq": 61,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 62,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 63,
-      "type": "round_end"
+      "type": "player_death"
     },
     {
       "seq": 64,
-      "type": "chat_message"
+      "type": "heartbeat"
     },
     {
       "seq": 65,
-      "type": "map_end"
+      "type": "round_end"
     },
     {
       "seq": 66,
-      "type": "series_end"
+      "type": "chat_message"
     },
     {
       "seq": 67,
+      "type": "map_end"
+    },
+    {
+      "seq": 68,
+      "type": "series_end"
+    },
+    {
+      "seq": 69,
       "type": "match.ended"
     },
     {
@@ -1322,31 +1558,31 @@
     },
     {
       "seq": 10,
-      "type": "player_connected"
+      "type": "heartbeat"
     },
     {
       "seq": 11,
-      "type": "player.joined"
+      "type": "player_connected"
     },
     {
       "seq": 12,
-      "type": "player_connected"
+      "type": "player.joined"
     },
     {
       "seq": 13,
-      "type": "player.joined"
-    },
-    {
-      "seq": 14,
       "type": "player_connected"
     },
     {
-      "seq": 15,
+      "seq": 14,
       "type": "player.joined"
     },
     {
+      "seq": 15,
+      "type": "player_connected"
+    },
+    {
       "seq": 16,
-      "type": "heartbeat"
+      "type": "player.joined"
     },
     {
       "seq": 17,
@@ -1358,23 +1594,23 @@
     },
     {
       "seq": 19,
-      "type": "heartbeat"
+      "type": "player_connected"
     },
     {
       "seq": 20,
-      "type": "player_connected"
+      "type": "player.joined"
     },
     {
       "seq": 21,
-      "type": "player.joined"
-    },
-    {
-      "seq": 22,
       "type": "player_connected"
     },
     {
-      "seq": 23,
+      "seq": 22,
       "type": "player.joined"
+    },
+    {
+      "seq": 23,
+      "type": "heartbeat"
     },
     {
       "seq": 24,
@@ -1398,15 +1634,15 @@
     },
     {
       "seq": 29,
-      "type": "backup_written"
+      "type": "heartbeat"
     },
     {
       "seq": 30,
-      "type": "round_start"
+      "type": "backup_written"
     },
     {
       "seq": 31,
-      "type": "heartbeat"
+      "type": "round_start"
     },
     {
       "seq": 32,
@@ -1414,11 +1650,11 @@
     },
     {
       "seq": 33,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 34,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 35,
@@ -1426,19 +1662,19 @@
     },
     {
       "seq": 36,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 37,
       "type": "player_death"
     },
     {
+      "seq": 37,
+      "type": "heartbeat"
+    },
+    {
       "seq": 38,
-      "type": "bomb_planted"
+      "type": "player_death"
     },
     {
       "seq": 39,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 40,
@@ -1446,7 +1682,7 @@
     },
     {
       "seq": 41,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 42,
@@ -1462,23 +1698,23 @@
     },
     {
       "seq": 45,
-      "type": "bomb_defused"
+      "type": "player_death"
     },
     {
       "seq": 46,
-      "type": "round_end"
-    },
-    {
-      "seq": 47,
-      "type": "chat_message"
-    },
-    {
-      "seq": 48,
       "type": "heartbeat"
     },
     {
+      "seq": 47,
+      "type": "heartbeat"
+    },
+    {
+      "seq": 48,
+      "type": "round_end"
+    },
+    {
       "seq": 49,
-      "type": "side_swap"
+      "type": "chat_message"
     },
     {
       "seq": 50,
@@ -1486,19 +1722,19 @@
     },
     {
       "seq": 51,
-      "type": "backup_written"
+      "type": "side_swap"
     },
     {
       "seq": 52,
-      "type": "round_start"
+      "type": "heartbeat"
     },
     {
       "seq": 53,
-      "type": "heartbeat"
+      "type": "backup_written"
     },
     {
       "seq": 54,
-      "type": "heartbeat"
+      "type": "round_start"
     },
     {
       "seq": 55,
@@ -1506,11 +1742,11 @@
     },
     {
       "seq": 56,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 57,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 58,
@@ -1526,11 +1762,11 @@
     },
     {
       "seq": 61,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 62,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 63,
@@ -1538,7 +1774,7 @@
     },
     {
       "seq": 64,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 65,
@@ -1574,15 +1810,15 @@
     },
     {
       "seq": 73,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 74,
       "type": "demo_available"
     },
     {
-      "seq": 75,
+      "seq": 74,
       "type": "demo.uploaded"
+    },
+    {
+      "seq": 75,
+      "type": "heartbeat"
     },
     {
       "seq": 76,

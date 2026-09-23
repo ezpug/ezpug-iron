@@ -400,8 +400,10 @@ door, at which point they are the rostered player they always were. A bot that a
 such a chair is empty is a plain bot: `Casting` only ever fills a puppet's seat, so the
 person's SteamID is never spoken for. The flows the SDK tells the story of have no ready gate
 — `GenericFlow` goes live on its own clock — so a person joins such a match *live*, as on any
-drop-in server. Under `matchzy` the door refuses a partial list (`capabilities.mixedRoster`
-is `false` on `pug`): the fork seats every configured entry or none.
+drop-in server. Under `matchzy` the SDK seats nobody: our fork of MatchZy-Enhanced spawns a
+bot for each seat the list names, and a person's seat is written into its match file as
+`{ "name", "simulated": false }` (PRD-04 T2b). The fork holds the warmup until the person is
+there and ready, so under `pug` a person joins *before* the match goes live.
 
 ### Seating a puppet
 

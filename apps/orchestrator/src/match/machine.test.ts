@@ -13,6 +13,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import { createTestApp, type TestApp } from '../http/testing'
 import type { AuthenticatedKey } from '../keys/service'
+import { buildMatchZyConfig } from '../match-config/matchzy'
 import type { GameServerProvider, ServerConfiguration } from '../providers/provider'
 import { createMatches, DEFAULT_MATCH_DEADLINES } from './machine'
 
@@ -401,7 +402,7 @@ describe('the simulation switch', () => {
    * on the simulator — which has no door for a person — the human's seat
    * stays empty while the puppets play the match out.
    */
-  it('names the puppets among the roster, and refuses a stranger or pug', async () => {
+  it('names the puppets among the roster, refuses a stranger, and takes a mixed pug', async () => {
     const app = createTestApp()
     const key = await puppeteerKey(app)
     const stranger = await refused(
@@ -410,16 +411,25 @@ describe('the simulation switch', () => {
     expect(stranger.code).toBe('validation_failed')
     expect(stranger.details).toEqual({ field: 'simulation.puppets' })
 
+    // **`pug` seats a mixed roster since PRD-04 T2b**: our fork of
+    // MatchZy-Enhanced leaves the person's seat to them, so a partial list
+    // is taken, and the file MatchZy loads marks that one seat.
     const everybody = request().teams
+    const [person] = everybody.teamA.players
     const allButOne = [...everybody.teamA.players.slice(1), ...everybody.teamB.players].map(
       player => player.steamId64,
     )
-    const forkSeated = await refused(
-      app.matches.create(key, request({ simulation: { puppets: allButOne } })),
+    const mixed = await app.matches.create(
+      key,
+      request({ clientMatchId: 'pug-mixed', simulation: { puppets: allButOne } }),
     )
-    expect(forkSeated.code).toBe('validation_failed')
-    expect(forkSeated.message).toContain('every roster entry')
-    expect(forkSeated.details).toEqual({ field: 'simulation.puppets' })
+    expect(mixed.match.simulated).toBe(true)
+    const file = buildMatchZyConfig({
+      matchId: mixed.match.id,
+      request: request({ simulation: { puppets: allButOne } }),
+      manifest: SHIPPED_GAMEMODES.find(mode => mode.id === 'pug')!,
+    })
+    expect(file.team1.players[person!.steamId64]).toEqual({ name: person!.name, simulated: false })
 
     // A list that names everybody is the same request as no list, on pug too.
     const all = [...everybody.teamA.players, ...everybody.teamB.players].map(
@@ -430,7 +440,7 @@ describe('the simulation switch', () => {
       request({ clientMatchId: 'pug-all-named', simulation: { puppets: all } }),
     )
     expect(played.match.simulated).toBe(true)
-    expect(app.store.rows.matches).toHaveLength(1)
+    expect(app.store.rows.matches).toHaveLength(2)
     await app.close()
   })
 

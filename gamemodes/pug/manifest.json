@@ -30,7 +30,7 @@
     "backups": true,
     "scoreboardRating": true,
     "simulation": true,
-    "mixedRoster": false
+    "mixedRoster": true
   },
   "commands": [],
   "version": "0.3.0",

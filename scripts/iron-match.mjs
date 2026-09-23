@@ -94,13 +94,18 @@ const HELP = `iron-match — run one real match through the Match API and record
                          names the rest — so their chairs stay empty and the
                          run proves nothing sits down in them. Needs
                          --simulate, fewer than --bots, and a mode whose
-                         manifest claims capabilities.mixedRoster (pug's
-                         does not: the fork seats every seat or none)
+                         manifest claims capabilities.mixedRoster
   --stand-in             once the match is live, bot_add one plain bot per
                          --humans over RCON, standing in for a person who
                          never came: the assertion is that it is furniture —
                          never announced, never cast as the person. The one
-                         RCON command of the row, declared as such
+                         RCON command of the row, declared as such. SDK flows
+                         only: MatchZy's gate never counts a plain bot
+  --hold                 matchzy + --humans: wait for every puppet's
+                         player_ready, hold the warmup for the person past
+                         the fork's watchdog, and then call the match off the
+                         way a client does for a no-show (cancel). The run
+                         ends cancelled, and that is its success (T2b)
   --pause                pause the live match through the Match API and
                          unpause it two polls later (PRD-03 T6)
   --restore              the moment round 3 ends, restore the live match
@@ -405,9 +410,10 @@ const RESTORE_PAUSE_MS = 20_000
  * is named, the person's SteamID is never announced, and a body that turns up
  * later (`--stand-in`, a `bot_add` over RCON, the one command the row types)
  * is a plain bot and not the person. Only a mode whose manifest claims
- * `capabilities.mixedRoster` takes such a request; `pug` refuses it at the
- * door, because MatchZy-Enhanced's simulation mode seats every configured
- * entry or none and force-starts without anybody.
+ * `capabilities.mixedRoster` takes such a request. `pug` does since PRD-04
+ * T2b, on our fork of MatchZy-Enhanced: there the stand-in comes in warmup
+ * rather than live, because the ready gate is waiting for it
+ * ({@link GATE_HOLD_MS}).
  */
 const HUMANS = Number(flags.get('humans') ?? 0)
 if (!Number.isInteger(HUMANS) || HUMANS < 0) die('--humans is a whole number')
@@ -417,6 +423,32 @@ const STAND_IN = flags.get('stand-in') === 'true'
 if (STAND_IN && HUMANS === 0) die('--stand-in stands in for a person: pass --humans')
 /** How long after going live the stand-in is added: past the puppeteer's own seating, so the arrival is unmistakably not one it asked for. */
 const STAND_IN_AFTER_MS = 15_000
+/**
+ * **`--hold`: a person's seat under MatchZy, held and then given up on**
+ * (PRD-04 T2b). Our fork of MatchZy-Enhanced spawns a bot for every seat
+ * but the person's, readies them, and then waits at the ordinary ready gate:
+ * nothing marks a team ready on the person's behalf and the watchdog never
+ * starts without them. The lane has no CS2 client, and **nothing else can
+ * take the seat**: a plain bot fires no `player_connect_full` and MatchZy's
+ * team hook skips bots, so only the simulation's own mapping ever puts a bot
+ * into the players the gate counts (measured on the dev node, 2026-09-23: a
+ * `bot_add_t` stand-in connected and the T side stayed at 4 of 5 for the rest
+ * of the run). So the row proves the hold, and a client's answer to a
+ * no-show, `cancel`; the arrival is a person's to prove
+ * (`ralph/OPEN-POINTS.md`).
+ */
+const HOLD = flags.get('hold') === 'true'
+if (HOLD && HUMANS === 0) die('--hold holds a seat for a person: pass --humans')
+/**
+ * **How long a `matchzy` room of ready puppets is held for the person**
+ * before the run calls it off. Our fork's warmup watchdog reconciles 60 real
+ * seconds after simulation mode starts and every 65 s after, and upstream
+ * force-starts on its second pass, about two minutes in, whoever is missing.
+ * Counted from the last puppet's `player_ready`, which is already some
+ * seconds past that start, two and a half minutes is past the moment an
+ * unpatched fork would have gone live without the person.
+ */
+const GATE_HOLD_MS = 150_000
 /**
  * **How long the row keeps asking for its pause** (PRD-04 T4). It no longer
  * hopes: a pause MatchZy refuses now comes back `rejected` with a reason word,
@@ -1400,6 +1432,14 @@ async function run() {
     die(
       `${GAMEMODE} does not claim capabilities.mixedRoster — the door would refuse simulation.puppets on it`,
     )
+  // MatchZy's gate counts only the bodies its connect and team hooks saw, and
+  // both skip a plain bot, so a stand-in there is a bot nobody counts ({@link HOLD}).
+  if (STAND_IN && FLOW === 'matchzy')
+    die('--stand-in is for SDK flows: MatchZy never counts a plain bot at its gate — use --hold')
+  if (HOLD && FLOW !== 'matchzy')
+    die(
+      `--hold holds MatchZy's ready gate, and ${GAMEMODE} has none: an SDK flow goes live on its own clock`,
+    )
   // **A phone needs a mode that has one** (PRD-03 T8). The catalog is asked
   // rather than the checkout, and the verb too: the widget socket's `hello`
   // answers with the verbs the *served* manifest declares, and a tap for one
@@ -1890,6 +1930,19 @@ async function run() {
     }
     return false
   }
+  /** Who the durable log says did this, by SteamID64 (`player_ready`, `player_connected`). */
+  const saidBy = async type => {
+    const who = new Set()
+    for (let cursor = '0'; cursor !== null; ) {
+      const page = await api('GET', `/v1/matches/${matchId}/events?cursor=${cursor}&limit=200`)
+      for (const envelope of page.items)
+        if (envelope.payload.type === type && envelope.payload.player?.steamId64)
+          who.add(envelope.payload.player.steamId64)
+      if (page.items.length === 0) break
+      cursor = page.nextCursor
+    }
+    return who
+  }
   /** How many facts of this type the durable log holds right now (`--stand-in` reads the room before it adds to it). */
   const countSaid = async type => {
     let count = 0
@@ -2088,6 +2141,9 @@ async function run() {
   let dropped = null
   let droppedAt = 0
   let standIn = null
+  /** `--hold`: when the last puppet's `player_ready` was first seen, and what the room looked like when the run gave up on the person (PRD-04 T2b). */
+  let gateHeldSince = 0
+  let held = null
   /** What `--widget` did: three taps and everything that came back (T8). */
   let widget = null
   /** What `--walk` measured: the same bodies moved by the engine and by a teleport (T12). */
@@ -2315,6 +2371,37 @@ async function run() {
     // bots are in. A `mp_warmup_end` outside warmup does nothing, which is what
     // makes it safe to send unconditionally.
     if (now.state === 'ready') {
+      // **The person's seat under MatchZy is held at the gate** (PRD-04 T2b,
+      // {@link HOLD}). The row waits for every puppet's `player_ready`, holds
+      // the room past the moment an unpatched fork would have force-started
+      // it, reads what the log says went live meanwhile (nothing may have),
+      // and cancels: the next poll sees `cancelled` and the run ends there.
+      if (HOLD && held === null) {
+        const ready = await saidBy('player_ready')
+        const puppetsReady = PUPPET_STEAM_IDS.filter(steamId64 => ready.has(steamId64)).length
+        if (puppetsReady < PUPPET_STEAM_IDS.length) continue
+        if (gateHeldSince === 0) {
+          gateHeldSince = wall.now()
+          say(
+            `all ${puppetsReady} puppets ready; holding ${GATE_HOLD_MS / 1_000} s for the person, past the fork's watchdog`,
+          )
+          continue
+        }
+        if (wall.now() - gateHeldSince < GATE_HOLD_MS) continue
+        const atMs = wall.now()
+        held = {
+          at: new Date(atMs).toISOString(),
+          puppetsReady,
+          heldMs: atMs - gateHeldSince,
+          stateBefore: now.state,
+          liveBefore: await countSaid('going_live'),
+        }
+        say(
+          `held ${Math.round(held.heldMs / 1_000)} s with nobody in the person's seat and ${held.liveBefore} going_live; calling it off`,
+        )
+        await api('POST', `/v1/matches/${matchId}/cancel`)
+        continue
+      }
       // A mode whose flow is nobody's plugin starts itself and fills itself: the
       // loader set the request's `bot_quota` a beat after the mode's cfg (T22a),
       // so the bots are already standing, and the SDK's generic emitter ends the
@@ -2617,6 +2704,7 @@ async function run() {
     rewind,
     dropped,
     standIn,
+    held,
     humans: HUMAN_STEAM_IDS,
     widget,
     walked,
@@ -2764,6 +2852,8 @@ function write(result) {
           })),
           /** `--stand-in`: when the plain bots were added and how many announcements the log held before. */
           standIn: result.standIn ?? null,
+          /** `--hold`: the ready puppets, how long the person's seat was held, and what had gone live by then (T2b). */
+          held: result.held ?? null,
           timeScale: result.request.simulation.timeScale ?? 1,
           simulated: result.match.simulated === true,
           /** The story the puppets were asked to play (PRD-03 T11), or null for "just play it". */
@@ -3041,7 +3131,8 @@ try {
   } else {
     const result = await run()
     summary = write(result)
-    if (result.match.state !== 'ended') process.exitCode = 1
+    // A held room ends the way the run ended it, by `cancel` (T2b).
+    if (result.match.state !== (HOLD ? 'cancelled' : 'ended')) process.exitCode = 1
   }
 } catch (error) {
   process.stderr.write(

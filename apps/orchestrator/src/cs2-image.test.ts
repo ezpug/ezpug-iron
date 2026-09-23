@@ -246,11 +246,14 @@ describe('the CS2 server image', () => {
       return file
     }
 
-    it('is the upstream release binary, pinned, unwrapped and checked before the cfg is appended', () => {
+    it('is our fork’s release binary, pinned, unwrapped and checked before the cfg is appended', () => {
       expect(dockerfile).toContain(
         // biome-ignore lint/suspicious/noTemplateCurlyInString: the Dockerfile's own ARG expansion
-        'https://github.com/sivert-io/MatchZy-Enhanced/releases/download/v${MATCHZY_VERSION}/MatchZy-${MATCHZY_VERSION}.zip',
+        'https://github.com/ezpug/MatchZy-Enhanced/releases/download/v${MATCHZY_VERSION}/MatchZy-${MATCHZY_VERSION}.zip',
       )
+      // PRD-04 T2b: the patch series is in the binary, so upstream's is never the one fetched.
+      expect(dockerfile).toMatch(/^ARG MATCHZY_VERSION=\S+-ezpug\.\d+$/m)
+      expect(dockerfile).not.toContain('sivert-io/MatchZy-Enhanced/releases')
       expect(dockerfile).not.toContain('shobhit-pathak/MatchZy/releases')
       expect(dockerfile).toContain(
         'COPY docker/cs2/cfg/MatchZy/ezpug.cfg docker/cs2/matchzy-cfg-check.sh ./',

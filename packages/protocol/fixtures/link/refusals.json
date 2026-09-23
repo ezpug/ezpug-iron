@@ -131,7 +131,7 @@
             "backups": true,
             "scoreboardRating": true,
             "simulation": true,
-            "mixedRoster": false
+            "mixedRoster": true
           },
           "commands": [],
           "sdkVersion": "0.1.0"

@@ -1154,6 +1154,89 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
           `${allOrNone.code} ${JSON.stringify(allOrNone.details)}`,
         )
       }
+      // **A mixed roster under MatchZy waits for the person** (PRD-04 T2b):
+      // `pug` claims `mixedRoster` since our fork of MatchZy-Enhanced leaves a
+      // seat to a person, and its ready gate holds warmup open until that
+      // person is on the server. Nobody is at the keyboard here, so the match
+      // must reach `ready`, announce every puppet and never the person, and
+      // never go live; the client then cancels it, as a platform would at
+      // its join deadline.
+      const gateMode = catalog.gamemodes.find(
+        mode => mode.flow === 'matchzy' && mode.capabilities.mixedRoster,
+      )
+      if (gateMode === undefined || firstEntry === undefined) {
+        ctx.check('no matchzy mode in the catalog seats a mixed roster', true, '')
+      } else {
+        const puppets = [...restOfTeamA, ...rostered.teamB.players].map(player => player.steamId64)
+        const held = await puppeteer.matches.create({
+          body: ctx.request({
+            clientMatchId: 'conformance-simulation-switch-held',
+            gamemode: gateMode.id,
+            simulation: { puppets },
+            sim: { timeScale: PLAY_OUT_TIME_SCALE },
+          }),
+        })
+        ctx.require(`${gateMode.id} takes a mixed roster`, UUID.test(held.id), held.id)
+        const heldParams = { matchId: held.id }
+        // Read and called off in the poll that sees the last puppet arrive: a
+        // fake clock runs on to the match's TTL between polls, and a held
+        // warmup is only held for as long as somebody is waiting on it.
+        // The log is read on from where the last poll left it, never again
+        // from the top: one page a poll stays inside the key's rate limit.
+        const items: WebhookEnvelope[] = []
+        let heldCursor = '0'
+        const seen = await ctx.waitFor('every puppet to arrive', async () => {
+          for (let guard = 0; guard < 1_000; guard += 1) {
+            const page = await target.client.matches.events({
+              params: heldParams,
+              query: { cursor: heldCursor, limit: 200 },
+            })
+            items.push(...page.items)
+            const last = page.items.at(-1)
+            if (last === undefined) break
+            heldCursor = String(last.seq)
+            if (page.nextCursor === null) break
+          }
+          const arrived = new Set(
+            items.flatMap(envelope =>
+              envelope.payload.type === 'player_connected'
+                ? [envelope.payload.player.steamId64]
+                : [],
+            ),
+          )
+          if (!puppets.every(steamId64 => arrived.has(steamId64))) return null
+          const waiting = await target.client.matches.get({ params: heldParams })
+          const cancelled =
+            waiting.state === 'ready'
+              ? await puppeteer.matches.cancel({ params: heldParams })
+              : null
+          return { items, waiting, cancelled }
+        })
+        await ctx.settle()
+        ctx.check(
+          'with every puppet there and the person not, the match waits in ready',
+          seen.waiting.state === 'ready',
+          terminal(seen.waiting),
+        )
+        ctx.check(
+          'the person was never announced',
+          !seen.items.some(
+            envelope =>
+              envelope.payload.type === 'player_connected' &&
+              envelope.payload.player.steamId64 === firstEntry.steamId64,
+          ),
+        )
+        ctx.check(
+          'nothing went live without them',
+          !seen.items.some(envelope => envelope.payload.type === 'going_live'),
+        )
+        ctx.check(
+          'the client can still call it off',
+          seen.cancelled?.state === 'cancelled',
+          seen.cancelled?.state ?? 'not asked',
+        )
+      }
+
       // The three SDK-seated modes claim `mixedRoster`; the flow plays the
       // config-only one because its roster is the suite's own two teams. One
       // seat is left to a person, and nobody is at the keyboard: the seat

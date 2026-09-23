@@ -6,6 +6,30 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.22.0 — 2026-09-23
+
+**`pug` seats a mixed roster** (PRD-04 T2b, for the platform's PRD-11 T23 — the owner as
+the tenth player on the 5v5 queue). No schema moved. The `pug` manifest now claims
+**`capabilities.mixedRoster: true`**, so the door takes a `simulation.puppets` that names
+only some of a `pug`'s roster, where 0.19.0 refused it `validation_failed`.
+
+- **What a real server does with it.** The CS2 image runs our own fork of MatchZy-Enhanced
+  (`ezpug/MatchZy-Enhanced` `1.4.32-ezpug.1`). The orchestrator writes a seat left to a
+  person into the match file as `{ "name", "simulated": false }`. The fork spawns no bot
+  for that seat. It readies the bots, and then holds the warmup until the person is on
+  their side and ready, through the ordinary gate (auto-ready when the request's
+  `rules.warmup.autoReady` is on). The warmup watchdog never starts such a match. A client
+  that gives up on the person does what it does for any no-show: its join deadline, or
+  `cancel`. The hold is measured on the dev node. A person taking the seat is upstream's
+  ordinary path for a human and has not been seen yet, because no bot can stand in for one
+  at MatchZy's gate. The platform's PRD-11 T23 is the first such run.
+- **On the `sim` provider and the fake** nothing changed: a person's chair stays empty and
+  a `matchzy` match is held at the gate until the client calls it off.
+- **Conformance.** `simulation-switch` no longer finds a mode that seats every seat or
+  none, so that refusal is not exercised against the catalog (the rule is unchanged and
+  unit-tested). It gains a `pug` of nine puppets and one person's seat, which must reach
+  `ready`, announce every puppet and never the person, never go live, and be cancelled.
+
 ## 0.21.0 — 2026-09-22
 
 **`restore` rewinds a live match** (PRD-04 T8, for the platform's PRD-11 T3 — `restore` in

@@ -577,6 +577,35 @@ describe('the simulation switch', () => {
     expect(simulated.min_players_to_ready).toBe(real.min_players_to_ready)
   })
 
+  /**
+   * **A seat left to a person** (PRD-04 T2b): our fork of MatchZy-Enhanced
+   * reads `{ name, simulated: false }` beside the plain name
+   * (`src/SimulationSeats.cs`), spawns no bot for such a seat and lets the
+   * ordinary ready gate wait for the person.
+   */
+  it('marks the seats simulation.puppets leaves to people, and nobody else’s', () => {
+    const everyoneBut = (steamId64: string) =>
+      [...TEAM_A, ...TEAM_B].map(p => p.steamId64).filter(id => id !== steamId64)
+    const file = buildMatchZyConfig(puppets({ puppets: everyoneBut('76561198070000113') }))
+    expect(file.team2.players['76561198070000113']).toEqual({ name: 'zwiebel', simulated: false })
+    const others = Object.entries({ ...file.team1.players, ...file.team2.players }).filter(
+      ([id]) => id !== '76561198070000113',
+    )
+    expect(others).toHaveLength(9)
+    for (const [, entry] of others) expect(typeof entry).toBe('string')
+    // The gate is the roster's: the person's seat still counts towards it.
+    expect(file.players_per_team).toBe(buildMatchZyConfig(pugBo1()).players_per_team)
+    expect(matchZyValidationError(file)).toBe('')
+  })
+
+  it('writes an all-puppet roster exactly as a real one, names and all', () => {
+    const all = [...TEAM_A, ...TEAM_B].map(p => p.steamId64)
+    const named = buildMatchZyConfig(puppets({ puppets: all }))
+    const real = buildMatchZyConfig(pugBo1())
+    expect(named.team1).toEqual(real.team1)
+    expect(named.team2).toEqual(real.team2)
+  })
+
   it('never says simulation to Get5, which has no such mode', () => {
     const file = buildGet5Config({
       ...csgoBo1(),

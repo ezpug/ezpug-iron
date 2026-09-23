@@ -79,8 +79,8 @@ ARG METAMOD_VERSION=2.0.0-git1411
 ARG METAMOD_SHA256=e3d4c3d457a1c86a5079e8bd8248a4a00361c7d0a3dce7c7e0c4c45458096649
 ARG COUNTER_STRIKE_SHARP_VERSION=1.0.373
 ARG COUNTER_STRIKE_SHARP_SHA256=2b9b64069c06c78bbb1ad92d59f165b32c107845c18eb7ca6e5c808a26fb6906
-ARG MATCHZY_VERSION=1.4.32
-ARG MATCHZY_SHA256=97c1f1d06d366f739df2030bd4c74f8ea47a184372183eb87071d39594eb4eaa
+ARG MATCHZY_VERSION=1.4.32-ezpug.1
+ARG MATCHZY_SHA256=508199c0e8fd8e0cbc7be34f448eacdfaf6c79eee1933003818d4545eed2a717
 ARG RETAKES_ALLOCATOR_VERSION=3.2.5
 ARG RETAKES_ALLOCATOR_SHA256=68e6e8ecfe999e7a09898b17bc33250efb0aa47ff35fb82e4040e9fa871ef24d
 
@@ -125,11 +125,14 @@ RUN curl -fsSL -o css.zip \
 # the stall, simulation mode, the ready events) — into `plugins/disabled/`.
 # CounterStrikeSharp auto-loads every folder directly under `plugins/` and skips
 # `disabled/`, which is exactly the door the core plugin's loader opens for the
-# gamemode that names it (decision 16). The release binary, never a build of
-# ours: one maintainer ships several releases a day, so the sha is the point.
+# gamemode that names it (decision 16). **Our fork of it** (PRD-04 T2b,
+# decision 19 as amended again): `ezpug/MatchZy-Enhanced`, an upstream release
+# tag plus the `ezpug:` patch series (`EZPUG.md` there; a simulated match can
+# leave a seat to a person), released as a zip in upstream's own layout by the
+# fork's workflow and pinned here by its sha, as upstream's binary was.
 # Its `cfg/MatchZy/` set rides along; the plugin ships its own dependencies and
-# they stay where upstream put them, because a stock vendor is a stock vendor.
-# The zip wraps everything in `MatchZy-<version>/`, which stock's never did.
+# they stay where upstream put them. The zip wraps everything in
+# `MatchZy-<version>/`, which stock's never did.
 #
 # The one thing of ours in there is the end of `config.cfg`: the fork reaches
 # out by itself (a Steam update check that is on by default, a heartbeat, a
@@ -137,7 +140,7 @@ RUN curl -fsSL -o css.zip \
 # off, and `matchzy-cfg-check.sh` fails the build over the file as it ships.
 COPY docker/cs2/cfg/MatchZy/ezpug.cfg docker/cs2/matchzy-cfg-check.sh ./
 RUN curl -fsSL -o matchzy.zip \
-      "https://github.com/sivert-io/MatchZy-Enhanced/releases/download/v${MATCHZY_VERSION}/MatchZy-${MATCHZY_VERSION}.zip" \
+      "https://github.com/ezpug/MatchZy-Enhanced/releases/download/v${MATCHZY_VERSION}/MatchZy-${MATCHZY_VERSION}.zip" \
     && echo "${MATCHZY_SHA256}  matchzy.zip" | sha256sum -c - \
     && unzip -q -o matchzy.zip -d matchzy \
     && mkdir -p /out/addons/counterstrikesharp/plugins/disabled \

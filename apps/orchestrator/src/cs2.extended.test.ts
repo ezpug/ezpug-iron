@@ -279,6 +279,14 @@ type Summary = {
     humans?: number
     people?: { steamId64: string; announced: boolean }[]
     standIn?: { at: string; status: string | null; connectedBefore: number } | null
+    /** `--hold` (PRD-04 T2b): the ready puppets, how long the person's seat was held, and what had gone live by then. */
+    held?: {
+      at: string
+      puppetsReady: number
+      heldMs: number
+      stateBefore: string
+      liveBefore: number
+    } | null
     timeScale: number
     simulated: boolean
     scenario?: string | null
@@ -345,6 +353,15 @@ type LaneCase = {
    * filled cannot pass as this one.
    */
   empty?: true
+  /**
+   * **A match held for a person and called off** (PRD-04 T2b, `--hold`): the
+   * puppets ready up, the warmup waits for the one seat left to a person, and
+   * the run cancels it the way a client gives up on a no-show. It never goes
+   * live, so it ends `cancelled` with no round and no `match.ended`.
+   * Declared, like {@link empty}, so a row that stopped going live cannot
+   * pass as this one.
+   */
+  held?: true
   /**
    * **A match that is one round nobody wins** (PRD-03 T9). A free-for-all's
    * single round outlasts the match on purpose — the mode's `length` ends it
@@ -763,9 +780,8 @@ const CASES: LaneCase[] = [
     // — a `bot_add` over RCON, the one command this row types and declares —
     // is furniture, not the person. `retakes` because it is the cheapest
     // mode that claims `mixedRoster` and plays a whole match out in minutes;
-    // the ready gate a `pug` would hold for the tenth is exactly what this
-    // row cannot show, because the fork seats every seat or none and the
-    // door refuses a partial list to it (`docs/match-api.md`).
+    // the ready gate a `pug` holds for the tenth is what this row does not
+    // show, and `mixed-pug` below does.
     id: 'mixed',
     what: 'seats two of three retakes puppets, leaves the third chair to a person, and never casts a bot into it',
     puppets: 3,
@@ -796,6 +812,40 @@ const CASES: LaneCase[] = [
         'somebody besides the two puppets was announced',
       ).toBe(2)
       expect(summary.length?.winner, 'a one-team mode named a winning team').toBeNull()
+    },
+  },
+  {
+    // **Nine puppets ready up, and the room waits for the tenth** (PRD-04
+    // T2b). A `pug` of ten with the last seat left to a person, on our fork of
+    // MatchZy-Enhanced: it spawns nine bots, readies them, and then holds the
+    // warmup for the person — nothing readies a team on their behalf and the
+    // watchdog never starts without them. The row waits for all nine
+    // `player_ready`, holds the room two and a half minutes (past the point
+    // where upstream's watchdog force-starts), and cancels, as a client does
+    // for a no-show. **Nobody can take the seat on this box**: the lane has no
+    // CS2 client, and a plain `bot_add` is never counted by MatchZy's gate (no
+    // `player_connect_full` for a bot, and its team hook skips bots; measured
+    // on the dev node, the T side stayed 4 of 5 after one arrived). So the
+    // arrival is a person's to prove (`ralph/OPEN-POINTS.md`), and this row
+    // types nothing at the match.
+    id: 'mixed-pug',
+    what: 'readies nine pug puppets, holds the warmup for the tenth seat past the watchdog, and is called off',
+    puppets: 10,
+    humans: 1,
+    held: true,
+    args: ['--humans', '1', '--hold', '--no-demo'],
+    facts: summary => {
+      const held = summary.simulation?.held
+      expect(held?.puppetsReady, 'not every puppet was ready before the hold').toBe(9)
+      expect(
+        held?.heldMs ?? 0,
+        'the room was not held past the fork’s watchdog',
+      ).toBeGreaterThanOrEqual(150_000)
+      expect(held?.stateBefore, 'the room was not waiting at the gate').toBe('ready')
+      expect(held?.liveBefore, 'the match went live with nobody in the person’s seat').toBe(0)
+      // The nine puppets are announced, and nobody else.
+      expect(summary.payloads?.player_connected, 'somebody besides the nine was announced').toBe(9)
+      expect(summary.payloads?.player_ready, 'a ready besides the nine puppets’').toBe(9)
     },
   },
   {
@@ -1200,27 +1250,14 @@ function play(lane: LaneCase): Summary {
   // live with a zero here went live because players readied.
   expect(summary.commands?.rcon, 'the run took an RCON shortcut').toBe(lane.rcon ?? 0)
 
-  // The match played itself out: MatchZy said so and the machine agreed.
-  expect(summary.finalState).toBe('ended')
-  expect(summary.payloads?.going_live, 'the match never went live').toBe(1)
-  if (lane.roundless) {
-    expect(summary.payloads?.round_start, 'the one round never started').toBeGreaterThanOrEqual(1)
-    expect(rounds, 'a round ended in a match whose length outlasts its round').toBe(0)
+  if (lane.held) {
+    // **Held at the gate and called off** (PRD-04 T2b): nothing went live,
+    // nothing was played, and the client's `cancel` closed it.
+    expect(summary.finalState).toBe('cancelled')
+    expect(summary.payloads?.going_live ?? 0, 'a held match went live').toBe(0)
+    expect(rounds, 'a round ended in warmup').toBe(0)
   } else {
-    expect(rounds, 'no round was played').toBeGreaterThanOrEqual(1)
-  }
-  expect(summary.payloads?.['match.ended'], 'no match.ended reached the client').toBe(1)
-  // `series_end` only when MatchZy finished the series itself. A drawn map
-  // goes to overtime, and CS2 works its overtime clinch out from the
-  // `mp_maxrounds 24` MatchZy's own `live.cfg` sets rather than the four this
-  // request asked for, so a bots match can wander; the script ends one that
-  // does (`--max-live-minutes`) and says it had to. Everything above is true
-  // either way, and that is what this lane is for.
-  if (summary.forcedEnd) {
-    expect(summary.endedReason?.kind, 'a forced end must say so').toBe('force_ended')
-  } else {
-    expect(summary.payloads?.series_end, 'the series never ended').toBe(1)
-    expect(summary.payloads?.map_end, 'the map never ended').toBe(1)
+    playedOut(lane, summary)
   }
 
   // A ledger row was opened and it is closed. This is the P1 the working
@@ -1250,11 +1287,12 @@ function play(lane: LaneCase): Summary {
     // facts the lane counts on a room of puppets are therefore absent.
     expect(summary.payloads?.player_connected ?? 0, 'somebody was seated after all').toBe(0)
     expect(summary.payloads?.player_death ?? 0, 'somebody died on an empty server').toBe(0)
-  } else {
+  } else if (!lane.held) {
     // **A death or a bomb**, because both come only from the core plugin and
     // over the link. A death alone is not guaranteed. In the T18 sweep, the
     // `drop` row's two bots played three rounds, two of them ending on the
-    // bomb, and never met.
+    // bomb, and never met. (A held row never leaves warmup, so it has
+    // neither, and its own facts say what the link carried.)
     const linkFacts = ['player_death', 'bomb_planted', 'bomb_defused', 'bomb_exploded']
       .map(type => summary.payloads?.[type] ?? 0)
       .reduce((sum, count) => sum + count, 0)
@@ -1280,6 +1318,33 @@ function play(lane: LaneCase): Summary {
     overtime: rounds > 4,
   })
   return summary
+}
+
+/** Everything true of a row that went live and played itself out: every row but a {@link LaneCase.held} one. */
+function playedOut(lane: LaneCase, summary: Summary): void {
+  const rounds = summary.payloads?.round_end ?? 0
+  // The match played itself out: MatchZy said so and the machine agreed.
+  expect(summary.finalState).toBe('ended')
+  expect(summary.payloads?.going_live, 'the match never went live').toBe(1)
+  if (lane.roundless) {
+    expect(summary.payloads?.round_start, 'the one round never started').toBeGreaterThanOrEqual(1)
+    expect(rounds, 'a round ended in a match whose length outlasts its round').toBe(0)
+  } else {
+    expect(rounds, 'no round was played').toBeGreaterThanOrEqual(1)
+  }
+  expect(summary.payloads?.['match.ended'], 'no match.ended reached the client').toBe(1)
+  // `series_end` only when MatchZy finished the series itself. A drawn map
+  // goes to overtime, and CS2 works its overtime clinch out from the
+  // `mp_maxrounds 24` MatchZy's own `live.cfg` sets rather than the four this
+  // request asked for, so a bots match can wander; the script ends one that
+  // does (`--max-live-minutes`) and says it had to. Everything above is true
+  // either way, and that is what this lane is for.
+  if (summary.forcedEnd) {
+    expect(summary.endedReason?.kind, 'a forced end must say so').toBe('force_ended')
+  } else {
+    expect(summary.payloads?.series_end, 'the series never ended').toBe(1)
+    expect(summary.payloads?.map_end, 'the map never ended').toBe(1)
+  }
 }
 
 /**
@@ -1365,7 +1430,7 @@ describe('the iron-match script', () => {
    * be a lane case nobody missed.** Cheap, and it runs in `pnpm verify` where
    * the lane itself never does.
    */
-  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's mixed roster and T8's rewind", () => {
+  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's and T2b's mixed rosters and T8's rewind", () => {
     const ids = CASES.map(lane => lane.id)
     expect(ids).toEqual([
       'pug-1v1',
@@ -1385,6 +1450,9 @@ describe('the iron-match script', () => {
       'retakes',
       // PRD-04 T2's: two puppets and a person's empty chair, on the same mode.
       'mixed',
+      // PRD-04 T2b's: nine pug puppets on our MatchZy-Enhanced fork, a warmup
+      // held for the tenth past the watchdog, and called off.
+      'mixed-pug',
       // T6's matrix is the ten above `retakes`. `widget` is **T8**'s:
       // `powerup-dm`, the SDK's own flow and the SDK's own puppets, tapped
       // from a phone.
@@ -1405,6 +1473,8 @@ describe('the iron-match script', () => {
     // declared**: `mixed` (PRD-04 T2) leaves a chair to a person, and there
     // is no door on this box a person can come through — no CS2 client, no
     // Steam — so its stand-in is one `bot_add` the row types and says so.
+    // `mixed-pug` (T2b) types nothing: MatchZy's gate would never count such
+    // a bot, so that row gives up on the person instead.
     expect(CASES.filter(lane => !lane.spike && (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual([
       'mixed',
     ])

@@ -213,6 +213,55 @@ exists for Dathost (T17); without one CS2 accepts LAN connections, which is all 
 a venue node ever need. Bots are allowed — `bot_quota` is a cfg and a request's cvar, not an
 image decision.
 
+### MatchZy-Enhanced, our fork
+
+The image's MatchZy is **our fork of MatchZy-Enhanced**,
+[`ezpug/MatchZy-Enhanced`](https://github.com/ezpug/MatchZy-Enhanced) (PRD-04 T2b,
+decision 19 as amended). It is a GitHub fork of upstream (`Auto-Tournament/cs2-plugin`,
+formerly `sivert-io/MatchZy-Enhanced`, MIT). Its default branch, `ezpug`, is one upstream
+release tag plus a short series of commits titled `ezpug: …`, and nothing else. `EZPUG.md`
+in the fork says what each commit changes. In short, a simulated match can leave a seat to
+a person (`"players": { "<steamid>": { "name": "tk", "simulated": false } }`). No bot is
+spawned for that seat, the ordinary ready gate waits for the person, and the warmup
+watchdog never starts the match without them. The last commit of the series sets
+`ModuleVersion` to `<upstream>-ezpug.<n>` and carries the release workflow.
+
+**Releasing it.** Push a tag `v<upstream>-ezpug.<n>` on the `ezpug` branch. The fork's
+`.github/workflows/ezpug-release.yml` runs its xUnit suite, checks that `ModuleVersion`
+says the tag's version, builds the zip in upstream's layout (`MatchZy-<version>/addons/…`,
+`MatchZy-<version>/cfg/MatchZy/…`) and publishes a GitHub release with the zip and its
+`.sha256`. Then pin it here: `MATCHZY_VERSION` and `MATCHZY_SHA256` in
+`docker/cs2/Dockerfile`, the MatchZy-Enhanced row of `docs/pins.md` (version, tag, commit),
+`pnpm cs2:build`, the lane (`EZPUG_CS2_TESTS=required`, at least the `mixed-pug` and
+`pause` rows), `pnpm dathost:image` and `./scripts/deploy.sh`. Upstream's own `Release`
+and stale-issue workflows are disabled on the fork.
+
+**Rebasing onto a new upstream release.** Work in the reference clone, whose `ezpug`
+remote is the fork:
+
+```sh
+cd references/MatchZy-Enhanced
+git fetch origin --tags                  # upstream
+git fetch ezpug
+git checkout ezpug && git reset --hard ezpug/ezpug
+git rebase --onto v<new> v<old> ezpug    # replays only the ezpug: commits
+# conflicts: SimulationMode.cs, ReadySystem.cs and ReadyEventHelpers.cs are where
+# upstream moves; keep upstream's change and re-apply the guard it now lacks
+sed -i 's/ModuleVersion => ".*"/ModuleVersion => "<new>-ezpug.1"/' src/MatchZy.cs
+git commit --amend -a --no-edit          # the version lives in the release commit
+dotnet test tests/MatchZy.Tests -c Release
+dotnet build -c Release                  # the plugin itself compiles
+git push --force-with-lease ezpug ezpug
+git tag -a v<new>-ezpug.1 -m "MatchZy-Enhanced <new> + the ezpug patch series"
+git push ezpug v<new>-ezpug.1
+```
+
+Then pin it as above. Before the lane, read upstream's changes to `SimulationMode.cs`
+for the three lines `SimulationLog` transcribes (decision 19, PRD-03 T7a). A test renders
+their format strings out of this clone, so a reworded line fails `pnpm verify`. Re-read
+the upstream diff for new code that sets `teamReadyOverride` or calls `HandleMatchStart`
+from simulation mode, too: each one needs the same `SimulationHasHumans()` guard.
+
 ## Releasing: CI and the tags
 
 Every push and every pull request runs `pnpm verify` in GitHub Actions
@@ -1563,18 +1612,30 @@ so this row asserts one `player_ready` per puppet and leaves the whole gate to t
 nine rows. A vendor property recorded rather than filed.
 
 **`--humans <n>`** is a mixed roster (PRD-04 T2): the last `n` rostered entries are people
-rather than puppets, so the request's `simulation.puppets` names the rest and the person's
-chair stays empty for the whole run — the lane has no CS2 client and a simulated server has
-nobody at the keyboard. What the row proves is the negative, which is the whole contract:
-the puppeteer seats exactly who is named, the person's SteamID is never announced, and a body
-that turns up later is not cast as them. **`--stand-in`** is that body: once the match is
-live, one `bot_add` per person over RCON — the one command the `mixed` row types, declared
-as `rcon: 1` — and the summary's `simulation.people[].announced` must stay `false` after it.
-Only a mode whose manifest claims `capabilities.mixedRoster` takes the request; `pug` refuses
-it at the door, because MatchZy-Enhanced's simulation mode seats every configured entry or
-none, kicks a bot it did not map outside that mode, and force-starts from its warmup watchdog
-whether or not anybody came — so the "ready up to nine and go live when the tenth arrives"
-run waits on the fork, and the `mixed` row plays `retakes`.
+rather than puppets, so the request's `simulation.puppets` names the rest. The lane has no
+CS2 client and a simulated server has nobody at the keyboard, so the person's chair stays
+empty. What the row proves is the contract: the puppets are seated exactly as named, the
+person's SteamID is never announced, and nothing is cast as them. Only a mode whose
+manifest claims `capabilities.mixedRoster` takes the request. What the row does with the
+empty chair depends on the flow:
+
+- **An SDK flow** (`mixed`, on `retakes`) goes live on its own clock with the chair empty.
+  **`--stand-in`** adds one `bot_add` per person over RCON fifteen seconds into the live
+  match, as furniture. It is the one command the row types, declared as `rcon: 1`, and the
+  summary's `simulation.people[].announced` must stay `false` after it.
+- **`matchzy`** (`mixed-pug`, PRD-04 T2b) waits for the person at its ready gate, on our fork
+  of MatchZy-Enhanced ("MatchZy-Enhanced, our fork" above). **`--hold`** waits for every
+  puppet's `player_ready`, holds the room for two and a half minutes (`GATE_HOLD_MS`), past
+  the point where upstream's watchdog would have force-started it, and then cancels the
+  match, as a client does for a no-show. The run ends `cancelled`, and that is its success.
+  The summary's `simulation.held` records `puppetsReady`, `heldMs`, `stateBefore` (`ready`)
+  and `liveBefore` (the `going_live` count when the run gave up, which must be `0`). The row
+  types nothing. **Nothing on this box can take the seat.** A plain bot fires no
+  `player_connect_full`, and MatchZy's team hook skips bots, so only the simulation's own
+  mapping ever puts a bot among the players the gate counts. Measured on the dev node on
+  2026-09-23: a `bot_add_t` stand-in connected, and the T side stayed at 4 of 5 through
+  every watchdog pass. So `--stand-in` is refused under `matchzy`, and a person going live
+  in the tenth seat is proven by a person (`ralph/OPEN-POINTS.md`).
 
 **`--widget`** is a puppet with a phone (PRD-03 T8), and it is the one flag that does not
 speak to the match over `/v1/matches/:id/commands` at all. It mints a player token for the

@@ -222,6 +222,28 @@ it here.
     a red test rather than a silent room of anonymous bots, and `matchzy_debug_console` is an
     invariant of the image with a line in the cfg check. A SteamID the request never rostered
     is refused rather than invented.*
+    *Amended by PRD-04 T2b, 2026-09-23 (owner decision the same day): **we carry our own
+    fork after all.** Seating a person beside puppets in a `pug` (decision 28) cannot be done
+    without a patch: upstream's simulation mode spawns a bot for every configured player,
+    readies both teams on everybody's behalf and force-starts from its watchdog. So the
+    escape hatch this decision kept open is taken, and taken narrowly.
+    [`ezpug/MatchZy-Enhanced`](https://github.com/ezpug/MatchZy-Enhanced) is a fork of
+    upstream (now `Auto-Tournament/cs2-plugin`): one upstream release tag and a short series
+    of `ezpug:` commits on its `ezpug` branch, and nothing else. The series is the smallest
+    patch that does the job. A roster entry may say `{ "name", "simulated": false }`, and
+    such a seat gets no bot. With such a seat nothing marks a team ready on anybody's behalf,
+    so the ordinary gate in `IsTeamReady` waits for the person's body. And the watchdog never
+    force-starts such a match. The fork's own workflow releases a zip in upstream's layout
+    from a `v<upstream>-ezpug.<n>` tag, and the image pins it by sha256 as it pinned
+    upstream's binary. The rest still holds. It is the same binary for a test and for
+    production, simulation is still a per-match switch, and nothing unpinned reaches a
+    server. `docs/operations.md` ("MatchZy-Enhanced, our fork") says how the series is
+    rebased onto a new upstream release. Not chosen: a PR upstream first and a wait for it
+    (the maintainer's release pace is not ours, and the platform's PRD-11 T23 was waiting);
+    a copy of the source vendored into this repo like WeaponPaints (the fork is a binary
+    with its own tests and release, and a patch series on a tag is what makes a rebase
+    cheap). The series sits on a public branch of a public fork, so upstream can take it
+    whenever it likes. It has not been offered as a PR yet.*
 20. **Skins travel over the link, no exposed MySQL.** The platform owns loadouts; a match
     request's roster entries carry them; a **data-layer fork of cs2-WeaponPaints** takes
     the in-memory loadout the core plugin hands it instead of querying MySQL. No public
@@ -365,6 +387,25 @@ it here.
     "not a player in this game"); claiming the capability for `pug` because the schema
     parses (a contract field a server cannot honour is a lie, as decision 25 said of the
     same list).
+    *Amended by PRD-04 T2b, 2026-09-23: **`pug` claims it.** The owner chose a fork of our
+    own (decision 19 as amended). With the fork's patch series a `pug` seats a bot only for
+    the entries `simulation.puppets` names. The orchestrator writes the rest into MatchZy's
+    match file as `{ "name", "simulated": false }`. The fork holds the warmup until the
+    person's body is on their side and ready, and the watchdog never starts without them.
+    The lane proves the half a box without a CS2 client can (`mixed-pug`). Nine puppets
+    ready up, and the warmup holds through every watchdog pass, past the point where
+    upstream would have force-started. Then the row cancels it, as a client does for a
+    no-show. The other half, a person taking the tenth seat and the match going live, is
+    upstream's ordinary path for a human (connect, team, auto-ready, `IsTeamReady`), which
+    the series only stops skipping. Nothing on the lane can walk it: a plain bot is never
+    counted at MatchZy's gate, by the engine (no `player_connect_full`) and by the fork
+    (its team hook skips bots). So that half is the first thing a person proves, and the
+    platform's PRD-11 T23, the owner in the chair, is that person (`ralph/OPEN-POINTS.md`).
+    Not chosen: patching the fork to count a plain bot at the gate so that the lane could
+    stand one in (any `bot_quota` bot could then take a person's seat). On the simulator
+    the person's chair stays empty and a `matchzy` match is held at the gate, as before. Every catalog mode that seats puppets now seats a
+    mixed roster, so the refusal of a partial list stands in the contract for a mode that
+    cannot, and no mode we ship is one.*
 
 29. **A command's answer is the match software's, not the relay's.** (PRD-04 T4 and T8,
     2026-09-22/23; `OPEN-POINTS` §6.) `css_forcepause` ran, MatchZy returned early at

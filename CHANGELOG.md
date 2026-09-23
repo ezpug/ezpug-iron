@@ -24,20 +24,25 @@ there, not this file.
 **Mixed rosters** (`ralph/PRD-04-mixed-rosters.md`). This work is deployed on `gs.ezpug.com`
 from local builds, and the Dathost template carries its plugins. No `orchestrator@`,
 `node@`, `cs2@` or `plugins@` tag has been cut for it yet. The contract went out as
-`@ezpug/match-api` **0.19.0**, **0.20.0** and **0.21.0**, and the package's own changelog
-has every line.
+`@ezpug/match-api` **0.19.0**, **0.20.0**, **0.21.0** and **0.22.0**, and the package's own
+changelog has every line.
 
 - **The orchestrator**:
   - `simulation.puppets` names the roster entries that are puppets. A partial list to a
-    mode without `capabilities.mixedRoster` (`pug`) and a name the roster does not hold
-    are refused at the door. On the `sim` provider a person's chair stays empty
+    mode without `capabilities.mixedRoster` and a name the roster does not hold are
+    refused at the door. On the `sim` provider a person's chair stays empty
     (decision 28).
+  - `pug` claims `capabilities.mixedRoster` (PRD-04 T2b). The MatchZy match file marks a
+    seat left to a person `{ "name", "simulated": false }`.
   - `PATCH /v1/keys/:keyId/scopes` (admin, audited): a live key's scopes move by a route.
   - `restore` on a `live` match rewinds it on its own server to a round of the map being
     played. The point is resolved from the server's own backups, and the backups after
     it are forgotten once the restore is applied.
   - MatchZy-Enhanced's `backup_loaded` makes the door forget the map's last round start,
     so the rewound round's start is not dropped as a go-live repeat.
+- **The CS2 image and the Dathost template** run our own fork of MatchZy-Enhanced,
+  `ezpug/MatchZy-Enhanced` `1.4.32-ezpug.1`: upstream `v1.4.32` plus a patch series that
+  lets a simulated match leave a seat to a person (decision 19 as amended).
 - **The plugins** (and the CS2 image and the Dathost template, which carry them):
   - The SDK's puppeteer seats only the entries a request names, and never casts a later
     bot as a person. `retakes`, `powerup-dm` and `flying-scoutsman` claim

@@ -3,6 +3,7 @@ import {
   type GamemodeManifest,
   type MapPlan,
   type MatchRequest,
+  matchHumans,
   type Roster,
   WINGMAN_TEAM_SIZE,
 } from '@ezpug/match-api'
@@ -72,6 +73,24 @@ export interface PluginTeamConfig {
 }
 
 /**
+ * **A seat a person takes in a simulated match** (PRD-04 T2b): the entry
+ * form our fork of MatchZy-Enhanced reads beside the plain name
+ * (`src/SimulationSeats.cs` on `ezpug/MatchZy-Enhanced`). `simulated: false`
+ * is the one value that means anything: no bot is spawned for the seat, and
+ * the person connects and readies through the ordinary gate.
+ */
+export interface MatchZyHumanSeat {
+  name: string
+  simulated: false
+}
+
+/** A team as our MatchZy-Enhanced reads one: a name per SteamID, or a {@link MatchZyHumanSeat}. */
+export interface MatchZyTeamConfig {
+  name: string
+  players: Record<string, string | MatchZyHumanSeat>
+}
+
+/**
  * The MatchZy match file (`matchzy_loadmatch`). Field names and types are
  * MatchZy's — `references/MatchZy/MatchManagement.cs` (`ValidateMatchJsonStructure`,
  * `GetOptionalMatchValues`) is the parser this shape is written against.
@@ -93,6 +112,8 @@ export interface MatchZyMatchConfig {
    * (`references/MatchZy-Enhanced/src/SimulationMode.cs`). Present only when
    * the request asked — absent reads as `false` in `MatchConfig.cs`, and a
    * real match's file is byte for byte what it was before the field existed.
+   * A seat `simulation.puppets` leaves to a person is marked in the team's
+   * `players` map instead ({@link MatchZyHumanSeat}).
    */
   simulation?: true
   /** The engine's `host_timescale` for a simulated match, clamped by the fork to 0.1–10. */
@@ -100,8 +121,8 @@ export interface MatchZyMatchConfig {
   players_per_team: number
   min_players_to_ready: number
   min_spectators_to_ready: number
-  team1: PluginTeamConfig
-  team2: PluginTeamConfig
+  team1: MatchZyTeamConfig
+  team2: MatchZyTeamConfig
   spectators: { players: Record<string, string> }
   cvars: Record<string, string>
 }
@@ -329,9 +350,25 @@ function simulation(
   return { simulation: true, simulation_timescale: request.simulation.timeScale ?? 1 }
 }
 
+/**
+ * **The seats a simulated match leaves to people** (PRD-04 T2b): every
+ * roster entry `simulation.puppets` does not name is written as
+ * `{ name, simulated: false }`, and every other entry stays a plain name. A
+ * real match and an all-puppet one have no such entry, so their files are
+ * byte for byte what they were.
+ */
+function withHumanSeats(team: PluginTeamConfig, humans: ReadonlySet<string>): MatchZyTeamConfig {
+  if (humans.size === 0) return team
+  const players: MatchZyTeamConfig['players'] = {}
+  for (const [steamId64, name] of Object.entries(team.players))
+    players[steamId64] = humans.has(steamId64) ? { name, simulated: false } : name
+  return { name: team.name, players }
+}
+
 /** Build the CS2 (MatchZy) match file. */
 export function buildMatchZyConfig(input: MatchConfigInput): MatchZyMatchConfig {
   const shared = common(input)
+  const humans = new Set(matchHumans(input.request))
   return {
     matchid: matchzySerial(input.matchId),
     num_maps: shared.num_maps,
@@ -345,8 +382,8 @@ export function buildMatchZyConfig(input: MatchConfigInput): MatchZyMatchConfig 
     players_per_team: shared.players_per_team,
     min_players_to_ready: shared.min_players_to_ready,
     min_spectators_to_ready: shared.min_spectators_to_ready,
-    team1: shared.team1,
-    team2: shared.team2,
+    team1: withHumanSeats(shared.team1, humans),
+    team2: withHumanSeats(shared.team2, humans),
     spectators: shared.spectators,
     cvars: { ...shared.cvars, ...matchzyCvars(input) },
   }
