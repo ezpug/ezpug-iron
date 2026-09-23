@@ -21,6 +21,40 @@ there, not this file.
 
 ## Unreleased
 
+**Mixed rosters** (`ralph/PRD-04-mixed-rosters.md`). This work is deployed on `gs.ezpug.com`
+from local builds, and the Dathost template carries its plugins. No `orchestrator@`,
+`node@`, `cs2@` or `plugins@` tag has been cut for it yet. The contract went out as
+`@ezpug/match-api` **0.19.0**, **0.20.0** and **0.21.0**, and the package's own changelog
+has every line.
+
+- **The orchestrator**:
+  - `simulation.puppets` names the roster entries that are puppets. A partial list to a
+    mode without `capabilities.mixedRoster` (`pug`) and a name the roster does not hold
+    are refused at the door. On the `sim` provider a person's chair stays empty
+    (decision 28).
+  - `PATCH /v1/keys/:keyId/scopes` (admin, audited): a live key's scopes move by a route.
+  - `restore` on a `live` match rewinds it on its own server to a round of the map being
+    played. The point is resolved from the server's own backups, and the backups after
+    it are forgotten once the restore is applied.
+  - MatchZy-Enhanced's `backup_loaded` makes the door forget the map's last round start,
+    so the rewound round's start is not dropped as a go-live repeat.
+- **The plugins** (and the CS2 image and the Dathost template, which carry them):
+  - The SDK's puppeteer seats only the entries a request names, and never casts a later
+    bot as a person. `retakes`, `powerup-dm` and `flying-scoutsman` claim
+    `capabilities.mixedRoster`.
+  - `pause` and `unpause` are answered by the engine: `applied` once the gamerules turned
+    over, `invalid_state` with a reason word when MatchZy refused (decision 29).
+  - `restore` loads MatchZy's own backup and answers the same way, and refuses the gap
+    after a round up front (`round_over`).
+  - `GameThreadClock.Every` keeps its grid, and a stalled frame skips beats instead of
+    firing a burst (decision 30). The position stream is ten ticks a second.
+- **The terminal**: `ezpug-iron keys scopes <id> --add/--remove`.
+- **The box**:
+  - The CS2 lane lock queues its waiters: whoever asked first goes first (decision 31,
+    issue #1).
+  - The lane's `pause`, `radar`, `retakes`, `mixed` and `restore` rows assert what those
+    changes promise.
+
 **Puppets** (`ralph/PRD-03-puppets.md`). This work is deployed on `gs.ezpug.com` from local
 builds, but no `orchestrator@`, `node@`, `cs2@` or `plugins@` tag has been cut for it
 yet. The contract went out as `@ezpug/match-api` **0.11.1** to **0.18.5**, and the

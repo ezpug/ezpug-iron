@@ -13,7 +13,11 @@ pause MatchZy refused came back `applied`) became PRD-04 T4: the core plugin wat
 gamerules for a beat after `css_forcepause` and answers `invalid_state` with a reason
 word when nothing stood — `docs/match-api.md`, "A pause that says no". §4 (the stream's
 "every 100 ms" was every 108) became PRD-04 T5: `GameThreadClock.Every` re-arms from the
-due time and skips the beats a stalled frame swallowed — `docs/sdk.md`, "Timers".
+due time and skips the beats a stalled frame swallowed — `docs/sdk.md`, "Timers". §5 (the
+platform's lane released the CS2 lane before its server was gone) closed on the platform's
+side with its PRD-10 T10q (`f3613fb` in `/root/ezpug`): its lane now waits for its match's
+server to leave the fleet before it gives the lock back, as `docs/operations.md` ("The lane
+lock") says. The lane lock's fairness (issue #1) is decision 31.
 
 ## §3 EZ Rating on a human's scoreboard has never been seen
 
@@ -32,31 +36,6 @@ rated) and not the number; `docs/gamemodes.md` records the artefact.
 `POST /v1/matches/:id/commands` with a `profile`) push a rating, and look at the
 scoreboard, then read `ezpug_status`. If it says `0` for a human too, decision 21 is
 failing for every open-roster mode and it becomes a task.
-
-## §5 The platform's lane releases the CS2 lane before its server is gone
-
-**What happened.** The second `verify:extended` of PRD-03 T18's sweep (2026-09-21) went
-red on its first row, `pug-1v1`, with "a server is still running". The server was not
-ours. The platform's lane (`platform-cs2-lane-860ad73c`) held the lock from 12:18:34 and
-released it at 12:34:49. Its server `9fe2635d` (match `28250c0c`) stayed `running` on the
-dev node until 12:40:36 (the dev orchestrator's `servers` table). Our row took the lane
-two seconds after the release, played its whole match (12:34:51–12:38:05), and found the
-platform's server still on `GET /v1/fleet/servers` at the end
-(`.cache/iron-match/iron-match-2026-09-21T12-27-59-351Z/raw.json`). Its own ledger row
-was closed.
-
-**Why.** Our protocol page (`docs/operations.md`, "The lane lock") never said the lock has
-to outlive the server. It now says so: release only once the fleet lists no server for
-your match. The platform's `scripts/cs2-lane-lock.mjs` and its lane in
-`/root/ezpug/apps/api/src/cs2-lane.test.ts` implement the page. Judging by the timeline,
-the lane releases when its match ends.
-
-**What it needs.** The platform's half waits for its server to leave the fleet before it
-releases, and its PRD-10 names the task. Until then, either lane can fail its first row
-behind the other's release. Our lane's fleet-wide "no server running" assertion is the
-right check under an exclusive lock and stays as it is. Our side now also waits up to ten
-minutes for an empty fleet after taking the lock, so our lane no longer fails behind an
-early release. The platform's lane still can, behind anyone's.
 
 ## §7 A mixed roster under `pug` needs the fork to learn a per-seat switch
 
@@ -81,7 +60,7 @@ is renames, map commands and diagnostics — nothing in `SimulationMode.cs`):
 So every unpatched route is a fight between two plugins over one body, and CLAUDE.md
 pins the fork as upstream's binary, never patched.
 
-**What it needs.** An owner call: a PR upstream (Auto-Tournament/cs2-plugin, MIT; the
+**What it needs.** An owner call (decision 28 records why `pug` stays out until then): a PR upstream (Auto-Tournament/cs2-plugin, MIT; the
 maintainer ships several releases a day) adding a per-player `simulated` flag to the match
 file's `players` map — or the same field in a fork of ours, which decision 19 as amended
 chose *not* to carry. Either way the change is: skip the identity for a human in

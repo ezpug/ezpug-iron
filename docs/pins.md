@@ -135,11 +135,13 @@ only run `release.yml` into a registry nobody here can write to; the plugin zip 
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
 sha-256 in the notes.
 
-**What the platform pins today** (PRD-02 T40, read off `/root/ezpug` on 2026-09-08):
-`@ezpug/match-api` **`0.9.0`** in its `pnpm-workspace.yaml` catalog, and
-`ghcr.io/ezpug/ezpug-iron/orchestrator:dev` — a local build — for the copy its dev world
-runs in `sim` mode. Both are behind what this repo has released, and both are the
-platform's own commit to make: none of 0.10.0, 0.10.1, 0.11.0 or 0.11.1 moved a schema, a
+**What the platform pins today** (PRD-04 T10, read off `/root/ezpug` on 2026-09-23):
+`@ezpug/match-api` **`0.18.5`** in its `pnpm-workspace.yaml` catalog (its commit of
+2026-09-21), and `ghcr.io/ezpug/ezpug-iron/orchestrator:dev` — a local build — for the copy
+its dev world runs in `sim` mode. Both are behind what this repo has released (0.19.0,
+0.20.0 and 0.21.0, all additive), and both are the platform's own commit to make — its
+PRD-11 T22 moves the number. The history of how it got here, release by release (PRD-02
+T40 read `0.9.0` on 2026-09-08): none of 0.10.0, 0.10.1, 0.11.0 or 0.11.1 moved a schema, a
 route or a default — two added a hardware recording, one repaired a conformance flow, and
 0.11.1 wrote down what `warmup.minPlayersToReady` counts (PRD-03 T1) — so nothing over
 there breaks by standing still, and `packages/match-api/CHANGELOG.md` is what its author

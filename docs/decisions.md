@@ -340,6 +340,70 @@ it here.
     flow (two opinions about one mode); `teams: 1, teamSize: 5` (it would have halved the
     server's head count through `MaxPlayers`).
 
+28. **A mixed roster names its puppets, and a mode claims the capability only when a real
+    server seats it.** (PRD-04 T2, 2026-09-22; for the platform's PRD-11 T23, "the owner in
+    the chair".) Decision 25 filled every seat or none, so the owner could rehearse the
+    queue with ten puppets and could never be the tenth player. `simulation.puppets?:
+    SteamID64[]` names the roster entries that are puppets, and the rest of the roster are
+    people who come in through the mode's ordinary door. Unsaid means everybody, which is
+    what every request written before the field meant. A second manifest capability,
+    `capabilities.mixedRoster`, says which modes can seat such a room, and the door decides
+    it once for the fake and the orchestrator (`matchSimulationProblem`): a name the roster
+    does not hold, or a partial list to a mode without the capability, is
+    `validation_failed` on `simulation.puppets`. The three modes the SDK seats claim it,
+    because the puppeteer casts only the named entries and never casts a bot that turns up
+    later as the person. On the simulator the person's chair stays empty. The match is
+    simulated however many people play in it: `source.simulated` is on every fact, the
+    human's included, because the scope and the request decided what the match is, not who
+    turned up. **`pug` does not claim it.** MatchZy-Enhanced at the pin is a boolean switch.
+    It spawns one bot per configured player, kicks a bot it did not map outside simulation
+    mode, and force-starts from its own watchdog whether anybody came or not. Decision 19
+    never patches it, so the half the platform wants most (the 5v5 queue) waits on an
+    owner call (`OPEN-POINTS` §7, PRD-04 T2b). Not chosen: a `'all' | steamId[]` union (the
+    C# codegen has no anonymous unions, and an absent field says "all" without a second
+    spelling); seating our own puppets beside a plain MatchZy match (the fork kicks them as
+    "not a player in this game"); claiming the capability for `pug` because the schema
+    parses (a contract field a server cannot honour is a lie, as decision 25 said of the
+    same list).
+
+29. **A command's answer is the match software's, not the relay's.** (PRD-04 T4 and T8,
+    2026-09-22/23; `OPEN-POINTS` §6.) `css_forcepause` ran, MatchZy returned early at
+    halftime and said so only in chat, and the core plugin answered `applied` because the
+    command had run. The platform's admin console builds its receipts on that answer, so
+    it showed a match as paused when it never was. Now `applied` means the match software
+    did it. The plugin relays the verb, holds the answer (`CommandAnswer.Deferred`, well
+    inside the orchestrator's fifteen-second deadline, so the client's HTTP call is still
+    open) and watches the engine for a beat. It answers `applied` once the gamerules turned
+    over, and `invalid_state` otherwise, with a reason word in front of the message (a
+    closed, documented set: `halftime`, `post_game`, `timeout_active`, `round_over`, …).
+    `restore` on a live match (T8) is the second verb with this answer. It is `applied` once
+    a round has started again at the backup's rounds played, never when the rounds-played
+    count moved, because on hardware the engine took the rounds back and then sat in
+    RoundOver for good. Three rules under it. **The reason is a diagnosis, never the
+    verdict**: an unknown engine phase reads `unknown`, not "not halftime". **A state
+    observation cannot judge is refused up front** without sending the verb (a pause of a
+    match that is already standing, a restore in the gap after a round), because watching
+    cannot tell "it was already so" from "it became so", and a restore in that gap does
+    harm. **The fact still follows**: the server emits it before it answers, and it
+    reaches the stream moments after the answer, never before. Not chosen: new error codes
+    (the error vocabulary is closed and a code is a schema change, while a word in
+    `message` is not); answering `accepted` and settling it later on the stream (the beat fits inside the
+    call, and a client with `applied` in hand needs no second read).
+
+30. **An SDK timer keeps its grid, and a stall skips.** (PRD-04 T5, 2026-09-22;
+    `OPEN-POINTS` §4.) `GameThreadClock.Every` re-armed at `now + interval` on the frame
+    that fired it, so every beat carried a frame of overshoot, and the position stream's
+    100 ms was 108 ms at 128 fps. A repeating timer now re-arms at the first point
+    `due + interval·k` after the firing frame. A beat is up to a frame late, never early,
+    and the lateness never adds up. A frame that arrives a whole period or more late fires
+    the timer once and drops the beats it swallowed. It never fires a burst to catch up.
+    The price
+    is written down in `docs/sdk.md` ("Timers"): the beat after a late one can come less
+    than a period after it, because the grid is kept, not the gap. `FakeClock` keeps
+    visiting every due instant, so the harness has no stalls and a test's arithmetic stays
+    exact. Measured on the dev node: 97.2 ms against a 7.8 ms frame. Not chosen: catching
+    up beat by beat after a stall (a burst of beats owed to nobody).
+
 ## How the rounds run
 
 24. **Spine first, then two loops in parallel.** `ralph/PRD-01-spine.md` (this repo, ~10
@@ -350,3 +414,22 @@ it here.
     contract change during the parallel rounds is a **release from this repo** with a
     changelog line, and the platform loop picks it up by bumping the pin — never by
     editing a schema on its side.
+
+31. **The CS2 lane is a queue: whoever asked first goes first.** (PRD-04 T1, 2026-09-22;
+    [#1](https://github.com/ezpug/ezpug-iron/issues/1).) The two loops share one dev CS2
+    install under one lock file, and the lock had no fairness. On 2026-09-21 the platform's
+    lane waited 1,902 s across six handovers, because each row of our matrix is a new
+    process born the moment its predecessor lets go, and it won the race every time. A
+    waiter now drops a ticket `<sinceMs>-<token>.json` into `<lock>.queue/`, and nobody
+    creates the lock while a living ticket older than theirs exists. The page both sides
+    implement is `docs/operations.md`, "The lane lock". Four rules under it. **A ticket
+    dies by the lock's own corpse rules** (a dead pid on this host, older than 90 minutes,
+    or not this JSON), so there is one definition of "gone". **A wait stays below that
+    TTL**, because a ticket ages from the moment it is dropped. **The directory is never
+    removed**, so no ticket can lose a race with an `rmdir`. **There is no handover
+    interval**: a released lane may idle for one 5 s poll, and nobody can take it in that
+    gap. The lock file is unchanged, so a side that knows no queue still waits and is
+    still waited for. It just gets no fairness. The platform's PRD-11 T21 implements the
+    same page. Not chosen: a handover pause after every release (the PRD asked for one to be
+    decided; the ticket already keeps a newcomer out of the gap, so a pause would only
+    cost every row time).
