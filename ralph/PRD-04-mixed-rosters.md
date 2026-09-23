@@ -141,11 +141,46 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   Verdaccio with its changelog line; the platform's T22 pins each. No task folds a
   release into another's commit.
 
-- [ ] **T10: the docs catch up, and the sweep.** `docs/decisions.md` gets one decision
+- [x] **T10: the docs catch up, and the sweep.** `docs/decisions.md` gets one decision
   per change that deserves it (mixed rosters, the pause answer, the timer rule, the
   lane queue); `OPEN-POINTS.md` holds only what is still open; CHANGELOG `Unreleased`
   lists the services touched. Two green `EZPUG_CS2_TESTS=required` extended runs,
   deploy `gs.ezpug.com`, the closing note with the Dathost server-hours spent.
+
+  > **Closing note (2026-09-23).** Every box but T2b is ticked, and T2b waits on an owner
+  > call (OPEN-POINTS §7), so the round is not complete.
+  >
+  > **Two green in a row, first try.** Both `EZPUG_CS2_TESTS=required pnpm verify:extended`
+  > runs at `ebcd228` + the docs passed: 1413 passed, 0 failed, 4 skipped each (`radar`,
+  > the undemanded Dathost smoke). The CS2 file took 108 and 93 minutes, all rows green,
+  > `mixed`, `pause` and `restore` included. Before the first run the dev node had to be
+  > re-enrolled: T9's publish gate had left an agent running out of the deleted
+  > `/tmp/ezpug-iron-0.20.0` worktree, and it had re-enrolled `devbox` under a token only it
+  > held. That agent was stopped, and `devbox` was forgotten and enrolled again from this
+  > checkout. The dev fleet only; nothing in production was touched.
+  >
+  > **Dathost: two servers, ~9 server-minutes, 5 c.** T7 `1c561d6c`, 20:09:27–20:11:46 UTC,
+  > 1 c. T8 `c17edf98`, 21:49:34–21:56:28 UTC, 4 c. Both rows are closed and the fleet was
+  > empty after each run. **What T7 found:** nothing red. `list()` saw exactly our clone
+  > among the account's ten foreign servers. The region label was undocumented and now is.
+  > The template was stale and was re-synced before the run.
+  >
+  > **Deploy**: `./scripts/deploy.sh` from a clean tree at `8bad9f9`, all seven smoke checks
+  > green. `gs.ezpug.com` serves `mixedRoster: true` on `retakes`, `powerup-dm` and
+  > `flying-scoutsman`, and `false` on `pug`. The Dathost template carries the plugin at
+  > `161d0b8`, and nothing under `plugins/` has moved since. So production answers pauses
+  > and restores from the engine, and seats mixed rosters on the SDK modes.
+  >
+  > **The platform's side:** its catalog pins `@ezpug/match-api` **0.18.5**. 0.19.0,
+  > 0.20.0 and 0.21.0 are on Verdaccio and wait for its PRD-11 T22. **No mixed-roster run
+  > has happened over there yet.** Its T23 is unchecked, and the match it wants (the owner
+  > as the tenth player on the `pug` queue) is the half T2b holds. Its T21 (the lane
+  > queue) is unchecked too. Until it lands, the platform's lane waits without fairness
+  > and can take a free lane over our ticket.
+  >
+  > **Left:** T2b (owner: an upstream PR to MatchZy-Enhanced, or a fork against decision
+  > 19); OPEN-POINTS §3's human read of the retakes scoreboard. No `orchestrator@`, `node@`,
+  > `cs2@` or `plugins@` tag was cut, since cutting one publishes and stays the owner's.
 
 ## Working rules
 
