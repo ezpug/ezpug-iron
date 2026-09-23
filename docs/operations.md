@@ -1500,7 +1500,10 @@ open file … for writing` and recorded nothing. That is why every puppeted `pug
 ended `no_demo`. The same was true of human matches; there just had not been any since
 the build changed. The core plugin now makes the folder under both roots when a match
 that records is assigned (`ServerPaths.EngineWriteDirectory`, read from `gameinfo.gi`
-the way the engine reads it), and it looks for the finished file under both. If a
+the way the engine reads it), and it looks for the finished file under both. The fix was
+first seen working on Dathost on 2026-09-23: a puppeted 5v5 `pug` from the platform's
+`pnpm rehearse --prod` played 24 rounds on `de_train`, and its 103.8 MB demo was uploaded
+with the CS2 magic. If a
 server records nothing, `tv_status` says so: a server that is recording prints `Now
 recording to "…"`, and one that is not prints no such line. **The
 upload is always the core plugin's**, because MatchZy's own uploader POSTs a multipart form

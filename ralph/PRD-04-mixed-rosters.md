@@ -201,7 +201,7 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   > 19); OPEN-POINTS §3's human read of the retakes scoreboard. No `orchestrator@`, `node@`,
   > `cs2@` or `plugins@` tag was cut, since cutting one publishes and stays the owner's.
 
-- [ ] **T11: a puppeted match records its demo** ([#2](https://github.com/ezpug/ezpug-iron/issues/2),
+- [x] **T11: a puppeted match records its demo** ([#2](https://github.com/ezpug/ezpug-iron/issues/2),
   raised by the platform's PRD-11 T10a, 2026-09-23; added by the owner's session). Every
   puppeted `pug` match on Dathost has ended `demo: {skipped: "no_demo", uploaded: 0}`, 5 of
   5, the last one (#85, platform match `9149e884`) with a presigned PUT into Hetzner that
@@ -242,6 +242,16 @@ From PRD-03's closing note and `ralph/OPEN-POINTS.md` (2026-09-21/22). Trust the
   > `addons/metamod/MatchZy/` as Dathost does, and its `pug-5v5` row uploaded that
   > file with the magic. So the fix is now proven on the newer build, but not yet on
   > Dathost.
+  >
+  > **Proven on Dathost (2026-09-23), by the platform's T10a.** Its `pnpm rehearse --prod`
+  > ran platform match #87 (iron `43ae37ab`). That was a puppeted 5v5 `pug` on `de_train`,
+  > 24 rounds, on ledger row `84b93bd5` in Frankfurt from 20:56:18 to 21:40:29 UTC, about
+  > 29 c on the platform's key and not on this task's budget. MatchZy logged both
+  > `demo_recording_start` and `demo_recording_stop`. Then came `demo_available` (103,845,229
+  > bytes, with its sha256), `demo.uploaded` into `ezpug-demos`, and `match.ended`
+  > `{completed, demo: {uploaded: 1}}`. On the platform's side, `GET /matches/:id/demo`
+  > returned a 302, and the `PBDEMS2` magic was checked behind it (the platform's
+  > `6607ee23`). The server was released and the row closed. #2 is closed with this commit.
 
 - [x] **T11a: the dev node's CS2 cannot update.** Found by T11 on 2026-09-23.
   `pnpm cs2:install`, with or without `--validate`, ends `App '730' state is 0x6`. The
