@@ -49,5 +49,43 @@ public class PluginCatalogTests
         Assert.Equal(Path.GetFullPath(image.CsgoDirectory), paths.CsgoDirectory);
         Assert.Equal(Path.Combine(Path.GetFullPath(image.ModuleDirectory), "link-buffer"), paths.DefaultBufferDirectory);
         Assert.DoesNotContain("token", paths.ToString(), StringComparison.OrdinalIgnoreCase);
+        // No gameinfo.gi to read: the engine is taken to write under game/csgo.
+        Assert.Equal(paths.CsgoDirectory, paths.EngineWriteDirectory);
+    }
+
+    /// <summary>The search paths of the gameinfo.gi the dev node and Dathost both run, Metamod's line included (PRD-04 T11).</summary>
+    private const string GameInfo = """
+        "GameInfo"
+        {
+        	FileSystem
+        	{
+        		SearchPaths
+        		{
+        			Game_LowViolence	csgo_lv // Perfect World content override
+        			Game	csgo/addons/metamod
+
+        			Game	csgo
+        			Mod		csgo
+        		}
+        	}
+        }
+        """;
+
+    [Theory]
+    [InlineData(GameInfo, "csgo/addons/metamod")]
+    [InlineData("SearchPaths\n{\n\tGame_LowViolence\tcsgo_lv\n\tGame\tcsgo\n}", "csgo")]
+    [InlineData("SearchPaths\n{\n\t\"Game\"\t\"csgo/addons/metamod\" // quoted\n}", "csgo/addons/metamod")]
+    [InlineData("SearchPaths\n{\n\tMod\tcsgo\n}\nGame\tcsgo/elsewhere", null)]
+    [InlineData("Game\tcsgo/outside", null)]
+    public void TheEnginesWritePathIsTheFirstGameSearchPath(string gameInfo, string? expected) =>
+        Assert.Equal(expected, ServerPaths.FirstGamePath(gameInfo));
+
+    [Fact]
+    public void WithMetamodLeadingGameInfoTheEngineWritesUnderAddonsMetamod()
+    {
+        using var image = new FakeImage();
+        File.WriteAllText(Path.Combine(image.CsgoDirectory, "gameinfo.gi"), GameInfo);
+        var paths = new ServerPaths(image.ModuleDirectory);
+        Assert.Equal(Path.GetFullPath(Path.Combine(image.CsgoDirectory, "addons", "metamod")), paths.EngineWriteDirectory);
     }
 }

@@ -2661,12 +2661,23 @@ async function run() {
       demoStored = head.ok
         ? { found: true, bytes: Number(head.headers.get('content-length') ?? 0) }
         : { found: false, status: head.status }
+      // And the first bytes of it (PRD-04 T11): a length says something arrived, the
+      // magic says it is a CS2 demo — `PBDEMS2\0`, the header every Source 2 `.dem`
+      // opens with — and not an empty PUT or a proxy's error page.
+      if (demoStored.found) {
+        const first = await fetch(
+          presignPut({ ...s3, key: demoKey, method: 'GET', expiresIn: 600, now: wall.at() }),
+          { headers: { range: 'bytes=0-7' } },
+        )
+        const bytes = first.ok ? Buffer.from(await first.arrayBuffer()).subarray(0, 8) : null
+        demoStored.magic = bytes ? bytes.toString('latin1').replace(/\0/g, '\\0') : null
+      }
     } catch (error) {
       demoStored = { found: false, error: error.message }
     }
     say(
       demoStored.found
-        ? `demo in the store: ${demoStored.bytes} bytes at ${s3.bucket}/${demoKey}`
+        ? `demo in the store: ${demoStored.bytes} bytes at ${s3.bucket}/${demoKey}, opening ${JSON.stringify(demoStored.magic)}`
         : `demo not in the store (${demoStored.status ?? demoStored.error})`,
     )
   }

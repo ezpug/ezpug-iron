@@ -53,12 +53,22 @@ changelog has every line.
     after a round up front (`round_over`).
   - `GameThreadClock.Every` keeps its grid, and a stalled frame skips beats instead of
     firing a burst (decision 30). The position stream is ten ticks a second.
+  - A demo is recorded on CS2 builds newer than 1.41.7.8 too (PRD-04 T11, issue #2).
+    Dathost's build resolves `tv_record` under the engine's write path,
+    `csgo/addons/metamod`, and never creates a folder there. So MatchZy's
+    `tv_record MatchZy/…` wrote nothing on Dathost, and every puppeted `pug` there ended
+    `no_demo`. The core plugin now makes
+    the recording folder under both roots when a match that records is assigned, and
+    looks for the demo under both.
 - **The terminal**: `ezpug-iron keys scopes <id> --add/--remove`.
 - **The box**:
   - The CS2 lane lock queues its waiters: whoever asked first goes first (decision 31,
     issue #1).
   - The lane's `pause`, `radar`, `retakes`, `mixed` and `restore` rows assert what those
     changes promise.
+  - The lane's full `pug` row reads the stored demo's first bytes back and asserts the
+    CS2 magic (`PBDEMS2\0`). The dev node's game install was updated to the build
+    Dathost runs.
 
 **Puppets** (`ralph/PRD-03-puppets.md`). This work is deployed on `gs.ezpug.com` from local
 builds, but no `orchestrator@`, `node@`, `cs2@` or `plugins@` tag has been cut for it

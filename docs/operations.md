@@ -1457,9 +1457,23 @@ The orchestrator never stores a demo byte (decision 10). What it does is wait fo
 relay a fact about it.
 
 **On the server.** For a `records: demo` gamemode MatchZy records its own flow's demo into
-`game/csgo/MatchZy/` and stops a `tv_delay` after the last round (GOTV records the
+a `MatchZy/` folder and stops a `tv_delay` after the last round (GOTV records the
 *delayed* broadcast, so stopping on the win panel would cut the last rounds off the file);
-for any other flow the core plugin runs `tv_record` and `tv_stoprecord` itself. **The
+for any other flow the core plugin runs `tv_record` and `tv_stoprecord` itself.
+
+**Where the file lands depends on the CS2 build** (PRD-04 T11, issue #2). `tv_record`
+takes a relative path, and CS2 1.41.7.8 resolves it under `game/csgo`. Newer builds, such
+as the one Dathost ran on 2026-09-23 (network version 10924), resolve it under the engine's `DEFAULT_WRITE_PATH`, the first `Game` search path in
+`gameinfo.gi`. With Metamod installed, that is `csgo/addons/metamod`, because its loader
+line goes first. The engine never creates a folder. MatchZy makes `MatchZy/` under
+`game/csgo` only, so on Dathost's newer build `tv_record MatchZy/…` answered `couldn't
+open file … for writing` and recorded nothing. That is why every puppeted `pug` there
+ended `no_demo`. The same was true of human matches; there just had not been any since
+the build changed. The core plugin now makes the folder under both roots when a match
+that records is assigned (`ServerPaths.EngineWriteDirectory`, read from `gameinfo.gi`
+the way the engine reads it), and it looks for the finished file under both. If a
+server records nothing, `tv_status` says so: a server that is recording prints `Now
+recording to "…"`, and one that is not prints no such line. **The
 upload is always the core plugin's**, because MatchZy's own uploader POSTs a multipart form
 and a presigned PUT will not take one. Nothing in CS2 says when a `.dem` is finished, so
 from the win panel on the plugin watches the newest one until its length has stopped moving
@@ -1481,7 +1495,7 @@ When a demo does not arrive, `match.ended.demo.skipped` says which of these it w
 | --------- | ------------- |
 | `no_upload_url` | the request carried no `callbacks.demoUploadUrl` |
 | `not_recorded` | the gamemode's `records` is not `demo` |
-| `no_demo` | recording was on and nothing was ever announced — the match never went live, the server was lost with the file on it, or GOTV was evicted before it wrote one (see `bot_quota_mode` above) |
+| `no_demo` | recording was on and nothing was ever announced — the match never went live, the server was lost with the file on it, GOTV was evicted before it wrote one (see `bot_quota_mode` above), or the engine could not open the file at all (the two roots above) |
 | `upload_failed` | the server found its demo and the storage refused it; the bytes are still on the server, and the orchestrator's log says what the plugin was told |
 
 A presigned URL that has expired by the time the demo is finished is an `upload_failed`:
@@ -1825,7 +1839,9 @@ is not — `powerup-dm`, whose flow and whose puppets are both the SDK's:
 | `widget` | a `powerup-dm` of puppets, one of whom taps the phone (T8) | the widget socket end to end: a player token, the mode's verb, the `plugin_event` it leaves, the push that comes back, and the two refusals — `not_alive` and `not_in_match` — and, since PRD-03 T9, **a match that ends because its manifest says how long it is**: `going_live.length.durationSeconds` is the manifest's 600 over the lane's time scale, both terminal facts say `time_limit`, nobody wins a free-for-all, and the row is declared `roundless` (one `round_start`, no `round_end`: the mode's one round outlasts the match on purpose) |
 
 `pug-5v5` is the one that also asserts the demo, because it is the match the owner
-actually plays. **Every case is held to `match.server_ready` exactly once** — the durable
+actually plays. It checks that the demo was announced and landed, and since PRD-04 T11 it
+also reads the stored object's first eight bytes back and asserts the Source 2 demo magic,
+`PBDEMS2\0`. A length only says something arrived. **Every case is held to `match.server_ready` exactly once** — the durable
 fact a client reads — while the raw `server_ready` off the link is only `>= 1`, because a
 map reload re-announces the server and wingman needs one to switch `game_mode`. That
 second announcement is pinned as the wingman row's own fact rather than smoothed away.

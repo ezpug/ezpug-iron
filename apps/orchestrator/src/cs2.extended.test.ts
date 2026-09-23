@@ -67,7 +67,8 @@ import { loadRootEnv } from './env'
  *
  * The demo rides along on the full pug: the script mints a presigned PUT into
  * the platform's dev MinIO on this box and the core plugin uploads to it, so
- * `demo.uploaded` is asserted there too (PRD-02 T21).
+ * `demo.uploaded` is asserted there too (PRD-02 T21), and so is the stored
+ * object's opening `PBDEMS2\0` — a `.dem` and not merely some bytes (PRD-04 T11).
  *
  * What it needs, and what it says when it does not have it: a dev orchestrator
  * answering on {@link BASE_URL} with the `nodes` provider registered, and this
@@ -273,6 +274,8 @@ type Summary = {
   pluginEvents?: Record<string, number>
   demoTarget?: string | null
   demo?: { uploaded: number; skipped?: string } | null
+  /** The object read back off the store: its length and its first eight bytes (PRD-04 T11). */
+  demoStored?: { found: boolean; bytes?: number; magic?: string | null } | null
   simulation?: {
     puppets: number
     /** A mixed roster (PRD-04 T2): how many entries were left to people, and whether any was ever announced. */
@@ -411,6 +414,12 @@ const PAUSE_REFUSALS = [
   'unknown',
 ]
 
+/**
+ * The first eight bytes of every Source 2 demo, as the script prints them (`\0` for
+ * the NUL). A length says something arrived; this says it is a demo (PRD-04 T11).
+ */
+const CS2_DEMO_MAGIC = 'PBDEMS2\\0'
+
 const CASES: LaneCase[] = [
   ...SIZES.map(
     (puppets): LaneCase => ({
@@ -428,6 +437,9 @@ const CASES: LaneCase[] = [
           expect(summary.payloads?.demo_available, 'the server never announced a demo').toBe(1)
           expect(summary.payloads?.['demo.uploaded'], 'the demo never landed in MinIO').toBe(1)
           expect(summary.demo, 'the ended fact did not count the demo').toEqual({ uploaded: 1 })
+          expect(summary.demoStored?.magic, 'the stored object is not a CS2 demo').toBe(
+            CS2_DEMO_MAGIC,
+          )
         }
       },
     }),

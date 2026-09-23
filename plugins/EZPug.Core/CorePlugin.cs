@@ -118,7 +118,13 @@ public sealed class CorePlugin : BasePlugin
         // the SDK records for every other, but the PUT is always this plugin's — a
         // presigned URL takes a body, not MatchZy's multipart form.
         _demoTransport = new HttpDemoTransport();
-        _demos = new DemoFlow(_world, _runtime, _paths.CsgoDirectory, new DemoUploader(_demoTransport, _world.Clock, _log), _log);
+        _demos = new DemoFlow(
+            _world,
+            _runtime,
+            _paths.CsgoDirectory,
+            new DemoUploader(_demoTransport, _world.Clock, _log),
+            _log,
+            _paths.EngineWriteDirectory);
         _demos.Bind();
         _world.MapStarted += OnMapStarted;
         // The movement spike's instrument (PRD-03 T12), behind `ezpug_walk` and behind

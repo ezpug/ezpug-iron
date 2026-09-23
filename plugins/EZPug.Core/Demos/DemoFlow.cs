@@ -26,6 +26,16 @@ namespace EZPug.Core;
 /// because a second PUT at the same presigned URL would overwrite it in the client's
 /// storage. The maps that stay behind are said so in the log.
 ///
+/// <b>Two places a demo can land</b> (PRD-04 T11). <c>tv_record</c> takes a relative
+/// path, and which root the engine resolves it against depends on the build: CS2
+/// 1.41.7.8 writes under <c>game/csgo</c>, newer builds (Dathost's, 2026-09-23) under
+/// the engine's <c>DEFAULT_WRITE_PATH</c> — <c>csgo/addons/metamod</c> once Metamod's
+/// loader line leads <c>gameinfo.gi</c> (<see cref="ServerPaths.EngineWriteDirectory"/>). The engine creates
+/// no folder, so MatchZy's <c>tv_record MatchZy/…</c> wrote nothing at all on Dathost's
+/// newer build while MatchZy created its folder under <c>game/csgo</c>, a place the engine
+/// no longer wrote to. So the folder is made under both roots when a match that records is
+/// assigned, and the finished file is looked for under both.
+///
 /// <b>Knowing when the file is finished is the whole difficulty.</b> GOTV keeps writing
 /// until <c>tv_stoprecord</c> and says nothing when it stops — there is no event, no
 /// forward and no cvar to read (MatchZy 0.8.15 has no in-process forwards at all). So
@@ -57,6 +67,7 @@ public sealed class DemoFlow
     private readonly IGameWorld _world;
     private readonly GamemodeRuntime _runtime;
     private readonly string _csgoDirectory;
+    private readonly string _writeDirectory;
     private readonly DemoUploader _uploader;
     private readonly ILinkLog _log;
 
@@ -68,7 +79,7 @@ public sealed class DemoFlow
     /// <summary>Every presigned URL this match has already PUT a demo at; a second one would overwrite it.</summary>
     private readonly HashSet<string> _uploaded = new(StringComparer.Ordinal);
     private Uri? _uploadUrl;
-    private string? _folder;
+    private IReadOnlyList<string> _folders = [];
     private string? _marker;
     private string? _recordingAs;
     private IClockTimer? _poll;
@@ -78,11 +89,13 @@ public sealed class DemoFlow
     private long _steadySinceMs;
     private bool _done;
 
-    public DemoFlow(IGameWorld world, GamemodeRuntime runtime, string csgoDirectory, DemoUploader uploader, ILinkLog? log = null)
+    /// <param name="engineWriteDirectory">Where the engine resolves a relative <c>tv_record</c> path on builds newer than 1.41.7.8 (<see cref="ServerPaths.EngineWriteDirectory"/>); <paramref name="csgoDirectory"/> when omitted.</param>
+    public DemoFlow(IGameWorld world, GamemodeRuntime runtime, string csgoDirectory, DemoUploader uploader, ILinkLog? log = null, string? engineWriteDirectory = null)
     {
         _world = world;
         _runtime = runtime;
         _csgoDirectory = csgoDirectory;
+        _writeDirectory = engineWriteDirectory ?? csgoDirectory;
         _uploader = uploader;
         _log = log ?? NullLinkLog.Instance;
     }
@@ -93,8 +106,8 @@ public sealed class DemoFlow
     /// <summary>Whether the SDK, rather than MatchZy, is running <c>tv_record</c> for this match.</summary>
     public bool OwnsRecording => _ownsRecording;
 
-    /// <summary>Where this match's demo is looked for; <c>null</c> while nothing is assigned.</summary>
-    public string? Folder => _folder;
+    /// <summary>Where this match's demo is looked for — the folder under <c>game/csgo</c> first, then the same folder under the engine's write directory when that is somewhere else; empty while nothing is assigned.</summary>
+    public IReadOnlyList<string> Folders => _folders;
 
     public void Bind()
     {
@@ -113,7 +126,7 @@ public sealed class DemoFlow
         _mapNumber = _runtime.Match.MapNumber;
         _uploaded.Clear();
         _uploadUrl = null;
-        _folder = null;
+        _folders = [];
         _marker = null;
         _recordingAs = null;
         _length = -1;
@@ -124,9 +137,12 @@ public sealed class DemoFlow
         }
 
         _ownsRecording = assignment.Gamemode.Flow != GamemodeFlow.Matchzy;
-        _folder = _ownsRecording
-            ? _csgoDirectory
-            : Path.Combine(_csgoDirectory, DemoFiles.MatchZyFolder);
+        var under = _ownsRecording ? null : DemoFiles.MatchZyFolder;
+        _folders = new[] { _csgoDirectory, _writeDirectory }
+            .Select(root => under is null ? root : Path.Combine(root, under))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        Prepare();
         // MatchZy puts the match's own `matchid` in every demo name, so a server that
         // played twice cannot hand over the wrong match's file. Ours carries the same
         // marker for the same reason.
@@ -136,6 +152,26 @@ public sealed class DemoFlow
         if (assignment.DemoUploadUrl is null && (assignment.DemoUploadUrls?.Count ?? 0) == 0)
         {
             _log.Warn("this match records a demo and the request named nowhere to put one; it will stay on this server");
+        }
+    }
+
+    /// <summary>
+    /// Make every folder the demo may be written to, before anything records: the engine
+    /// opens the file and creates no folder on the way (see the class's note on the two
+    /// roots). A folder that cannot be made is said once; the other root may still work.
+    /// </summary>
+    private void Prepare()
+    {
+        foreach (var folder in _folders)
+        {
+            try
+            {
+                Directory.CreateDirectory(folder);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                _log.Warn($"the demo folder {folder} cannot be made ({error.Message}); a demo the engine writes there is lost");
+            }
         }
     }
 
@@ -154,8 +190,8 @@ public sealed class DemoFlow
             return;
         }
 
-        // A flat name under `game/csgo`: `tv_record` takes a path relative to it and
-        // will not create a folder that is not there.
+        // A flat name: `tv_record` takes a path relative to whichever root this build
+        // writes under (the class's note on the two roots) and creates no folder.
         _recordingAs = $"ezpug_{_marker ?? "match"}_map{_runtime.Match.MapNumber}";
         _marker = _recordingAs;
         _world.ExecCommand($"tv_record {_recordingAs}");
@@ -175,7 +211,7 @@ public sealed class DemoFlow
         _assignment = null;
         _uploaded.Clear();
         _uploadUrl = null;
-        _folder = null;
+        _folders = [];
         _marker = null;
         _recordingAs = null;
     }
@@ -239,18 +275,18 @@ public sealed class DemoFlow
 
     private void Poll()
     {
-        if (_done || _folder is null)
+        if (_done || _folders.Count == 0)
         {
             return;
         }
 
         var now = _world.Clock.NowMs;
-        var found = DemoFiles.Newest(_folder, _marker);
+        var found = DemoFiles.Newest(_folders, _marker);
         if (found is null || found.Length == 0)
         {
             if (now >= _deadlineMs)
             {
-                Give($"no demo appeared in {_folder} within {WindowMs} ms of the win panel");
+                Give($"no demo appeared in {string.Join(" or ", _folders)} within {WindowMs} ms of the win panel");
             }
 
             return;

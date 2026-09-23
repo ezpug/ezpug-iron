@@ -22,14 +22,16 @@ public class DemoFlowTests
 
     private sealed class Rig : IDisposable
     {
-        public Rig()
+        /// <param name="metamodWrites">The engine resolves <c>tv_record</c> under <c>csgo/addons/metamod</c>, as CS2 builds newer than 1.41.7.8 do (Dathost's, 2026-09-23) with Metamod's line leading <c>gameinfo.gi</c> (PRD-04 T11).</param>
+        public Rig(bool metamodWrites = false)
         {
             Image = new FakeImage().With("EZPug.Core", disabled: false).With("MatchZy");
             World = new FakeGameWorld(map: "de_dust2");
             Link = new FakePlatformLink();
             Runtime = new GamemodeRuntime(World, Link, Log);
             Transport = new FakeDemoTransport();
-            Flow = new DemoFlow(World, Runtime, Image.CsgoDirectory, new DemoUploader(Transport, World.Clock, Log), Log);
+            WriteDirectory = metamodWrites ? Path.Combine(Image.CsgoDirectory, "addons", "metamod") : null;
+            Flow = new DemoFlow(World, Runtime, Image.CsgoDirectory, new DemoUploader(Transport, World.Clock, Log), Log, WriteDirectory);
             Flow.Bind();
             Link.Welcome();
             World.SetCvar("tv_delay", "105");
@@ -42,6 +44,8 @@ public class DemoFlowTests
         public FakeDemoTransport Transport { get; }
         public DemoFlow Flow { get; }
         public GamemodeLoaderTests.RecordingLog Log { get; } = new();
+
+        public string? WriteDirectory { get; }
 
         public string MatchZyFolder => Path.Combine(Image.CsgoDirectory, DemoFiles.MatchZyFolder);
 
@@ -291,5 +295,57 @@ public class DemoFlowTests
         Assert.NotNull(announced);
         Assert.Equal(name + ".dem", announced.Filename);
         Assert.NotNull(announced.Sha256);
+    }
+
+    [Fact]
+    public async Task OnANewerBuildMatchZysFolderIsMadeWhereTheEngineWritesAndItsDemoIsFoundThere()
+    {
+        // Dathost, 2026-09-23: `tv_record MatchZy/…` answered "couldn't open file … for
+        // writing", because the engine resolves it under `addons/metamod` and nobody had
+        // made a `MatchZy/` there. Five puppeted pugs recorded nothing (PRD-04 T11, #2).
+        using var rig = new Rig(metamodWrites: true);
+        var engineFolder = Path.Combine(rig.WriteDirectory!, DemoFiles.MatchZyFolder);
+        Assert.False(Directory.Exists(engineFolder));
+
+        rig.Start();
+        Assert.True(Directory.Exists(engineFolder), "the folder MatchZy's tv_record needs was not made");
+        Assert.True(Directory.Exists(rig.MatchZyFolder), "the folder the older build writes to was not made");
+        Assert.Equal([rig.MatchZyFolder, engineFolder], rig.Flow.Folders);
+
+        var path = rig.WriteDemo(engineFolder, $"2026_{Serial}_de_mirage_A_vs_B.dem", 4_096);
+        rig.World.EndMap();
+        rig.Poll();
+        rig.World.Elapse(DemoFlow.SettleMs);
+        var announced = await rig.WaitForDemoAsync();
+
+        Assert.NotNull(announced);
+        Assert.Equal($"2026_{Serial}_de_mirage_A_vs_B.dem", announced.Filename);
+        Assert.NotNull(announced.Sha256);
+        Assert.Equal(File.ReadAllBytes(path), Assert.Single(rig.Transport.Attempts).Body);
+    }
+
+    [Fact]
+    public async Task OnANewerBuildTheSdksOwnRecordingIsFoundUnderTheEnginesWriteDirectory()
+    {
+        using var rig = new Rig(metamodWrites: true);
+        var manifest = GamemodeTestHost.ManifestFrom(File.ReadAllText(Repo.Path("gamemodes", "pug", "manifest.json")));
+        var frame = GamemodeTestHost.AssignmentFor(manifest with { Flow = GamemodeFlow.Plugin }, map: "de_mirage") with
+        {
+            Maps = [new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Ct }],
+            DemoUploadUrl = UploadUrl,
+        };
+        rig.Link.Assign(frame);
+        rig.World.StartMap("de_mirage");
+        var name = Assert.Single(rig.World.Actions, action => action.Verb == "command" && action.Detail.StartsWith("tv_record")).Detail["tv_record ".Length..];
+
+        rig.World.EndMap();
+        rig.World.Elapse(105_000);
+        rig.WriteDemo(rig.WriteDirectory!, name + ".dem", 1_024);
+        rig.Poll();
+        rig.World.Elapse(DemoFlow.SettleMs);
+        var announced = await rig.WaitForDemoAsync();
+
+        Assert.NotNull(announced);
+        Assert.Equal(name + ".dem", announced.Filename);
     }
 }

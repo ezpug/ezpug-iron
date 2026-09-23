@@ -25,16 +25,18 @@ public static class DemoFiles
     /// whose name carries a marker (MatchZy puts the match's <c>matchid</c> in its demo
     /// names, so a server that played twice does not hand over the wrong match's demo).
     /// </summary>
-    public static Found? Newest(string folder, string? contains = null)
-    {
-        if (!Directory.Exists(folder))
-        {
-            return null;
-        }
+    public static Found? Newest(string folder, string? contains = null) => Newest([folder], contains);
 
+    /// <summary>
+    /// The most recently written <c>.dem</c> across <paramref name="folders"/> — for a file
+    /// the engine may have written under either of two roots, depending on the build
+    /// (see <c>ServerPaths.EngineWriteDirectory</c> in the core plugin).
+    /// </summary>
+    public static Found? Newest(IEnumerable<string> folders, string? contains = null)
+    {
         Found? newest = null;
         var newestAt = DateTime.MinValue;
-        foreach (var path in Directory.GetFiles(folder, "*.dem"))
+        foreach (var path in folders.Where(Directory.Exists).SelectMany(folder => Directory.GetFiles(folder, "*.dem")))
         {
             var name = Path.GetFileName(path);
             if (contains is { Length: > 0 } marker && !name.Contains(marker, StringComparison.Ordinal))
