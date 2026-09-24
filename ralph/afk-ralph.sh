@@ -35,7 +35,15 @@ echo "AFK Ralph — EZPug Iron — PRD: $PRD — up to $ITERATIONS iterations"
 echo ""
 
 for ((i=1; i<=ITERATIONS; i++)); do
-  NEXT_LINE=$(grep -m1 '^- \[ \]' "$PRD" || true)
+  # The first open box that is not blocked: a task whose own lines carry '> blocked:' waits,
+  # and the iteration's model and effort come from the task it will actually work on. When
+  # every open box is blocked, the first one is named (the run says why and stops).
+  NEXT_LINE=$(awk '
+    /^- \[[ x]\]/ { if (cand != "" && !blk) { print cand; found = 1; exit }
+                    cand = ""; blk = 0; if ($0 ~ /^- \[ \]/) cand = $0; next }
+    cand != "" && /^[[:space:]]*> blocked:/ { blk = 1 }
+    END { if (!found && cand != "" && !blk) print cand }' "$PRD")
+  [ -n "$NEXT_LINE" ] || NEXT_LINE=$(grep -m1 '^- \[ \]' "$PRD" || true)
   NEXT_TASK=$(echo "$NEXT_LINE" | grep -oE 'T[0-9]+[a-z]?' | head -1 || true)
 
   if [ -n "$RALPH_MODEL" ]; then
