@@ -598,6 +598,10 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
             // The reaper is ours and a crash is a loss we want to see.
             autostop: 'false',
             reboot_on_crash: 'false',
+            // On a workshop map CS2 refuses every command and convar outside a short
+            // list, MatchZy's live.cfg and `tv_enable` among them (PRD-05 T1). The
+            // image turns the filter off with the same switch.
+            'cs2_settings.disable_workshop_command_filtering': 'true',
             'cs2_settings.rcon': rconPassword,
             ...(gslt && { 'cs2_settings.steam_game_server_login_token': gslt }),
           },

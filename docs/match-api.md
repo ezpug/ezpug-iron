@@ -129,6 +129,18 @@ upwards — 44 `team_ready` for two teams in the recorded puppet pug, which is w
 `minPlayersToReady` per team, or the whole roster where the request asked for no gate at
 all.)
 
+**A map is named the way your plan named it** (since 0.23.0, PRD-05 T1, #3).
+`going_live.map`, and `map_end.map` where it is present, is the plan's own string for that
+map number, `maps[mapNumber - 1].map`: `de_mirage`, or `workshop/3084291314/aim_map` for a
+workshop map. You can match it to your plan without knowing anything about the engine. A
+server hosts a workshop map by its published-file id (`host_workshop_map`, and a bare id
+in MatchZy's `maplist`), and the engine then calls the map by a name of its own, which you
+never sent. That engine name is what `server_ready.map` reports, because that event says
+what the server loaded. For an official map the two are the same string. Every flow says
+it this way: a `matchzy` flow's translator names the map from the plan, and the SDK's
+generic flow does the same. A workshop map needs a provider that claims
+`capabilities.workshopMaps`: Dathost, a node and the simulator all do.
+
 `knife_start` and `knife_end` bracket a knifed map; `knife_end.winner` is who picks
 the side, `null` when the server could not attribute it, and the pick itself arrives as
 `side_swap` when they swap and as nothing at all when they stay.

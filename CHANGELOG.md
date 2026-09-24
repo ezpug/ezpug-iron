@@ -21,6 +21,21 @@ there, not this file.
 
 ## Unreleased
 
+**Workshop maps go live** (`ralph/PRD-05-workshop.md` T1, #3). The dev node runs this work
+from a local build of the CS2 image. It is not deployed to `gs.ezpug.com` yet, and no tag
+has been cut. The contract went out as `@ezpug/match-api` **0.23.0**.
+
+- **The orchestrator**: a workshop plan goes into MatchZy's `maplist` as its bare id.
+  The Dathost provider allocates every server with
+  `cs2_settings.disable_workshop_command_filtering`.
+- **The plugins**: the loader hosts a `workshop/<id>/<name>` plan with
+  `host_workshop_map <id>` (`MapIdentifier` in the SDK is the one parser). Before
+  `matchzy_loadmatch`, it puts the engine's name for the map that is up into
+  `maplist[0]`. The SDK's generic flow names `going_live.map` and `map_end.map` from the
+  plan. The hostname names a workshop map by its plan's `<name>`.
+- **The CS2 image**: CS2 starts with `-disable_workshop_command_filtering`. Without it,
+  a workshop map drops MatchZy's `live.cfg` and `tv_enable`.
+
 **Mixed rosters** (`ralph/PRD-04-mixed-rosters.md`). This work is deployed on `gs.ezpug.com`
 from local builds, and the Dathost template carries its plugins. No `orchestrator@`,
 `node@`, `cs2@` or `plugins@` tag has been cut for it yet. The contract went out as

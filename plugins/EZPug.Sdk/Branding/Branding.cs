@@ -101,9 +101,18 @@ public sealed class Branding
         return Clamp(string.Join(HostnameSeparator, parts));
     }
 
-    /// <summary><c>de_mirage</c> → <c>Mirage</c>; a workshop id stays as it is.</summary>
+    /// <summary>
+    /// <c>de_mirage</c> → <c>Mirage</c>. A workshop map keeps the name its plan gave it
+    /// (<c>workshop/3084291314/aim_map</c> → <c>aim_map</c>): a community map's prefix is
+    /// not a promise the way Valve's is, so nothing is cut. A bare id stays as it is.
+    /// </summary>
     public static string PrettyMap(string map)
     {
+        if (MapIdentifier.WorkshopIdOf(map) is not null)
+        {
+            return MapIdentifier.NameOf(map);
+        }
+
         var name = map.Contains('_') ? map[(map.IndexOf('_') + 1)..] : map;
         return name.Length == 0 ? map : char.ToUpperInvariant(name[0]) + name[1..];
     }

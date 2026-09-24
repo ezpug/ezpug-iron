@@ -185,6 +185,8 @@ type Summary = {
   /** The shared CS2 lane (T13): whether this run took the box's lock, and what it queued behind. */
   lock?: { taken: boolean; path: string | null; waitedSeconds: number; broke: string | null } | null
   payloads?: Record<string, number>
+  /** Which map each fact named: the plan, `server_ready` (the engine's name), `going_live` (the plan's) — PRD-05 T1. */
+  maps?: { planned: string[]; ready: (string | null)[]; live: string[] }
   /** The classes of fact the match produced, in order, a run of the same class collapsed (PRD-03 T11). */
   story?: string[]
   counts?: Record<string, number>
@@ -420,6 +422,13 @@ const PAUSE_REFUSALS = [
  */
 const CS2_DEMO_MAGIC = 'PBDEMS2\\0'
 
+/**
+ * **The platform's community map** (PRD-05 T1, ezpug/ezpug-iron#3): AIM Map,
+ * published file 3084291314, spelled the way the platform's room preset sends
+ * it. The server hosts it by id and the engine calls it by its own name.
+ */
+const WORKSHOP_MAP = 'workshop/3084291314/aim_map'
+
 const CASES: LaneCase[] = [
   ...SIZES.map(
     (puppets): LaneCase => ({
@@ -455,6 +464,24 @@ const CASES: LaneCase[] = [
     puppets: 3,
     args: [],
     facts: summary => readiedUp(summary, 3),
+  },
+  {
+    // **A workshop map, spelled the way the wire spells it** (PRD-05 T1). It
+    // used to reach the engine as `changelevel workshop/…`, a map that does
+    // not exist, and the match sat silent until the platform cancelled it
+    // (#3). Now the loader hosts it by id, MatchZy is told the engine's name
+    // for it so it does not host it a second time, and in simulation mode it
+    // seats its puppets on it rather than waiting for a map named by a number.
+    id: 'workshop',
+    what: 'plays a 1v1 pug on a workshop map, hosted by its id and named the way the plan named it',
+    puppets: 2,
+    args: ['--map', WORKSHOP_MAP],
+    facts: summary => {
+      readiedUp(summary, 2)
+      expect(summary.maps?.live, 'going_live did not name the plan’s map').toEqual([WORKSHOP_MAP])
+      expect(summary.maps?.ready, 'MatchZy hosted the map a second time').toHaveLength(1)
+      expect(summary.payloads?.server_ready, 'MatchZy hosted the map a second time').toBe(1)
+    },
   },
   {
     // **A different engine game** (T3b): `game_mode 2`, `live_wingman.cfg`
@@ -1442,7 +1469,7 @@ describe('the iron-match script', () => {
    * be a lane case nobody missed.** Cheap, and it runs in `pnpm verify` where
    * the lane itself never does.
    */
-  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's and T2b's mixed rosters and T8's rewind", () => {
+  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's and T2b's mixed rosters, T8's rewind and PRD-05's workshop map", () => {
     const ids = CASES.map(lane => lane.id)
     expect(ids).toEqual([
       'pug-1v1',
@@ -1451,6 +1478,8 @@ describe('the iron-match script', () => {
       'pug-4v4',
       'pug-5v5',
       'pug-2v1',
+      // PRD-05 T1's: a 1v1 pug on AIM Map, spelled `workshop/<id>/<name>`.
+      'workshop',
       'wingman',
       'knife',
       'pause',

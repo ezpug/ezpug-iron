@@ -653,6 +653,34 @@ describe('the platform ran the veto', () => {
   })
 })
 
+describe('a workshop map is hosted by id', () => {
+  const aimMap = (game: 'cs2' | 'csgo') => ({
+    ...pugBo1(),
+    request: request({
+      game,
+      maps: [
+        { map: 'workshop/3084291314/aim_map', sides: 'ct' },
+        { map: 'de_mirage', sides: 'ct' },
+      ],
+    }),
+  })
+
+  it('gives MatchZy the bare id, the only spelling it hands to host_workshop_map', () => {
+    // MatchZy's ChangeMap: `long.TryParse(mapName)` → `host_workshop_map`, else
+    // `changelevel` behind `Server.IsMapValid`, which a `workshop/…` path never passes.
+    const maplist = buildMatchZyConfig(aimMap('cs2')).maplist
+    expect(maplist).toEqual(['3084291314', 'de_mirage'])
+    expect(maplist.filter(entry => /^\d+$/.test(entry))).toEqual(['3084291314'])
+  })
+
+  it("leaves Get5 the wire's spelling, which is CS:GO's own path for a workshop map", () => {
+    expect(buildGet5Config(aimMap('csgo')).maplist).toEqual([
+      'workshop/3084291314/aim_map',
+      'de_mirage',
+    ])
+  })
+})
+
 describe('the round format rides in the config', () => {
   it('carries the same flat cvars the assignment does: request under mode under rules', () => {
     const { cvars } = buildMatchZyConfig(knifeBo3())

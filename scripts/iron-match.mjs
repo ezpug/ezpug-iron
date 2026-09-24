@@ -3020,6 +3020,20 @@ function write(result) {
         winner: of('series_end')?.winner ?? null,
       }
     })(),
+    /**
+     * **Which map each fact named** (PRD-05 T1): the plan, what the server said
+     * it loaded (`server_ready`, the engine's name) and what went live
+     * (`going_live`, the plan's). A workshop map is where the two differ.
+     */
+    maps: {
+      planned: [MAP],
+      ready: result.envelopes
+        .filter(envelope => envelope.payload.type === 'server_ready')
+        .map(envelope => envelope.payload.map ?? null),
+      live: result.envelopes
+        .filter(envelope => envelope.payload.type === 'going_live')
+        .map(envelope => envelope.payload.map),
+    },
     /** Every payload type the durable log ended up holding, with its count. */
     payloads: Object.fromEntries(
       Object.entries(

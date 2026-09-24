@@ -1,0 +1,5136 @@
+{
+  "flow": "real-workshop-pug-bo1",
+  "calls": [
+    {
+      "route": "POST /v1/keys",
+      "status": 201,
+      "ok": true,
+      "request": {
+        "name": "iron-match-recorded",
+        "scopes": [
+          "matches",
+          "fleet",
+          "admin",
+          "simulation"
+        ],
+        "budget": {
+          "maxConcurrentServers": 2,
+          "maxServerLifetimeMinutes": 60,
+          "monthlyCents": 0
+        },
+        "webhookSecrets": [
+          {
+            "id": "whsec-iron-match",
+            "secret": "<redacted>"
+          }
+        ]
+      },
+      "response": {
+        "key": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "iron-match-recorded",
+          "prefix": "<redacted>",
+          "scopes": [
+            "matches",
+            "fleet",
+            "admin",
+            "simulation"
+          ],
+          "budget": {
+            "maxConcurrentServers": 2,
+            "maxServerLifetimeMinutes": 60,
+            "monthlyCents": 0
+          },
+          "webhookSecretIds": [
+            "whsec-iron-match"
+          ],
+          "fleetWebhook": null,
+          "createdAt": "2025-12-31T23:59:59.976Z",
+          "lastUsedAt": null,
+          "revokedAt": null
+        },
+        "secret": "<redacted>"
+      }
+    },
+    {
+      "route": "GET /v1/fleet/servers",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "servers": []
+      }
+    },
+    {
+      "route": "GET /v1/gamemodes",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "gamemodes": [
+          {
+            "id": "pug",
+            "game": "cs2",
+            "tier": "plugin",
+            "title": {
+              "de": "5v5 Wettkampf",
+              "en": "5v5 competitive"
+            },
+            "description": {
+              "de": "Das Spiel der Warteschlange: fünf gegen fünf, Messerrunde, Overtime, Demo und Rundenbackups – MatchZy führt das Match.",
+              "en": "The queue's game: five against five, a knife round, overtime, a demo and round backups – MatchZy runs the match."
+            },
+            "slots": {
+              "teamSize": 5,
+              "teams": 2,
+              "openJoin": false
+            },
+            "formats": [
+              "competitive",
+              "wingman"
+            ],
+            "flow": "matchzy",
+            "records": "demo",
+            "ranked": false,
+            "version": "0.3.0",
+            "maps": "any",
+            "plugins": [
+              "MatchZy"
+            ],
+            "cfg": [
+              "ezpug/pug.cfg"
+            ],
+            "cvars": {
+              "matchzy_kick_when_no_match_loaded": "false",
+              "matchzy_demo_recording_enabled": "true",
+              "matchzy_enable_tech_pause": "1",
+              "matchzy_stop_command_available": "true",
+              "matchzy_reset_cvars_on_series_end": "true"
+            },
+            "capabilities": {
+              "positions": true,
+              "chat": true,
+              "playerCommands": false,
+              "widget": false,
+              "backups": true,
+              "scoreboardRating": true,
+              "simulation": true,
+              "mixedRoster": true
+            },
+            "commands": [],
+            "sdkVersion": "0.1.0"
+          },
+          {
+            "id": "flying-scoutsman",
+            "game": "cs2",
+            "tier": "config",
+            "title": {
+              "de": "Flying Scoutsman",
+              "en": "Flying Scoutsman"
+            },
+            "description": {
+              "de": "CS2s Modus mit Scout und wenig Schwerkraft auf den normalen Karten. Nur Konfiguration, kein Plugin: den Matchablauf – live, Runden, Seitenwechsel, Kartenende – erzählt das SDK aus den Ereignissen der Engine.",
+              "en": "CS2's low-gravity Scout mode on the normal maps. Configuration only, no plugin: the match flow – live, rounds, the side swap, the end of the map – is told by the SDK from the engine's own events."
+            },
+            "slots": {
+              "teamSize": 5,
+              "teams": 2,
+              "openJoin": true
+            },
+            "formats": [
+              "competitive"
+            ],
+            "flow": "none",
+            "length": {
+              "idleTimeoutSeconds": 300
+            },
+            "records": "events",
+            "ranked": false,
+            "version": "0.4.0",
+            "maps": "any",
+            "plugins": [],
+            "cfg": [
+              "ezpug/flying-scoutsman.cfg"
+            ],
+            "cvars": {},
+            "capabilities": {
+              "positions": true,
+              "chat": true,
+              "playerCommands": false,
+              "widget": false,
+              "backups": false,
+              "scoreboardRating": false,
+              "simulation": true,
+              "mixedRoster": true
+            },
+            "commands": [],
+            "sdkVersion": "0.1.0"
+          },
+          {
+            "id": "retakes",
+            "game": "cs2",
+            "tier": "plugin",
+            "title": {
+              "de": "Retakes",
+              "en": "Retakes"
+            },
+            "description": {
+              "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, eine Gruppe statt zweier Teams — die Seiten verteilt das Plugin jede Runde neu. Waffen verteilt der Allocator, den Spielablauf erzählt das SDK aus den Ereignissen der Engine. Ereignisse ohne Demo.",
+              "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, one group rather than two teams — the plugin splits the sides afresh every round. The allocator hands out the guns and the SDK tells the match flow from the engine's own events. Events, no demo."
+            },
+            "slots": {
+              "teamSize": 10,
+              "teams": 1,
+              "openJoin": true
+            },
+            "formats": [
+              "competitive"
+            ],
+            "flow": "plugin",
+            "length": {
+              "idleTimeoutSeconds": 300
+            },
+            "records": "events",
+            "ranked": false,
+            "version": "0.4.0",
+            "maps": {
+              "catalog": [
+                "de_ancient",
+                "de_anubis",
+                "de_dust2",
+                "de_inferno",
+                "de_mirage",
+                "de_nuke",
+                "de_overpass",
+                "de_train",
+                "de_vertigo"
+              ],
+              "workshop": []
+            },
+            "plugins": [
+              "RetakesPlugin",
+              "RetakesAllocator"
+            ],
+            "cfg": [
+              "ezpug/retakes.cfg"
+            ],
+            "cvars": {
+              "bot_quota_mode": "normal",
+              "bot_join_after_player": "0"
+            },
+            "capabilities": {
+              "positions": true,
+              "chat": true,
+              "playerCommands": false,
+              "widget": false,
+              "backups": false,
+              "scoreboardRating": true,
+              "simulation": true,
+              "mixedRoster": true
+            },
+            "commands": [],
+            "sdkVersion": "0.1.0"
+          },
+          {
+            "id": "powerup-dm",
+            "game": "cs2",
+            "tier": "sdk",
+            "title": {
+              "de": "Power-up Deathmatch",
+              "en": "Power-up deathmatch"
+            },
+            "description": {
+              "de": "Deathmatch mit einem Knopf auf dem Handy: einmal pro Leben ein Power-up. Jeder gegen jeden, offener Beitritt, Ereignisse ohne Demo.",
+              "en": "Deathmatch with a button on your phone: one power-up per life. Free for all, open join, events without a demo."
+            },
+            "slots": {
+              "teamSize": 12,
+              "teams": 1,
+              "openJoin": true
+            },
+            "formats": [
+              "competitive"
+            ],
+            "flow": "plugin",
+            "length": {
+              "durationSeconds": 600,
+              "idleTimeoutSeconds": 300
+            },
+            "records": "events",
+            "ranked": false,
+            "version": "0.4.0",
+            "maps": {
+              "catalog": [
+                "de_ancient",
+                "de_anubis",
+                "de_dust2",
+                "de_inferno",
+                "de_mirage",
+                "de_nuke",
+                "de_overpass",
+                "de_train",
+                "de_vertigo"
+              ],
+              "workshop": []
+            },
+            "plugins": [
+              "EZPug.PowerupDm"
+            ],
+            "cfg": [
+              "ezpug/powerup-dm.cfg"
+            ],
+            "cvars": {
+              "mp_respawn_on_death_ct": "1",
+              "mp_respawn_on_death_t": "1",
+              "mp_respawn_immunitytime": "2",
+              "mp_buy_anywhere": "1",
+              "mp_teammates_are_enemies": "1"
+            },
+            "capabilities": {
+              "positions": true,
+              "chat": true,
+              "playerCommands": true,
+              "widget": true,
+              "backups": false,
+              "scoreboardRating": false,
+              "simulation": true,
+              "mixedRoster": true
+            },
+            "commands": [
+              {
+                "name": "powerup",
+                "title": {
+                  "de": "Power-up",
+                  "en": "Power-up"
+                },
+                "description": {
+                  "de": "Ein Power-up für dieses Leben: Tempo, Rüstung oder ein Blick auf die Gegner.",
+                  "en": "One power-up for this life: speed, armor, or a look at the enemy."
+                },
+                "cooldownMs": 0,
+                "charges": {
+                  "count": 1,
+                  "per": "life"
+                },
+                "args": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "speed",
+                        "armor",
+                        "radar_peek"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            ],
+            "widget": {
+              "entry": "dist/widget.js",
+              "needs": [
+                "tokens",
+                "locale",
+                "playerToken"
+              ],
+              "url": "http://localhost:3430/gamemodes/powerup-dm/widget/48c63b523cdd022f/index.html"
+            },
+            "sdkVersion": "0.1.0"
+          }
+        ]
+      }
+    },
+    {
+      "route": "POST /v1/matches",
+      "status": 201,
+      "ok": true,
+      "request": {
+        "clientMatchId": "iron-match-recorded",
+        "game": "cs2",
+        "gamemode": "pug",
+        "teams": {
+          "teamA": {
+            "name": "EZPug A",
+            "players": [
+              {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "locale": "de"
+              }
+            ]
+          },
+          "teamB": {
+            "name": "EZPug B",
+            "players": [
+              {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "locale": "en"
+              }
+            ]
+          }
+        },
+        "simulation": {
+          "timeScale": 2
+        },
+        "maps": [
+          {
+            "map": "workshop/3084291314/aim_map",
+            "sides": "ct"
+          }
+        ],
+        "rules": {
+          "format": "competitive",
+          "regulationRounds": 4,
+          "overtime": {
+            "enabled": true,
+            "maxRounds": 6,
+            "startMoney": 10000
+          },
+          "warmup": {
+            "minPlayersToReady": 0,
+            "minSpectatorsToReady": 0
+          },
+          "cvars": {
+            "mp_freezetime": "5"
+          }
+        },
+        "requirements": {
+          "lan": true
+        },
+        "callbacks": {
+          "webhookUrl": "http://127.0.0.1:39505/webhook",
+          "webhookSecretId": "whsec-iron-match",
+          "demoUploadUrl": "http://127.0.0.1:9400/demos/iron-match/iron-match-2026-09-24T17-44-47-001Z.dem?<redacted>"
+        },
+        "warmupLines": [
+          "Willkommen bei EZPug.",
+          "Welcome to EZPug."
+        ],
+        "branding": {
+          "hostname": "EZPug · pug · workshop/3084291314/aim_map",
+          "eventName": "iron-match"
+        },
+        "ttlMinutes": 60
+      },
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "pending",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": null,
+        "serverId": null,
+        "fleetServerId": null,
+        "connect": null,
+        "tv": null,
+        "seq": 0,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:00.124Z",
+        "readyAt": null,
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "configuring",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": null,
+        "tv": null,
+        "seq": 1,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:00.202Z",
+        "readyAt": null,
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "ready",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 3,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:09.899Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "ready",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 4,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:14.739Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": null,
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 15,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:18.152Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 18,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:25.058Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 20,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:29.043Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 22,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:33.048Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 22,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:33.048Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 25,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:42.097Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 29,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:49.401Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 29,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:49.401Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 32,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:00:59.149Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 33,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:01.242Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 33,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:01.242Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 33,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:01.242Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 33,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:01.242Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "live",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 37,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:01:21.078Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": null,
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": null,
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "state": "ended",
+        "game": "cs2",
+        "gamemode": "pug",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        },
+        "seq": 40,
+        "createdAt": "2026-01-01T00:00:00.124Z",
+        "updatedAt": "2026-01-01T00:02:29.218Z",
+        "readyAt": "2026-01-01T00:00:09.894Z",
+        "liveAt": "2026-01-01T00:00:18.025Z",
+        "endedAt": "2026-01-01T00:02:29.218Z",
+        "expiresAt": "2026-01-01T01:00:00.124Z",
+        "endedReason": {
+          "kind": "completed"
+        },
+        "sim": null,
+        "simulated": true
+      }
+    },
+    {
+      "route": "GET /v1/matches/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b/events",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "items": [
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000003",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 1,
+            "occurredAt": "2026-01-01T00:00:00.171Z",
+            "payload": {
+              "type": "match.allocated",
+              "provider": "nodes",
+              "serverId": "real-workshop-1",
+              "fleetServerId": "00000000-0000-4000-8000-000000000002",
+              "region": "saarland"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000004",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 2,
+            "occurredAt": "2026-01-01T00:00:09.871Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 1,
+              "type": "server_ready",
+              "map": "aim_map"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000005",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 3,
+            "occurredAt": "2026-01-01T00:00:09.899Z",
+            "payload": {
+              "type": "match.server_ready",
+              "connect": {
+                "host": "127.0.0.1",
+                "port": 27415,
+                "password": "<redacted>"
+              },
+              "tv": {
+                "host": "127.0.0.1",
+                "port": 27416,
+                "delaySeconds": 90
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000006",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 4,
+            "occurredAt": "2026-01-01T00:00:14.739Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 2,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "90000000000000004",
+                "name": "Rip",
+                "team": "unrostered"
+              },
+              "killer": {
+                "steamId64": "90000000000000003",
+                "name": "Crusher",
+                "team": "unrostered"
+              },
+              "assists": [],
+              "weapon": "knife",
+              "headshot": false
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000007",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 5,
+            "occurredAt": "2026-01-01T00:00:15.432Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 3,
+              "type": "player_connected",
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000008",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 6,
+            "occurredAt": "2026-01-01T00:00:15.447Z",
+            "payload": {
+              "type": "player.joined",
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "rostered": true
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000009",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 7,
+            "occurredAt": "2026-01-01T00:00:15.470Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 4,
+              "type": "player_connected",
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000010",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 8,
+            "occurredAt": "2026-01-01T00:00:15.485Z",
+            "payload": {
+              "type": "player.joined",
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "rostered": true
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000011",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 9,
+            "occurredAt": "2026-01-01T00:00:16.203Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "type": "team_ready",
+              "team": "team_b",
+              "tally": {
+                "ready": {
+                  "teamA": 0,
+                  "teamB": 1
+                },
+                "expected": 2
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000012",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 10,
+            "occurredAt": "2026-01-01T00:00:16.216Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "type": "player_ready",
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "tally": {
+                "ready": {
+                  "teamA": 0,
+                  "teamB": 1
+                },
+                "expected": 2
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000013",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 11,
+            "occurredAt": "2026-01-01T00:00:16.378Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "type": "team_ready",
+              "team": "team_a",
+              "tally": {
+                "ready": {
+                  "teamA": 1,
+                  "teamB": 1
+                },
+                "expected": 2
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000014",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 12,
+            "occurredAt": "2026-01-01T00:00:16.390Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "type": "player_ready",
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "tally": {
+                "ready": {
+                  "teamA": 1,
+                  "teamB": 1
+                },
+                "expected": 2
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000015",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 13,
+            "occurredAt": "2026-01-01T00:00:16.405Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "type": "all_ready",
+              "ready": {
+                "teamA": 1,
+                "teamB": 1
+              },
+              "countdown": true
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000016",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 14,
+            "occurredAt": "2026-01-01T00:00:18.012Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "type": "going_live",
+              "map": "workshop/3084291314/aim_map"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000017",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 15,
+            "occurredAt": "2026-01-01T00:00:18.152Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "round_start",
+              "score": {
+                "teamA": 0,
+                "teamB": 0
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000018",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 16,
+            "occurredAt": "2026-01-01T00:00:20.300Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 5,
+              "mapNumber": 1,
+              "type": "backup_written",
+              "roundNumber": 1,
+              "filename": "matchzy_1658979989_0_round00.json"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000019",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 17,
+            "occurredAt": "2026-01-01T00:00:25.003Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 6,
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "ak47",
+              "headshot": false
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000020",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 18,
+            "occurredAt": "2026-01-01T00:00:25.058Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "roundNumber": 1,
+              "type": "round_end",
+              "winner": {
+                "team": "team_a",
+                "side": "ct"
+              },
+              "winCondition": "elimination",
+              "score": {
+                "teamA": 1,
+                "teamB": 0
+              },
+              "players": [
+                {
+                  "player": {
+                    "steamId64": "76561198279375306",
+                    "name": "tk",
+                    "team": "team_a"
+                  },
+                  "kills": 1,
+                  "deaths": 0,
+                  "assists": 0,
+                  "damage": 100,
+                  "flashAssists": 0,
+                  "utilityDamage": 0,
+                  "enemiesFlashed": 0,
+                  "headshotKills": 0,
+                  "bombPlants": 0,
+                  "bombDefuses": 0,
+                  "mvps": 1,
+                  "score": 2
+                },
+                {
+                  "player": {
+                    "steamId64": "76561198279375307",
+                    "name": "maex",
+                    "team": "team_b"
+                  },
+                  "kills": 0,
+                  "deaths": 1,
+                  "assists": 0,
+                  "damage": 65,
+                  "flashAssists": 0,
+                  "utilityDamage": 0,
+                  "enemiesFlashed": 0,
+                  "headshotKills": 0,
+                  "bombPlants": 0,
+                  "bombDefuses": 0,
+                  "mvps": 0,
+                  "score": 0
+                }
+              ]
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000021",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 19,
+            "occurredAt": "2026-01-01T00:00:27.510Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "round_start",
+              "score": {
+                "teamA": 1,
+                "teamB": 0
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000022",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 20,
+            "occurredAt": "2026-01-01T00:00:29.043Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 7,
+              "mapNumber": 1,
+              "type": "backup_written",
+              "roundNumber": 2,
+              "filename": "matchzy_1658979989_0_round01.json"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000023",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 21,
+            "occurredAt": "2026-01-01T00:00:33.028Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 8,
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "ak47",
+              "headshot": false
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000024",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 22,
+            "occurredAt": "2026-01-01T00:00:33.048Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "roundNumber": 2,
+              "type": "round_end",
+              "winner": {
+                "team": "team_a",
+                "side": "ct"
+              },
+              "winCondition": "elimination",
+              "score": {
+                "teamA": 2,
+                "teamB": 0
+              },
+              "players": [
+                {
+                  "player": {
+                    "steamId64": "76561198279375306",
+                    "name": "tk",
+                    "team": "team_a"
+                  },
+                  "kills": 2,
+                  "deaths": 0,
+                  "assists": 0,
+                  "damage": 200,
+                  "flashAssists": 0,
+                  "utilityDamage": 0,
+                  "enemiesFlashed": 0,
+                  "headshotKills": 0,
+                  "bombPlants": 0,
+                  "bombDefuses": 0,
+                  "mvps": 2,
+                  "score": 4
+                },
+                {
+                  "player": {
+                    "steamId64": "76561198279375307",
+                    "name": "maex",
+                    "team": "team_b"
+                  },
+                  "kills": 0,
+                  "deaths": 2,
+                  "assists": 0,
+                  "damage": 65,
+                  "flashAssists": 0,
+                  "utilityDamage": 0,
+                  "enemiesFlashed": 0,
+                  "headshotKills": 0,
+                  "bombPlants": 0,
+                  "bombDefuses": 0,
+                  "mvps": 0,
+                  "score": 0
+                }
+              ]
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000025",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 23,
+            "occurredAt": "2026-01-01T00:00:40.564Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 9,
+              "mapNumber": 1,
+              "type": "side_swap",
+              "sides": {
+                "teamA": "t",
+                "teamB": "ct"
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000026",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 24,
+            "occurredAt": "2026-01-01T00:00:40.586Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "round_start",
+              "score": {
+                "teamA": 2,
+                "teamB": 0
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000027",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 25,
+            "occurredAt": "2026-01-01T00:00:42.097Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 10,
+              "mapNumber": 1,
+              "type": "backup_written",
+              "roundNumber": 3,
+              "filename": "matchzy_1658979989_0_round02.json"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000028",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 26,
+            "occurredAt": "2026-01-01T00:00:45.355Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 11,
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "killer": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "assists": [],
+              "weapon": "ak47",
+              "headshot": false
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000029",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 27,
+            "occurredAt": "2026-01-01T00:00:45.378Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "roundNumber": 3,
+              "type": "round_end",
+              "winner": {
+                "team": "team_b",
+                "side": "ct"
+              },
+              "winCondition": "elimination",
+              "score": {
+                "teamA": 2,
+                "teamB": 1
+              },
+              "players": [
+                {
+                  "player": {
+                    "steamId64": "76561198279375306",
+                    "name": "tk",
+                    "team": "team_a"
+                  },
+                  "kills": 2,
+                  "deaths": 1,
+                  "assists": 0,
+                  "damage": 200,
+                  "flashAssists": 0,
+                  "utilityDamage": 0,
+                  "enemiesFlashed": 0,
+                  "headshotKills": 0,
+                  "bombPlants": 0,
+                  "bombDefuses": 0,
+                  "mvps": 2,
+                  "score": 4
+                },
+                {
+                  "player": {
+                    "steamId64": "76561198279375307",
+                    "name": "maex",
+                    "team": "team_b"
+                  },
+                  "kills": 1,
+                  "deaths": 2,
+                  "assists": 0,
+                  "damage": 165,
+                  "flashAssists": 0,
+                  "utilityDamage": 0,
+                  "enemiesFlashed": 0,
+                  "headshotKills": 0,
+                  "bombPlants": 0,
+                  "bombDefuses": 0,
+                  "mvps": 1,
+                  "score": 2
+                }
+              ]
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000030",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 28,
+            "occurredAt": "2026-01-01T00:00:47.875Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "roundNumber": 4,
+              "type": "round_start",
+              "score": {
+                "teamA": 2,
+                "teamB": 1
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000031",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 29,
+            "occurredAt": "2026-01-01T00:00:49.401Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 12,
+              "mapNumber": 1,
+              "type": "backup_written",
+              "roundNumber": 4,
+              "filename": "matchzy_1658979989_0_round03.json"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000032",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 30,
+            "occurredAt": "2026-01-01T00:00:57.588Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 13,
+              "mapNumber": 1,
+              "roundNumber": 4,
+              "type": "player_death",
+              "victim": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "killer": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "assists": [],
+              "weapon": "m4a1",
+              "headshot": false
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000033",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 31,
+            "occurredAt": "2026-01-01T00:00:57.604Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "roundNumber": 4,
+              "type": "round_end",
+              "winner": {
+                "team": "team_a",
+                "side": "t"
+              },
+              "winCondition": "elimination",
+              "score": {
+                "teamA": 3,
+                "teamB": 1
+              },
+              "players": [
+                {
+                  "player": {
+                    "steamId64": "76561198279375306",
+                    "name": "tk",
+                    "team": "team_a"
+                  },
+                  "kills": 3,
+                  "deaths": 1,
+                  "assists": 0,
+                  "damage": 300,
+                  "flashAssists": 0,
+                  "utilityDamage": 0,
+                  "enemiesFlashed": 0,
+                  "headshotKills": 0,
+                  "bombPlants": 0,
+                  "bombDefuses": 0,
+                  "mvps": 3,
+                  "score": 6
+                },
+                {
+                  "player": {
+                    "steamId64": "76561198279375307",
+                    "name": "maex",
+                    "team": "team_b"
+                  },
+                  "kills": 1,
+                  "deaths": 3,
+                  "assists": 0,
+                  "damage": 165,
+                  "flashAssists": 0,
+                  "utilityDamage": 0,
+                  "enemiesFlashed": 0,
+                  "headshotKills": 0,
+                  "bombPlants": 0,
+                  "bombDefuses": 0,
+                  "mvps": 1,
+                  "score": 2
+                }
+              ]
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000034",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 32,
+            "occurredAt": "2026-01-01T00:00:59.149Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "mapNumber": 1,
+              "type": "map_end",
+              "map": "workshop/3084291314/aim_map",
+              "score": {
+                "teamA": 3,
+                "teamB": 1
+              },
+              "winner": "team_a"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000035",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 33,
+            "occurredAt": "2026-01-01T00:01:01.242Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "type": "series_end",
+              "seriesScore": {
+                "teamA": 1,
+                "teamB": 0
+              },
+              "winner": "team_a"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000036",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 34,
+            "occurredAt": "2026-01-01T00:01:21.028Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 14,
+              "type": "player_disconnected",
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000037",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 35,
+            "occurredAt": "2026-01-01T00:01:21.041Z",
+            "payload": {
+              "type": "player.left",
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000038",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 36,
+            "occurredAt": "2026-01-01T00:01:21.065Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 15,
+              "type": "player_disconnected",
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000039",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 37,
+            "occurredAt": "2026-01-01T00:01:21.078Z",
+            "payload": {
+              "type": "player.left",
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              }
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000040",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 38,
+            "occurredAt": "2026-01-01T00:02:29.178Z",
+            "payload": {
+              "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+              "source": {
+                "provider": "nodes",
+                "serverId": "real-workshop-1",
+                "simulated": true
+              },
+              "seq": 16,
+              "mapNumber": 1,
+              "type": "demo_available",
+              "filename": "2026-09-24_17-45-06_1658979989_aim_map_EZPug_A_vs_EZPug_B.dem",
+              "sizeBytes": 1778691,
+              "sha256": "e49aa7a0a68aeac47f6a52897e16d98850e7adbb56f3f1ba631164778c4b6065",
+              "contentType": "application/octet-stream"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000041",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 39,
+            "occurredAt": "2026-01-01T00:02:29.190Z",
+            "payload": {
+              "type": "demo.uploaded",
+              "mapNumber": 1,
+              "key": "demos/iron-match/iron-match-recorded.dem",
+              "size": 1778691,
+              "sha256": "e49aa7a0a68aeac47f6a52897e16d98850e7adbb56f3f1ba631164778c4b6065",
+              "contentType": "application/octet-stream"
+            }
+          },
+          {
+            "deliveryId": "00000000-0000-4000-8000-000000000042",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "clientMatchId": "iron-match-recorded",
+            "seq": 40,
+            "occurredAt": "2026-01-01T00:02:29.218Z",
+            "payload": {
+              "type": "match.ended",
+              "state": "ended",
+              "reason": {
+                "kind": "completed"
+              },
+              "demo": {
+                "uploaded": 1
+              }
+            }
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "route": "GET /v1/fleet/ledger",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "items": [
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "node": "devbox",
+            "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+            "keyId": "00000000-0000-4000-8000-000000000001",
+            "state": "released",
+            "game": "cs2",
+            "region": "saarland",
+            "lan": true,
+            "address": {
+              "host": "127.0.0.1",
+              "port": 27415
+            },
+            "tv": {
+              "host": "127.0.0.1",
+              "port": 27416,
+              "delaySeconds": 90
+            },
+            "cost": {
+              "currency": "EUR",
+              "hourlyCents": 0,
+              "accruedCents": 0,
+              "asOf": "2026-01-01T00:02:35.533Z"
+            },
+            "allocatedAt": "2026-01-01T00:00:00.150Z",
+            "releasedAt": "2026-01-01T00:02:29.203Z",
+            "expiresAt": "2026-01-01T01:00:00.124Z"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "route": "GET /v1/fleet/servers",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "servers": []
+      }
+    }
+  ],
+  "envelopes": [
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000003",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 1,
+      "occurredAt": "2026-01-01T00:00:00.171Z",
+      "payload": {
+        "type": "match.allocated",
+        "provider": "nodes",
+        "serverId": "real-workshop-1",
+        "fleetServerId": "00000000-0000-4000-8000-000000000002",
+        "region": "saarland"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000004",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 2,
+      "occurredAt": "2026-01-01T00:00:09.871Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 1,
+        "type": "server_ready",
+        "map": "aim_map"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000005",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 3,
+      "occurredAt": "2026-01-01T00:00:09.899Z",
+      "payload": {
+        "type": "match.server_ready",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 27415,
+          "password": "<redacted>"
+        },
+        "tv": {
+          "host": "127.0.0.1",
+          "port": 27416,
+          "delaySeconds": 90
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000006",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 4,
+      "occurredAt": "2026-01-01T00:00:14.739Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 2,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "90000000000000004",
+          "name": "Rip",
+          "team": "unrostered"
+        },
+        "killer": {
+          "steamId64": "90000000000000003",
+          "name": "Crusher",
+          "team": "unrostered"
+        },
+        "assists": [],
+        "weapon": "knife",
+        "headshot": false
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000007",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 5,
+      "occurredAt": "2026-01-01T00:00:15.432Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 3,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000008",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 6,
+      "occurredAt": "2026-01-01T00:00:15.447Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000009",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 7,
+      "occurredAt": "2026-01-01T00:00:15.470Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 4,
+        "type": "player_connected",
+        "player": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000010",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 8,
+      "occurredAt": "2026-01-01T00:00:15.485Z",
+      "payload": {
+        "type": "player.joined",
+        "player": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        },
+        "rostered": true
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000011",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 9,
+      "occurredAt": "2026-01-01T00:00:16.203Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "type": "team_ready",
+        "team": "team_b",
+        "tally": {
+          "ready": {
+            "teamA": 0,
+            "teamB": 1
+          },
+          "expected": 2
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000012",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 10,
+      "occurredAt": "2026-01-01T00:00:16.216Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "type": "player_ready",
+        "player": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        },
+        "tally": {
+          "ready": {
+            "teamA": 0,
+            "teamB": 1
+          },
+          "expected": 2
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000013",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 11,
+      "occurredAt": "2026-01-01T00:00:16.378Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "type": "team_ready",
+        "team": "team_a",
+        "tally": {
+          "ready": {
+            "teamA": 1,
+            "teamB": 1
+          },
+          "expected": 2
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000014",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 12,
+      "occurredAt": "2026-01-01T00:00:16.390Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "type": "player_ready",
+        "player": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        },
+        "tally": {
+          "ready": {
+            "teamA": 1,
+            "teamB": 1
+          },
+          "expected": 2
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000015",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 13,
+      "occurredAt": "2026-01-01T00:00:16.405Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "type": "all_ready",
+        "ready": {
+          "teamA": 1,
+          "teamB": 1
+        },
+        "countdown": true
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000016",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 14,
+      "occurredAt": "2026-01-01T00:00:18.012Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "type": "going_live",
+        "map": "workshop/3084291314/aim_map"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000017",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 15,
+      "occurredAt": "2026-01-01T00:00:18.152Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "round_start",
+        "score": {
+          "teamA": 0,
+          "teamB": 0
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000018",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 16,
+      "occurredAt": "2026-01-01T00:00:20.300Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 5,
+        "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 1,
+        "filename": "matchzy_1658979989_0_round00.json"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000019",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 17,
+      "occurredAt": "2026-01-01T00:00:25.003Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 6,
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "ak47",
+        "headshot": false
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000020",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 18,
+      "occurredAt": "2026-01-01T00:00:25.058Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "roundNumber": 1,
+        "type": "round_end",
+        "winner": {
+          "team": "team_a",
+          "side": "ct"
+        },
+        "winCondition": "elimination",
+        "score": {
+          "teamA": 1,
+          "teamB": 0
+        },
+        "players": [
+          {
+            "player": {
+              "steamId64": "76561198279375306",
+              "name": "tk",
+              "team": "team_a"
+            },
+            "kills": 1,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 100,
+            "flashAssists": 0,
+            "utilityDamage": 0,
+            "enemiesFlashed": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 1,
+            "score": 2
+          },
+          {
+            "player": {
+              "steamId64": "76561198279375307",
+              "name": "maex",
+              "team": "team_b"
+            },
+            "kills": 0,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 65,
+            "flashAssists": 0,
+            "utilityDamage": 0,
+            "enemiesFlashed": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          }
+        ]
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000021",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 19,
+      "occurredAt": "2026-01-01T00:00:27.510Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "round_start",
+        "score": {
+          "teamA": 1,
+          "teamB": 0
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000022",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 20,
+      "occurredAt": "2026-01-01T00:00:29.043Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 7,
+        "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 2,
+        "filename": "matchzy_1658979989_0_round01.json"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000023",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 21,
+      "occurredAt": "2026-01-01T00:00:33.028Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 8,
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "ak47",
+        "headshot": false
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000024",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 22,
+      "occurredAt": "2026-01-01T00:00:33.048Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "roundNumber": 2,
+        "type": "round_end",
+        "winner": {
+          "team": "team_a",
+          "side": "ct"
+        },
+        "winCondition": "elimination",
+        "score": {
+          "teamA": 2,
+          "teamB": 0
+        },
+        "players": [
+          {
+            "player": {
+              "steamId64": "76561198279375306",
+              "name": "tk",
+              "team": "team_a"
+            },
+            "kills": 2,
+            "deaths": 0,
+            "assists": 0,
+            "damage": 200,
+            "flashAssists": 0,
+            "utilityDamage": 0,
+            "enemiesFlashed": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 2,
+            "score": 4
+          },
+          {
+            "player": {
+              "steamId64": "76561198279375307",
+              "name": "maex",
+              "team": "team_b"
+            },
+            "kills": 0,
+            "deaths": 2,
+            "assists": 0,
+            "damage": 65,
+            "flashAssists": 0,
+            "utilityDamage": 0,
+            "enemiesFlashed": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 0,
+            "score": 0
+          }
+        ]
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000025",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 23,
+      "occurredAt": "2026-01-01T00:00:40.564Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 9,
+        "mapNumber": 1,
+        "type": "side_swap",
+        "sides": {
+          "teamA": "t",
+          "teamB": "ct"
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000026",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 24,
+      "occurredAt": "2026-01-01T00:00:40.586Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "roundNumber": 3,
+        "type": "round_start",
+        "score": {
+          "teamA": 2,
+          "teamB": 0
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000027",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 25,
+      "occurredAt": "2026-01-01T00:00:42.097Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 10,
+        "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 3,
+        "filename": "matchzy_1658979989_0_round02.json"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000028",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 26,
+      "occurredAt": "2026-01-01T00:00:45.355Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 11,
+        "mapNumber": 1,
+        "roundNumber": 3,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        },
+        "killer": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        },
+        "assists": [],
+        "weapon": "ak47",
+        "headshot": false
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000029",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 27,
+      "occurredAt": "2026-01-01T00:00:45.378Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "roundNumber": 3,
+        "type": "round_end",
+        "winner": {
+          "team": "team_b",
+          "side": "ct"
+        },
+        "winCondition": "elimination",
+        "score": {
+          "teamA": 2,
+          "teamB": 1
+        },
+        "players": [
+          {
+            "player": {
+              "steamId64": "76561198279375306",
+              "name": "tk",
+              "team": "team_a"
+            },
+            "kills": 2,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 200,
+            "flashAssists": 0,
+            "utilityDamage": 0,
+            "enemiesFlashed": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 2,
+            "score": 4
+          },
+          {
+            "player": {
+              "steamId64": "76561198279375307",
+              "name": "maex",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 2,
+            "assists": 0,
+            "damage": 165,
+            "flashAssists": 0,
+            "utilityDamage": 0,
+            "enemiesFlashed": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 1,
+            "score": 2
+          }
+        ]
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000030",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 28,
+      "occurredAt": "2026-01-01T00:00:47.875Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "roundNumber": 4,
+        "type": "round_start",
+        "score": {
+          "teamA": 2,
+          "teamB": 1
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000031",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 29,
+      "occurredAt": "2026-01-01T00:00:49.401Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 12,
+        "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 4,
+        "filename": "matchzy_1658979989_0_round03.json"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000032",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 30,
+      "occurredAt": "2026-01-01T00:00:57.588Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 13,
+        "mapNumber": 1,
+        "roundNumber": 4,
+        "type": "player_death",
+        "victim": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        },
+        "killer": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        },
+        "assists": [],
+        "weapon": "m4a1",
+        "headshot": false
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000033",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 31,
+      "occurredAt": "2026-01-01T00:00:57.604Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "roundNumber": 4,
+        "type": "round_end",
+        "winner": {
+          "team": "team_a",
+          "side": "t"
+        },
+        "winCondition": "elimination",
+        "score": {
+          "teamA": 3,
+          "teamB": 1
+        },
+        "players": [
+          {
+            "player": {
+              "steamId64": "76561198279375306",
+              "name": "tk",
+              "team": "team_a"
+            },
+            "kills": 3,
+            "deaths": 1,
+            "assists": 0,
+            "damage": 300,
+            "flashAssists": 0,
+            "utilityDamage": 0,
+            "enemiesFlashed": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 3,
+            "score": 6
+          },
+          {
+            "player": {
+              "steamId64": "76561198279375307",
+              "name": "maex",
+              "team": "team_b"
+            },
+            "kills": 1,
+            "deaths": 3,
+            "assists": 0,
+            "damage": 165,
+            "flashAssists": 0,
+            "utilityDamage": 0,
+            "enemiesFlashed": 0,
+            "headshotKills": 0,
+            "bombPlants": 0,
+            "bombDefuses": 0,
+            "mvps": 1,
+            "score": 2
+          }
+        ]
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000034",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 32,
+      "occurredAt": "2026-01-01T00:00:59.149Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "mapNumber": 1,
+        "type": "map_end",
+        "map": "workshop/3084291314/aim_map",
+        "score": {
+          "teamA": 3,
+          "teamB": 1
+        },
+        "winner": "team_a"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000035",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 33,
+      "occurredAt": "2026-01-01T00:01:01.242Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "type": "series_end",
+        "seriesScore": {
+          "teamA": 1,
+          "teamB": 0
+        },
+        "winner": "team_a"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000036",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 34,
+      "occurredAt": "2026-01-01T00:01:21.028Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 14,
+        "type": "player_disconnected",
+        "player": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000037",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 35,
+      "occurredAt": "2026-01-01T00:01:21.041Z",
+      "payload": {
+        "type": "player.left",
+        "player": {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000038",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 36,
+      "occurredAt": "2026-01-01T00:01:21.065Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 15,
+        "type": "player_disconnected",
+        "player": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000039",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 37,
+      "occurredAt": "2026-01-01T00:01:21.078Z",
+      "payload": {
+        "type": "player.left",
+        "player": {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        }
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000040",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 38,
+      "occurredAt": "2026-01-01T00:02:29.178Z",
+      "payload": {
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "source": {
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "simulated": true
+        },
+        "seq": 16,
+        "mapNumber": 1,
+        "type": "demo_available",
+        "filename": "2026-09-24_17-45-06_1658979989_aim_map_EZPug_A_vs_EZPug_B.dem",
+        "sizeBytes": 1778691,
+        "sha256": "e49aa7a0a68aeac47f6a52897e16d98850e7adbb56f3f1ba631164778c4b6065",
+        "contentType": "application/octet-stream"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000041",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 39,
+      "occurredAt": "2026-01-01T00:02:29.190Z",
+      "payload": {
+        "type": "demo.uploaded",
+        "mapNumber": 1,
+        "key": "demos/iron-match/iron-match-recorded.dem",
+        "size": 1778691,
+        "sha256": "e49aa7a0a68aeac47f6a52897e16d98850e7adbb56f3f1ba631164778c4b6065",
+        "contentType": "application/octet-stream"
+      }
+    },
+    {
+      "deliveryId": "00000000-0000-4000-8000-000000000042",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "clientMatchId": "iron-match-recorded",
+      "seq": 40,
+      "occurredAt": "2026-01-01T00:02:29.218Z",
+      "payload": {
+        "type": "match.ended",
+        "state": "ended",
+        "reason": {
+          "kind": "completed"
+        },
+        "demo": {
+          "uploaded": 1
+        }
+      }
+    }
+  ],
+  "deliveries": [
+    {
+      "seq": 1,
+      "type": "match.allocated",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 2,
+      "type": "server_ready",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 3,
+      "type": "match.server_ready",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 4,
+      "type": "player_death",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 5,
+      "type": "player_connected",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 6,
+      "type": "player.joined",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 7,
+      "type": "player_connected",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 8,
+      "type": "player.joined",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 9,
+      "type": "team_ready",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 10,
+      "type": "player_ready",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 11,
+      "type": "team_ready",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 12,
+      "type": "player_ready",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 13,
+      "type": "all_ready",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 14,
+      "type": "going_live",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 15,
+      "type": "round_start",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 16,
+      "type": "backup_written",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 17,
+      "type": "player_death",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 18,
+      "type": "round_end",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 19,
+      "type": "round_start",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 20,
+      "type": "backup_written",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 21,
+      "type": "player_death",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 22,
+      "type": "round_end",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 23,
+      "type": "side_swap",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 24,
+      "type": "round_start",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 25,
+      "type": "backup_written",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 26,
+      "type": "player_death",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 27,
+      "type": "round_end",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 28,
+      "type": "round_start",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 29,
+      "type": "backup_written",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 30,
+      "type": "player_death",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 31,
+      "type": "round_end",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 32,
+      "type": "map_end",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 33,
+      "type": "series_end",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 34,
+      "type": "player_disconnected",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 35,
+      "type": "player.left",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 36,
+      "type": "player_disconnected",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 37,
+      "type": "player.left",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 38,
+      "type": "demo_available",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 39,
+      "type": "demo.uploaded",
+      "signature": "verified",
+      "attempt": 1
+    },
+    {
+      "seq": 40,
+      "type": "match.ended",
+      "signature": "verified",
+      "attempt": 1
+    }
+  ],
+  "frames": [
+    {
+      "type": "hello",
+      "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "seq": 0,
+      "state": "allocating"
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000003",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 1,
+        "occurredAt": "2026-01-01T00:00:00.171Z",
+        "payload": {
+          "type": "match.allocated",
+          "provider": "nodes",
+          "serverId": "real-workshop-1",
+          "fleetServerId": "00000000-0000-4000-8000-000000000002",
+          "region": "saarland"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000004",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 2,
+        "occurredAt": "2026-01-01T00:00:09.871Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 1,
+          "type": "server_ready",
+          "map": "aim_map"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000005",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 3,
+        "occurredAt": "2026-01-01T00:00:09.899Z",
+        "payload": {
+          "type": "match.server_ready",
+          "connect": {
+            "host": "127.0.0.1",
+            "port": 27415,
+            "password": "<redacted>"
+          },
+          "tv": {
+            "host": "127.0.0.1",
+            "port": 27416,
+            "delaySeconds": 90
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000006",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 4,
+        "occurredAt": "2026-01-01T00:00:14.739Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 2,
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "type": "player_death",
+          "victim": {
+            "steamId64": "90000000000000004",
+            "name": "Rip",
+            "team": "unrostered"
+          },
+          "killer": {
+            "steamId64": "90000000000000003",
+            "name": "Crusher",
+            "team": "unrostered"
+          },
+          "assists": [],
+          "weapon": "knife",
+          "headshot": false
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000007",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 5,
+        "occurredAt": "2026-01-01T00:00:15.432Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 3,
+          "type": "player_connected",
+          "player": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000008",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 6,
+        "occurredAt": "2026-01-01T00:00:15.447Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000009",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 7,
+        "occurredAt": "2026-01-01T00:00:15.470Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 4,
+          "type": "player_connected",
+          "player": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000010",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 8,
+        "occurredAt": "2026-01-01T00:00:15.485Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198279375306",
+          "name": "tk",
+          "team": "team_a"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000011",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 9,
+        "occurredAt": "2026-01-01T00:00:16.203Z",
+        "payload": {
+          "type": "team_ready",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "team": "team_b",
+          "tally": {
+            "ready": {
+              "teamA": 0,
+              "teamB": 1
+            },
+            "expected": 2
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000012",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 10,
+        "occurredAt": "2026-01-01T00:00:16.216Z",
+        "payload": {
+          "type": "player_ready",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "player": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          },
+          "tally": {
+            "ready": {
+              "teamA": 0,
+              "teamB": 1
+            },
+            "expected": 2
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000013",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 11,
+        "occurredAt": "2026-01-01T00:00:16.378Z",
+        "payload": {
+          "type": "team_ready",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "team": "team_a",
+          "tally": {
+            "ready": {
+              "teamA": 1,
+              "teamB": 1
+            },
+            "expected": 2
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000014",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 12,
+        "occurredAt": "2026-01-01T00:00:16.390Z",
+        "payload": {
+          "type": "player_ready",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "player": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          },
+          "tally": {
+            "ready": {
+              "teamA": 1,
+              "teamB": 1
+            },
+            "expected": 2
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000015",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 13,
+        "occurredAt": "2026-01-01T00:00:16.405Z",
+        "payload": {
+          "type": "all_ready",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "ready": {
+            "teamA": 1,
+            "teamB": 1
+          },
+          "countdown": true
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000016",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 14,
+        "occurredAt": "2026-01-01T00:00:18.012Z",
+        "payload": {
+          "type": "going_live",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "map": "workshop/3084291314/aim_map"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000017",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 15,
+        "occurredAt": "2026-01-01T00:00:18.152Z",
+        "payload": {
+          "type": "round_start",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "score": {
+            "teamA": 0,
+            "teamB": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000018",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 16,
+        "occurredAt": "2026-01-01T00:00:20.300Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 5,
+          "mapNumber": 1,
+          "type": "backup_written",
+          "roundNumber": 1,
+          "filename": "matchzy_1658979989_0_round00.json"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000019",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 17,
+        "occurredAt": "2026-01-01T00:00:25.003Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 6,
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "type": "player_death",
+          "victim": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          },
+          "killer": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          },
+          "assists": [],
+          "weapon": "ak47",
+          "headshot": false
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000020",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 18,
+        "occurredAt": "2026-01-01T00:00:25.058Z",
+        "payload": {
+          "type": "round_end",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "roundNumber": 1,
+          "winner": {
+            "team": "team_a",
+            "side": "ct"
+          },
+          "winCondition": "elimination",
+          "score": {
+            "teamA": 1,
+            "teamB": 0
+          },
+          "players": [
+            {
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "kills": 1,
+              "deaths": 0,
+              "assists": 0,
+              "damage": 100,
+              "flashAssists": 0,
+              "utilityDamage": 0,
+              "enemiesFlashed": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 1,
+              "score": 2
+            },
+            {
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "kills": 0,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 65,
+              "flashAssists": 0,
+              "utilityDamage": 0,
+              "enemiesFlashed": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000021",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 19,
+        "occurredAt": "2026-01-01T00:00:27.510Z",
+        "payload": {
+          "type": "round_start",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "score": {
+            "teamA": 1,
+            "teamB": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000022",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 20,
+        "occurredAt": "2026-01-01T00:00:29.043Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 7,
+          "mapNumber": 1,
+          "type": "backup_written",
+          "roundNumber": 2,
+          "filename": "matchzy_1658979989_0_round01.json"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000023",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 21,
+        "occurredAt": "2026-01-01T00:00:33.028Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 8,
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "type": "player_death",
+          "victim": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          },
+          "killer": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          },
+          "assists": [],
+          "weapon": "ak47",
+          "headshot": false
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000024",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 22,
+        "occurredAt": "2026-01-01T00:00:33.048Z",
+        "payload": {
+          "type": "round_end",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "roundNumber": 2,
+          "winner": {
+            "team": "team_a",
+            "side": "ct"
+          },
+          "winCondition": "elimination",
+          "score": {
+            "teamA": 2,
+            "teamB": 0
+          },
+          "players": [
+            {
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "kills": 2,
+              "deaths": 0,
+              "assists": 0,
+              "damage": 200,
+              "flashAssists": 0,
+              "utilityDamage": 0,
+              "enemiesFlashed": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 2,
+              "score": 4
+            },
+            {
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "kills": 0,
+              "deaths": 2,
+              "assists": 0,
+              "damage": 65,
+              "flashAssists": 0,
+              "utilityDamage": 0,
+              "enemiesFlashed": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 0,
+              "score": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000025",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 23,
+        "occurredAt": "2026-01-01T00:00:40.564Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 9,
+          "mapNumber": 1,
+          "type": "side_swap",
+          "sides": {
+            "teamA": "t",
+            "teamB": "ct"
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000026",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 24,
+        "occurredAt": "2026-01-01T00:00:40.586Z",
+        "payload": {
+          "type": "round_start",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "roundNumber": 3,
+          "score": {
+            "teamA": 2,
+            "teamB": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000027",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 25,
+        "occurredAt": "2026-01-01T00:00:42.097Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 10,
+          "mapNumber": 1,
+          "type": "backup_written",
+          "roundNumber": 3,
+          "filename": "matchzy_1658979989_0_round02.json"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000028",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 26,
+        "occurredAt": "2026-01-01T00:00:45.355Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 11,
+          "mapNumber": 1,
+          "roundNumber": 3,
+          "type": "player_death",
+          "victim": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          },
+          "killer": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          },
+          "assists": [],
+          "weapon": "ak47",
+          "headshot": false
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000029",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 27,
+        "occurredAt": "2026-01-01T00:00:45.378Z",
+        "payload": {
+          "type": "round_end",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "roundNumber": 3,
+          "winner": {
+            "team": "team_b",
+            "side": "ct"
+          },
+          "winCondition": "elimination",
+          "score": {
+            "teamA": 2,
+            "teamB": 1
+          },
+          "players": [
+            {
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "kills": 2,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 200,
+              "flashAssists": 0,
+              "utilityDamage": 0,
+              "enemiesFlashed": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 2,
+              "score": 4
+            },
+            {
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "kills": 1,
+              "deaths": 2,
+              "assists": 0,
+              "damage": 165,
+              "flashAssists": 0,
+              "utilityDamage": 0,
+              "enemiesFlashed": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 1,
+              "score": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000030",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 28,
+        "occurredAt": "2026-01-01T00:00:47.875Z",
+        "payload": {
+          "type": "round_start",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "roundNumber": 4,
+          "score": {
+            "teamA": 2,
+            "teamB": 1
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000031",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 29,
+        "occurredAt": "2026-01-01T00:00:49.401Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 12,
+          "mapNumber": 1,
+          "type": "backup_written",
+          "roundNumber": 4,
+          "filename": "matchzy_1658979989_0_round03.json"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000032",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 30,
+        "occurredAt": "2026-01-01T00:00:57.588Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 13,
+          "mapNumber": 1,
+          "roundNumber": 4,
+          "type": "player_death",
+          "victim": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          },
+          "killer": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          },
+          "assists": [],
+          "weapon": "m4a1",
+          "headshot": false
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000033",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 31,
+        "occurredAt": "2026-01-01T00:00:57.604Z",
+        "payload": {
+          "type": "round_end",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "roundNumber": 4,
+          "winner": {
+            "team": "team_a",
+            "side": "t"
+          },
+          "winCondition": "elimination",
+          "score": {
+            "teamA": 3,
+            "teamB": 1
+          },
+          "players": [
+            {
+              "player": {
+                "steamId64": "76561198279375306",
+                "name": "tk",
+                "team": "team_a"
+              },
+              "kills": 3,
+              "deaths": 1,
+              "assists": 0,
+              "damage": 300,
+              "flashAssists": 0,
+              "utilityDamage": 0,
+              "enemiesFlashed": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 3,
+              "score": 6
+            },
+            {
+              "player": {
+                "steamId64": "76561198279375307",
+                "name": "maex",
+                "team": "team_b"
+              },
+              "kills": 1,
+              "deaths": 3,
+              "assists": 0,
+              "damage": 165,
+              "flashAssists": 0,
+              "utilityDamage": 0,
+              "enemiesFlashed": 0,
+              "headshotKills": 0,
+              "bombPlants": 0,
+              "bombDefuses": 0,
+              "mvps": 1,
+              "score": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000034",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 32,
+        "occurredAt": "2026-01-01T00:00:59.149Z",
+        "payload": {
+          "type": "map_end",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "mapNumber": 1,
+          "map": "workshop/3084291314/aim_map",
+          "score": {
+            "teamA": 3,
+            "teamB": 1
+          },
+          "winner": "team_a"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000035",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 33,
+        "occurredAt": "2026-01-01T00:01:01.242Z",
+        "payload": {
+          "type": "series_end",
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seriesScore": {
+            "teamA": 1,
+            "teamB": 0
+          },
+          "winner": "team_a"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000036",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 34,
+        "occurredAt": "2026-01-01T00:01:21.028Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 14,
+          "type": "player_disconnected",
+          "player": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000037",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 35,
+        "occurredAt": "2026-01-01T00:01:21.041Z",
+        "payload": {
+          "type": "player.left",
+          "player": {
+            "steamId64": "76561198279375306",
+            "name": "tk",
+            "team": "team_a"
+          }
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198279375307",
+          "name": "maex",
+          "team": "team_b"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000038",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 36,
+        "occurredAt": "2026-01-01T00:01:21.065Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 15,
+          "type": "player_disconnected",
+          "player": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000039",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 37,
+        "occurredAt": "2026-01-01T00:01:21.078Z",
+        "payload": {
+          "type": "player.left",
+          "player": {
+            "steamId64": "76561198279375307",
+            "name": "maex",
+            "team": "team_b"
+          }
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": []
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000040",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 38,
+        "occurredAt": "2026-01-01T00:02:29.178Z",
+        "payload": {
+          "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+          "source": {
+            "provider": "nodes",
+            "serverId": "real-workshop-1",
+            "simulated": true
+          },
+          "seq": 16,
+          "mapNumber": 1,
+          "type": "demo_available",
+          "filename": "2026-09-24_17-45-06_1658979989_aim_map_EZPug_A_vs_EZPug_B.dem",
+          "sizeBytes": 1778691,
+          "sha256": "e49aa7a0a68aeac47f6a52897e16d98850e7adbb56f3f1ba631164778c4b6065",
+          "contentType": "application/octet-stream"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000041",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 39,
+        "occurredAt": "2026-01-01T00:02:29.190Z",
+        "payload": {
+          "type": "demo.uploaded",
+          "mapNumber": 1,
+          "key": "demos/iron-match/iron-match-recorded.dem",
+          "size": 1778691,
+          "sha256": "e49aa7a0a68aeac47f6a52897e16d98850e7adbb56f3f1ba631164778c4b6065",
+          "contentType": "application/octet-stream"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00000000-0000-4000-8000-000000000042",
+        "matchId": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+        "clientMatchId": "iron-match-recorded",
+        "seq": 40,
+        "occurredAt": "2026-01-01T00:02:29.218Z",
+        "payload": {
+          "type": "match.ended",
+          "state": "ended",
+          "reason": {
+            "kind": "completed"
+          },
+          "demo": {
+            "uploaded": 1
+          }
+        }
+      }
+    }
+  ]
+}

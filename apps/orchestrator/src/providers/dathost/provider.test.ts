@@ -311,6 +311,9 @@ describe('allocation', () => {
     const settings = clone?.raw.cs2_settings as Record<string, unknown>
     expect(settings.rcon).not.toBe('the-template-rcon-password')
     expect(String(settings.rcon)).toHaveLength(16)
+    // A workshop map plays on the match's rules: CS2 otherwise drops the overtime,
+    // backup and GOTV convars on one (PRD-05 T1), as the image's own launch line says.
+    expect(settings.disable_workshop_command_filtering).toBe(true)
     // The template is untouched and still protected.
     expect(fake.server(templateId)?.deletionProtection).toBe(true)
   })

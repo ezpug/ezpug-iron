@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using EZPug.Sdk;
 using EZPug.Sdk.Protocol;
 
@@ -59,8 +58,6 @@ public sealed class GamemodeLoader
     /// at any tickrate, so the cfg's own eviction pass is long done when this one lands.
     /// </summary>
     public const long CvarSettleMs = 1_000;
-
-    private static readonly Regex WorkshopId = new("^[0-9]{6,20}$", RegexOptions.CultureInvariant);
 
     private readonly IGameWorld _world;
     private readonly PluginCatalog _catalog;
@@ -136,9 +133,9 @@ public sealed class GamemodeLoader
         // it, or the boot map arrives holding this assignment and the match reports a
         // server_ready for a map that was never its own (PRD-02 T22c).
         _runtime?.ExpectMapChange(map);
-        if (WorkshopId.IsMatch(map))
+        if (MapIdentifier.WorkshopIdOf(map) is { } workshopId)
         {
-            _world.HostWorkshopMap(map);
+            _world.HostWorkshopMap(workshopId);
         }
         else
         {
@@ -191,7 +188,11 @@ public sealed class GamemodeLoader
 
         var path = Path.Combine(_csgoDirectory, MatchConfigFile);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, WithHostnameFormat(config, Branding.HostnameFor(assignment, map)).ToJsonString(ProtocolJson.Options));
+        // The plan's map names the match, as it did the hostname at assignment: the engine's
+        // name for a workshop map is not one the client ever sent.
+        var planned = MapFor(assignment);
+        var file = WithLoadedMap(WithHostnameFormat(config, Branding.HostnameFor(assignment, planned)), planned, map);
+        File.WriteAllText(path, file.ToJsonString(ProtocolJson.Options));
         _world.ExecCommand($"matchzy_loadmatch {MatchConfigFile}");
         _matchLoaded = true;
 
@@ -287,6 +288,35 @@ public sealed class GamemodeLoader
         }
 
         cvars["matchzy_hostname_format"] = hostname;
+        return copy;
+    }
+
+    /// <summary>
+    /// <b>The config with the engine's name for the map that is up in <c>maplist[0]</c></b>,
+    /// when that entry is the workshop id this loader just hosted (PRD-05 T1). The
+    /// orchestrator writes a workshop map's bare id into <c>maplist</c>, the one spelling
+    /// MatchZy hosts a map by, but <c>matchzy_loadmatch</c> then compares
+    /// <c>Server.MapName</c> with <c>maplist[0]</c> (<c>MatchManagement.cs</c>
+    /// <c>LoadMatch</c>), and the engine names a workshop map by its own name and never by
+    /// its id. Left alone, MatchZy hosts the map a second time, and in simulation mode it
+    /// defers its puppets to a map called <c>3084291314</c>, which never comes, so no puppet
+    /// ever joins. The later maps of a series keep their ids: MatchZy hosts those itself.
+    /// The original is not touched.
+    /// </summary>
+    public static JsonObject WithLoadedMap(JsonObject config, string plannedMap, string engineMap)
+    {
+        if (MapIdentifier.WorkshopIdOf(plannedMap) is not { } workshopId
+            || string.IsNullOrEmpty(engineMap)
+            || config["maplist"] is not JsonArray { Count: > 0 } maplist
+            || maplist[0] is not JsonValue first
+            || !first.TryGetValue<string>(out var entry)
+            || entry != workshopId)
+        {
+            return config;
+        }
+
+        var copy = (JsonObject)config.DeepClone();
+        ((JsonArray)copy["maplist"]!)[0] = engineMap;
         return copy;
     }
 

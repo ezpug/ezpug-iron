@@ -199,7 +199,11 @@ const roundTimeMs = z.number().int().nonnegative().optional()
 /** The server booted, loaded its match config, and accepts players. */
 export const serverReadyEventSchema = eventBase.extend({
   type: z.literal('server_ready'),
-  /** Engine map name currently loaded, where the source reports it. */
+  /**
+   * The engine's name for the map it loaded, where the source reports it. For
+   * a workshop map that is the map's own name and not the plan's
+   * `workshop/<id>/<name>`; `going_live.map` is the plan's.
+   */
   map: z.string().min(1).optional(),
 })
 
@@ -317,7 +321,11 @@ export type MatchEndReason = z.infer<typeof matchEndReasonSchema>
 /** Knife/warmup is over — the map is live. */
 export const goingLiveEventSchema = mapScoped.extend({
   type: z.literal('going_live'),
-  /** Engine map name — the moment a map is definitively being played. */
+  /**
+   * The map as the plan named it (`MatchRequest.maps[mapNumber - 1].map`):
+   * `de_mirage`, or `workshop/<id>/<name>` for a workshop map, never the
+   * engine's own name for one. The moment a map is definitively being played.
+   */
   map: z.string().min(1),
   /** Present when the mode's manifest gives the match a duration or a frag limit. */
   length: liveLengthSchema.optional(),
@@ -358,6 +366,7 @@ export const sideSwapEventSchema = mapScoped.extend({
  */
 export const mapEndEventSchema = mapScoped.extend({
   type: z.literal('map_end'),
+  /** The map as the plan named it, like `going_live.map`, where the source says. */
   map: z.string().min(1).optional(),
   score: teamScoreSchema,
   winner: matchTeamSchema.nullable(),

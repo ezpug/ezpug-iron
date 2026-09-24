@@ -127,10 +127,18 @@ printf 'rcon_password "%s"\n' "$rcon_password" > "$rcon_cfg"
 log "starting CS2 on ${GAME_PORT} (GOTV ${GOTV_PORT}), map ${START_MAP}"
 cd "$ROOT"
 export LD_LIBRARY_PATH="$ROOT/game/bin/linuxsteamrt64:$ROOT/bin:${LD_LIBRARY_PATH:-}"
+# `-disable_workshop_command_filtering` (PRD-05 T1): on a workshop map CS2
+# refuses every console command and convar outside a short list, whoever sends
+# it ("DISALLOWED WORKSHOP CONVAR: mp_overtime_enable"). On the dev node that
+# took MatchZy's live.cfg (overtime, halftime, timeouts, `mp_backup_round_auto`)
+# and `tv_enable` on AIM Map. The match went live on the wrong rules, with no
+# round backup to restore and no GOTV. Dathost has the same switch
+# (`cs2_settings.disable_workshop_command_filtering`) and the provider sets it.
 # shellcheck disable=SC2086 -- EZPUG_IRON_CS2_EXTRA_ARGS is deliberately split.
 exec "$BINARY" \
   -dedicated \
   -usercon \
+  -disable_workshop_command_filtering \
   -ip 0.0.0.0 \
   -port "$GAME_PORT" \
   +exec ezpug/rcon \

@@ -186,6 +186,24 @@ public class GenericFlowTests
     }
 
     [Fact]
+    public void AWorkshopMapIsNamedTheWayThePlanNamedIt()
+    {
+        // PRD-05 T1: the engine calls a hosted workshop map by its own name. `server_ready`
+        // reports what is loaded; `going_live` and `map_end` name the map the client asked
+        // for, the same string a matchzy flow's translator names it by.
+        using var host = new GamemodeTestHost();
+        host.World.Rules = Rules(warmup: false, roundsPlayed: 0);
+        host.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), map: "workshop/3084291314/aim_map"));
+        host.World.StartMap("aim_map");
+
+        PlayRound(host, PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, t: 0, ct: 1);
+        host.World.EndMap();
+        Assert.Equal("aim_map", Assert.Single(host.Link.EventsOf<ServerReadyEvent>()).Map);
+        Assert.Equal("workshop/3084291314/aim_map", Assert.Single(host.Link.EventsOf<GoingLiveEvent>()).Map);
+        Assert.Equal("workshop/3084291314/aim_map", Assert.Single(host.Link.EventsOf<MapEndEvent>()).Map);
+    }
+
+    [Fact]
     public void AMatchZyFlowIsSomebodyElsesStory()
     {
         using var host = new GamemodeTestHost();

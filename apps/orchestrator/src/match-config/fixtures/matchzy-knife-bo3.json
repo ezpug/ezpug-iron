@@ -1,7 +1,7 @@
 {
   "matchid": 1587773924,
   "num_maps": 3,
-  "maplist": ["de_ancient", "de_nuke", "workshop/3070288000/de_cache"],
+  "maplist": ["de_ancient", "de_nuke", "3070288000"],
   "map_sides": ["knife", "knife", "knife"],
   "skip_veto": true,
   "clinch_series": true,

@@ -409,6 +409,43 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
   },
 
   {
+    id: 'workshop-map',
+    title: 'a workshop map goes live on a node, named the way the plan named it',
+    needs: [],
+    async run(ctx) {
+      // PRD-05 T1 (ezpug/ezpug-iron#3): the server hosts a workshop plan by its
+      // id and the engine then calls the map by a name of its own, which the
+      // client never sent. Every fact that names the map names it with the
+      // plan's `workshop/<id>/<name>`, so the client can match it to its plan.
+      // `preferLan` ranks a node first where one is enrolled, as the platform's
+      // workshop row does, and lands anywhere else when none is.
+      const map = 'workshop/3084291314/aim_map'
+      const body = ctx.request({
+        maps: [{ map, sides: 'ct' }],
+        requirements: { preferLan: true },
+      })
+      const created = await ctx.api.matches.create({ body })
+      const { final, envelopes } = await playToEnd(ctx, created.id)
+      ctx.require('the match ends', final.state === 'ended', terminal(final))
+      checkEnvelopeStream(ctx, created.id, body.clientMatchId, envelopes, final.seq)
+
+      const live = payload(envelopes, 'going_live')
+      ctx.require('the workshop map goes live', live !== undefined, types(envelopes).join(','))
+      ctx.check(
+        'going_live names the map as the plan named it',
+        live?.map === map,
+        `going_live.map ${live?.map}`,
+      )
+      const ended = payload(envelopes, 'map_end')
+      ctx.check(
+        'map_end names it the same way when it names it at all',
+        ended?.map === undefined || ended.map === map,
+        `map_end.map ${ended?.map}`,
+      )
+    },
+  },
+
+  {
     id: 'open-join',
     title: 'retakes: an open-join gamemode fills itself and reports who joined',
     needs: [],

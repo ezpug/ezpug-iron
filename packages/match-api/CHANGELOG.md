@@ -6,6 +6,41 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.23.0 — 2026-09-24
+
+**Workshop maps go live** (PRD-05 T1, ezpug/ezpug-iron#3, for the platform's PRD-12 T6a:
+AIM Map as a room preset). No schema moved. A `workshop/<id>/<name>` plan used to reach
+the engine verbatim, as `changelevel workshop/…` from the core plugin's loader and as that
+string in MatchZy's `maplist`. Neither ever hosts a map, so a node never loaded one and the
+match sat at `allocated` until the client cancelled it. Now every workshop plan is hosted
+by its id, on every flow.
+
+- **`going_live.map` is the plan's string** for that map number: `workshop/<id>/<name>`
+  for a workshop map, exactly as you sent it, and `map_end.map` too where it is present.
+  A `matchzy` flow already named it that way. The SDK's generic flow (`flow: none`) used
+  to say the engine's name and now says the plan's too. `server_ready.map` is still the
+  engine's name for what it loaded, which for a workshop map is the map's own name
+  (`docs/match-api.md`, "A map is named the way your plan named it"). The schema comments
+  say so.
+- **What a server does with it.** The loader hosts the first map with
+  `host_workshop_map <id>`. MatchZy's `maplist` carries the bare id, the one spelling it
+  hosts a later map of a series by. Before `matchzy_loadmatch`, the loader puts the
+  engine's name for the map that is already up into `maplist[0]`. Without that, MatchZy
+  hosts the map a second time, and in simulation mode it waits for a map named by a number
+  that never comes, so no puppet ever joins. CS2 also filters console commands on a
+  workshop map, which took MatchZy's `live.cfg` and `tv_enable`. So the CS2 image starts
+  with `-disable_workshop_command_filtering`, and the Dathost provider sets
+  `cs2_settings.disable_workshop_command_filtering` on every server it allocates.
+- **Proven on the dev node** (iron match `859085d0-2cb8-43cb-90a5-6f1f0e92763b`, lane row
+  `workshop`). A puppeted 1v1 `pug` on `workshop/3084291314/aim_map` was allocated, and 10 s
+  later `server_ready` named `aim_map`. `going_live` and `map_end` named
+  `workshop/3084291314/aim_map`, and the match ended `completed` with its demo uploaded.
+  AIM Map's first download (112 MB) took about 9 s. The run is recorded as
+  `fixtures/recorded/real-workshop-pug-bo1.json`.
+- **Conformance.** A new flow, `workshop-map`, plays a Bo1 on
+  `workshop/3084291314/aim_map` against the fake and the real orchestrator. It checks that
+  `going_live.map` (and `map_end.map` when present) is the plan's string.
+
 ## 0.22.0 — 2026-09-23
 
 **`pug` seats a mixed roster** (PRD-04 T2b, for the platform's PRD-11 T23 — the owner as

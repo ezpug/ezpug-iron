@@ -213,6 +213,23 @@ the checkout's `gamemodes/` wins, so editing a cfg here is a restart and not a r
 Steam's client libraries are put where the server looks for them, and `cs2` is `exec`'d so
 it is PID 1: signals reach the game and `docker attach` is a real console.
 
+**Workshop maps** (PRD-05 T1). A `workshop/<id>/<name>` plan is hosted by its id: the core
+plugin's loader says `host_workshop_map <id>`, and MatchZy's `maplist` carries the bare id
+for a series' later maps. The server downloads the map from Steam anonymously the first
+time any server on the volume hosts it; no GSLT is needed. The download lands in the
+`cs2-data` volume under `game/bin/linuxsteamrt64/steamapps/workshop/content/730/<id>/`, so
+every later server on this box starts from the cache. Measured on the dev node on
+2026-09-24: AIM Map (3084291314, 112 MB) took about **9 s** cold, from
+`host_workshop_map` to the level change. The engine then names the map by its own name
+(`aim_map`), never by the id. CS2 also filters console commands on a workshop map: it
+refuses every command and convar outside a short list, whoever sends it, and says
+`DISALLOWED WORKSHOP CONVAR: …` in the console. On AIM Map that took MatchZy's `live.cfg`
+(overtime, halftime, timeouts, `mp_backup_round_auto`) and `tv_enable`. So the image
+starts CS2 with `-disable_workshop_command_filtering`, and the Dathost provider sets the
+same switch on every server it allocates
+(`cs2_settings.disable_workshop_command_filtering`). If the `DISALLOWED` lines are back,
+one of those two has gone.
+
 **Where home is.** The container passes `EZPUG_IRON_URL` and `EZPUG_SERVER_TOKEN` through
 to the plugin, which also accepts `game/csgo/ezpug.json` (what the Dathost provider uploads,
 T16). With neither, the plugin loads **unlinked**: it works, every event is dropped, and

@@ -4,6 +4,7 @@ import {
   type MapPlan,
   type MatchRequest,
   matchHumans,
+  parseMapIdentifier,
   type Roster,
   WINGMAN_TEAM_SIZE,
 } from '@ezpug/match-api'
@@ -64,6 +65,15 @@ import { mergeCvars } from './cvars'
  *   (PRD-03 T3a). {@link matchzyCvars} is the layer: what a *match* decides
  *   about MatchZy-Enhanced, as against what the image's cfg decides about the
  *   server. Only MatchZy reads them, so Get5 never sees them.
+ * - **A workshop map is its bare id in MatchZy's `maplist`** (PRD-05 T1,
+ *   ezpug/ezpug-iron#3). The wire names one `workshop/<id>/<name>`; MatchZy
+ *   hosts a map with `host_workshop_map` only when the entry parses as a
+ *   `long`, and otherwise tries `changelevel` behind `Server.IsMapValid`
+ *   (`Utility.cs` `ChangeMap`), which no workshop path passes, so a series'
+ *   later workshop map would never load. Get5 keeps the wire's spelling,
+ *   which is CS:GO's own path for a workshop map. The first map is the core
+ *   plugin's to load, and it puts the engine's name for it back in
+ *   `maplist[0]` (`GamemodeLoader.MatchConfigFor`).
  */
 
 /** A team as MatchZy and Get5 both read one: `{ "<steamid64>": "<name>" }`. */
@@ -315,6 +325,12 @@ function matchzyCvars(input: MatchConfigInput): Record<string, string> {
   }
 }
 
+/** A map as MatchZy's `maplist` names it: the engine name, or a workshop map's bare id. */
+function matchzyMap(plan: MapPlan): string {
+  const source = parseMapIdentifier(plan.map)
+  return source.kind === 'workshop' ? source.workshopId : source.name
+}
+
 function common(input: MatchConfigInput) {
   const { request, manifest } = input
   const ready = warmup(input)
@@ -372,7 +388,7 @@ export function buildMatchZyConfig(input: MatchConfigInput): MatchZyMatchConfig 
   return {
     matchid: matchzySerial(input.matchId),
     num_maps: shared.num_maps,
-    maplist: shared.maplist,
+    maplist: input.request.maps.map(matchzyMap),
     map_sides: shared.map_sides,
     skip_veto: shared.skip_veto,
     // Bo1 makes this moot; a Bo3 ends at 2–0 rather than playing a dead map.

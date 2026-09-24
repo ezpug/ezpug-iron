@@ -229,11 +229,44 @@ public class GamemodeLoaderTests
     }
 
     [Fact]
-    public void AWorkshopMapIsHostedByIdAndTheHostnameKeepsTheId()
+    public void AWorkshopPlanIsHostedByIdAndTheHostnameNamesTheMap()
     {
+        // The wire's own spelling (ezpug/ezpug-iron#3): `changelevel workshop/…` is a map
+        // that does not exist, and the match sat silent until the platform cancelled it.
         using var rig = new Rig();
-        rig.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), map: "3070923343"));
-        Assert.Equal(["cvar hostname EZPug · flying-scoutsman · 3070923343", "host_workshop_map 3070923343"], rig.Actions);
+        rig.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), map: "workshop/3084291314/aim_map"));
+        Assert.Equal(["cvar hostname EZPug · flying-scoutsman · aim_map", "host_workshop_map 3084291314"], rig.Actions);
+    }
+
+    [Fact]
+    public void AWorkshopPugTellsMatchZyTheEnginesNameForTheMapAlreadyUpAndKeepsTheLaterIds()
+    {
+        using var rig = new Rig("MatchZy");
+        var config = JsonNode.Parse("""{"matchid":"6f1a2b3c","num_maps":3,"maplist":["3084291314","de_mirage","3070288000"],"cvars":{}}""")!.AsObject();
+        var assignment = GamemodeTestHost.AssignmentFor(Manifest("pug"), map: "workshop/3084291314/aim_map") with { MatchzyConfig = config };
+
+        rig.Link.Assign(assignment);
+        Assert.Equal("host_workshop_map 3084291314", rig.Actions[^1]);
+
+        // The engine names the map by its own name, never by the id it was hosted by.
+        rig.StartMap("aim_map");
+        var written = JsonNode.Parse(File.ReadAllText(rig.MatchConfigPath))!.AsObject();
+        Assert.Equal(["aim_map", "de_mirage", "3070288000"], written["maplist"]!.AsArray().Select(entry => entry!.GetValue<string>()));
+        Assert.Equal("EZPug · pug · aim_map", written["cvars"]!["matchzy_hostname_format"]!.GetValue<string>());
+        Assert.Equal("3084291314", config["maplist"]![0]!.GetValue<string>());
+        Assert.Equal(["server_ready"], rig.Link.EventTypes);
+    }
+
+    [Theory]
+    [InlineData("de_mirage", "de_mirage", "de_mirage", "de_mirage")]
+    [InlineData("3084291314", "de_mirage", "de_mirage", "3084291314")]
+    [InlineData("3070288000", "workshop/3084291314/aim_map", "aim_map", "3070288000")]
+    [InlineData("3084291314", "workshop/3084291314/aim_map", "", "3084291314")]
+    [InlineData("3084291314", "workshop/3084291314/aim_map", "aim_map", "aim_map")]
+    public void OnlyTheWorkshopIdJustHostedIsRenamedInTheMaplist(string first, string planned, string engine, string expected)
+    {
+        var config = new JsonObject { ["maplist"] = new JsonArray(first) };
+        Assert.Equal(expected, GamemodeLoader.WithLoadedMap(config, planned, engine)["maplist"]![0]!.GetValue<string>());
     }
 
     [Fact]

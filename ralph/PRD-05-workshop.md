@@ -58,7 +58,7 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
 
 ## Tasks
 
-- [ ] **T1: a workshop plan is hosted by id, everywhere.** The loader's first map, MatchZy's
+- [x] **T1: a workshop plan is hosted by id, everywhere.** The loader's first map, MatchZy's
   `maplist` (the bare id MatchZy expects), and a series' later maps all end in
   `host_workshop_map <id>` for a `workshop/<id>/<name>` plan. Decide what `going_live.map`
   reports for one (the wire's `workshop/<id>/<name>` is the platform's preference, since it
@@ -72,6 +72,13 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   the changelog line naming the platform's PRD-12 T6a. Comment on #3 with the version, the
   `going_live.map` decision and the proving run's iron match id, and leave it open for the
   platform to close from its lane.
+- [ ] **T1a (effort: medium): a restart after `series_end` still ends the match.** Found by
+  T1's first proving run on 2026-09-24 (iron `c5dd5a9a`). The dev orchestrator restarted
+  (`tsx watch`) between `series_end` and `demo_available`. `awaitingDemo` lives only in the
+  machine's in-memory runtime, so the demo arrived, was uploaded, and ended nothing. The
+  match sat `live` until the lane forced it to end twelve minutes later. A restart in that
+  window, which a deploy can cause, must still end the match `completed` once the demo is
+  in, or at the demo deadline. Prove it with a machine test that restarts between the two.
 - [ ] **T2 (effort: medium): a node that never gets ready says why.** A node whose server
   does not reach `server_ready` within a ready deadline fails the match (`match.failed`, or
   the vocabulary's nearest existing fact, additive only) with a reason that names the map

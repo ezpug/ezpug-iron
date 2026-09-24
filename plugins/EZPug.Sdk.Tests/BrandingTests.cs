@@ -68,6 +68,7 @@ public class BrandingTests
     [InlineData("cs_office", "Office")]
     [InlineData("ar_shoots", "Shoots")]
     [InlineData("3070923343", "3070923343")]
+    [InlineData("workshop/3084291314/aim_map", "aim_map")]
     [InlineData("de_", "de_")]
     public void MapsArePrettiedForTheHostname(string map, string pretty) => Assert.Equal(pretty, Branding.PrettyMap(map));
 

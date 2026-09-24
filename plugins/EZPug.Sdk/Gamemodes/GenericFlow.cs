@@ -200,7 +200,7 @@ public sealed class GenericFlow
         if (!_live)
         {
             _live = true;
-            _runtime.Emit(_runtime.Facts.GoingLive(_world.Map, _runtime.Length.InForce));
+            _runtime.Emit(_runtime.Facts.GoingLive(PlannedMap(), _runtime.Length.InForce));
             _runtime.Length.OnLive();
         }
 
@@ -289,7 +289,7 @@ public sealed class GenericFlow
         if (_live)
         {
             var winner = Winner(assignment, _teamA, _teamB);
-            _runtime.Emit(_runtime.Facts.MapEnd(new TeamScore { TeamA = _teamA, TeamB = _teamB }, winner, _world.Map, reason));
+            _runtime.Emit(_runtime.Facts.MapEnd(new TeamScore { TeamA = _teamA, TeamB = _teamB }, winner, PlannedMap(), reason));
             _live = false;
             if (winner == MatchTeam.TeamA)
             {
@@ -350,6 +350,17 @@ public sealed class GenericFlow
         _poll?.Cancel();
         _poll = null;
     }
+
+    /// <summary>
+    /// <b>The map a fact names: the plan's</b> (PRD-05 T1). <c>going_live.map</c> and
+    /// <c>map_end.map</c> say what the client asked for, <c>workshop/&lt;id&gt;/&lt;name&gt;</c>
+    /// for a workshop map, and never the engine's name for it, which the client never sent
+    /// and cannot match to its plan. That is what a <c>matchzy</c> flow says as well: its
+    /// translator names the map off the plan too. The engine's name is the fallback only
+    /// for a map the plan does not hold.
+    /// </summary>
+    private string PlannedMap() =>
+        _runtime.Assignment?.Maps.ElementAtOrDefault((int)_runtime.Match.MapNumber - 1)?.Map ?? _world.Map;
 
     private void ResetMap()
     {

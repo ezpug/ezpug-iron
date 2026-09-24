@@ -127,7 +127,14 @@ describe('the CS2 server image', () => {
   })
 
   it('starts the server the way the round decided to', () => {
-    for (const flag of ['-dedicated', '-usercon', '+tv_port', '+sv_hibernate_when_empty 0', '+map'])
+    for (const flag of [
+      '-dedicated',
+      '-usercon',
+      '-disable_workshop_command_filtering',
+      '+tv_port',
+      '+sv_hibernate_when_empty 0',
+      '+map',
+    ])
       expect(entrypoint).toContain(flag)
     // `exec`, so the game is PID 1: signals reach it and `docker attach` is a
     // real server console (`pnpm cs2:console`).
