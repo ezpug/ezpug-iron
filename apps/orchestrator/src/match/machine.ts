@@ -81,6 +81,8 @@ import { envelopeOf, matchView } from './views'
  * - `join` — from `ready` until `going_live`; expiry ends `ttl_expired`.
  * - `recovery` — the `server_lost` window; expiry fails `server_lost`.
  * - `ttl` — the request's `ttlMinutes`; expiry ends `ttl_expired`.
+ * - `demo` — from `series_end` until the demo is announced; expiry ends
+ *   `completed` without it. A restart reads it back from the log.
  * - the **loss detector** — no event from the server for a few heartbeat
  *   intervals and the provider is probed; `gone` opens `recovering` (or
  *   fails the match before it was live).
@@ -293,8 +295,8 @@ interface Runtime {
   /**
    * The demos this match's servers announced, and how many of those they had
    * already put where the request said (T21) — what `match.ended.demo`
-   * reports. In memory beside the presence map: an orchestrator restarted
-   * mid-match forgets both, and the durable log keeps the facts either way.
+   * reports. In memory beside the presence map, and read back from the
+   * durable log by `resume()` (PRD-05 T1a), which the presence map is not.
    */
   demos: { announced: number; uploaded: number }
   /** `series_end` arrived and the match is holding the server open for its demo. */
@@ -767,9 +769,10 @@ export function createMatches(options: MatchesOptions): Matches {
   /**
    * The demo window: end the match anyway when the demo does not come. The
    * fact is honest either way — `match.ended.demo` then says `no_demo`.
+   * Counted from `series_end`, which a restart reads back from the log.
    */
-  const armDemo = (row: MatchRow): void =>
-    setTimer(row, 'demo', clock.now() + deadlines.demoMs, fresh => {
+  const armDemo = (row: MatchRow, seriesEndedAt = clock.now()): void =>
+    setTimer(row, 'demo', seriesEndedAt + deadlines.demoMs, fresh => {
       const runtime = runtimes.get(fresh.id)
       if (!runtime?.awaitingDemo) return Promise.resolve()
       runtime.awaitingDemo = false
@@ -1879,6 +1882,54 @@ export function createMatches(options: MatchesOptions): Matches {
 
   // --- lifecycle ------------------------------------------------------------------------------
 
+  /**
+   * **A restart between `series_end` and the demo** (PRD-05 T1a). The wait
+   * for a demo lived only in the runtime, so a restart in that window — a
+   * deploy can cause one — left the match `live` with nothing to end it: the
+   * demo arrived, was relayed, and ended nothing. The log holds every fact
+   * the wait is made of, so the runtime is read back from it: the map the
+   * series reached, the demos already announced, and when `series_end` came.
+   * A demo that is already in ends the match now; one still owed gets the
+   * window that was left of it, counted from the `series_end` it followed.
+   */
+  const replayDemoWait = async (row: MatchRow): Promise<void> => {
+    const runtime = runtimeOf(row)
+    let seriesEnd: { at: number; reason: string | undefined } | null = null
+    for (let after = 0; ; ) {
+      const events = await store.listEvents(row.id, after, 500)
+      if (events.length === 0) break
+      for (const event of events) {
+        const payload = event.payload
+        if (payload.type === 'going_live') runtime.currentMap = payload.mapNumber
+        else if (payload.type === 'series_end')
+          seriesEnd = { at: event.occurredAt.getTime(), reason: payload.reason }
+        else if (payload.type === 'demo_available') {
+          runtime.demos.announced += 1
+          if (payload.sha256 && payload.contentType) runtime.demos.uploaded += 1
+        }
+      }
+      after = events[events.length - 1]?.seq ?? after
+    }
+    if (seriesEnd === null) return
+    if (!demoPending(row, runtime)) {
+      const { reason } = seriesEnd
+      log.info(`match ${row.id}: series_end and its demo were in before the restart; ending`)
+      void enqueue(row, fresh =>
+        end(
+          fresh,
+          'ended',
+          reason
+            ? { kind: 'completed', detail: `the mode’s length: ${reason}` }
+            : { kind: 'completed' },
+          'released',
+        ),
+      ).catch((error: unknown) => report(error, { phase: 'resume:demo', matchId: row.id }))
+      return
+    }
+    runtime.awaitingDemo = true
+    armDemo(row, seriesEnd.at)
+  }
+
   const resume = async (): Promise<void> => {
     for (const row of await store.listOpenMatches()) {
       runtimeOf(row)
@@ -1898,11 +1949,10 @@ export function createMatches(options: MatchesOptions): Matches {
           armHeartbeat(row)
           break
         case 'ready':
-          armJoin(row)
-          armHeartbeat(row)
-          break
         case 'live':
+          if (row.state === 'ready') armJoin(row)
           armHeartbeat(row)
+          await replayDemoWait(row)
           break
         case 'recovering': {
           // A replacement already running waits for its players (join);

@@ -9,6 +9,7 @@ import {
   type StreamFrame,
   WEBHOOK_MAX_ATTEMPTS,
   WEBHOOK_RETRY_DELAYS_MS,
+  type WebhookPayload,
 } from '@ezpug/match-api'
 import { describe, expect, it } from 'vitest'
 import { createTestApp, type TestApp } from '../http/testing'
@@ -1649,6 +1650,129 @@ describe('the demo', () => {
         ?.payload,
     ).toMatchObject({ demo: { uploaded: 0, skipped: 'no_demo' }, reason: { kind: 'completed' } })
     expect(app.store.rows.servers.find(s => s.matchId === match.id)?.state).toBe('released')
+    await app.close()
+  })
+
+  /**
+   * **A restart inside the window** (PRD-05 T1a). The dev orchestrator
+   * restarted between `series_end` and `demo_available` on a workshop run
+   * (iron `c5dd5a9a`): the wait lived only in memory, so the demo arrived,
+   * was relayed, and ended nothing, and the match sat `live` until the lane
+   * forced it. The revived machine reads the wait back from the log.
+   */
+  const restarted = async (app: TestApp) => {
+    await app.matches.close()
+    const revived = createMatches({
+      clock: app.clock,
+      log: app.log,
+      store: app.store,
+      providers: app.providers,
+      links: app.links,
+      gamemodes: SHIPPED_GAMEMODES,
+      hub: app.hub,
+      webhooks: app.webhooks,
+      budget: app.budgets,
+      keys: app.keys,
+      baseUrl: 'http://localhost:3430',
+    })
+    app.sink.current = revived
+    await revived.resume()
+    await revived.settle()
+    return revived
+  }
+
+  it('still ends the match on the demo when the orchestrator restarted after series_end', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key, match } = await scripted(app)
+    const source = { provider: PHANTOM, serverId: 'devbox-1' }
+    await app.matches.ingest(source, {
+      type: 'series_end',
+      seriesScore: { teamA: 1, teamB: 0 },
+      winner: 'team_a',
+      matchId: match.id,
+      source,
+    } as GameserverEvent)
+    await app.settle()
+    await app.advance(30_000)
+
+    const revived = await restarted(app)
+    expect((await revived.get(key, match.id)).state).toBe('live')
+    await app.clock.advance(90_000)
+    await revived.ingest(source, {
+      type: 'demo_available',
+      mapNumber: 1,
+      filename: 'match.dem',
+      sizeBytes: 90_000_000,
+      sha256: 'b'.repeat(64),
+      contentType: 'application/octet-stream',
+      matchId: match.id,
+      source,
+    } as GameserverEvent)
+    await revived.settle()
+
+    const final = await revived.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.endedReason).toEqual({ kind: 'completed' })
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 1 } })
+    expect(app.store.rows.servers.find(s => s.matchId === match.id)?.state).toBe('released')
+    await revived.close()
+    await app.close()
+  })
+
+  it('ends it at the demo deadline counted from series_end, not from the restart', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key, match, say } = await scripted(app)
+    await say({ type: 'series_end', seriesScore: { teamA: 1, teamB: 0 }, winner: 'team_a' })
+    await app.settle()
+    await app.advance(60_000)
+
+    const revived = await restarted(app)
+    await app.clock.advance(DEFAULT_MATCH_DEADLINES.demoMs - 60_000 - 1)
+    await revived.settle()
+    expect((await revived.get(key, match.id)).state).toBe('live')
+    await app.clock.advance(1)
+    await revived.settle()
+    const final = await revived.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 0, skipped: 'no_demo' }, reason: { kind: 'completed' } })
+    await revived.close()
+    await app.close()
+  })
+
+  it('ends it at once when the demo was in before the restart and the end was not', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key, match } = await scripted(app)
+    // The process died between the demo's fact and the end it should have
+    // caused: the log has both facts, the row is still `live`.
+    const row = await app.store.findMatch(match.id)
+    if (!row) throw new Error('no row')
+    const source = { provider: PHANTOM, serverId: 'devbox-1' }
+    for (const payload of [
+      { type: 'series_end', seriesScore: { teamA: 1, teamB: 0 }, winner: 'team_a' },
+      { type: 'demo_available', mapNumber: 1, filename: 'match.dem' },
+    ])
+      await app.store.appendEvent(
+        match.id,
+        {
+          deliveryId: crypto.randomUUID(),
+          type: payload.type,
+          occurredAt: app.clock.date(),
+          payload: { ...payload, matchId: match.id, source } as WebhookPayload,
+        },
+        app.clock.date(),
+      )
+
+    const revived = await restarted(app)
+    const final = await revived.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.endedReason).toEqual({ kind: 'completed' })
+    await revived.close()
     await app.close()
   })
 
