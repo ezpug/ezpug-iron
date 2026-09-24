@@ -121,7 +121,10 @@ exactly: <promise>COMPLETE</promise>"
   fi
   LIMIT_WAITS=0
 
-  if [[ "$result" == *"<promise>COMPLETE</promise>"* ]]; then
+  # Complete means the sigil alone on its own line AND no open box left: PRD-12's T4 run wrote
+  # "<promise>COMPLETE</promise> is not emitted" in a sentence and a substring match ended the round.
+  if printf '%s\n' "$result" | grep -qxE '[[:space:]]*<promise>COMPLETE</promise>[[:space:]]*' \
+     && ! grep -q '^- \[ \]' "$PRD"; then
     echo "PRD complete after $i iterations."
     exit 0
   fi
