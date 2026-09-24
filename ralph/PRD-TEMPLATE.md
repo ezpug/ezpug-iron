@@ -22,6 +22,11 @@ package boundaries, the SDK's core abstractions, state machines, load-bearing al
 gnarly cross-language debugging. Mechanical follow-ups, adapters over a settled interface
 and wiring stay on Opus.
 
+**Effort routing** (the owner, 2026-09-24): every run passes `--effort`. The default is
+`high` for Opus and Fable and `medium` for a lettered repair task; a task line may say
+`(effort: medium)` or `(effort: high)` and the tag wins. `RALPH_EFFORT_FORCE=<level>`
+overrides a run.
+
 ## Template
 
     # PRD <nn>: <round title>

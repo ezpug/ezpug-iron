@@ -84,8 +84,12 @@ exactly: <promise>COMPLETE</promise>"
 
   # A crashed run must NOT kill the loop (set -e): capture rc, warn, retry next iteration.
   set +e
-  # Effort (the owner, 2026-09-23): Fable high, Opus high, a lettered repair task medium.
-  if [[ "$RUN_MODEL" == *fable* ]]; then EFFORT="${RALPH_EFFORT_FABLE:-high}"
+  # Effort (the owner, 2026-09-23/24): a task line's own '(effort: medium|high)' tag wins;
+  # else Fable high, Opus high, a lettered repair task medium. RALPH_EFFORT_FORCE overrides all.
+  TASK_EFFORT=$(echo "$NEXT_LINE" | grep -oE '\(effort: ?(low|medium|high|xhigh|max)\)' | head -1 | sed -E 's/\(effort: ?([a-z]+)\)/\1/' || true)
+  if [ -n "${RALPH_EFFORT_FORCE:-}" ]; then EFFORT="$RALPH_EFFORT_FORCE"
+  elif [ -n "$TASK_EFFORT" ]; then EFFORT="$TASK_EFFORT"
+  elif [[ "$RUN_MODEL" == *fable* ]]; then EFFORT="${RALPH_EFFORT_FABLE:-high}"
   elif echo "${NEXT_TASK:-}" | grep -qE '^T[0-9]+[a-z]$'; then EFFORT="${RALPH_EFFORT_REPAIR:-medium}"
   else EFFORT="${RALPH_EFFORT:-high}"; fi
   echo "  effort: $EFFORT"
