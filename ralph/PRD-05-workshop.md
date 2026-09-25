@@ -146,6 +146,11 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   > the closing note), but the completion list needs one green `EZPUG_CS2_TESTS=required`
   > extended run, and the first one (2026-09-25) was red on T2f. After T2f, rerun it,
   > write the result into the closing note and tick this box.
+  > (2026-09-26, the operator) The rerun was started at 23:35 by a run that ran out of
+  > iterations: `EZPUG_CS2_TESTS=required pnpm verify:extended`, logging to
+  > `/tmp/prd05-t3-extended.log`, with CS2 consoles in `/tmp/prd05-t3-consoles/`. The loop was
+  > restarted after it exited, so read that log's verdict first and do not start another
+  > run unless it is red or inconclusive.
 
 ## Working rules
 
