@@ -6,6 +6,29 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.24.0 — 2026-09-25
+
+**A node that never gets ready says why** (PRD-05 T2, the follow-up to the platform's
+PRD-12 T6a, whose workshop row sat silent until the platform's own five-minute cancel). No
+schema moved. There is one new export.
+
+- **`SERVER_READY_DEADLINE_MS`** (3 min): how long a match stays `configuring` waiting for
+  `server_ready` before it fails `provider_error`. It used to be five minutes, the same as
+  the platform's provisioning timeout, so the platform always gave up first and learnt
+  nothing. Three minutes fits inside that timeout with allocation in front of it. It is
+  also plenty for a first-time workshop download: AIM Map (112 MB) took about 9 s on the
+  dev node.
+- **`match.failed.reason.detail` says why**: the plan's first map as you sent it, then the
+  provider's view of the server (a node's container state and docker's error) and the
+  link's (never said hello, or the last state, map and detail it reported, and whether it
+  is still connected). For example: `no server_ready on workshop/3084291314/aim_map within
+  180 s; nodes reports the server starting (node devbox: container starting); the server
+  never said hello over the link`. The server leaves the fleet as before. `detail` is
+  still for humans. Branch on `kind` (`docs/match-api.md`, "A server that never gets
+  ready").
+- **The fake** says the same shape at its own `readyTimeoutMs`:
+  `no server_ready on <map> within 120 s; the fake's server never booted`.
+
 ## 0.23.0 — 2026-09-24
 
 **Workshop maps go live** (PRD-05 T1, ezpug/ezpug-iron#3, for the platform's PRD-12 T6a:

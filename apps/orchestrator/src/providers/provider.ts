@@ -136,6 +136,11 @@ export type ServerLifecycleState = (typeof SERVER_LIFECYCLE_STATES)[number]
  */
 export interface ServerStatus {
   state: ServerLifecycleState
+  /**
+   * What the provider saw of the server, for a person reading why a match
+   * failed: a node's container state and docker's error. Never a credential.
+   */
+  detail?: string
   connect?: Omit<ServerConnect, 'password'>
   tv?: ServerTv
   playerCount?: number

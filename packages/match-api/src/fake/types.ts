@@ -71,7 +71,7 @@ export interface FakeSimProviderOptions {
   heartbeatIntervalMs?: number
   /** Position-tick sampling; `null` turns the ephemeral tier off. Default 5 s. */
   positionTickIntervalMs?: number | null
-  /** No `server_ready` by then and the match fails `provider_error`. Default 120 s. */
+  /** No `server_ready` by then and the match fails `provider_error`. Default 120 s; the orchestrator's is `SERVER_READY_DEADLINE_MS`. */
   readyTimeoutMs?: number
   /** No event from the server for this long and it is declared lost. Default 30 s. */
   heartbeatTimeoutMs?: number

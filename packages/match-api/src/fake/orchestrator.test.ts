@@ -794,7 +794,10 @@ describe('losing a server', () => {
     await h.fake.playOut()
     const final = await client.matches.get({ params: { matchId: match.id } })
     expect(final.state).toBe('failed')
-    expect(final.endedReason?.kind).toBe('provider_error')
+    expect(final.endedReason).toEqual({
+      kind: 'provider_error',
+      detail: `no server_ready on ${pugRequest().maps[0]?.map} within 120 s; the fake's server never booted`,
+    })
     expect(final.endedAt).toBe(new Date(T0 + 1_000 + 120_000).toISOString())
     expect(types(await allEvents(h, match.id))).toEqual(['match.allocated', 'match.failed'])
   })

@@ -361,6 +361,28 @@ stickers (≤5 of { id, schema, x, y, wear, scale, rotation }), keychain? { id, 
 | `sim`           | SimStatus \| null | `{ scenario, seed, mode, timeScale, remainingBeats, finished, outcome, chaos }` on the `sim` provider only |
 | `simulated`     | boolean | the players are puppets — the request carried `simulation` — and every gameserver event of the match carries `source.simulated: true`. The badge an admin page shows; `false` for a real match, and for a `Match` read from an orchestrator older than the field |
 
+#### A server that never gets ready
+
+A match stays `configuring` for at most `SERVER_READY_DEADLINE_MS` (three minutes, from
+the moment it entered `configuring`) waiting for its server's `server_ready`. After that
+it fails `provider_error` (`match.failed`), the server is released and leaves the fleet,
+and `reason.detail` says why in words a person can act on: the plan's first map as you
+sent it, then what the orchestrator last saw of the server. That is the provider's view
+(for a node, the node and its container's state, and docker's error if there is one), then
+the link's: whether the server ever said hello, and if it did, the state and map it last
+reported, the last detail it gave (`plugins loaded`), and whether it is still connected.
+
+```text
+no server_ready on workshop/3084291314/aim_map within 180 s; nodes reports the server running (node devbox: container running); the link last said assigned on de_dust2 (plugins loaded), still connected
+```
+
+`detail` is for humans and logs. Branch on `kind`, never parse the words. The deadline is
+exported so a client can keep its own provisioning timeout longer than it. The platform
+gives up five minutes after its request, so the orchestrator's failure, with its reason,
+arrives first. Three minutes also allows for a first-time workshop download: AIM Map
+(112 MB) downloaded cold on the dev node in about 9 s. The fake's deadline is its own knob,
+`readyTimeoutMs` (default 120 s), and its detail has the same shape.
+
 ### MatchCommand and MatchCommandResult
 
 A discriminated union on `type`, every variant with a `correlationId` (the client's own

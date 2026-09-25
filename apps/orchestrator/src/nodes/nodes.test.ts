@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createPrng } from '@ezpug/core'
 import type { MatchRequest, MatchRequestInput } from '@ezpug/match-api'
-import { matchRequestSchema } from '@ezpug/match-api'
+import { matchRequestSchema, SERVER_READY_DEADLINE_MS } from '@ezpug/match-api'
 import { LINK_CLOSE_CODES, NODE_LINK_PATH } from '@ezpug/protocol'
 import { createFakeNode, type FakeNode, LinkClosedError } from '@ezpug/protocol/fake-node'
 import { createFakeServer, type FakeServer } from '@ezpug/protocol/fake-server'
@@ -465,6 +465,75 @@ describe('a cold match', () => {
     await node.next('start')
     const row = openRows(rig).find(candidate => candidate.matchId === match.id)
     expect(row?.address).toEqual({ host: 'saarlan-1.ezpug.invalid', port: rig.portBase })
+  })
+})
+
+describe('a server that never gets ready (PRD-05 T2)', () => {
+  /** Run the clock to the ready deadline with both sockets heartbeating, as a live agent and plugin do. */
+  async function outlast(rig: NodeRig, node: FakeNode, server?: FakeServer): Promise<void> {
+    const step = 10_000
+    for (let at = 0; at < SERVER_READY_DEADLINE_MS; at += step) {
+      node.heartbeat()
+      server?.heartbeat()
+      await rig.settle()
+      await rig.app.clock.advance(Math.min(step, SERVER_READY_DEADLINE_MS - at))
+      await rig.settle()
+    }
+  }
+
+  const failure = async (rig: NodeRig, matchId: string) => {
+    const match = await rig.app.matches.get(rig.key, matchId)
+    expect(match.state).toBe('failed')
+    expect(match.endedReason?.kind).toBe('provider_error')
+    return match.endedReason?.detail ?? ''
+  }
+
+  it('fails a container whose plugin never dialled, naming the map and what the node reports', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol(
+      'devbox',
+      { capacity: { maxInstances: 2, warm: 0 } },
+      {
+        autoStart: false,
+      },
+    )
+    const { match } = await rig.app.matches.create(
+      rig.key,
+      request({ maps: [{ map: 'workshop/3084291314/aim_map', sides: 'knife' }] }),
+    )
+    await rig.settle()
+    const spec = await node.next('start')
+    expect((await rig.app.matches.get(rig.key, match.id)).state).toBe('configuring')
+
+    await outlast(rig, node)
+    expect(await failure(rig, match.id)).toBe(
+      'no server_ready on workshop/3084291314/aim_map within 180 s; ' +
+        'nodes reports the server starting (node devbox: container starting); ' +
+        'the server never said hello over the link',
+    )
+    // The server leaves the fleet: the node is told to stop it and its row is closed.
+    expect(node.stops()).toContain(spec.instance.id)
+    expect(openRows(rig).filter(row => row.matchId === match.id)).toEqual([])
+  })
+
+  it('fails a server whose plugin loaded and never said server_ready, with what the link last said', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 0 } })
+    const { match } = await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    const spec = await node.next('start')
+    const server = rig.dial(spec.instance.serverToken)
+    await server.connect()
+    await server.next('assign')
+    await rig.settle()
+
+    await outlast(rig, node, server)
+    const detail = await failure(rig, match.id)
+    expect(detail).toMatch(
+      /^no server_ready on de_mirage within 180 s; nodes reports the server running \(node devbox: container running\); the link last said assigned on \S+ \(plugins loaded\), still connected$/,
+    )
+    expect(await server.next('release')).toMatchObject({ type: 'release' })
+    expect(openRows(rig).filter(row => row.matchId === match.id)).toEqual([])
   })
 })
 

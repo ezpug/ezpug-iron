@@ -104,6 +104,24 @@ export const matchEndedReasonSchema = z.object({
 export type MatchEndedReason = z.infer<typeof matchEndedReasonSchema>
 
 /**
+ * **The ready deadline** (PRD-05 T2): how long the orchestrator waits,
+ * from `configuring`, for the server to say `server_ready`. After that the
+ * match fails `provider_error`. The `detail` names the plan's first map and
+ * what the orchestrator last saw of the server, and the server leaves the
+ * fleet.
+ *
+ * Three minutes, because it has to fit inside a client's own provisioning
+ * timeout (the platform gives up five minutes after its request) with
+ * allocation in front of it, so the client learns why from us and not from
+ * its own cancel. It also has to allow for a first-time workshop download. On
+ * the dev node an official map is ready about 12 s after allocation. AIM Map
+ * (112 MB) downloaded cold in about 9 s and was ready 10 s after allocation.
+ * Three minutes is room for a map ten times that size on a link ten times
+ * slower.
+ */
+export const SERVER_READY_DEADLINE_MS = 3 * 60_000
+
+/**
  * **Why a match that could have had a demo has none in the client's storage**
  * (decision 10, PRD-02 T21). The server owns the upload; the orchestrator only
  * relays what it was told, so these are the four honest answers it can give.

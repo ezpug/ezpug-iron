@@ -79,7 +79,7 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   match sat `live` until the lane forced it to end twelve minutes later. A restart in that
   window, which a deploy can cause, must still end the match `completed` once the demo is
   in, or at the demo deadline. Prove it with a machine test that restarts between the two.
-- [ ] **T2 (effort: medium): a node that never gets ready says why.** A node whose server
+- [x] **T2 (effort: medium): a node that never gets ready says why.** A node whose server
   does not reach `server_ready` within a ready deadline fails the match (`match.failed`, or
   the vocabulary's nearest existing fact, additive only) with a reason that names the map
   and what the node saw last, and the server leaves the fleet. The deadline is a named

@@ -31,6 +31,7 @@ import {
   matchFormatProblem,
   matchRequestScopes,
   matchSimulationProblem,
+  SERVER_READY_DEADLINE_MS,
   STREAM_CLOSE_CODES,
   scopeAllows,
 } from '@ezpug/match-api'
@@ -77,7 +78,7 @@ import { envelopeOf, matchView } from './views'
  *
  * - `allocate` — from `allocating`; expiry fails `allocation_failed`.
  * - `boot` — from `configuring` until `server_ready`; expiry fails
- *   `provider_error`.
+ *   `provider_error`, naming the map and what the server was last seen doing.
  * - `join` — from `ready` until `going_live`; expiry ends `ttl_expired`.
  * - `recovery` — the `server_lost` window; expiry fails `server_lost`.
  * - `ttl` — the request's `ttlMinutes`; expiry ends `ttl_expired`.
@@ -117,7 +118,7 @@ import { envelopeOf, matchView } from './views'
 export interface MatchDeadlines {
   /** From `allocating` to `configuring`. */
   allocateMs: number
-  /** From `configuring` to `server_ready`. */
+  /** From `configuring` to `server_ready` (`SERVER_READY_DEADLINE_MS`, which says why three minutes). */
   bootMs: number
   /** From `ready` to `going_live`. */
   joinMs: number
@@ -143,7 +144,7 @@ export interface MatchDeadlines {
 
 export const DEFAULT_MATCH_DEADLINES: MatchDeadlines = {
   allocateMs: 2 * 60_000,
-  bootMs: 5 * 60_000,
+  bootMs: SERVER_READY_DEADLINE_MS,
   joinMs: 20 * 60_000,
   recoveryMs: 5 * 60_000,
   demoMs: 6 * 60_000,
@@ -307,6 +308,9 @@ interface Runtime {
 export const BACKUPS_KEPT_PER_MATCH = 8
 
 const LAST_SEEN_WRITE_INTERVAL_MS = 5_000
+
+/** How much of the ready deadline's reason a `match.failed` carries: the map and a few observations. */
+const BOOT_DETAIL_MAX = 512
 
 function refuse(code: MatchApiErrorCode, message: string, details?: Record<string, unknown>) {
   return new ApiError(MATCH_API_ERROR_STATUS[code], code, message, details)
@@ -760,11 +764,50 @@ export function createMatches(options: MatchesOptions): Matches {
     )
 
   const armBoot = (row: MatchRow): void =>
-    setTimer(row, 'boot', row.stateChangedAt.getTime() + deadlines.bootMs, fresh =>
-      fresh.state === 'configuring'
-        ? fail(fresh, 'provider_error', `no server_ready within ${deadlines.bootMs} ms`)
-        : Promise.resolve(),
-    )
+    setTimer(row, 'boot', row.stateChangedAt.getTime() + deadlines.bootMs, async fresh => {
+      if (fresh.state !== 'configuring') return
+      const map = fresh.requestJson.maps[0]?.map ?? 'no map'
+      const detail = `no server_ready on ${map} within ${deadlines.bootMs / 1000} s; ${await lastSeen(fresh)}`
+      log.warn(`match ${fresh.id}: ${detail}`)
+      await fail(fresh, 'provider_error', detail.slice(0, BOOT_DETAIL_MAX))
+    })
+
+  /**
+   * What the orchestrator last knew of a server that never got ready, said so
+   * a person can act on it (PRD-05 T2). The provider's view comes first, which
+   * for a node is its container and docker's error. The link's view follows:
+   * whether the plugin ever dialled in, the state and map it last reported,
+   * the last `detail` it gave, and whether the socket is still open.
+   */
+  const lastSeen = async (row: MatchRow): Promise<string> => {
+    const server = await currentServer(row)
+    if (!server?.serverId) return 'no server was ever handed over'
+    const seen: string[] = []
+    const provider = providers.get(server.provider)
+    if (provider) {
+      try {
+        const status = await provider.status(server.serverId)
+        seen.push(
+          `${server.provider} reports the server ${status.state}` +
+            (status.detail ? ` (${status.detail})` : ''),
+        )
+      } catch (error) {
+        report(error, { phase: `status:${server.provider}`, matchId: row.id })
+        seen.push(`${server.provider} did not answer a status read`)
+      }
+    }
+    const channel = links.get({ provider: server.provider, serverId: server.serverId })
+    if (server.linkState === null) seen.push('the server never said hello over the link')
+    else {
+      const said = channel?.lastDetail?.()
+      seen.push(
+        `the link last said ${server.linkState} on ${server.currentMap ?? 'no map'}` +
+          (said ? ` (${said})` : '') +
+          (channel ? ', still connected' : ', since disconnected'),
+      )
+    }
+    return seen.join('; ')
+  }
 
   /**
    * The demo window: end the match anyway when the demo does not come. The

@@ -4,6 +4,7 @@ import {
   type MatchRequest,
   type MatchRequestInput,
   matchRequestSchema,
+  SERVER_READY_DEADLINE_MS,
   SHIPPED_GAMEMODES,
   STREAM_CLOSE_CODES,
   type StreamFrame,
@@ -550,12 +551,18 @@ describe('deadlines', () => {
     const app = createTestApp({ sim: { scenario: 'never-ready', positionTickIntervalMs: null } })
     const { key } = await platformKey(app)
     const { match } = await app.matches.create(key, request())
-    await app.advance(5 * 60_000 - 1)
+    await app.advance(SERVER_READY_DEADLINE_MS - 1)
     expect((await app.matches.get(key, match.id)).state).toBe('configuring')
     await app.advance(2)
     const failed = await app.matches.get(key, match.id)
     expect(failed.state).toBe('failed')
-    expect(failed.endedReason).toMatchObject({ kind: 'provider_error' })
+    // The reason names the map and what the server was last seen doing (PRD-05 T2).
+    expect(failed.endedReason).toMatchObject({
+      kind: 'provider_error',
+      detail: expect.stringMatching(
+        /^no server_ready on de_\w+ within 180 s; sim reports the server /,
+      ),
+    })
     expect(app.store.rows.servers[0]?.state).toBe('failed')
     await app.close()
   })
@@ -643,7 +650,7 @@ describe('deadlines', () => {
     })
     await revived.resume()
     // The boot deadline counts from when configuring was entered, not from the restart.
-    await app.clock.advance(4 * 60_000 - 1)
+    await app.clock.advance(SERVER_READY_DEADLINE_MS - 60_000 - 1)
     await revived.settle()
     expect((await revived.get(key, match.id)).state).toBe('configuring')
     await app.clock.advance(2)

@@ -1205,7 +1205,11 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     end(
       record,
       'failed',
-      { kind: 'provider_error', detail: `no server_ready within ${sim.readyTimeoutMs} ms` },
+      {
+        kind: 'provider_error',
+        // The orchestrator's shape: the plan's first map, then what was last seen of the server.
+        detail: `no server_ready on ${record.request.maps[0]?.map ?? 'no map'} within ${sim.readyTimeoutMs / 1000} s; the fake's server never booted`,
+      },
       'failed',
     )
   }

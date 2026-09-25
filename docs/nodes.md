@@ -272,6 +272,15 @@ operator sets:
   that would not pull, a server that exited with a code (`docker logs ezpug-node-<id>` is
   the server's own boot log, `docker attach` its console). The orchestrator clears it with
   a `stop`; by hand, `docker rm -f ezpug-node-<id>` and the next poll notices.
+- **A match failed `provider_error` with `no server_ready on <map> within 180 s`.** The
+  server never became ready within the ready deadline, and the rest of the reason says how
+  far it got. `container starting` and `never said hello over the link` mean the plugin
+  never dialled: CS2 did not finish booting, or the container cannot reach the
+  orchestrator's URL. `the link last said assigned … (plugins loaded)` means the plugin
+  took the assignment and the map never came up. For a workshop map, look for a
+  failed download in `docker logs ezpug-node-<id>`. The container is stopped when the
+  match fails, so read its logs through the fleet console route while it is still there,
+  or on the box before the node removes it.
 - **A container the orchestrator says belongs to no ledger row of its deployment.** It is
   from another world — the box was enrolled elsewhere before, or the orchestrator's
   database was restored past the row. Nothing will ever stop it and it holds a capacity

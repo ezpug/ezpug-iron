@@ -227,6 +227,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
     const window = new Set<number>()
     const pending = new Map<string, Pending>()
     let consoleTail: ConsoleTail | undefined
+    let lastDetail: string | undefined
     let linkState = row.linkState
     let currentMap = row.currentMap
     let lastSeenWrittenAt = clock.now()
@@ -365,6 +366,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
         return cacheTail(frame)
       },
       consoleTail: () => consoleTail,
+      lastDetail: () => lastDetail,
     }
 
     const cacheTail = (frame: Extract<ServerFrame, { type: 'console' }>): ConsoleTail => {
@@ -463,6 +465,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
           return
         case 'state':
           log.info(`link ${key}: ${frame.state}${frame.detail ? ` (${frame.detail})` : ''}`)
+          if (frame.detail) lastDetail = frame.detail
           await noteState(frame.state, null)
           await matches.touch(ref)
           return

@@ -780,10 +780,14 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
         // A node that is merely reconnecting is not a dead server; one that
         // has been away longer than the window is not a live one either.
         const state = since !== undefined && clock.now() - since >= nodeLostMs ? 'gone' : 'running'
-        return Promise.resolve({ state })
+        return Promise.resolve({ state, detail: `node ${instance.nodeId} is not connected` })
       }
       const reported = node.instances.find(candidate => candidate.id === serverId)
-      if (!reported) return Promise.resolve({ state: instance.started ? 'gone' : 'allocated' })
+      if (!reported)
+        return Promise.resolve({
+          state: instance.started ? 'gone' : 'allocated',
+          detail: `node ${instance.nodeId} does not report the container`,
+        })
       const state: ServerStatus['state'] =
         reported.state === 'running'
           ? 'running'
@@ -794,6 +798,9 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
               : 'gone'
       return Promise.resolve({
         state,
+        detail:
+          `node ${instance.nodeId}: container ${reported.state}` +
+          (reported.error ? `, ${reported.error.slice(0, 200)}` : ''),
         connect: connectOf(node, instance.ports),
         tv: tvOf(node, instance.ports),
       })

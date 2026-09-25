@@ -105,6 +105,8 @@ export interface ServerChannel {
   console?: (lines?: number) => Promise<ConsoleTail>
   /** The tail the server last relayed, solicited or not — the fleet console route's cache (T20). */
   consoleTail?: () => ConsoleTail | undefined
+  /** The `detail` of the last `state` frame that carried one (`plugins loaded`), for a reason a person reads. */
+  lastDetail?: () => string | undefined
 }
 
 /**
