@@ -129,7 +129,7 @@ upwards — 44 `team_ready` for two teams in the recorded puppet pug, which is w
 `minPlayersToReady` per team, or the whole roster where the request asked for no gate at
 all.)
 
-**A map is named the way your plan named it** (since 0.23.0, PRD-05 T1, #3).
+**A map is named the way your plan named it** (since 0.23.0, PRD-05 T1, #3; decision 32).
 `going_live.map`, and `map_end.map` where it is present, is the plan's own string for that
 map number, `maps[mapNumber - 1].map`: `de_mirage`, or `workshop/3084291314/aim_map` for a
 workshop map. You can match it to your plan without knowing anything about the engine. A

@@ -21,18 +21,39 @@ there, not this file.
 
 ## Unreleased
 
-**Workshop maps go live** (`ralph/PRD-05-workshop.md` T1, #3). The dev node runs this work
-from a local build of the CS2 image. It is not deployed to `gs.ezpug.com` yet, and no tag
-has been cut. The contract went out as `@ezpug/match-api` **0.23.0**.
+**Workshop maps go live** (`ralph/PRD-05-workshop.md`, #3, #4, #5, #6; decision 32). The
+dev node runs this work from a local build of the CS2 image. It is not deployed to
+`gs.ezpug.com` yet, and no tag has been cut. The contract went out as `@ezpug/match-api`
+**0.23.0** through **0.27.0**, and the package's own changelog has every line.
 
-- **The orchestrator**: a workshop plan goes into MatchZy's `maplist` as its bare id.
-  The Dathost provider allocates every server with
-  `cs2_settings.disable_workshop_command_filtering`.
-- **The plugins**: the loader hosts a `workshop/<id>/<name>` plan with
-  `host_workshop_map <id>` (`MapIdentifier` in the SDK is the one parser). Before
-  `matchzy_loadmatch`, it puts the engine's name for the map that is up into
-  `maplist[0]`. The SDK's generic flow names `going_live.map` and `map_end.map` from the
-  plan. The hostname names a workshop map by its plan's `<name>`.
+- **The orchestrator**:
+  - A workshop plan goes into MatchZy's `maplist` as its bare id (T1). The Dathost
+    provider allocates every server with `cs2_settings.disable_workshop_command_filtering`.
+  - A restart between `series_end` and `demo_available` still ends the match (T1a).
+    `resume()` rebuilds the demo wait from the durable log, and the deadline counts from
+    the logged `series_end`, not from the restart.
+  - A server that never sends `server_ready` fails the match after
+    `SERVER_READY_DEADLINE_MS`, three minutes, where it used to wait five (T2). The
+    `provider_error` detail names the map, the provider's view of the server and the
+    link's last word, and the server leaves the fleet.
+  - The `sim` provider deals the knife perk on request (T2b). Its story throws utility
+    onto the tick and carries the bomb (T2c).
+  - A MatchZy `going_live` carries the engine's game type and mode, copied from the
+    server's last `server_ready` (T2d).
+- **The plugins**:
+  - The loader hosts a `workshop/<id>/<name>` plan with `host_workshop_map <id>` (T1;
+    `MapIdentifier` in the SDK is the one parser). Before `matchzy_loadmatch`, it puts
+    the engine's name for the map that is up into `maplist[0]`. The SDK's generic flow
+    names `going_live.map` and `map_end.map` from the plan. The hostname names a
+    workshop map by its plan's `<name>`.
+  - The position tick carries grenades and the bomb (T2c), fed by the game's events
+    through `UtilityBook`, because `OnEntitySpawned` never fired for the plugin on
+    CounterStrikeSharp 1.0.373.
+  - `server_ready` and `going_live` carry the engine's `game_type` and `game_mode`, read
+    at map start (T2d).
+  - `bomb_planted`, `bomb_defused` and `bomb_exploded` name their site on a real server
+    (T2e). The event's `site` is the trigger's entity index, so the plugin reads
+    `planted_c4`'s `m_nBombSite` instead.
 - **The CS2 image**: CS2 starts with `-disable_workshop_command_filtering`. Without it,
   a workshop map drops MatchZy's `live.cfg` and `tv_enable`.
 

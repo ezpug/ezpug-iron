@@ -120,9 +120,28 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   not that (the `planted_c4`'s `m_nBombSite` is, which is what the tick's `bomb.site` now
   reads). Fix `bomb_planted`, `bomb_defused` and `bomb_exploded`, and hold it with a lane
   assertion on the facts, not only on the tick.
+- [ ] **T2f (effort: medium): a retakes server survives its first round.** Found by T3's
+  required extended run on 2026-09-25. Every other row was green, but both retakes rows
+  (`retakes`, `mixed`) lost their server. It reached `server_ready`, `going_live` and the
+  first `round_start`, then went silent. The node logged `exited with code 139` (SIGSEGV)
+  for `devbox-1077af` (iron `ffbd5ab6-fe37-421f-b12b-49e6a7e63768`) and `devbox-0e39ed`
+  (iron `bff47bf8-27d4-44f7-bab2-ed7517d9700a`), and the match failed `server_lost`, "no
+  backup to restore from". Retakes spawns a planted bomb at round start, with no plant a
+  player made. No lane run since T2c had played a retakes row, so the first suspects are
+  the tracker's entity reads from T2c and T2e (`UtilityTracker.SearchBomb`, `Planted()`,
+  `PlantedSite()` over `weapon_c4` and `planted_c4`, and what retakes' own
+  `bomb_planted` hands `CounterStrikeWorld`). A C# `try` does not catch a native crash.
+  Find the read that crashes (follow the container's console, per the lane-run evidence
+  note), make the plugin leave it alone, and hold it with a Core test where it can be
+  reproduced offline. Green is both retakes rows passing on the dev node behind the lane
+  lock, and the image rebuilt with `pnpm cs2:build` under it.
 - [ ] **T3 (effort: medium): the docs and the sweep.** A decision in `docs/decisions.md` for
   how a workshop plan is hosted and what `going_live.map` says. `ralph/OPEN-POINTS.md`
   updated. The completion list below.
+  > blocked: the docs are done (decision 32, OPEN-POINTS §9 and §10, CHANGELOG, pins,
+  > the closing note), but the completion list needs one green `EZPUG_CS2_TESTS=required`
+  > extended run, and the first one (2026-09-25) was red on T2f. After T2f, rerun it,
+  > write the result into the closing note and tick this box.
 
 ## Working rules
 
@@ -143,3 +162,24 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
 - Every contract change released to the box's Verdaccio.
 - Closing note: the release versions, the `going_live.map` decision, AIM Map's cold
   download time, and what the platform needs to do (bump, run its workshop row, close #3).
+
+> **Closing note (T3, 2026-09-25).** Releases, all on the box's Verdaccio (`latest`
+> 0.27.0), tags cut and held for npmjs: **0.23.0** (T1, workshop maps hosted by id, for
+> the platform's PRD-12 T6a), **0.24.0** (T2, `SERVER_READY_DEADLINE_MS`, T6a's
+> follow-up), **0.25.0** (T2b, the sim's knife perk, #6, PRD-12 T16a), **0.26.0** (T2c,
+> grenades and the bomb on the tick, #5, PRD-12 T8b) and **0.27.0** (T2d, the engine's
+> game type and mode and the format, #4). T1a and T2e moved no schema.
+> **`going_live.map`** (and `map_end.map`) is the plan's own string,
+> `workshop/3084291314/aim_map`. `server_ready.map` is the engine's name, `aim_map`
+> (decision 32). **AIM Map's cold download** on the dev node: 112 MB in about 9 s, and
+> `server_ready` came 10 s after allocation. The ready deadline is 3 min.
+> **The platform** has done its half of #3: it pinned 0.23.0 (`e6202f1f`), its workshop
+> row went green, and it closed #3 from its lane. It pins 0.25.0 today. What is left for
+> it: bump to 0.26.0 for the live radar's smokes and bomb (its T32a), bump to 0.27.0 to
+> prove wingman (its T32b), and close #4, #5 and #6 from its lane when those rows are
+> green. **Production** has none of this round yet: the next `./scripts/deploy.sh` and
+> Dathost template sync carry the plugin, the image flag and the orchestrator. **The
+> extended run with the lane required:** first attempt on 2026-09-25 was red: 1454 passed
+> and 2 failed. It played the pug, workshop, grenades, wingman, knife, pause, restore,
+> drop, mixed-pug, widget and idle rows green in 98 minutes. Both retakes rows lost their
+> server to a CS2 segfault after the first round (T2f). To be rerun after T2f.

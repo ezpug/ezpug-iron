@@ -445,6 +445,39 @@ it here.
     exact. Measured on the dev node: 97.2 ms against a 7.8 ms frame. Not chosen: catching
     up beat by beat after a stall (a burst of beats owed to nobody).
 
+32. **A workshop map is hosted by its id, and a client hears the name it sent.** (PRD-05
+    T1 and T2, 2026-09-24/25; [#3](https://github.com/ezpug/ezpug-iron/issues/3).) The
+    platform names a workshop map `workshop/<id>/<name>`, and that grammar stays. The
+    orchestrator passed the string on as it was, and the engine hosts a workshop map only
+    by its bare published-file id. The loader ran `changelevel workshop/…` and MatchZy
+    fell back to `changelevel` behind `IsMapValid`, so a node never loaded AIM Map. The
+    match sat silent until the platform's own five-minute cancel. Now the wire keeps the
+    platform's string, and the server side translates it **once per language, at the edge
+    that speaks to the engine**: `MapIdentifier` in the SDK for the loader
+    (`host_workshop_map <id>`), and the orchestrator's MatchZy config builder for
+    `maplist` (the bare id, which is what MatchZy's `long.TryParse` hosts). The engine
+    then names the map itself (`aim_map`), never by the id, so before `matchzy_loadmatch`
+    the loader writes that name into `maplist[0]` when the entry is the id it just hosted.
+    A series' later maps keep their ids. What a client reads follows one rule: **a fact
+    about the plan names the map the way the plan did**. `going_live.map` and `map_end.map`
+    are `maps[mapNumber - 1].map` on every flow (the MatchZy translator and the SDK's
+    generic flow alike). **A fact about the server names what the engine loaded**:
+    `server_ready.map` says `aim_map`. For an official map the two are the same string.
+    The hostname shows the plan's `<name>`. Three rules under it. **A test on each side
+    feeds the wire's own spelling**, never a hand-shortened id, because the old tests fed
+    `3070923343` and agreed with the bug. **A workshop map runs with the console filter
+    off**: CS2 refuses most commands on a workshop map ("DISALLOWED WORKSHOP CONVAR"),
+    which dropped MatchZy's `live.cfg` and `tv_enable`, so the image starts with
+    `-disable_workshop_command_filtering` and the Dathost provider sets the same switch.
+    **A server that never gets ready says why** (T2): `SERVER_READY_DEADLINE_MS`, three
+    minutes from `configuring`, fails the match `provider_error` with the map and what
+    the provider and the link last saw. The deadline is shorter than the platform's cancel
+    and about 18 times AIM Map's cold download on the dev node (112 MB in about 9 s).
+    Not chosen: the engine's name in `going_live.map` (the wire cannot know it before the
+    download, and the platform would have to learn a second name for a map it picked); a
+    workshop spelling of its own on the wire, such as a bare id (a contract change with no
+    gain, since the platform's grammar was already right).
+
 ## How the rounds run
 
 24. **Spine first, then two loops in parallel.** `ralph/PRD-01-spine.md` (this repo, ~10

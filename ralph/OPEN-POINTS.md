@@ -21,6 +21,8 @@ lock") says. The lane lock's fairness (issue #1) is decision 31. §7 (a mixed ro
 `pug` needed MatchZy-Enhanced to learn a per-seat switch) became PRD-04 T2b: the owner chose
 a fork of our own, `ezpug/MatchZy-Enhanced`, and `pug` claims `capabilities.mixedRoster`
 (decisions 19 and 28 as amended). What only a person can show of it is §8.
+PRD-05 (workshop maps) took neither §3 nor §8. It found §9 and §10, and decision 32 records
+what it decided.
 
 ## §3 EZ Rating on a human's scoreboard has never been seen
 
@@ -59,3 +61,34 @@ nine, on the dev node or on the platform's queue, and see the match go live and 
 with the person announced as themselves. The platform's PRD-11 T23 (the owner as the
 tenth on the 5v5 queue) is that run. If the gate does not pass for a person, it becomes a
 task against the fork's series.
+
+## §9 A defuse on a real server has never named its site
+
+**What is known** (PRD-05 T2e, 2026-09-25): the core plugin read `site` wrong for every
+bomb fact, because the event's `site` is the entity index of the site's trigger, not 0 or 1.
+`bomb_planted`, `bomb_defused` and `bomb_exploded` now share one resolver:
+`planted_c4`'s `m_nBombSite`, and failing that the site this round's plant recorded. The
+proving run (the lane's `grenades` row, iron `9bd2bdd3-5ae5-468c-ae1b-2a3768a89d5c`) planted
+four times and exploded three times, each with a site. Nobody defused. Bots rarely do,
+and the lane's rows assert that no bomb fact they did see lacks a site, not that a defuse
+happened.
+
+**What closes it.** A `bomb_defused` with a `site` from the dev node or production, read
+off the durable log. The platform's matches will produce one sooner than a lane row can
+force it. If it arrives without a site, the resolver's fallback after the planted entity
+is gone is the suspect, and it becomes a task.
+
+## §10 The dev orchestrator's watcher can stop watching
+
+**What is known** (PRD-05 T2d, 2026-09-25): the dev orchestrator on 3430 runs under
+`tsx watch` from this checkout. After a burst of edits it stopped reacting. The last
+restart line in `/tmp/orchestrator-dev.log` was 16:19, and a later content change and a
+`touch` did nothing. A lane run then went against the old machine code and failed for
+that reason alone. A restart by hand fixed it. The opposite also happened in PRD-05 T1 and
+T2: an edit mid-run restarted it and stranded a match (T1a made the demo wait survive a
+restart; nothing else in the runtime was checked for the same gap).
+
+**What needs a decision.** Whether the dev world keeps a watcher at all while two loops
+play lane rows through it, or runs the orchestrator the way production does and restarts
+it on purpose. Until then, a proving run compares the serving process's start time with the
+source it depends on.
