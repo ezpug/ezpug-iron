@@ -120,7 +120,7 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   not that (the `planted_c4`'s `m_nBombSite` is, which is what the tick's `bomb.site` now
   reads). Fix `bomb_planted`, `bomb_defused` and `bomb_exploded`, and hold it with a lane
   assertion on the facts, not only on the tick.
-- [ ] **T2f (effort: medium): a retakes server survives its first round.** Found by T3's
+- [x] **T2f (effort: medium): a retakes server survives its first round.** Found by T3's
   required extended run on 2026-09-25. Every other row was green, but both retakes rows
   (`retakes`, `mixed`) lost their server. It reached `server_ready`, `going_live` and the
   first `round_start`, then went silent. The node logged `exited with code 139` (SIGSEGV)
@@ -135,6 +135,10 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   note), make the plugin leave it alone, and hold it with a Core test where it can be
   reproduced offline. Green is both retakes rows passing on the dev node behind the lane
   lock, and the image rebuilt with `pnpm cs2:build` under it.
+  > found: not our reads. CS2 1.41.8.2 (2026-09-23) moved the offsets CounterStrikeSharp
+  > 1.0.373 calls through, `CBaseEntity_Teleport` among them, and retakes teleports at round
+  > start. Fixed by moving to CounterStrikeSharp 1.0.375 and Metamod git1469. No Core test:
+  > the crash lives in the game and the loader, and nothing offline has either.
 - [ ] **T3 (effort: medium): the docs and the sweep.** A decision in `docs/decisions.md` for
   how a workshop plan is hosted and what `going_live.map` says. `ralph/OPEN-POINTS.md`
   updated. The completion list below.

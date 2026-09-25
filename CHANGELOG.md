@@ -54,8 +54,17 @@ dev node runs this work from a local build of the CS2 image. It is not deployed 
   - `bomb_planted`, `bomb_defused` and `bomb_exploded` name their site on a real server
     (T2e). The event's `site` is the trigger's entity index, so the plugin reads
     `planted_c4`'s `m_nBombSite` instead.
-- **The CS2 image**: CS2 starts with `-disable_workshop_command_filtering`. Without it,
-  a workshop map drops MatchZy's `live.cfg` and `tv_enable`.
+- **The CS2 image**:
+  - CS2 starts with `-disable_workshop_command_filtering`. Without it, a workshop map
+    drops MatchZy's `live.cfg` and `tv_enable`.
+  - CounterStrikeSharp goes from 1.0.373 to **1.0.375**, and so does the API the plugins
+    compile against (T2f). CS2 1.41.8.2 (2026-09-23) moved the virtual-function offsets
+    1.0.373 calls through, including `CBaseEntity_Teleport` (162 to 164 on Linux). Retakes
+    teleports every player at round start, so a retakes server segfaulted on its first
+    round. MatchZy never teleports, so the pug rows stayed green. 1.0.375 is upstream's
+    fix for that update. It needs Metamod plugin API 18, so Metamod goes from git1411 to
+    **git1469**. The git1468 that 1.0.375 builds against hung in 6 of 9 boots, inside
+    KHook. git1469 bumps KHook, and it booted 12 of 12.
 
 **Mixed rosters** (`ralph/PRD-04-mixed-rosters.md`). This work is deployed on `gs.ezpug.com`
 from local builds, and the Dathost template carries its plugins. No `orchestrator@`,
