@@ -139,18 +139,12 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   > 1.0.373 calls through, `CBaseEntity_Teleport` among them, and retakes teleports at round
   > start. Fixed by moving to CounterStrikeSharp 1.0.375 and Metamod git1469. No Core test:
   > the crash lives in the game and the loader, and nothing offline has either.
-- [ ] **T3 (effort: medium): the docs and the sweep.** A decision in `docs/decisions.md` for
+- [x] **T3 (effort: medium): the docs and the sweep.** A decision in `docs/decisions.md` for
   how a workshop plan is hosted and what `going_live.map` says. `ralph/OPEN-POINTS.md`
   updated. The completion list below.
-  > blocked: the docs are done (decision 32, OPEN-POINTS §9 and §10, CHANGELOG, pins,
-  > the closing note), but the completion list needs one green `EZPUG_CS2_TESTS=required`
-  > extended run, and the first one (2026-09-25) was red on T2f. After T2f, rerun it,
-  > write the result into the closing note and tick this box.
-  > (2026-09-26, the operator) The rerun was started at 23:35 by a run that ran out of
-  > iterations: `EZPUG_CS2_TESTS=required pnpm verify:extended`, logging to
-  > `/tmp/prd05-t3-extended.log`, with CS2 consoles in `/tmp/prd05-t3-consoles/`. The loop was
-  > restarted after it exited, so read that log's verdict first and do not start another
-  > run unless it is red or inconclusive.
+  > done: the docs landed with decision 32 (2026-09-25). The first required extended run
+  > was red on T2f. The rerun after T2f (2026-09-25 23:35, `/tmp/prd05-t3-extended.log`)
+  > was green, and the closing note records it.
 
 ## Working rules
 
@@ -188,7 +182,12 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
 > prove wingman (its T32b), and close #4, #5 and #6 from its lane when those rows are
 > green. **Production** has none of this round yet: the next `./scripts/deploy.sh` and
 > Dathost template sync carry the plugin, the image flag and the orchestrator. **The
-> extended run with the lane required:** first attempt on 2026-09-25 was red: 1454 passed
-> and 2 failed. It played the pug, workshop, grenades, wingman, knife, pause, restore,
-> drop, mixed-pug, widget and idle rows green in 98 minutes. Both retakes rows lost their
-> server to a CS2 segfault after the first round (T2f). To be rerun after T2f.
+> extended run with the lane required:** the first attempt on 2026-09-25 was red: 1454
+> passed and 2 failed. Both retakes rows lost their server to a CS2 segfault after the
+> first round (T2f, CS2 1.41.8.2 against CounterStrikeSharp 1.0.373). The rerun on
+> 0bdd8e4 (CounterStrikeSharp 1.0.375, Metamod git1469), started 2026-09-25 23:35, was
+> **green: 1456 passed, 0 failed, 4 skipped** in 1h49m. The skips were the Dathost smoke
+> (not demanded) in both tiers, the plain tier's lane stub, and the opt-in `radar`
+> measurement.
+> All 18 lane rows passed in 108.8 min, `retakes` (2.1 min) and `mixed` (2.3 min) among
+> them. No server was left running, and the lane lock was released.
