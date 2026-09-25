@@ -87,6 +87,33 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   tolerant of a first-time workshop download (measure AIM Map's cold download on the dev
   node and write the number down). Released like T1, changelog naming PRD-12 T6a's
   follow-up.
+- [ ] **T2b (effort: medium): the sim deals a knife kill and its chat line
+  ([#6](https://github.com/ezpug/ezpug-iron/issues/6)).** The platform's knife perk
+  (PRD-12 T16a) needs a simulated match to produce `player_death` with a knife-family
+  `weapon` by a rostered player, then a `chat_message` `{ scope: "all", text: "get ezpug" }`
+  from the same player before the next `round_start`. Take the issue's option 1, a
+  `knifePerk: { round, killer? }` knob on the sim plan next to `chaos`, drawing from its own
+  `prng.fork(...)` so turning it on does not reshuffle the story, unless reading
+  `packages/sim` makes option 2 clearly better. Say why in the changelog. Additive, released
+  to Verdaccio with a changelog line naming PRD-12 T16a, and a comment on #6.
+- [ ] **T2c: grenades on the live tier ([#5](https://github.com/ezpug/ezpug-iron/issues/5)).**
+  The owner wants the live radar to show smokes and the bomb. Add the optional `grenades[]`
+  on the ephemeral `position_tick` exactly as the issue shapes it (kind, `flying` / `active`,
+  radius, thrower), and check that the tick already carries the bomb (carrier, dropped,
+  planted with site). If it does not, add that too, in the same additive shape.
+  - **Producers:** the plugin on a real node (grenade entities and the detonate, expire,
+    inferno and projectile events), and the simulator (its story throws utility, so a sim
+    match shows smokes on the platform's dev world). Dathost's path is the same plugin.
+  - **Proof:** a package fixture, plus one lane row on the dev node behind the lane lock,
+    where a puppeted match's ticks carry a smoke through `flying` → `active` → gone.
+  - **Release:** to Verdaccio, changelog naming the platform's live radar (PRD-12 T8b), and
+    a comment on #5.
+- [ ] **T2d (effort: medium): the format on the record
+  ([#4](https://github.com/ezpug/ezpug-iron/issues/4)).** The issue's option 2:
+  `server_ready` (or `going_live`) carries the engine's `game_type` / `game_mode`, read off
+  the convars after MatchZy set them, and the resolved `format`, so the platform proves
+  wingman on every match instead of probing over RCON. Additive, released to Verdaccio with
+  a comment on #4.
 - [ ] **T3 (effort: medium): the docs and the sweep.** A decision in `docs/decisions.md` for
   how a workshop plan is hosted and what `going_live.map` says. `ralph/OPEN-POINTS.md`
   updated. The completion list below.
