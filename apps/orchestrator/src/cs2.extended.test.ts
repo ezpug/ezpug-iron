@@ -132,7 +132,8 @@ const TIMESCALE = process.env.EZPUG_CS2_TIMESCALE ?? '2'
  * A rung is picked off the size of the room, because that is what the runtimes
  * measured on this box sort by: two to four puppets play out in five or six
  * minutes, ten play the match the owner plays, with a demo to upload and a
- * GOTV window to wait for. A case may name its own rung; none needs to yet.
+ * GOTV window to wait for. A case may name its own rung: `grenades` (PRD-05
+ * T2c) plays eight rounds with four puppets, so it takes the medium one.
  */
 const LADDER = { short: 18, medium: 24, long: 32 } as const
 type Rung = keyof typeof LADDER
@@ -187,6 +188,19 @@ type Summary = {
   payloads?: Record<string, number>
   /** Which map each fact named: the plan, `server_ready` (the engine's name), `going_live` (the plan's) — PRD-05 T1. */
   maps?: { planned: string[]; ready: (string | null)[]; live: string[] }
+  /** The grenades and the bomb on the stream's position ticks (PRD-05 T2c); `null` when no tick sampled them. */
+  utility?: {
+    ticks: number
+    sampled: number
+    kinds: Record<string, number>
+    smokes: {
+      seen: number
+      wholeLives: number
+      example: { states: string[]; radius: number | null } | null
+    }
+    bomb: Record<string, number>
+    sites: string[]
+  } | null
   /** The classes of fact the match produced, in order, a run of the same class collapsed (PRD-03 T11). */
   story?: string[]
   counts?: Record<string, number>
@@ -481,6 +495,41 @@ const CASES: LaneCase[] = [
       expect(summary.maps?.live, 'going_live did not name the plan’s map').toEqual([WORKSHOP_MAP])
       expect(summary.maps?.ready, 'MatchZy hosted the map a second time').toHaveLength(1)
       expect(summary.payloads?.server_ready, 'MatchZy hosted the map a second time').toBe(1)
+    },
+  },
+  {
+    // **Utility on the live tier** (PRD-05 T2c, ezpug/ezpug-iron#5). The
+    // platform's live radar draws smokes and the bomb off the position ticks,
+    // and this is the row that says a real server puts them there: a smoke a
+    // puppet threw goes `flying`, then `active` with its radius, then leaves
+    // the tick. Nobody types a throw: the puppets are the engine's own bots.
+    // Left to their economy they threw three or four HEs and flashes in eight
+    // rounds and no smoke at all (three runs on 2026-09-25), so every player
+    // spawns with a smoke, through the request's `rules.cvars`, and the bots
+    // still decide when to throw it. Eight rounds, two a side.
+    id: 'grenades',
+    what: 'plays a 2v2 pug and watches a smoke fly, bloom and clear on the position ticks',
+    puppets: 4,
+    rung: 'medium',
+    args: [
+      '--rounds',
+      '8',
+      '--cvars',
+      'mp_t_default_grenades=weapon_smokegrenade,mp_ct_default_grenades=weapon_smokegrenade',
+    ],
+    facts: summary => {
+      readiedUp(summary, 4)
+      const utility = summary.utility
+      expect(utility, 'no position tick sampled utility').not.toBeNull()
+      expect(utility?.sampled, 'a tick went out without its grenades').toBe(utility?.ticks)
+      expect(utility?.smokes.wholeLives, 'no smoke flew, bloomed and cleared').toBeGreaterThan(0)
+      expect(utility?.smokes.example?.states).toEqual(['flying', 'active', 'gone'])
+      expect(utility?.smokes.example?.radius).toBeGreaterThan(0)
+      expect(utility?.bomb.carried ?? 0, 'nobody was ever seen carrying the bomb').toBeGreaterThan(
+        0,
+      )
+      if ((utility?.bomb.planted ?? 0) > 0)
+        expect(utility?.sites.length, 'a planted bomb never named its site').toBeGreaterThan(0)
     },
   },
   {
@@ -1469,7 +1518,7 @@ describe('the iron-match script', () => {
    * be a lane case nobody missed.** Cheap, and it runs in `pnpm verify` where
    * the lane itself never does.
    */
-  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's and T2b's mixed rosters, T8's rewind and PRD-05's workshop map", () => {
+  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's and T2b's mixed rosters, T8's rewind, PRD-05's workshop map and its utility on the live tier", () => {
     const ids = CASES.map(lane => lane.id)
     expect(ids).toEqual([
       'pug-1v1',
@@ -1480,6 +1529,8 @@ describe('the iron-match script', () => {
       'pug-2v1',
       // PRD-05 T1's: a 1v1 pug on AIM Map, spelled `workshop/<id>/<name>`.
       'workshop',
+      // PRD-05 T2c's: a 2v2 whose position ticks carry a smoke's whole life.
+      'grenades',
       'wingman',
       'knife',
       'pause',

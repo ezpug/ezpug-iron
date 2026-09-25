@@ -373,6 +373,43 @@ never buffered for a link that is down, so an outage does not come back as a flo
 harness keeps them apart from the story (`FakePlatformLink.Ticks`, not `Events`), so a
 test's exact event list stays exact.
 
+**Each tick carries the utility layer too** (PRD-05 T2c, ezpug/ezpug-iron#5): the world's
+`SampleGrenades()` and `Bomb` go out beside the positions as `grenades` and `bomb`.
+`grenades` is always there, empty when nothing is in the air, because a missing list tells
+the client nothing was sampled. A tick goes out when anybody is alive **or** any grenade is,
+so a smoke still standing over a round everybody died in is still drawn. The core plugin
+keeps the layer in `UtilityBook`, which the game's **events** feed through `UtilityTracker`.
+It started out following entities from `OnEntitySpawned` to `OnEntityDeleted`, and on the dev
+node (CounterStrikeSharp 1.0.373) that listener never fired for the plugin at all, through two
+puppeted matches, while every game event registered beside it arrived. Every change of state
+has an event with a position, so that is what it keys on:
+
+- a **throw** (`grenade_thrown`) makes the next sample look for new projectiles once. Each
+  one it finds is read by index while it flies, and a handle that no longer answers is gone;
+- a **smoke** stands from `smokegrenade_detonate`, at the position the event carries, with a
+  144-unit radius, until `smokegrenade_expired`;
+- a **molotov** or **incendiary** fire starts on `inferno_startburn` under the id of the
+  projectile that landed nearest it (else the oldest fire throw still waiting names its kind
+  and thrower). While it burns, the inferno is read for the centre of its burning flames and
+  the furthest one plus 30 units, until `inferno_expire`;
+- a **flash** or an **HE** pops once on its detonate, a **decoy** on `decoy_started`, where it
+  lands and starts firing. `SampleGrenades()` consumes the pops, which is why the ticker is
+  its one caller;
+- the **bomb** follows `bomb_pickup`, `bomb_dropped` (then its entity, while it falls),
+  `bomb_planted` (the `planted_c4`'s origin and the event's site), `bomb_exploded` and
+  `bomb_defused`. The engine hands it out at spawn without an event, so it is looked for once
+  at a round's start and again when freeze time ends;
+- `round_prestart` and a map start forget everything, because the engine removes grenades
+  then without saying so.
+
+A read the engine refuses is left off the tick and said once in the plugin's log
+(`utility: reading … failed`), so an empty layer is never silent.
+
+A grenade's id is its entity handle (index and serial number), so an index the engine reuses
+is still a new grenade. A thrower resolves through the pawn's controller to the world's player,
+so a puppet's smoke is the rostered player's. On the harness, `FakeGameWorld.Grenades`,
+`Pop(...)` and `Bomb` put utility on the map.
+
 **Bots** have no SteamID64, and the vocabulary insists on one: `BotIdentity.SteamId64Of(slot)`
 names a bot `90000000000000000 + slot`, stable for its connection and outside anything Steam
 issues; `BotIdentity.IsBot(id)` reads it back. The core plugin applies it, the harness may

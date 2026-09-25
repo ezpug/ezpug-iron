@@ -141,7 +141,10 @@ beforeAll(async () => {
       config,
       clock: systemClock,
       log,
-      sim: { timeScale: SIM_TIME_SCALE, positionTickIntervalMs: 60_000 },
+      // A tick shorter than a simulated smoke stands (18 s, `SIM_SMOKE_MS`),
+      // so every smoke that blooms is seen standing: `live-utility` (PRD-05
+      // T2c) asks for one, and at 60 s a smoke mostly fell between two ticks.
+      sim: { timeScale: SIM_TIME_SCALE, positionTickIntervalMs: 15_000 },
     })
     await orchestrator.database.ping()
     await orchestrator.redis.ping()

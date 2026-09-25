@@ -1015,6 +1015,29 @@ Every message is one JSON frame with a `type`:
 | `command_result` | `result: MatchCommandResult` | the late answer to a command acknowledged `accepted`, same `correlationId` |
 | `presence`       | `players: [{ steamId64, name, team? }]` | who is on the server, whole, every time it changes; spectators included |
 
+**The utility layer rides on the tick** (since 0.26.0, ezpug/ezpug-iron#5). Beside
+`positions`, a `position_tick` may carry:
+
+- `grenades: [{ id, kind, x, y, z, state, radius?, steamId64? }]`, every grenade flying or
+  active at that instant. `kind` is `he | flash | smoke | molotov | incendiary | decoy`,
+  the same six names as a replay's. `state` is `flying` in the air, and `active` while it
+  occupies space: a smoke from its bloom until it clears, a fire while it burns (at the
+  centre of its flames). A flash, an HE and a decoy are `active` in exactly one tick, where
+  they went off. After that a grenade is simply absent. `radius` is how far an active smoke
+  or fire reaches, in world units. `id` is stable for the grenade's life, so follow it from
+  tick to tick.
+- `bomb: { state, x, y, z, steamId64?, site? }`: `carried` (and by whom), `dropped` or
+  `planted` (and on which site).
+
+A source that samples utility sends `grenades` on **every** tick, empty when nothing is in
+the air, so a missing `grenades` means "not sampled": draw no utility layer then. With
+`grenades` present, a missing `bomb` means no bomb is in play (a mode without one, before
+the round hands it out, and after `bomb_exploded` or `bomb_defused`). The core plugin
+samples both on every node and on Dathost. The simulator throws a smoke or two a side per
+round, sometimes a flash, an HE or a fire, and carries the bomb on a T; at its default
+5-second tick a grenade's flight is usually between two ticks, so a simulated smoke mostly
+shows up already standing. Like every tick, none of it is ever stored.
+
 **Authentication**: the API key as `Authorization: Bearer` from a server; a browser cannot
 set headers on a socket and passes a player token minted for this match as `?token=`. The
 origin of a browser socket must be in the request's `callbacks.streamAllowedOrigins`.

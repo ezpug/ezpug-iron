@@ -139,6 +139,8 @@ const HELP = `iron-match — run one real match through the Match API and record
                          --ready-gate 8 is a five whose gate is four (PRD-03
                          T5a)
   --no-overtime          allow a drawn map — MatchZy then replays it, so the run hangs
+  --cvars <a=1,b=2>      rules.cvars beside the script's own, which they override;
+                         e.g. every player spawning with a smoke (PRD-05 T2c)
   --max-live-minutes <n> force-end a match still live after this long; default 35
   --base-url <url>       default $EZPUG_IRON_BASE_URL
   --admin-key <secret>   an existing admin key, instead of minting one from the
@@ -671,6 +673,20 @@ const TRACE_FILE = (() => {
 // uploads what settles. The force-end is the wall for a match that wandered into
 // overtime, and it has to sit above the play *plus* that window.
 const MAX_LIVE_MS = Number(flags.get('max-live-minutes') ?? 35) * 60_000
+/**
+ * **A row's own game settings** (PRD-05 T2c), as `rules.cvars`: the request's
+ * door, so they are applied the way a client's are. The `grenades` row hands
+ * every player a smoke at spawn; the bots still decide when to throw it.
+ */
+const EXTRA_CVARS = Object.fromEntries(
+  (flags.get('cvars') ?? '')
+    .split(',')
+    .filter(pair => pair.includes('='))
+    .map(pair => [
+      pair.slice(0, pair.indexOf('=')).trim(),
+      pair.slice(pair.indexOf('=') + 1).trim(),
+    ]),
+)
 /**
  * **The wall clock, in one place.** Everything else in this repo runs on the
  * injected clock from `@ezpug/core` and the determinism guard makes a bare
@@ -1603,6 +1619,7 @@ async function run() {
             // reason: MatchZy's own `warmup.cfg` and `live.cfg` move the quota themselves.
             bot_quota: String(BOTS),
           }),
+        ...EXTRA_CVARS,
       },
     },
     requirements: { lan: LAN, ...(PROVIDER && { provider: PROVIDER }) },
@@ -2767,6 +2784,62 @@ function rewoundRounds(rewind, envelopes) {
   }
 }
 
+/**
+ * **The utility layer, off the stream** (PRD-05 T2c, ezpug/ezpug-iron#5): how
+ * many ticks said they sampled it, how many grenades of each kind showed, how
+ * many smokes lived a whole life on it (`flying`, then `active` with a radius,
+ * then absent from a later tick), and what the bomb did. `null` when no tick
+ * carried the field at all.
+ */
+function utilityOf(frames) {
+  const ticks = frames.flatMap(frame => (frame.type === 'tick' ? frame.ticks : []))
+  const sampled = ticks.filter(tick => Array.isArray(tick.grenades))
+  if (sampled.length === 0) return null
+  const lives = new Map()
+  sampled.forEach((tick, index) => {
+    for (const grenade of tick.grenades) {
+      const life = lives.get(grenade.id) ?? {
+        kind: grenade.kind,
+        states: [],
+        last: index,
+        radius: null,
+      }
+      if (life.states.at(-1) !== grenade.state) life.states.push(grenade.state)
+      if (grenade.state === 'active' && grenade.radius !== undefined) life.radius = grenade.radius
+      life.last = index
+      lives.set(grenade.id, life)
+    }
+  })
+  const kinds = {}
+  for (const life of lives.values()) kinds[life.kind] = (kinds[life.kind] ?? 0) + 1
+  const smokes = [...lives.values()].filter(life => life.kind === 'smoke')
+  const whole = smokes.filter(
+    life =>
+      life.states.join('>') === 'flying>active' &&
+      life.radius !== null &&
+      life.last < sampled.length - 1,
+  )
+  const bomb = {}
+  const sites = new Set()
+  for (const tick of sampled) {
+    if (!tick.bomb) continue
+    bomb[tick.bomb.state] = (bomb[tick.bomb.state] ?? 0) + 1
+    if (tick.bomb.site) sites.add(tick.bomb.site)
+  }
+  return {
+    ticks: ticks.length,
+    sampled: sampled.length,
+    kinds,
+    smokes: {
+      seen: smokes.length,
+      wholeLives: whole.length,
+      example: whole[0] ? { states: [...whole[0].states, 'gone'], radius: whole[0].radius } : null,
+    },
+    bomb,
+    sites: [...sites].sort(),
+  }
+}
+
 /** What `match.ended` said became of this match's demos, or `null` before it landed. */
 function demoOutcome(envelopes) {
   return envelopes.find(envelope => envelope.payload.type === 'match.ended')?.payload.demo ?? null
@@ -2986,6 +3059,8 @@ function write(result) {
           ),
         }
       : null,
+    /** The grenades and the bomb on the position ticks (PRD-05 T2c). `null` when no tick sampled them. */
+    utility: utilityOf(result.streamFrames),
     ledger: {
       rows: rows.length,
       open: rows.filter(row => row.releasedAt === null).length,

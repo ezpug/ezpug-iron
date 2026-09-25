@@ -96,7 +96,7 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   `prng.fork(...)` so turning it on does not reshuffle the story, unless reading
   `packages/sim` makes option 2 clearly better. Say why in the changelog. Additive, released
   to Verdaccio with a changelog line naming PRD-12 T16a, and a comment on #6.
-- [ ] **T2c: grenades on the live tier ([#5](https://github.com/ezpug/ezpug-iron/issues/5)).**
+- [x] **T2c: grenades on the live tier ([#5](https://github.com/ezpug/ezpug-iron/issues/5)).**
   The owner wants the live radar to show smokes and the bomb. Add the optional `grenades[]`
   on the ephemeral `position_tick` exactly as the issue shapes it (kind, `flying` / `active`,
   radius, thrower), and check that the tick already carries the bomb (carrier, dropped,
@@ -114,6 +114,12 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   the convars after MatchZy set them, and the resolved `format`, so the platform proves
   wingman on every match instead of probing over RCON. Additive, released to Verdaccio with
   a comment on #4.
+- [ ] **T2e (effort: medium): the bomb facts name their site on a real server.** Found by
+  T2c on 2026-09-25: every `bomb_planted` and `bomb_exploded` the dev node sent carried no
+  `site`. `CounterStrikeWorld.SiteOf(gameEvent.Site)` maps 0/1, and the event's `site` is
+  not that (the `planted_c4`'s `m_nBombSite` is, which is what the tick's `bomb.site` now
+  reads). Fix `bomb_planted`, `bomb_defused` and `bomb_exploded`, and hold it with a lane
+  assertion on the facts, not only on the tick.
 - [ ] **T3 (effort: medium): the docs and the sweep.** A decision in `docs/decisions.md` for
   how a workshop plan is hosted and what `going_live.map` says. `ralph/OPEN-POINTS.md`
   updated. The completion list below.

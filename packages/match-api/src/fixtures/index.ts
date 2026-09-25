@@ -139,6 +139,31 @@ export const GAMESERVER_EVENT_FIXTURES: {
     mapNumber: 1,
     roundNumber: 14,
     positions: [{ steamId64: tk.steamId64, x: -412.5, y: 1180, z: 64, yaw: 92.5 }],
+    // The utility layer (0.26.0, #5): a smoke standing, a flash in the air, a
+    // fire with no thrower known, and the bomb planted on B.
+    grenades: [
+      {
+        id: '212-48031',
+        kind: 'smoke',
+        x: -380,
+        y: 640,
+        z: -160,
+        state: 'active',
+        radius: 144,
+        steamId64: tk.steamId64,
+      },
+      { id: '219-48190', kind: 'flash', x: -120.5, y: 410, z: 88, state: 'flying' },
+      {
+        id: '220-48201',
+        kind: 'incendiary',
+        x: -1840,
+        y: 310,
+        z: -40,
+        state: 'active',
+        radius: 162,
+      },
+    ],
+    bomb: { state: 'planted', x: -2050, y: 440, z: 32, site: 'b' },
   },
   backup_written: {
     type: 'backup_written',

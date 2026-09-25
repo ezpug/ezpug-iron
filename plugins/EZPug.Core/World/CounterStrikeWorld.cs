@@ -172,12 +172,14 @@ public sealed class CounterStrikeWorld : IGameWorld
     private string _map;
     /// <summary>One warning is enough: a refused rating is refused for every player, every round.</summary>
     private bool _ratingRefused;
+    private readonly UtilityTracker _utility;
 
     public CounterStrikeWorld(BasePlugin plugin, GameThreadClock clock, ILinkLog log, string initialMap)
     {
         _plugin = plugin;
         _clock = clock;
         _log = log;
+        _utility = new UtilityTracker(clock, log, controller => Known(controller));
         _map = string.IsNullOrEmpty(initialMap) ? "unknown" : initialMap;
     }
 
@@ -219,6 +221,12 @@ public sealed class CounterStrikeWorld : IGameWorld
             }
         }
     }
+
+    /// <summary>The grenades on the map, followed by <see cref="UtilityTracker"/>. Game thread only.</summary>
+    public IReadOnlyList<GrenadeSighting> SampleGrenades() => _utility.Sample();
+
+    /// <summary>The bomb, followed by <see cref="UtilityTracker"/>. Game thread only.</summary>
+    public BombSighting? Bomb => _utility.Bomb();
 
     /// <summary>
     /// The engine's <c>m_gamePhase</c> as the SDK names it. An unknown number is
@@ -390,6 +398,8 @@ public sealed class CounterStrikeWorld : IGameWorld
             BombExploded?.Invoke(SiteOf(gameEvent.Site));
             return HookResult.Continue;
         });
+
+        _utility.Install(_plugin);
 
         _plugin.AddCommandListener("say", (controller, info) => OnSay(controller, info, teamOnly: false), HookMode.Post);
         _plugin.AddCommandListener("say_team", (controller, info) => OnSay(controller, info, teamOnly: true), HookMode.Post);

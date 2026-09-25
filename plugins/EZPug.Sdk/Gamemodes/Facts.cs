@@ -131,7 +131,17 @@ public sealed class Facts
     public BombExplodedEvent BombExploded(BombSiteName site, long? roundTimeMs = null) =>
         new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, RoundNumber = Math.Max(Context.RoundNumber, 1), Site = SiteOf(site), RoundTimeMs = roundTimeMs };
 
-    public PositionTickEvent PositionTick(IEnumerable<IGamePlayer> players) =>
+    /// <summary>
+    /// A position tick: every living player's position and, when the caller sampled the
+    /// utility layer (ezpug/ezpug-iron#5), the grenades and the bomb beside them.
+    /// <paramref name="grenades"/> travels as a list even when empty, because a missing
+    /// list tells the client nothing was sampled; <paramref name="bomb"/> is simply absent
+    /// while none is in play.
+    /// </summary>
+    public PositionTickEvent PositionTick(
+        IEnumerable<IGamePlayer> players,
+        IReadOnlyList<GrenadeSighting>? grenades = null,
+        BombSighting? bomb = null) =>
         new()
         {
             MatchId = MatchId,
@@ -148,6 +158,46 @@ public sealed class Facts
                     Z = player.Position!.Value.Z,
                 })
                 .ToList(),
+            Grenades = grenades?.Select(Grenade).ToList(),
+            Bomb = bomb is null ? null : Bomb(bomb),
+        };
+
+    private static PositionTickEventGrenade Grenade(GrenadeSighting grenade) =>
+        new()
+        {
+            Id = grenade.Id,
+            Kind = grenade.Kind switch
+            {
+                GrenadeKind.He => PositionTickEventGrenadeKind.He,
+                GrenadeKind.Flash => PositionTickEventGrenadeKind.Flash,
+                GrenadeKind.Smoke => PositionTickEventGrenadeKind.Smoke,
+                GrenadeKind.Molotov => PositionTickEventGrenadeKind.Molotov,
+                GrenadeKind.Incendiary => PositionTickEventGrenadeKind.Incendiary,
+                _ => PositionTickEventGrenadeKind.Decoy,
+            },
+            X = grenade.Position.X,
+            Y = grenade.Position.Y,
+            Z = grenade.Position.Z,
+            State = grenade.State == GrenadeState.Active ? PositionTickEventGrenadeState.Active : PositionTickEventGrenadeState.Flying,
+            // The wire wants a positive radius or none, and only an active one has any.
+            Radius = grenade.State == GrenadeState.Active && grenade.Radius is > 0 ? grenade.Radius : null,
+            SteamId64 = grenade.Thrower?.SteamId64.ToString(),
+        };
+
+    private static PositionTickEventBomb Bomb(BombSighting bomb) =>
+        new()
+        {
+            State = bomb.State switch
+            {
+                BombState.Carried => PositionTickEventBombState.Carried,
+                BombState.Dropped => PositionTickEventBombState.Dropped,
+                _ => PositionTickEventBombState.Planted,
+            },
+            X = bomb.Position.X,
+            Y = bomb.Position.Y,
+            Z = bomb.Position.Z,
+            SteamId64 = bomb.State == BombState.Carried ? bomb.Carrier?.SteamId64.ToString() : null,
+            Site = bomb.State == BombState.Planted ? SiteOf(bomb.Site) : null,
         };
 
     public BackupWrittenEvent BackupWritten(long roundNumber, string filename) =>

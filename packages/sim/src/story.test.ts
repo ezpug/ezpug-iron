@@ -350,6 +350,71 @@ describe('buildMatchStory', () => {
     expect(ofType(silent, 'position_tick')).toHaveLength(0)
   })
 
+  it('throws utility and carries the bomb on the live tier (#5)', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'utility', {}, 500)
+    const ticks = ofType(story, 'position_tick')
+    expect(ticks.length).toBeGreaterThan(0)
+    const rostered = new Set(
+      [...fixtureAssignment().teamA.players, ...fixtureAssignment().teamB.players].map(
+        p => p.steamId64,
+      ),
+    )
+
+    // Every tick is valid, and says it sampled utility even when nothing is in the air.
+    const lives = new Map<string, string[]>()
+    for (const tick of ticks) {
+      expect(gameserverEventSchema.safeParse(tick).success).toBe(true)
+      expect(tick.grenades).toBeDefined()
+      for (const grenade of tick.grenades ?? []) {
+        expect(rostered.has(grenade.steamId64 ?? '')).toBe(true)
+        const life = lives.get(grenade.id) ?? []
+        life.push(`${grenade.kind}:${grenade.state}`)
+        lives.set(grenade.id, life)
+      }
+    }
+
+    // A smoke flies, stands with its radius for several ticks, and is gone.
+    const smokes = [...lives.values()].filter(life => life[0]?.startsWith('smoke'))
+    expect(smokes.length).toBeGreaterThan(ticks.length / 1_000)
+    const smoke = smokes.find(life => life.includes('smoke:flying')) as string[]
+    expect(smoke.indexOf('smoke:active')).toBeGreaterThan(smoke.lastIndexOf('smoke:flying'))
+    expect(smoke.filter(state => state === 'smoke:active').length).toBeGreaterThan(10)
+    // A flash goes off in exactly one tick.
+    const flashes = [...lives.values()].filter(life => life[0]?.startsWith('flash'))
+    expect(flashes.length).toBeGreaterThan(0)
+    for (const flash of flashes) expect(flash.filter(s => s === 'flash:active')).toHaveLength(1)
+    const actives = ticks.flatMap(tick => tick.grenades ?? []).filter(g => g.state === 'active')
+    for (const grenade of actives) {
+      if (grenade.kind === 'smoke' || grenade.kind === 'molotov' || grenade.kind === 'incendiary')
+        expect(grenade.radius).toBeGreaterThan(0)
+      else expect(grenade.radius).toBeUndefined()
+    }
+
+    // The bomb: carried by somebody, planted in the site the kill feed names,
+    // gone once it went off or was defused.
+    const carried = ticks.flatMap(tick => (tick.bomb?.state === 'carried' ? [tick.bomb] : []))
+    expect(carried.length).toBeGreaterThan(0)
+    for (const bomb of carried) expect(rostered.has(bomb.steamId64 ?? '')).toBe(true)
+    const plant = ofType(story, 'bomb_planted')[0] as GameserverEventOf<'bomb_planted'>
+    const inRound = ticks.filter(tick => tick.roundNumber === plant.roundNumber)
+    const planted = inRound.filter(tick => tick.bomb?.state === 'planted')
+    expect(planted.length).toBeGreaterThan(0)
+    for (const tick of planted) expect(tick.bomb?.site).toBe(plant.site)
+    const resolved = story.beats.find(
+      beat =>
+        (beat.event.type === 'bomb_exploded' || beat.event.type === 'bomb_defused') &&
+        beat.event.roundNumber === plant.roundNumber,
+    ) as StoryBeat
+    const after = story.beats.filter(
+      beat =>
+        beat.atMs > resolved.atMs &&
+        beat.event.type === 'position_tick' &&
+        beat.event.roundNumber === plant.roundNumber,
+    )
+    for (const beat of after)
+      expect((beat.event as GameserverEventOf<'position_tick'>).bomb).toBeUndefined()
+  })
+
   it('walks its people on the map it was told it is playing', () => {
     const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'story-test', {}, 5_000, [MIRAGE])
     const ticks = ofType(story, 'position_tick')

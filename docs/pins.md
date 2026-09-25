@@ -130,9 +130,9 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.25.0`** in this tree and on the box's Verdaccio (`http://172.17.0.1:4873/`, `latest`;
+is **`0.26.0`** in this tree and on the box's Verdaccio (`http://172.17.0.1:4873/`, `latest`;
 `0.20.0` and `0.21.0` each published from the commit that cut it, PRD-04 T9, `0.23.0`
-from PRD-05 T1's, `0.24.0` from PRD-05 T2's, and `0.25.0` from PRD-05 T2b's) — and waiting
+from PRD-05 T1's, `0.24.0` from PRD-05 T2's, `0.25.0` from PRD-05 T2b's, and `0.26.0` from PRD-05 T2c's) — and waiting
 on an `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -204,7 +204,10 @@ schema moved. `SERVER_READY_DEADLINE_MS` (3 min) is exported, and `match.failed`
 `provider_error` detail names the map and what was last seen of the server. **0.25.0** is
 the simulator dealing the knife perk (PRD-05 T2b, #6, for the platform's PRD-12 T16a):
 `MatchRequest.sim.knifePerk: { round, killer? }` turns one of the story's kills into a knife
-kill and has its killer say `get ezpug` before the next round starts.
+kill and has its killer say `get ezpug` before the next round starts. **0.26.0** is smokes and
+the bomb on the live tier (PRD-05 T2c, #5, for the platform's live radar, PRD-12 T8b): the
+ephemeral `position_tick` gains optional `grenades[]` and `bomb`, produced by the core plugin
+from the game's events and by the simulator.
 
 ## Bumping one
 

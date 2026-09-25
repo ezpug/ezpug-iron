@@ -446,6 +446,57 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
   },
 
   {
+    id: 'live-utility',
+    title: 'the live tier carries smokes and the bomb beside the positions',
+    needs: ['stream'],
+    async run(ctx) {
+      // 0.26.0 (ezpug/ezpug-iron#5): a position tick carries `grenades`, every
+      // one flying or active at that instant, and `bomb`. A source that samples
+      // utility sends `grenades` on every tick, so a client can tell "nothing
+      // in the air" from "not sampled". The simulator throws a smoke or two a
+      // side each round, so a played match shows at least one bloom.
+      const subscribe = ctx.target.stream as NonNullable<typeof ctx.target.stream>
+      const body = ctx.request()
+      const created = await ctx.api.matches.create({ body })
+      const unsubscribe = subscribe({ matchId: created.id }, frame => ctx.frames.push(frame))
+      try {
+        const { final, envelopes } = await playToEnd(ctx, created.id)
+        ctx.require('the match ends', final.state === 'ended', terminal(final))
+        const ticks = ctx.frames.flatMap(frame => (frame.type === 'tick' ? frame.ticks : []))
+        ctx.require(
+          'the stream carried position ticks',
+          ticks.length > 0,
+          `${ctx.frames.length} frames`,
+        )
+        ctx.check(
+          'every tick says it sampled utility',
+          ticks.every(tick => Array.isArray(tick.grenades)),
+        )
+        const grenades = ticks.flatMap(tick => tick.grenades ?? [])
+        const smokes = grenades.filter(g => g.kind === 'smoke' && g.state === 'active')
+        ctx.check('a smoke stood somewhere', smokes.length > 0, `${grenades.length} grenades`)
+        ctx.check(
+          'an active smoke says how far it reaches',
+          smokes.every(g => (g.radius ?? 0) > 0),
+        )
+        const bombs = ticks.flatMap(tick => (tick.bomb ? [tick.bomb] : []))
+        ctx.check(
+          'the bomb is on the tick, and a carried one names its carrier',
+          bombs.length > 0 && bombs.every(b => b.state !== 'carried' || b.steamId64 !== undefined),
+          `${bombs.length} bomb sightings`,
+        )
+        ctx.check(
+          'none of it is durable',
+          !types(envelopes).includes('position_tick'),
+          'a position_tick was stored',
+        )
+      } finally {
+        unsubscribe()
+      }
+    },
+  },
+
+  {
     id: 'open-join',
     title: 'retakes: an open-join gamemode fills itself and reports who joined',
     needs: [],

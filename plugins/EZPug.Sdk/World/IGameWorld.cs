@@ -155,6 +155,53 @@ public enum BombSiteName
     B,
 }
 
+/// <summary>What a thrown grenade is. The CT's fire is <see cref="Incendiary"/>, the T's <see cref="Molotov"/>.</summary>
+public enum GrenadeKind
+{
+    He,
+    Flash,
+    Smoke,
+    Molotov,
+    Incendiary,
+    Decoy,
+}
+
+/// <summary>In the air, or gone off and occupying space (a smoke's bloom, a fire, a flash's pop).</summary>
+public enum GrenadeState
+{
+    Flying,
+    Active,
+}
+
+/// <summary>
+/// One grenade as the live radar draws it (ezpug/ezpug-iron#5): an id stable for its
+/// life, engine world units, and for an active smoke or fire how far it reaches.
+/// <see cref="Thrower"/> is the player as the world knows them, so a puppet's grenade is
+/// the rostered player's.
+/// </summary>
+public sealed record GrenadeSighting(
+    string Id,
+    GrenadeKind Kind,
+    Vector3 Position,
+    GrenadeState State,
+    float? Radius = null,
+    IGamePlayer? Thrower = null);
+
+/// <summary>Where the bomb is: on somebody, on the floor, or in a site.</summary>
+public enum BombState
+{
+    Carried,
+    Dropped,
+    Planted,
+}
+
+/// <summary>The bomb as the live radar draws it: where, who carries it, and the site once planted.</summary>
+public sealed record BombSighting(
+    BombState State,
+    Vector3 Position,
+    IGamePlayer? Carrier = null,
+    BombSiteName Site = BombSiteName.Unknown);
+
 /// <summary>
 /// <b>The world seam.</b> Everything a gamemode may do to the server and everything the
 /// server tells it, with no CounterStrikeSharp type on either side, so a mode is
@@ -203,6 +250,19 @@ public interface IGameWorld
 
     /// <summary>The engine's match state right now, or <c>null</c> between maps. A snapshot: read it again to see a change.</summary>
     GameRules? Rules { get; }
+
+    /// <summary>
+    /// <b>The utility on the map</b> (ezpug/ezpug-iron#5), for the position ticker. Every
+    /// grenade flying or active right now: a smoke from its bloom until it expires, a fire
+    /// while it burns. A flash, an HE or a decoy is gone from the map the moment it goes
+    /// off, so each one that went off since the last call is in this answer
+    /// <b>once</b>, <see cref="GrenadeState.Active"/> where it popped. Because of that,
+    /// calling this consumes those pops, and the runtime's ticker is its one caller.
+    /// </summary>
+    IReadOnlyList<GrenadeSighting> SampleGrenades();
+
+    /// <summary>Where the bomb is right now, or <c>null</c> while none is in play (no bomb in this mode, not handed out yet, exploded or defused).</summary>
+    BombSighting? Bomb { get; }
 
     // Text
     void Say(string text);

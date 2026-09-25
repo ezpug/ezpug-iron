@@ -119,7 +119,7 @@ a timeout and nothing at all where it does not.
 
 | Capability | True means |
 | ---------- | ---------- |
-| `positions` | the core plugin streams `position_tick`s on the match's stream (never stored) |
+| `positions` | the core plugin streams `position_tick`s on the match's stream (never stored), with the grenades and the bomb beside the positions (0.26.0) |
 | `chat` | chat lines are relayed as `chat_message` and `chat_command` |
 | `playerCommands` | the verbs in `commands` are accepted from a widget or as `!verb` in chat. True exactly when `commands` is non-empty |
 | `widget` | a phone widget exists. True exactly when the `widget` block does; implies `playerCommands` |

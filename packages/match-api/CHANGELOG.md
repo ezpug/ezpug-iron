@@ -6,6 +6,36 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.26.0 — 2026-09-25
+
+**Smokes and the bomb on the live tier** (PRD-05 T2c, ezpug/ezpug-iron#5, for the
+platform's live radar, PRD-12 T8b). Additive: two optional fields on the ephemeral
+`position_tick`, three new schemas. The tick stays ephemeral and `isEphemeralGameserverEvent`
+is unchanged.
+
+- **`position_tick.grenades`** (`liveGrenadeSchema`, `grenadeKindSchema`): `{ id, kind, x,
+  y, z, state, radius?, steamId64? }` for every grenade flying or active at that instant,
+  exactly as the issue shaped it. `kind` is the replay artifact's six names. A smoke is
+  `flying` until it blooms, then `active` with its radius until it clears. A molotov or
+  incendiary flies, then burns as `active` at the centre of its flames under the same id.
+  A flash, an HE and a decoy are `active` in exactly one tick, where they went off.
+- **`position_tick.bomb`** (`liveBombSchema`): `{ state: carried | dropped | planted, x, y,
+  z, steamId64?, site? }`. The tick did not carry the bomb before; the PRD asked for it
+  beside the grenades in the same additive shape.
+- **Absence means something.** A source that samples utility sends `grenades` on every
+  tick, empty when nothing is in the air, so a missing `grenades` means "not sampled" and a
+  client draws no utility layer. With `grenades` present, a missing `bomb` means none is in
+  play.
+- **Producers.** The core plugin samples both on every node, and on Dathost, which runs the
+  same plugin. It keys on the game's events (`smokegrenade_detonate`, `inferno_startburn`,
+  the detonates, `bomb_pickup` / `_dropped` / `_planted`) and reads an entity only for a
+  grenade in flight or a fire's spread: the entity listeners never fired for it on the dev
+  node. Proved there by the lane's `grenades` row (iron match
+  `934a78c8-8c3d-4f9f-9e43-e9b1a0db46e0`): 12 smokes flew, stood with their radius and
+  cleared, and the bomb was carried, dropped and planted on both sites. The simulator throws a smoke or two a side per round (sometimes a flash, an
+  HE or a fire) and carries the bomb on a T. Its dice come from a fork per round, so a seed
+  plays the same match it did before. The fake does the same, through the same engine.
+
 ## 0.25.0 — 2026-09-25
 
 **The simulator deals the knife perk** (PRD-05 T2b, ezpug/ezpug-iron#6, for the platform's

@@ -89,6 +89,24 @@ public sealed class FakeGameWorld : IGameWorld
 
     public Func<BotArrival, PuppetRole?>? Casting { get; set; }
 
+    /// <summary>Every grenade flying or active on the map, as a test puts it there. <see cref="SampleGrenades"/> reads it without clearing it.</summary>
+    public List<GrenadeSighting> Grenades { get; } = [];
+
+    private readonly List<GrenadeSighting> _pops = [];
+
+    /// <summary>Where the bomb is, as a test sets it; <c>null</c> (the default) means none in play.</summary>
+    public BombSighting? Bomb { get; set; }
+
+    /// <summary>A flash, HE or decoy went off here: the next <see cref="SampleGrenades"/> reports it once, active, and then it is gone.</summary>
+    public void Pop(GrenadeSighting grenade) => _pops.Add(grenade with { State = GrenadeState.Active });
+
+    public IReadOnlyList<GrenadeSighting> SampleGrenades()
+    {
+        var sample = Grenades.Concat(_pops).ToList();
+        _pops.Clear();
+        return sample;
+    }
+
     public IGamePlayer? Find(ulong steamId64) => _players.FirstOrDefault(player => player.SteamId64 == steamId64);
 
     /// <summary>

@@ -455,10 +455,68 @@ export const bombExplodedEventSchema = roundScoped.extend({
 })
 
 /**
+ * What a thrown grenade is. The same six names as the platform's replay
+ * artifact (`grenadeKindSchema` there), so the live radar and the replay draw
+ * utility the same way. `incendiary` is the CT's fire, `molotov` the T's.
+ */
+export const grenadeKindSchema = z.enum(['he', 'flash', 'smoke', 'molotov', 'incendiary', 'decoy'])
+export type GrenadeKind = z.infer<typeof grenadeKindSchema>
+
+/**
+ * **One grenade in a {@link positionTickEventSchema}** (ezpug/ezpug-iron#5).
+ * `flying` while it is in the air. `active` while it occupies space: a smoke
+ * from its bloom to its expiry, a fire from its first flame to its last. A flash,
+ * an HE and a decoy are `active` in one tick only, at the place they went off.
+ * After that the grenade is simply absent from the next tick.
+ */
+export const liveGrenadeSchema = z.object({
+  /** Stable for the grenade's life and unique within the map, so a renderer can follow it. */
+  id: z.string().min(1).max(64),
+  kind: grenadeKindSchema,
+  /** Engine world units, like the positions beside it. For a fire, the centre of its flames. */
+  x: z.number(),
+  y: z.number(),
+  z: z.number(),
+  state: z.enum(['flying', 'active']),
+  /** For an active smoke or fire: how far it reaches, in world units, where the source knows. */
+  radius: z.number().positive().optional(),
+  /** Who threw it, where the source knows. */
+  steamId64: steamId64Schema.optional(),
+})
+export type LiveGrenade = z.infer<typeof liveGrenadeSchema>
+
+/**
+ * **The bomb in a {@link positionTickEventSchema}.** `carried` names the carrier
+ * and sits where they stand; `dropped` lies where it fell; `planted` names its
+ * site where the source knows it. Absent while there is no bomb in play: a mode
+ * without one, before the round hands it out, and once it has exploded or been
+ * defused (`bomb_exploded` and `bomb_defused` say which).
+ */
+export const liveBombSchema = z.object({
+  state: z.enum(['carried', 'dropped', 'planted']),
+  /** Engine world units, like the positions beside it. */
+  x: z.number(),
+  y: z.number(),
+  z: z.number(),
+  /** The carrier, while `carried`. */
+  steamId64: steamId64Schema.optional(),
+  /** The site, once `planted`, where the source knows it. */
+  site: bombSiteSchema.optional(),
+})
+export type LiveBomb = z.infer<typeof liveBombSchema>
+
+/**
  * Tick-sampled player positions at a low, configurable rate, for the live 2D
  * minimap. **Ephemeral** (Match.md §5 verbatim): live channel only, never
  * event-sourced — the demo is the authoritative movement record. Only living
  * players appear; deaths come from the kill feed, not from here.
+ *
+ * `grenades` and `bomb` are the utility layer beside them (0.26.0,
+ * ezpug/ezpug-iron#5): every grenade flying or active at that instant, and
+ * where the bomb is. Both are optional. A source that samples utility sends
+ * `grenades` on every tick, empty when nothing is in the air, so a missing
+ * `grenades` means "not sampled" and the client draws no utility layer. A
+ * missing `bomb` beside a present `grenades` means no bomb is in play.
  */
 export const positionTickEventSchema = mapScoped.extend({
   type: z.literal('position_tick'),
@@ -474,6 +532,8 @@ export const positionTickEventSchema = mapScoped.extend({
       yaw: z.number().optional(),
     }),
   ),
+  grenades: z.array(liveGrenadeSchema).optional(),
+  bomb: liveBombSchema.optional(),
 })
 
 // ---------------------------------------------------------------------------

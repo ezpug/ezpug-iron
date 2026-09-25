@@ -1300,6 +1300,16 @@ public sealed record PositionTickEvent : GameserverEvent
     [JsonPropertyName("positions")]
     [JsonPropertyOrder(6)]
     public required IReadOnlyList<PositionTickEventPosition> Positions { get; init; }
+
+    [JsonPropertyName("grenades")]
+    [JsonPropertyOrder(7)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<PositionTickEventGrenade>? Grenades { get; init; }
+
+    [JsonPropertyName("bomb")]
+    [JsonPropertyOrder(8)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PositionTickEventBomb? Bomb { get; init; }
 }
 
 /// <summary>The <c>position</c> block of <see cref="PositionTickEvent"/>.</summary>
@@ -1325,6 +1335,108 @@ public sealed record PositionTickEventPosition
     [JsonPropertyOrder(4)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? Yaw { get; init; }
+}
+
+/// <summary>The <c>grenade</c> block of <see cref="PositionTickEvent"/>.</summary>
+public sealed record PositionTickEventGrenade
+{
+    [JsonPropertyName("id")]
+    [JsonPropertyOrder(0)]
+    public required string Id { get; init; }
+
+    [JsonPropertyName("kind")]
+    [JsonPropertyOrder(1)]
+    public required PositionTickEventGrenadeKind Kind { get; init; }
+
+    [JsonPropertyName("x")]
+    [JsonPropertyOrder(2)]
+    public required double X { get; init; }
+
+    [JsonPropertyName("y")]
+    [JsonPropertyOrder(3)]
+    public required double Y { get; init; }
+
+    [JsonPropertyName("z")]
+    [JsonPropertyOrder(4)]
+    public required double Z { get; init; }
+
+    [JsonPropertyName("state")]
+    [JsonPropertyOrder(5)]
+    public required PositionTickEventGrenadeState State { get; init; }
+
+    [JsonPropertyName("radius")]
+    [JsonPropertyOrder(6)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Radius { get; init; }
+
+    [JsonPropertyName("steamId64")]
+    [JsonPropertyOrder(7)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SteamId64 { get; init; }
+}
+
+public enum PositionTickEventGrenadeKind
+{
+    [JsonStringEnumMemberName("he")]
+    He,
+    [JsonStringEnumMemberName("flash")]
+    Flash,
+    [JsonStringEnumMemberName("smoke")]
+    Smoke,
+    [JsonStringEnumMemberName("molotov")]
+    Molotov,
+    [JsonStringEnumMemberName("incendiary")]
+    Incendiary,
+    [JsonStringEnumMemberName("decoy")]
+    Decoy,
+}
+
+public enum PositionTickEventGrenadeState
+{
+    [JsonStringEnumMemberName("flying")]
+    Flying,
+    [JsonStringEnumMemberName("active")]
+    Active,
+}
+
+/// <summary>The <c>bomb</c> block of <see cref="PositionTickEvent"/>.</summary>
+public sealed record PositionTickEventBomb
+{
+    [JsonPropertyName("state")]
+    [JsonPropertyOrder(0)]
+    public required PositionTickEventBombState State { get; init; }
+
+    [JsonPropertyName("x")]
+    [JsonPropertyOrder(1)]
+    public required double X { get; init; }
+
+    [JsonPropertyName("y")]
+    [JsonPropertyOrder(2)]
+    public required double Y { get; init; }
+
+    [JsonPropertyName("z")]
+    [JsonPropertyOrder(3)]
+    public required double Z { get; init; }
+
+    [JsonPropertyName("steamId64")]
+    [JsonPropertyOrder(4)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SteamId64 { get; init; }
+
+    [JsonPropertyName("site")]
+    [JsonPropertyOrder(5)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BombSite? Site { get; init; }
+}
+
+public enum PositionTickEventBombState
+{
+    [JsonStringEnumMemberName("carried")]
+    Carried,
+    [JsonStringEnumMemberName("dropped")]
+    Dropped,
+    [JsonStringEnumMemberName("planted")]
+    Planted,
 }
 
 /// <summary><c>backup_written</c> — one branch of <see cref="GameserverEvent"/>.</summary>

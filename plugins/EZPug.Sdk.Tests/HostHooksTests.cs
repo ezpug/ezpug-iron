@@ -119,6 +119,63 @@ public class HostHooksTests
     }
 
     [Fact]
+    public void TicksCarryTheUtilityAndTheBombBesideThePositions()
+    {
+        using var host = new GamemodeTestHost(new PowerupDemo());
+        host.Start(GamemodeTestHost.AssignmentFor(Manifest("powerup-dm"), teamA: [GamemodeTestHost.Player(Tk, "tk")]));
+        var tk = host.World.Connect(Tk, "tk", PlayerTeam.Terrorist);
+        host.World.Spawn(tk);
+        ((FakePlayer)tk).Position = new System.Numerics.Vector3(10, 20, 30);
+
+        // Sampled, and nothing in the air: the list is there and empty, so the client knows utility is sampled.
+        host.World.Bomb = new BombSighting(BombState.Carried, new System.Numerics.Vector3(10, 20, 30), tk);
+        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs);
+        var quiet = Assert.Single(host.Link.Ticks);
+        Assert.NotNull(quiet.Grenades);
+        Assert.Empty(quiet.Grenades);
+        Assert.Equal(PositionTickEventBombState.Carried, quiet.Bomb?.State);
+        Assert.Equal(Tk.ToString(), quiet.Bomb?.SteamId64);
+        Assert.Null(quiet.Bomb?.Site);
+
+        // A smoke in the air carries no radius, even if the world knew one.
+        var smoke = new GrenadeSighting("7-1200", GrenadeKind.Smoke, new System.Numerics.Vector3(1, 2, 3), GrenadeState.Flying, 144, tk);
+        host.World.Grenades.Add(smoke);
+        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs);
+        var flying = Assert.Single(host.Link.Ticks[^1].Grenades!);
+        Assert.Equal(("7-1200", PositionTickEventGrenadeKind.Smoke, PositionTickEventGrenadeState.Flying), (flying.Id, flying.Kind, flying.State));
+        Assert.Null(flying.Radius);
+        Assert.Equal(Tk.ToString(), flying.SteamId64);
+
+        host.World.Grenades[0] = smoke with { State = GrenadeState.Active };
+        host.World.Bomb = new BombSighting(BombState.Planted, new System.Numerics.Vector3(5, 5, 5), Site: BombSiteName.B);
+        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs);
+        var bloom = Assert.Single(host.Link.Ticks[^1].Grenades!);
+        Assert.Equal((PositionTickEventGrenadeState.Active, 144d), (bloom.State, bloom.Radius));
+        Assert.Equal((PositionTickEventBombState.Planted, BombSite.B), (host.Link.Ticks[^1].Bomb!.State, host.Link.Ticks[^1].Bomb!.Site));
+        Assert.Null(host.Link.Ticks[^1].Bomb!.SteamId64);
+
+        // A flash pops once, where it went off, and is gone from the next tick.
+        host.World.Grenades.Clear();
+        host.World.Bomb = null;
+        host.World.Pop(new GrenadeSighting("9-1300", GrenadeKind.Flash, new System.Numerics.Vector3(4, 4, 4), GrenadeState.Flying));
+        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs);
+        var pop = Assert.Single(host.Link.Ticks[^1].Grenades!);
+        Assert.Equal((PositionTickEventGrenadeKind.Flash, PositionTickEventGrenadeState.Active), (pop.Kind, pop.State));
+        Assert.Null(host.Link.Ticks[^1].Bomb);
+        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs);
+        Assert.Empty(host.Link.Ticks[^1].Grenades!);
+
+        // Everybody dead and a smoke still standing: the tick still goes, for the smoke.
+        ((FakePlayer)tk).IsAlive = false;
+        host.World.Grenades.Add(smoke with { State = GrenadeState.Active });
+        var before = host.Link.Ticks.Count;
+        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs);
+        Assert.Equal(before + 1, host.Link.Ticks.Count);
+        Assert.Empty(host.Link.Ticks[^1].Positions);
+        Assert.Single(host.Link.Ticks[^1].Grenades!);
+    }
+
+    [Fact]
     public void AModeWithoutThePositionsCapabilityStreamsNothing()
     {
         var manifest = Manifest("powerup-dm") with

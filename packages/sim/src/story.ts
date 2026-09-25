@@ -45,6 +45,7 @@ import { planSimulatedChatter } from './chatter'
 import type { SimulatedRecording } from './record'
 import { simulatedRecording } from './record'
 import type { SimulatorScenario } from './scenario'
+import { bombAt, planRoundUtility, utilitySampler } from './utility'
 
 /** One event at its game-time offset. `seq` is stamped at emission, not here. */
 export interface StoryBeat {
@@ -1200,6 +1201,10 @@ function playRound(options: RoundOptions): {
     })
   }
 
+  let bombPlan:
+    | { planter: PlayerState; atMs: number; resolveAtMs: number; site: 'a' | 'b' }
+    | undefined
+
   // The bomb story. The planter is a T alive at plant time — or, if the dice
   // killed every T first, whoever died last carries it (plausible enough).
   if (plantAtMs !== undefined && resolveAtMs !== undefined) {
@@ -1208,6 +1213,7 @@ function playRound(options: RoundOptions): {
     const planter =
       planterPool.length > 0 ? prng.pick(planterPool) : prng.pick(options.roster(tTeam))
     const site = prng.pick(['a', 'b'] as const)
+    bombPlan = { planter, atMs: plantAtMs, resolveAtMs, site }
     planter.bombPlants++
     emit(tStart + plantAtMs, {
       type: 'bomb_planted',
@@ -1260,29 +1266,66 @@ function playRound(options: RoundOptions): {
         ground.spawn(p.team === 'team_a' ? teamASide : flip(teamASide)),
       ]),
     )
+    // The utility layer (ezpug/ezpug-iron#5), on a fork of its own per round,
+    // so the story's own dice fall exactly where they fell before it existed.
+    const utilityPrng = prng.fork(`utility:${mapNumber}:${round}`)
+    const tTeam: MatchTeam = teamASide === 't' ? 'team_a' : 'team_b'
+    const diedAt = (steamId64: string): number =>
+      deathTime.get(steamId64) ?? Number.POSITIVE_INFINITY
+    const throws = planRoundUtility({
+      prng: utilityPrng,
+      idPrefix: `m${mapNumber}r${round}`,
+      sides: (['team_a', 'team_b'] as const).map(team => ({
+        side: team === tTeam ? 't' : 'ct',
+        players: options.roster(team).map(p => p.player.steamId64),
+      })),
+      endMs,
+      aliveAt: (steamId64, atMs) => diedAt(steamId64) > atMs,
+    })
+    const sampleUtility = utilitySampler(throws, options.positionTickIntervalMs)
+    const tPlayers = options.roster(tTeam)
+    const carrier =
+      bombPlan?.planter.player.steamId64 ??
+      (tPlayers.length > 0 ? utilityPrng.pick(tPlayers).player.steamId64 : undefined)
+    let plantedAt: { x: number; y: number; z: number } | undefined
+    const worldOf = (steamId64: string) => {
+      const point = positions.get(steamId64)
+      return point ? ground.world(point) : undefined
+    }
     for (
       let atMs = options.positionTickIntervalMs;
       atMs < endMs;
       atMs += options.positionTickIntervalMs
     ) {
-      const sampled = options.players.filter(
-        p => (deathTime.get(p.player.steamId64) ?? Number.POSITIVE_INFINITY) > atMs,
-      )
+      const sampled = options.players.filter(p => diedAt(p.player.steamId64) > atMs)
+      const tickPositions = sampled.map(p => {
+        const point = positions.get(p.player.steamId64) as WanderPoint
+        ground.step(point)
+        return {
+          steamId64: p.player.steamId64,
+          ...ground.world(point),
+          yaw: prng.int(0, 360),
+        }
+      })
+      if (bombPlan && atMs >= bombPlan.atMs && !plantedAt)
+        plantedAt = worldOf(bombPlan.planter.player.steamId64)
+      const bomb = bombAt({
+        atMs,
+        carrier,
+        carrierDiedAtMs: carrier === undefined ? 0 : diedAt(carrier),
+        plant: bombPlan,
+        plantedAt,
+        positionOf: worldOf,
+      })
       emit(tStart + atMs, {
         type: 'position_tick',
         matchId,
         source,
         mapNumber,
         roundNumber: round,
-        positions: sampled.map(p => {
-          const point = positions.get(p.player.steamId64) as WanderPoint
-          ground.step(point)
-          return {
-            steamId64: p.player.steamId64,
-            ...ground.world(point),
-            yaw: prng.int(0, 360),
-          }
-        }),
+        positions: tickPositions,
+        grenades: sampleUtility(atMs, worldOf),
+        ...(bomb ? { bomb } : {}),
       })
     }
   }

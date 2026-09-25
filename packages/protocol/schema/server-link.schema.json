@@ -1409,6 +1409,99 @@
                 ],
                 "additionalProperties": false
               }
+            },
+            "grenades": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "he",
+                      "flash",
+                      "smoke",
+                      "molotov",
+                      "incendiary",
+                      "decoy"
+                    ]
+                  },
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "z": {
+                    "type": "number"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "flying",
+                      "active"
+                    ]
+                  },
+                  "radius": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "steamId64": {
+                    "type": "string",
+                    "pattern": "^\\d{17}$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "x",
+                  "y",
+                  "z",
+                  "state"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "bomb": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "carried",
+                    "dropped",
+                    "planted"
+                  ]
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                },
+                "steamId64": {
+                  "type": "string",
+                  "pattern": "^\\d{17}$"
+                },
+                "site": {
+                  "$ref": "#/$defs/BombSite"
+                }
+              },
+              "required": [
+                "state",
+                "x",
+                "y",
+                "z"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [

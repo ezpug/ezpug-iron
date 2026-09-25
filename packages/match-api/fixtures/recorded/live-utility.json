@@ -1,11 +1,11 @@
 {
-  "flow": "stream-hello",
+  "flow": "live-utility",
   "calls": [
     {
       "route": "matches.create",
       "input": {
         "body": {
-          "clientMatchId": "conformance-stream-hello",
+          "clientMatchId": "conformance-live-utility",
           "game": "cs2",
           "gamemode": "pug",
           "teams": {
@@ -92,7 +92,7 @@
       "ok": true,
       "response": {
         "id": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "state": "allocating",
         "game": "cs2",
         "gamemode": "pug",
@@ -112,30 +112,13 @@
         "sim": null,
         "simulated": false
       }
-    },
-    {
-      "route": "matches.events",
-      "input": {
-        "params": {
-          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7"
-        },
-        "query": {
-          "cursor": "29",
-          "limit": 25
-        }
-      },
-      "ok": true,
-      "response": {
-        "items": [],
-        "nextCursor": "29"
-      }
     }
   ],
   "envelopes": [
     {
       "deliveryId": "010ec1da-9911-44fb-b817-7de8e3740ba7",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 1,
       "occurredAt": "2026-09-05T18:00:01.000Z",
       "payload": {
@@ -149,7 +132,7 @@
     {
       "deliveryId": "f49c7035-24d8-4869-a431-79be9d39b5d6",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 2,
       "occurredAt": "2026-09-05T18:00:05.000Z",
       "payload": {
@@ -166,7 +149,7 @@
     {
       "deliveryId": "c3991a13-3e91-448c-8c71-b7b436f298d4",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 3,
       "occurredAt": "2026-09-05T18:00:05.000Z",
       "payload": {
@@ -186,7 +169,7 @@
     {
       "deliveryId": "da7ef13f-3273-4f83-b3f7-500213b9561a",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 4,
       "occurredAt": "2026-09-05T18:00:08.910Z",
       "payload": {
@@ -207,7 +190,7 @@
     {
       "deliveryId": "012d9874-8177-444c-9667-dff182de784a",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 5,
       "occurredAt": "2026-09-05T18:00:08.910Z",
       "payload": {
@@ -223,7 +206,7 @@
     {
       "deliveryId": "31edd0de-d8c3-46f0-a596-67627e0dfbef",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 6,
       "occurredAt": "2026-09-05T18:00:10.545Z",
       "payload": {
@@ -244,7 +227,7 @@
     {
       "deliveryId": "94f72f92-5519-42a4-bfa3-ca19b38f0e6a",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 7,
       "occurredAt": "2026-09-05T18:00:10.545Z",
       "payload": {
@@ -260,7 +243,7 @@
     {
       "deliveryId": "f0177ed4-a526-4af8-bdfa-26a9d9d84add",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 8,
       "occurredAt": "2026-09-05T18:00:15.000Z",
       "payload": {
@@ -277,7 +260,7 @@
     {
       "deliveryId": "4d5d1bbe-0d34-48cf-b7e7-6b3f389745b1",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 9,
       "occurredAt": "2026-09-05T18:00:15.351Z",
       "payload": {
@@ -298,7 +281,7 @@
     {
       "deliveryId": "122b8f71-7b66-4653-b691-6bb74a8ff409",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 10,
       "occurredAt": "2026-09-05T18:00:15.351Z",
       "payload": {
@@ -314,7 +297,7 @@
     {
       "deliveryId": "00842d4c-d6cd-4721-b507-93e070fab606",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 11,
       "occurredAt": "2026-09-05T18:00:16.116Z",
       "payload": {
@@ -335,7 +318,7 @@
     {
       "deliveryId": "cdba41e5-691d-4f75-9613-c92edc545aff",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 12,
       "occurredAt": "2026-09-05T18:00:16.116Z",
       "payload": {
@@ -351,7 +334,7 @@
     {
       "deliveryId": "5d8d1dda-489a-4e98-8169-e598731f1789",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 13,
       "occurredAt": "2026-09-05T18:00:16.323Z",
       "payload": {
@@ -372,7 +355,7 @@
     {
       "deliveryId": "d2c7460f-1ea1-4171-a2b6-d4117d9e92dd",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 14,
       "occurredAt": "2026-09-05T18:00:16.323Z",
       "payload": {
@@ -388,7 +371,7 @@
     {
       "deliveryId": "d17d7711-7a6e-42c6-98ba-0f924be49e6a",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 15,
       "occurredAt": "2026-09-05T18:00:17.332Z",
       "payload": {
@@ -409,7 +392,7 @@
     {
       "deliveryId": "5977551d-7edd-4812-b04d-c2a16df566bf",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 16,
       "occurredAt": "2026-09-05T18:00:17.332Z",
       "payload": {
@@ -425,7 +408,7 @@
     {
       "deliveryId": "3f7b48a9-ad0d-491c-973c-4b7a4f827beb",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 17,
       "occurredAt": "2026-09-05T18:00:24.572Z",
       "payload": {
@@ -446,7 +429,7 @@
     {
       "deliveryId": "abc9391b-a925-403c-9d9a-ae00e22eb8a9",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 18,
       "occurredAt": "2026-09-05T18:00:24.572Z",
       "payload": {
@@ -462,7 +445,7 @@
     {
       "deliveryId": "06fb71c2-b5dc-4a93-b785-782906704d7f",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 19,
       "occurredAt": "2026-09-05T18:00:24.702Z",
       "payload": {
@@ -483,7 +466,7 @@
     {
       "deliveryId": "3a708417-47e8-4ccb-8b3f-ccd865bc6f09",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 20,
       "occurredAt": "2026-09-05T18:00:24.702Z",
       "payload": {
@@ -499,7 +482,7 @@
     {
       "deliveryId": "dbee63d7-08a9-4753-8402-d2da11eb598b",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 21,
       "occurredAt": "2026-09-05T18:00:25.000Z",
       "payload": {
@@ -516,7 +499,7 @@
     {
       "deliveryId": "8dfe8619-6bc0-48bd-ad94-f373c843ff7e",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 22,
       "occurredAt": "2026-09-05T18:00:26.557Z",
       "payload": {
@@ -537,7 +520,7 @@
     {
       "deliveryId": "d9e2461c-3b60-4d8b-a3b2-b4f4e00c2d2d",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 23,
       "occurredAt": "2026-09-05T18:00:26.557Z",
       "payload": {
@@ -553,7 +536,7 @@
     {
       "deliveryId": "0c1eb118-f476-4679-b438-32053b2ba1fb",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 24,
       "occurredAt": "2026-09-05T18:00:27.281Z",
       "payload": {
@@ -574,7 +557,7 @@
     {
       "deliveryId": "48c7b5e7-7168-4e4d-a1e8-b6537597ac9f",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 25,
       "occurredAt": "2026-09-05T18:00:27.281Z",
       "payload": {
@@ -590,7 +573,7 @@
     {
       "deliveryId": "7cadb97b-6325-4023-b576-eea41a405cce",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 26,
       "occurredAt": "2026-09-05T18:00:35.000Z",
       "payload": {
@@ -607,7 +590,7 @@
     {
       "deliveryId": "22d574db-7c14-45f0-bcd0-86e8d50a1a3d",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 27,
       "occurredAt": "2026-09-05T18:00:44.305Z",
       "payload": {
@@ -630,7 +613,7 @@
     {
       "deliveryId": "13ae7a43-e434-4c5f-8615-cb980de03391",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 28,
       "occurredAt": "2026-09-05T18:00:44.305Z",
       "payload": {
@@ -648,7 +631,7 @@
     {
       "deliveryId": "1c776405-4ddb-4328-803d-48b6140e9a1d",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 29,
       "occurredAt": "2026-09-05T18:00:45.000Z",
       "payload": {
@@ -665,7 +648,7 @@
     {
       "deliveryId": "42561f85-1eb4-4cb1-87fc-a03878df00e0",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 30,
       "occurredAt": "2026-09-05T18:00:51.305Z",
       "payload": {
@@ -684,7 +667,7 @@
     {
       "deliveryId": "57c011a8-9cb5-424b-8ff2-01ca3abbc0e5",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 31,
       "occurredAt": "2026-09-05T18:00:51.305Z",
       "payload": {
@@ -706,7 +689,7 @@
     {
       "deliveryId": "b3ae29d8-8174-4086-b237-572f650ff19c",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 32,
       "occurredAt": "2026-09-05T18:00:55.000Z",
       "payload": {
@@ -723,7 +706,7 @@
     {
       "deliveryId": "9fe2325d-7e12-4445-99ba-8a8f04cfff81",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 33,
       "occurredAt": "2026-09-05T18:01:05.000Z",
       "payload": {
@@ -740,7 +723,7 @@
     {
       "deliveryId": "37dad5e8-d7a1-4180-bdde-f3f9d393e332",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 34,
       "occurredAt": "2026-09-05T18:01:15.000Z",
       "payload": {
@@ -757,7 +740,7 @@
     {
       "deliveryId": "1433f14c-12bb-4184-bc40-6b4205615183",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 35,
       "occurredAt": "2026-09-05T18:01:25.000Z",
       "payload": {
@@ -774,7 +757,7 @@
     {
       "deliveryId": "93e3d61f-3330-4bfc-8537-1911bdad106a",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 36,
       "occurredAt": "2026-09-05T18:01:31.444Z",
       "payload": {
@@ -817,7 +800,7 @@
     {
       "deliveryId": "a7c07b83-63ce-4fd1-91a9-5aacd9c55568",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 37,
       "occurredAt": "2026-09-05T18:01:35.000Z",
       "payload": {
@@ -834,7 +817,7 @@
     {
       "deliveryId": "3ff75ede-af9c-4f72-bd08-fa672d176e03",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 38,
       "occurredAt": "2026-09-05T18:01:45.000Z",
       "payload": {
@@ -851,7 +834,7 @@
     {
       "deliveryId": "0bfec8b7-7d07-45f9-9110-9a242a8ec201",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 39,
       "occurredAt": "2026-09-05T18:01:50.262Z",
       "payload": {
@@ -883,7 +866,7 @@
     {
       "deliveryId": "a157ac80-db68-4131-bc5f-bdeb5bcc81f9",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 40,
       "occurredAt": "2026-09-05T18:01:55.000Z",
       "payload": {
@@ -900,7 +883,7 @@
     {
       "deliveryId": "40d2fd21-c043-47ed-9d10-b3db5ece6a2b",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 41,
       "occurredAt": "2026-09-05T18:02:02.184Z",
       "payload": {
@@ -942,7 +925,7 @@
     {
       "deliveryId": "31e6c020-f132-4387-977e-d18f23ae45e8",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 42,
       "occurredAt": "2026-09-05T18:02:05.000Z",
       "payload": {
@@ -959,7 +942,7 @@
     {
       "deliveryId": "4f95bf2b-e47f-4216-98e3-20cc43d8ce8e",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 43,
       "occurredAt": "2026-09-05T18:02:15.000Z",
       "payload": {
@@ -976,7 +959,7 @@
     {
       "deliveryId": "12091383-402c-4318-8443-69bf25a6e7e6",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 44,
       "occurredAt": "2026-09-05T18:02:25.000Z",
       "payload": {
@@ -993,7 +976,7 @@
     {
       "deliveryId": "f3077af7-af60-4a10-846b-1335ef56019e",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 45,
       "occurredAt": "2026-09-05T18:02:32.837Z",
       "payload": {
@@ -1034,7 +1017,7 @@
     {
       "deliveryId": "8ded36ec-f146-42e7-94a7-69c91f5dc431",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 46,
       "occurredAt": "2026-09-05T18:02:35.000Z",
       "payload": {
@@ -1051,7 +1034,7 @@
     {
       "deliveryId": "aa9bdd29-9b5d-451c-9d48-6dd5e0728709",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 47,
       "occurredAt": "2026-09-05T18:02:45.000Z",
       "payload": {
@@ -1068,7 +1051,7 @@
     {
       "deliveryId": "e6cedb40-dcb2-4167-9e64-d434077875c1",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 48,
       "occurredAt": "2026-09-05T18:02:46.305Z",
       "payload": {
@@ -1268,7 +1251,7 @@
     {
       "deliveryId": "ac744cce-8e5c-42ea-a23d-29948a231e94",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 49,
       "occurredAt": "2026-09-05T18:02:46.305Z",
       "payload": {
@@ -1291,7 +1274,7 @@
     {
       "deliveryId": "ed2e02f6-1ffb-48e4-a7ef-4572ba1a3c06",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 50,
       "occurredAt": "2026-09-05T18:02:55.000Z",
       "payload": {
@@ -1308,7 +1291,7 @@
     {
       "deliveryId": "747413ee-b709-42b2-89eb-045bccb99817",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 51,
       "occurredAt": "2026-09-05T18:03:01.305Z",
       "payload": {
@@ -1329,7 +1312,7 @@
     {
       "deliveryId": "c876604e-f8cc-44e8-851e-bf3171d47dde",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 52,
       "occurredAt": "2026-09-05T18:03:05.000Z",
       "payload": {
@@ -1346,7 +1329,7 @@
     {
       "deliveryId": "53130c4e-2509-4901-8d3a-30c58bbf5bf4",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 53,
       "occurredAt": "2026-09-05T18:03:08.305Z",
       "payload": {
@@ -1365,7 +1348,7 @@
     {
       "deliveryId": "41ce83bd-fafb-42a1-868b-5f7b5a676f17",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 54,
       "occurredAt": "2026-09-05T18:03:08.305Z",
       "payload": {
@@ -1387,7 +1370,7 @@
     {
       "deliveryId": "6d03e7b3-12cd-48de-987e-731e6c1d5adc",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 55,
       "occurredAt": "2026-09-05T18:03:15.000Z",
       "payload": {
@@ -1404,7 +1387,7 @@
     {
       "deliveryId": "a1868b71-dfe4-4c64-8bdb-146ed7b7c414",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 56,
       "occurredAt": "2026-09-05T18:03:25.000Z",
       "payload": {
@@ -1421,7 +1404,7 @@
     {
       "deliveryId": "ac6a7ee9-1a98-47e0-adab-3c61c1967801",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 57,
       "occurredAt": "2026-09-05T18:03:26.956Z",
       "payload": {
@@ -1453,7 +1436,7 @@
     {
       "deliveryId": "4287a91f-775c-4a87-bf4f-dee4bda357f0",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 58,
       "occurredAt": "2026-09-05T18:03:31.419Z",
       "payload": {
@@ -1494,7 +1477,7 @@
     {
       "deliveryId": "335ce3ef-b290-4aa1-94fb-b9b841737ad1",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 59,
       "occurredAt": "2026-09-05T18:03:35.000Z",
       "payload": {
@@ -1511,7 +1494,7 @@
     {
       "deliveryId": "d1bc758a-bf01-4598-9346-efff31a351ce",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 60,
       "occurredAt": "2026-09-05T18:03:40.762Z",
       "payload": {
@@ -1543,7 +1526,7 @@
     {
       "deliveryId": "cfedc27a-ad70-4288-8d3f-8e9726541b74",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 61,
       "occurredAt": "2026-09-05T18:03:45.000Z",
       "payload": {
@@ -1560,7 +1543,7 @@
     {
       "deliveryId": "8431308a-7e08-42f0-9859-731c9bd77615",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 62,
       "occurredAt": "2026-09-05T18:03:46.439Z",
       "payload": {
@@ -1585,7 +1568,7 @@
     {
       "deliveryId": "ad34b63e-907c-4dfe-ae11-a664e8acba95",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 63,
       "occurredAt": "2026-09-05T18:03:55.000Z",
       "payload": {
@@ -1602,7 +1585,7 @@
     {
       "deliveryId": "48c09253-da80-499c-bcd3-ed825607de8d",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 64,
       "occurredAt": "2026-09-05T18:04:05.000Z",
       "payload": {
@@ -1619,7 +1602,7 @@
     {
       "deliveryId": "13538a8e-b1f9-4b36-9b42-268315dab8a0",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 65,
       "occurredAt": "2026-09-05T18:04:12.043Z",
       "payload": {
@@ -1651,7 +1634,7 @@
     {
       "deliveryId": "2caf2b71-305f-42fd-9ed7-20397de75f05",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 66,
       "occurredAt": "2026-09-05T18:04:15.000Z",
       "payload": {
@@ -1668,7 +1651,7 @@
     {
       "deliveryId": "589c278c-eecb-426c-8b43-ef980e8a9aae",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 67,
       "occurredAt": "2026-09-05T18:04:25.000Z",
       "payload": {
@@ -1685,7 +1668,7 @@
     {
       "deliveryId": "2a0e131c-cce4-4388-9dc7-4baf8dee9dea",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 68,
       "occurredAt": "2026-09-05T18:04:26.439Z",
       "payload": {
@@ -1705,7 +1688,7 @@
     {
       "deliveryId": "5853c6e5-7b83-4da6-ac9e-53f600a0ed7c",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 69,
       "occurredAt": "2026-09-05T18:04:27.439Z",
       "payload": {
@@ -1905,7 +1888,7 @@
     {
       "deliveryId": "7a7acdc9-47ab-4c7f-a609-fba5117e20a6",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 70,
       "occurredAt": "2026-09-05T18:04:27.439Z",
       "payload": {
@@ -1928,7 +1911,7 @@
     {
       "deliveryId": "88fe9470-86a3-46a5-a3c0-3c40c0b2be7a",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 71,
       "occurredAt": "2026-09-05T18:04:29.439Z",
       "payload": {
@@ -1951,7 +1934,7 @@
     {
       "deliveryId": "635cb83c-f7b6-4655-8551-1d0fb0d11b76",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 72,
       "occurredAt": "2026-09-05T18:04:35.000Z",
       "payload": {
@@ -1968,7 +1951,7 @@
     {
       "deliveryId": "bc327f8d-accb-4385-b8a2-a5342a40fe51",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 73,
       "occurredAt": "2026-09-05T18:04:35.439Z",
       "payload": {
@@ -1987,7 +1970,7 @@
     {
       "deliveryId": "062002bf-db6c-4714-94f4-c57f1920c711",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 74,
       "occurredAt": "2026-09-05T18:04:35.439Z",
       "payload": {
@@ -2002,7 +1985,7 @@
     {
       "deliveryId": "835febf6-fed2-471a-99a5-e4971f365724",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 75,
       "occurredAt": "2026-09-05T18:04:37.439Z",
       "payload": {
@@ -2023,7 +2006,7 @@
     {
       "deliveryId": "af9dabf6-c88e-451b-b87c-1805fe888889",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-stream-hello",
+      "clientMatchId": "conformance-live-utility",
       "seq": 76,
       "occurredAt": "2026-09-05T18:04:37.439Z",
       "payload": {
@@ -2348,15 +2331,957 @@
     {
       "type": "hello",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "seq": 29,
-      "state": "live"
+      "seq": 0,
+      "state": "allocating"
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "010ec1da-9911-44fb-b817-7de8e3740ba7",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 1,
+        "occurredAt": "2026-09-05T18:00:01.000Z",
+        "payload": {
+          "type": "match.allocated",
+          "provider": "sim",
+          "serverId": "sim-1",
+          "fleetServerId": "f64b8c99-0cda-4b69-812a-480d63723add",
+          "region": "sim"
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "f49c7035-24d8-4869-a431-79be9d39b5d6",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 2,
+        "occurredAt": "2026-09-05T18:00:05.000Z",
+        "payload": {
+          "type": "server_ready",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "map": "de_mirage",
+          "seq": 1
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "c3991a13-3e91-448c-8c71-b7b436f298d4",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 3,
+        "occurredAt": "2026-09-05T18:00:05.000Z",
+        "payload": {
+          "type": "match.server_ready",
+          "connect": {
+            "host": "sim-1.sim.invalid",
+            "port": 27015,
+            "password": "<redacted>"
+          },
+          "tv": {
+            "host": "sim-1.sim.invalid",
+            "port": 27020,
+            "delaySeconds": 90
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "da7ef13f-3273-4f83-b3f7-500213b9561a",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 4,
+        "occurredAt": "2026-09-05T18:00:08.910Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "seq": 2
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "012d9874-8177-444c-9667-dff182de784a",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 5,
+        "occurredAt": "2026-09-05T18:00:08.910Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000102",
+            "name": "schnitzL",
+            "team": "team_b"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "31edd0de-d8c3-46f0-a596-67627e0dfbef",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 6,
+        "occurredAt": "2026-09-05T18:00:10.545Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "seq": 3
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "94f72f92-5519-42a4-bfa3-ca19b38f0e6a",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 7,
+        "occurredAt": "2026-09-05T18:00:10.545Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "f0177ed4-a526-4af8-bdfa-26a9d9d84add",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 8,
+        "occurredAt": "2026-09-05T18:00:15.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 4,
+          "playerCount": 2
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "4d5d1bbe-0d34-48cf-b7e7-6b3f389745b1",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 9,
+        "occurredAt": "2026-09-05T18:00:15.351Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000101",
+            "name": "Jörg",
+            "team": "team_b"
+          },
+          "seq": 5
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "122b8f71-7b66-4653-b691-6bb74a8ff409",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 10,
+        "occurredAt": "2026-09-05T18:00:15.351Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000101",
+            "name": "Jörg",
+            "team": "team_b"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "00842d4c-d6cd-4721-b507-93e070fab606",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 11,
+        "occurredAt": "2026-09-05T18:00:16.116Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "seq": 6
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "cdba41e5-691d-4f75-9613-c92edc545aff",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 12,
+        "occurredAt": "2026-09-05T18:00:16.116Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000103",
+            "name": "BastiGHG",
+            "team": "team_b"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "5d8d1dda-489a-4e98-8169-e598731f1789",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 13,
+        "occurredAt": "2026-09-05T18:00:16.323Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000104",
+            "name": "moepL",
+            "team": "team_b"
+          },
+          "seq": 7
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "d2c7460f-1ea1-4171-a2b6-d4117d9e92dd",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 14,
+        "occurredAt": "2026-09-05T18:00:16.323Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000104",
+            "name": "moepL",
+            "team": "team_b"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "d17d7711-7a6e-42c6-98ba-0f924be49e6a",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 15,
+        "occurredAt": "2026-09-05T18:00:17.332Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000001",
+            "name": "maex",
+            "team": "team_a"
+          },
+          "seq": 8
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "5977551d-7edd-4812-b04d-c2a16df566bf",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 16,
+        "occurredAt": "2026-09-05T18:00:17.332Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000001",
+            "name": "maex",
+            "team": "team_a"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000001",
+          "name": "maex",
+          "team": "team_a"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "3f7b48a9-ad0d-491c-973c-4b7a4f827beb",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 17,
+        "occurredAt": "2026-09-05T18:00:24.572Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000000",
+            "name": "hunzR",
+            "team": "team_a"
+          },
+          "seq": 9
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "abc9391b-a925-403c-9d9a-ae00e22eb8a9",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 18,
+        "occurredAt": "2026-09-05T18:00:24.572Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000000",
+            "name": "hunzR",
+            "team": "team_a"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000001",
+          "name": "maex",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000000",
+          "name": "hunzR",
+          "team": "team_a"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "06fb71c2-b5dc-4a93-b785-782906704d7f",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 19,
+        "occurredAt": "2026-09-05T18:00:24.702Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000100",
+            "name": "wickeD",
+            "team": "team_b"
+          },
+          "seq": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "3a708417-47e8-4ccb-8b3f-ccd865bc6f09",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 20,
+        "occurredAt": "2026-09-05T18:00:24.702Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000100",
+            "name": "wickeD",
+            "team": "team_b"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000001",
+          "name": "maex",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000000",
+          "name": "hunzR",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000100",
+          "name": "wickeD",
+          "team": "team_b"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "dbee63d7-08a9-4753-8402-d2da11eb598b",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 21,
+        "occurredAt": "2026-09-05T18:00:25.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 11,
+          "playerCount": 8
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "8dfe8619-6bc0-48bd-ad94-f373c843ff7e",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 22,
+        "occurredAt": "2026-09-05T18:00:26.557Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "seq": 12
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "d9e2461c-3b60-4d8b-a3b2-b4f4e00c2d2d",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 23,
+        "occurredAt": "2026-09-05T18:00:26.557Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000004",
+            "name": "Kessi",
+            "team": "team_a"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000001",
+          "name": "maex",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000000",
+          "name": "hunzR",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000100",
+          "name": "wickeD",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "0c1eb118-f476-4679-b438-32053b2ba1fb",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 24,
+        "occurredAt": "2026-09-05T18:00:27.281Z",
+        "payload": {
+          "type": "player_connected",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "seq": 13
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "48c7b5e7-7168-4e4d-a1e8-b6537597ac9f",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 25,
+        "occurredAt": "2026-09-05T18:00:27.281Z",
+        "payload": {
+          "type": "player.joined",
+          "player": {
+            "steamId64": "76561198000000003",
+            "name": "flippo",
+            "team": "team_a"
+          },
+          "rostered": true
+        }
+      }
+    },
+    {
+      "type": "presence",
+      "players": [
+        {
+          "steamId64": "76561198000000102",
+          "name": "schnitzL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000002",
+          "name": "Zerberus",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000101",
+          "name": "Jörg",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000103",
+          "name": "BastiGHG",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000104",
+          "name": "moepL",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000001",
+          "name": "maex",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000000",
+          "name": "hunzR",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000100",
+          "name": "wickeD",
+          "team": "team_b"
+        },
+        {
+          "steamId64": "76561198000000004",
+          "name": "Kessi",
+          "team": "team_a"
+        },
+        {
+          "steamId64": "76561198000000003",
+          "name": "flippo",
+          "team": "team_a"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "7cadb97b-6325-4023-b576-eea41a405cce",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 26,
+        "occurredAt": "2026-09-05T18:00:35.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 14,
+          "playerCount": 10
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "22d574db-7c14-45f0-bcd0-86e8d50a1a3d",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 27,
+        "occurredAt": "2026-09-05T18:00:44.305Z",
+        "payload": {
+          "type": "chat_message",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "player": {
+            "steamId64": "76561198000000002",
+            "name": "Zerberus",
+            "team": "team_a"
+          },
+          "text": "gl hf",
+          "scope": "all",
+          "seq": 15
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "13ae7a43-e434-4c5f-8615-cb980de03391",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 28,
+        "occurredAt": "2026-09-05T18:00:44.305Z",
+        "payload": {
+          "type": "going_live",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "mapNumber": 1,
+          "map": "de_mirage",
+          "seq": 16
+        }
+      }
+    },
+    {
+      "type": "event",
+      "envelope": {
+        "deliveryId": "1c776405-4ddb-4328-803d-48b6140e9a1d",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "clientMatchId": "conformance-live-utility",
+        "seq": 29,
+        "occurredAt": "2026-09-05T18:00:45.000Z",
+        "payload": {
+          "type": "heartbeat",
+          "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+          "source": {
+            "provider": "sim",
+            "serverId": "sim-1"
+          },
+          "seq": 17,
+          "playerCount": 10
+        }
+      }
     },
     {
       "type": "event",
       "envelope": {
         "deliveryId": "42561f85-1eb4-4cb1-87fc-a03878df00e0",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 30,
         "occurredAt": "2026-09-05T18:00:51.305Z",
         "payload": {
@@ -2378,7 +3303,7 @@
       "envelope": {
         "deliveryId": "57c011a8-9cb5-424b-8ff2-01ca3abbc0e5",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 31,
         "occurredAt": "2026-09-05T18:00:51.305Z",
         "payload": {
@@ -2403,7 +3328,7 @@
       "envelope": {
         "deliveryId": "b3ae29d8-8174-4086-b237-572f650ff19c",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 32,
         "occurredAt": "2026-09-05T18:00:55.000Z",
         "payload": {
@@ -2644,7 +3569,7 @@
       "envelope": {
         "deliveryId": "9fe2325d-7e12-4445-99ba-8a8f04cfff81",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 33,
         "occurredAt": "2026-09-05T18:01:05.000Z",
         "payload": {
@@ -2916,7 +3841,7 @@
       "envelope": {
         "deliveryId": "37dad5e8-d7a1-4180-bdde-f3f9d393e332",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 34,
         "occurredAt": "2026-09-05T18:01:15.000Z",
         "payload": {
@@ -3180,7 +4105,7 @@
       "envelope": {
         "deliveryId": "1433f14c-12bb-4184-bc40-6b4205615183",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 35,
         "occurredAt": "2026-09-05T18:01:25.000Z",
         "payload": {
@@ -3413,7 +4338,7 @@
       "envelope": {
         "deliveryId": "93e3d61f-3330-4bfc-8537-1911bdad106a",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 36,
         "occurredAt": "2026-09-05T18:01:31.444Z",
         "payload": {
@@ -3459,7 +4384,7 @@
       "envelope": {
         "deliveryId": "a7c07b83-63ce-4fd1-91a9-5aacd9c55568",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 37,
         "occurredAt": "2026-09-05T18:01:35.000Z",
         "payload": {
@@ -3667,7 +4592,7 @@
       "envelope": {
         "deliveryId": "3ff75ede-af9c-4f72-bd08-fa672d176e03",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 38,
         "occurredAt": "2026-09-05T18:01:45.000Z",
         "payload": {
@@ -3776,7 +4701,7 @@
       "envelope": {
         "deliveryId": "0bfec8b7-7d07-45f9-9110-9a242a8ec201",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 39,
         "occurredAt": "2026-09-05T18:01:50.262Z",
         "payload": {
@@ -3893,7 +4818,7 @@
       "envelope": {
         "deliveryId": "a157ac80-db68-4131-bc5f-bdeb5bcc81f9",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 40,
         "occurredAt": "2026-09-05T18:01:55.000Z",
         "payload": {
@@ -4108,7 +5033,7 @@
       "envelope": {
         "deliveryId": "40d2fd21-c043-47ed-9d10-b3db5ece6a2b",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 41,
         "occurredAt": "2026-09-05T18:02:02.184Z",
         "payload": {
@@ -4153,7 +5078,7 @@
       "envelope": {
         "deliveryId": "31e6c020-f132-4387-977e-d18f23ae45e8",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 42,
         "occurredAt": "2026-09-05T18:02:05.000Z",
         "payload": {
@@ -4345,7 +5270,7 @@
       "envelope": {
         "deliveryId": "4f95bf2b-e47f-4216-98e3-20cc43d8ce8e",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 43,
         "occurredAt": "2026-09-05T18:02:15.000Z",
         "payload": {
@@ -4515,7 +5440,7 @@
       "envelope": {
         "deliveryId": "12091383-402c-4318-8443-69bf25a6e7e6",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 44,
         "occurredAt": "2026-09-05T18:02:25.000Z",
         "payload": {
@@ -4685,7 +5610,7 @@
       "envelope": {
         "deliveryId": "f3077af7-af60-4a10-846b-1335ef56019e",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 45,
         "occurredAt": "2026-09-05T18:02:32.837Z",
         "payload": {
@@ -4729,7 +5654,7 @@
       "envelope": {
         "deliveryId": "8ded36ec-f146-42e7-94a7-69c91f5dc431",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 46,
         "occurredAt": "2026-09-05T18:02:35.000Z",
         "payload": {
@@ -4885,7 +5810,7 @@
       "envelope": {
         "deliveryId": "aa9bdd29-9b5d-451c-9d48-6dd5e0728709",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 47,
         "occurredAt": "2026-09-05T18:02:45.000Z",
         "payload": {
@@ -4905,7 +5830,7 @@
       "envelope": {
         "deliveryId": "e6cedb40-dcb2-4167-9e64-d434077875c1",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 48,
         "occurredAt": "2026-09-05T18:02:46.305Z",
         "payload": {
@@ -5108,7 +6033,7 @@
       "envelope": {
         "deliveryId": "ac744cce-8e5c-42ea-a23d-29948a231e94",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 49,
         "occurredAt": "2026-09-05T18:02:46.305Z",
         "payload": {
@@ -5134,7 +6059,7 @@
       "envelope": {
         "deliveryId": "ed2e02f6-1ffb-48e4-a7ef-4572ba1a3c06",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 50,
         "occurredAt": "2026-09-05T18:02:55.000Z",
         "payload": {
@@ -5154,7 +6079,7 @@
       "envelope": {
         "deliveryId": "747413ee-b709-42b2-89eb-045bccb99817",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 51,
         "occurredAt": "2026-09-05T18:03:01.305Z",
         "payload": {
@@ -5178,7 +6103,7 @@
       "envelope": {
         "deliveryId": "c876604e-f8cc-44e8-851e-bf3171d47dde",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 52,
         "occurredAt": "2026-09-05T18:03:05.000Z",
         "payload": {
@@ -5198,7 +6123,7 @@
       "envelope": {
         "deliveryId": "53130c4e-2509-4901-8d3a-30c58bbf5bf4",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 53,
         "occurredAt": "2026-09-05T18:03:08.305Z",
         "payload": {
@@ -5220,7 +6145,7 @@
       "envelope": {
         "deliveryId": "41ce83bd-fafb-42a1-868b-5f7b5a676f17",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 54,
         "occurredAt": "2026-09-05T18:03:08.305Z",
         "payload": {
@@ -5341,7 +6266,7 @@
       "envelope": {
         "deliveryId": "6d03e7b3-12cd-48de-987e-731e6c1d5adc",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 55,
         "occurredAt": "2026-09-05T18:03:15.000Z",
         "payload": {
@@ -5585,7 +6510,7 @@
       "envelope": {
         "deliveryId": "a1868b71-dfe4-4c64-8bdb-146ed7b7c414",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 56,
         "occurredAt": "2026-09-05T18:03:25.000Z",
         "payload": {
@@ -5605,7 +6530,7 @@
       "envelope": {
         "deliveryId": "ac6a7ee9-1a98-47e0-adab-3c61c1967801",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 57,
         "occurredAt": "2026-09-05T18:03:26.956Z",
         "payload": {
@@ -5750,7 +6675,7 @@
       "envelope": {
         "deliveryId": "4287a91f-775c-4a87-bf4f-dee4bda357f0",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 58,
         "occurredAt": "2026-09-05T18:03:31.419Z",
         "payload": {
@@ -5897,7 +6822,7 @@
       "envelope": {
         "deliveryId": "335ce3ef-b290-4aa1-94fb-b9b841737ad1",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 59,
         "occurredAt": "2026-09-05T18:03:35.000Z",
         "payload": {
@@ -6019,7 +6944,7 @@
       "envelope": {
         "deliveryId": "d1bc758a-bf01-4598-9346-efff31a351ce",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 60,
         "occurredAt": "2026-09-05T18:03:40.762Z",
         "payload": {
@@ -6129,7 +7054,7 @@
       "envelope": {
         "deliveryId": "cfedc27a-ad70-4288-8d3f-8e9726541b74",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 61,
         "occurredAt": "2026-09-05T18:03:45.000Z",
         "payload": {
@@ -6149,7 +7074,7 @@
       "envelope": {
         "deliveryId": "8431308a-7e08-42f0-9859-731c9bd77615",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 62,
         "occurredAt": "2026-09-05T18:03:46.439Z",
         "payload": {
@@ -6358,7 +7283,7 @@
       "envelope": {
         "deliveryId": "ad34b63e-907c-4dfe-ae11-a664e8acba95",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 63,
         "occurredAt": "2026-09-05T18:03:55.000Z",
         "payload": {
@@ -6550,7 +7475,7 @@
       "envelope": {
         "deliveryId": "48c09253-da80-499c-bcd3-ed825607de8d",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 64,
         "occurredAt": "2026-09-05T18:04:05.000Z",
         "payload": {
@@ -6656,7 +7581,7 @@
       "envelope": {
         "deliveryId": "13538a8e-b1f9-4b36-9b42-268315dab8a0",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 65,
         "occurredAt": "2026-09-05T18:04:12.043Z",
         "payload": {
@@ -6779,7 +7704,7 @@
       "envelope": {
         "deliveryId": "2caf2b71-305f-42fd-9ed7-20397de75f05",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 66,
         "occurredAt": "2026-09-05T18:04:15.000Z",
         "payload": {
@@ -6957,7 +7882,7 @@
       "envelope": {
         "deliveryId": "589c278c-eecb-426c-8b43-ef980e8a9aae",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 67,
         "occurredAt": "2026-09-05T18:04:25.000Z",
         "payload": {
@@ -6977,7 +7902,7 @@
       "envelope": {
         "deliveryId": "2a0e131c-cce4-4388-9dc7-4baf8dee9dea",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 68,
         "occurredAt": "2026-09-05T18:04:26.439Z",
         "payload": {
@@ -7000,7 +7925,7 @@
       "envelope": {
         "deliveryId": "5853c6e5-7b83-4da6-ac9e-53f600a0ed7c",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 69,
         "occurredAt": "2026-09-05T18:04:27.439Z",
         "payload": {
@@ -7203,7 +8128,7 @@
       "envelope": {
         "deliveryId": "7a7acdc9-47ab-4c7f-a609-fba5117e20a6",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 70,
         "occurredAt": "2026-09-05T18:04:27.439Z",
         "payload": {
@@ -7229,7 +8154,7 @@
       "envelope": {
         "deliveryId": "88fe9470-86a3-46a5-a3c0-3c40c0b2be7a",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 71,
         "occurredAt": "2026-09-05T18:04:29.439Z",
         "payload": {
@@ -7255,7 +8180,7 @@
       "envelope": {
         "deliveryId": "635cb83c-f7b6-4655-8551-1d0fb0d11b76",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 72,
         "occurredAt": "2026-09-05T18:04:35.000Z",
         "payload": {
@@ -7275,7 +8200,7 @@
       "envelope": {
         "deliveryId": "bc327f8d-accb-4385-b8a2-a5342a40fe51",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 73,
         "occurredAt": "2026-09-05T18:04:35.439Z",
         "payload": {
@@ -7297,7 +8222,7 @@
       "envelope": {
         "deliveryId": "062002bf-db6c-4714-94f4-c57f1920c711",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 74,
         "occurredAt": "2026-09-05T18:04:35.439Z",
         "payload": {
@@ -7315,7 +8240,7 @@
       "envelope": {
         "deliveryId": "835febf6-fed2-471a-99a5-e4971f365724",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 75,
         "occurredAt": "2026-09-05T18:04:37.439Z",
         "payload": {
@@ -7339,7 +8264,7 @@
       "envelope": {
         "deliveryId": "af9dabf6-c88e-451b-b87c-1805fe888889",
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "clientMatchId": "conformance-stream-hello",
+        "clientMatchId": "conformance-live-utility",
         "seq": 76,
         "occurredAt": "2026-09-05T18:04:37.439Z",
         "payload": {

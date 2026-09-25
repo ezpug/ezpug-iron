@@ -20,7 +20,8 @@ namespace EZPug.Sdk;
 /// including the beat that hook may ask for (<see cref="SettleThen"/>).</item>
 /// <item>position ticks every <see cref="PositionTickIntervalMs"/> while a match is assigned,
 /// the manifest asks for <c>positions</c> and the link is up — ephemeral, unsequenced,
-/// never buffered for a link that is down.</item>
+/// never buffered for a link that is down. Each carries the world's grenades and bomb
+/// beside the positions (ezpug/ezpug-iron#5).</item>
 /// <item><c>player_command</c> and <c>!verb</c> in chat → the <see cref="CommandTable"/> →
 /// the mode → the verdict back.</item>
 /// <item><c>release</c> → the mode's <c>OnEnd</c>, its timers and player state cleared, the
@@ -379,8 +380,10 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
                 return;
             }
 
-            var tick = Facts.PositionTick(World.Players);
-            if (tick.Positions.Count > 0)
+            // Utility is sampled on every beat, even an empty one: a flash that popped is
+            // reported once and would be lost to a tick that was never sent.
+            var tick = Facts.PositionTick(World.Players, World.SampleGrenades(), World.Bomb);
+            if (tick.Positions.Count > 0 || tick.Grenades is { Count: > 0 })
             {
                 Emit(tick);
             }
