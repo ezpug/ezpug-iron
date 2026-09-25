@@ -890,6 +890,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       mode: request.sim?.mode ?? 'auto',
       timeScale: request.sim?.timeScale ?? request.simulation?.timeScale ?? 1,
       chaos: request.sim?.chaos ?? null,
+      knifePerk: request.sim?.knifePerk ?? null,
       bootDelayMs: sim.bootDelayMs,
       heartbeatIntervalMs: sim.heartbeatIntervalMs,
       positionTickIntervalMs: sim.positionTickIntervalMs,

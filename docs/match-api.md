@@ -172,9 +172,20 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `callbacks`    | `{ webhookUrl, webhookSecretId, demoUploadUrl?, demoUploadUrls?, streamAllowedOrigins? }` | `webhookSecretId` names a secret registered on the key; `demoUploadUrl` is a presigned PUT, `demoUploadUrls` is one per map (`{ mapNumber, url }[]`, ≤16) |
 | `warmupLines?` | string[] ≤20                                           | printed in warmup, one every eight seconds, in order and cycling; rendered by the client (one line everybody reads cannot be four languages), relayed unbranded, sanitized to one chat line |
 | `branding?`    | `{ hostname?, eventName? }`                            | decision 22 |
-| `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos? }`      | honoured on the `sim` provider only |
+| `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos?, knifePerk? }` | honoured on the `sim` provider only. `knifePerk: { round, killer? }` deals a knife kill and the killer's `get ezpug` (see below) |
 | `simulation?`  | `{ scenario?, timeScale? }`                            | **puppets**: every rostered player is played by a simulated one. Needs the `simulation` scope (else `forbidden`) and `capabilities.simulation` on the mode (else `validation_failed` on `simulation`); `scenario` is a name from `GET /v1/sim/scenarios`, `timeScale` the engine's `host_timescale`, 0.1…10. Absent is a real match |
 | `ttlMinutes`   | int, 1…1440                                            | the reaper's deadline; never above the key's ceiling |
+
+**`sim.knifePerk` deals the platform's knife perk** (ezpug/ezpug-iron#6). From round
+`round` of map 1 on, the simulator turns one of the kills its story already deals into a
+`player_death` with `weapon: "knife"` by a rostered player on `killer`'s team (either team
+when unsaid). Before that round's `round_end`, so always before the next `round_start`,
+the same player says `get ezpug` as a `chat_message` with scope `all`. The round is the
+first one from `round` on in which that team kills anybody, so in a 1v1 it skips every
+round the team loses. A mode with a length plays a single round, and there only `round: 1`
+deals it. The knob has its own seeded stream, so the rest of the story is the one the seed
+plays without it: only that kill's `weapon` (and `headshot`, now `false`) changes, and one
+line is added. Both are ordinary events of the union.
 
 **`rules.format` is which game the engine plays**, and there are two (PRD-03 T3b, owner
 decision 2026-09-19).

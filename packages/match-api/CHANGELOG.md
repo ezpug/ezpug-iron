@@ -6,6 +6,28 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.25.0 — 2026-09-25
+
+**The simulator deals the knife perk** (PRD-05 T2b, ezpug/ezpug-iron#6, for the platform's
+PRD-12 T16a: its golden path walks a knife kill and `get ezpug` against the real
+orchestrator). Additive: one optional field on the request, two new constants.
+
+- **`MatchRequest.sim.knifePerk: { round, killer? }`** (`simKnifePerkSchema`). From round
+  `round` of map 1 on, one kill the story already deals becomes a `player_death` with
+  `weapon: "knife"` (`SIM_KNIFE_WEAPON`) by a rostered player on `killer`'s team (either
+  team when unsaid). Before that round's `round_end` the same player says `get ezpug`
+  (`SIM_KNIFE_PERK_LINE`) as a `chat_message` with scope `all`. The round is the first
+  from `round` on in which that team kills anybody, so in a 1v1 it skips every round the
+  team loses. A mode with a length plays a single round, and there only `round: 1` deals
+  it. Honoured on the `sim` provider, the real orchestrator's and the fake's.
+- **Why a knob and not `sim.say` / `sim.kill` commands** (the issue's option 2). A kill
+  dealt by command has to be invented outside the story. Every `round_end` after it would
+  then have to be recounted, and where it lands depends on when the command arrives, which
+  at 20× speed is any round at all. The knob rewrites a kill the story already has, so the
+  scoreboard stays true (the kill is no longer a headshot, and the count says so). It draws
+  from its own `prng.fork('knife-perk')`, so a seed plays the same rounds, kills and winner
+  with it on or off, and the same seed always puts the knife in the same place.
+
 ## 0.24.0 — 2026-09-25
 
 **A node that never gets ready says why** (PRD-05 T2, the follow-up to the platform's

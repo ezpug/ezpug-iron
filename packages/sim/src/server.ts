@@ -26,6 +26,7 @@ import type {
   GameserverEvent,
   MapRadar,
   SimChaos,
+  SimKnifePerk,
   SimMode,
   SimStatus,
 } from '@ezpug/match-api'
@@ -97,6 +98,8 @@ export interface SimPlan {
    * ({@link SimulatedServerOptions.chaos}); composes with it when both are armed.
    */
   chaos?: SimChaos | null
+  /** Turn one of the story's kills into a knife kill and have its killer say `get ezpug` (#6). */
+  knifePerk?: SimKnifePerk | null
 }
 
 export interface SimulatedServerOptions {
@@ -219,7 +222,7 @@ export interface SimulatedServer {
   close: () => void
 }
 
-const DEFAULT_PLAN: Required<Omit<SimPlan, 'scenario' | 'seed' | 'chaos'>> = {
+const DEFAULT_PLAN: Required<Omit<SimPlan, 'scenario' | 'seed' | 'chaos' | 'knifePerk'>> = {
   timeScale: 1,
   mode: 'auto',
   heartbeatIntervalMs: 10_000,
@@ -235,6 +238,7 @@ interface Assigned {
   bootDelayMs: number
   positionTickIntervalMs: number | null
   radars: (MapRadar | null)[]
+  knifePerk: SimKnifePerk | null
 }
 
 /** The roster entry behind a SteamID64, either team. */
@@ -429,6 +433,7 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
       bootDelayMs: current.bootDelayMs,
       positionTickIntervalMs: current.positionTickIntervalMs,
       radars: current.radars,
+      knifePerk: current.knifePerk,
       // Read at build time, because `going_live.length` is measured in the
       // client's seconds rather than the story's (PRD-03 T9a). A `sim.speed`
       // after the fact moves the beats and not that number — as
@@ -471,6 +476,7 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
         bootDelayMs: merged.bootDelayMs,
         positionTickIntervalMs: merged.positionTickIntervalMs,
         radars,
+        knifePerk: merged.knifePerk ?? null,
       }
       assigned = { ...current, story: buildStory(current, scenario) }
       commands = createSimCommandTable({

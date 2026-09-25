@@ -28,9 +28,16 @@ import type {
   MatchTeam,
   PlayerRoundSummary,
   RoundWinCondition,
+  SimKnifePerk,
   TeamSide,
 } from '@ezpug/match-api'
-import { isEphemeralGameserverEvent, radarToWorld, SDK_TOLD_FLOWS } from '@ezpug/match-api'
+import {
+  isEphemeralGameserverEvent,
+  radarToWorld,
+  SDK_TOLD_FLOWS,
+  SIM_KNIFE_PERK_LINE,
+  SIM_KNIFE_WEAPON,
+} from '@ezpug/match-api'
 import type { MatchAssignment, SimulatedPlayer } from './assignment'
 import { SIM_CHAT_EVENT, sanitizeChatLine } from './chat'
 import type { SimulatedChatMoment } from './chatter'
@@ -100,6 +107,13 @@ export interface StoryOptions {
    * play the same match whether or not either of them knew the map.
    */
   radars?: readonly (MapRadar | null)[]
+  /**
+   * **A knife kill and the killer's `get ezpug`** (ezpug/ezpug-iron#6): the
+   * request's `sim.knifePerk`. It rewrites one kill the story already dealt
+   * rather than dealing a new one, and draws on its own fork, so the rounds,
+   * the kills and the winner are the ones this seed plays without it.
+   */
+  knifePerk?: SimKnifePerk | null
 }
 
 // Game-time rhythm (milliseconds). Compressed or stretched only by playback's
@@ -579,6 +593,54 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     })
   }
 
+  /**
+   * **The knife perk** (ezpug/ezpug-iron#6), dealt at most once. Looks at the
+   * kills a round just dealt (`beats` from `fromIndex` on, every one of them
+   * before `untilMs`), turns one by the asked-for team into a knife kill and
+   * has its killer say the line before `untilMs`, which is the round's own
+   * end. Nothing is added to the kill feed, so every stat the round's
+   * `round_end` carries stays true once the headshot, if any, is taken back.
+   * Its dice are its own fork's, so the story's stream never notices.
+   */
+  const knifePrng = prng.fork('knife-perk')
+  let knifePerkDealt = false
+  const dealKnifePerk = (round: number, fromIndex: number, untilMs: number): void => {
+    const perk = options.knifePerk
+    if (!perk || knifePerkDealt || round < perk.round) return
+    const kills: number[] = []
+    for (let i = fromIndex; i < beats.length; i++) {
+      const { event } = beats[i] as StoryBeat
+      if (event.type !== 'player_death' || event.killer === null) continue
+      if (perk.killer === undefined || event.killer.team === perk.killer) kills.push(i)
+    }
+    if (kills.length === 0) return
+    const index = knifePrng.pick(kills)
+    const { atMs, event } = beats[index] as StoryBeat & {
+      event: Extract<GameserverEvent, { type: 'player_death' }>
+    }
+    const { noscope: _noscope, ...death } = event
+    const killer = players.find(p => p.player.steamId64 === death.killer?.steamId64)
+    if (!killer || !death.killer) return
+    if (death.headshot) killer.headshotKills--
+    beats[index] = { atMs, event: { ...death, weapon: SIM_KNIFE_WEAPON, headshot: false } }
+    const saidAtMs = Math.min(atMs + knifePrng.int(1_500, 4_001), untilMs)
+    const line: StoryBeat = {
+      atMs: saidAtMs,
+      event: {
+        type: 'chat_message',
+        matchId,
+        source,
+        player: death.killer,
+        text: SIM_KNIFE_PERK_LINE,
+        scope: 'all',
+      },
+    }
+    // After every beat at or before its instant, so the kill always comes first.
+    const after = beats.findIndex((other, i) => i > index && other.atMs > saidAtMs)
+    beats.splice(after < 0 ? beats.length : after, 0, line)
+    knifePerkDealt = true
+  }
+
   t = (lastArrival?.atMs ?? t) + prng.int(10_000, 20_001)
 
   // Warmup: somebody says something before anything has happened, so a pane
@@ -636,6 +698,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
       positionTickIntervalMs,
       radar: radars[0] ?? null,
     })
+    dealKnifePerk(1, mapStartIndex, played.endAtMs)
     // Said into the middle of the kill feed, then merged by time: the beats
     // above are already sorted among themselves (`fillWarmup`'s rule).
     say(openingLineAtMs, 'pistol')
@@ -786,6 +849,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
         score: { ...score },
       })
 
+      const roundStartIndex = beats.length
       const { durationMs, winCondition } = playRound({
         prng,
         matchId,
@@ -805,6 +869,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
         radar: radars[mapIndex] ?? null,
       })
       t += durationMs
+      if (isFirstMap) dealKnifePerk(round, roundStartIndex, t)
 
       if (roundWinner === 'team_a') score.teamA++
       else score.teamB++

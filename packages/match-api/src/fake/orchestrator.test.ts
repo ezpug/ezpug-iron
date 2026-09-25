@@ -624,6 +624,33 @@ describe('cancel and commands', () => {
     ).toHaveLength(0)
   })
 
+  it('deals a knife kill and its killer’s get ezpug when sim.knifePerk asks (#6)', async () => {
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    const match = await client.matches.create({
+      body: pugRequest({ sim: { seed: 'knife-perk', knifePerk: { round: 3, killer: 'team_a' } } }),
+    })
+    await h.fake.playOut()
+    const events = (await allEvents(h, match.id)).map(envelope => envelope.payload)
+    const knives = events.filter(e => e.type === 'player_death' && e.weapon === 'knife')
+    expect(knives).toHaveLength(1)
+    const kill = knives[0] as Extract<(typeof events)[number], { type: 'player_death' }>
+    expect(kill.roundNumber).toBeGreaterThanOrEqual(3)
+    expect(kill.killer?.team).toBe('team_a')
+    const killAt = events.indexOf(kill)
+    const nextRound = events.findIndex((e, i) => i > killAt && e.type === 'round_start')
+    const lineAt = events.findIndex(
+      (e, i) =>
+        i > killAt &&
+        e.type === 'chat_message' &&
+        e.text === 'get ezpug' &&
+        e.scope === 'all' &&
+        e.player.steamId64 === kill.killer?.steamId64,
+    )
+    expect(lineAt).toBeGreaterThan(killAt)
+    expect(lineAt).toBeLessThan(nextRound)
+  })
+
   it('drives the engine with the sim.* family', async () => {
     const h = setup()
     const client = h.fake.client(h.platform.secret)

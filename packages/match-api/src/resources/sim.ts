@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { matchTeamSchema } from '../vocabulary/gameserver'
 import { kebabNameSchema } from '../vocabulary/naming'
 
 /**
@@ -29,6 +30,34 @@ export const simChaosSchema = z.object({
   delayMs: z.number().int().positive().max(60_000).optional(),
 })
 export type SimChaos = z.infer<typeof simChaosSchema>
+
+/** What a knife kill is called on the wire: the plugin's `weapon` for every knife skin. */
+export const SIM_KNIFE_WEAPON = 'knife'
+
+/** The line the killer says after a {@link simKnifePerkSchema} kill. */
+export const SIM_KNIFE_PERK_LINE = 'get ezpug'
+
+/**
+ * **Deal a knife kill and the killer's line** (ezpug/ezpug-iron#6, for the
+ * platform's knife perk, PRD-12 T16a). From round `round` of map 1 on, the
+ * story turns one of its own kills into a knife kill (`weapon: "knife"`) by
+ * a rostered player on `killer`'s team (either team when unsaid). Before
+ * that round's `round_end` the same player says {@link SIM_KNIFE_PERK_LINE}
+ * as a `chat_message` with scope `all`, so it is always said before the next
+ * `round_start`.
+ *
+ * The first round from `round` on in which that team kills anybody is the
+ * one. A round the team kills nobody in is skipped, which in a 1v1 is every
+ * round it loses. A mode with a length plays a single round, so there only
+ * `round: 1` deals it. It draws from its own stream, so the rest of
+ * the seeded story is the same with the knob on or off: only that one
+ * kill's `weapon` (and `headshot`, now false) changes, and one line is added.
+ */
+export const simKnifePerkSchema = z.object({
+  round: z.number().int().positive(),
+  killer: matchTeamSchema.optional(),
+})
+export type SimKnifePerk = z.infer<typeof simKnifePerkSchema>
 
 /**
  * 1 = real time (a Bo1 takes the forty minutes it takes). The platform's

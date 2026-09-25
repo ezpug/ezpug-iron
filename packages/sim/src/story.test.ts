@@ -1,6 +1,16 @@
 import { createPrng } from '@ezpug/core'
-import type { GameserverEventOf, GameserverEventType, MapRadar } from '@ezpug/match-api'
-import { gameserverEventSchema, worldToRadar } from '@ezpug/match-api'
+import type {
+  GameserverEventOf,
+  GameserverEventType,
+  MapRadar,
+  SimKnifePerk,
+} from '@ezpug/match-api'
+import {
+  gameserverEventSchema,
+  SIM_KNIFE_PERK_LINE,
+  SIM_KNIFE_WEAPON,
+  worldToRadar,
+} from '@ezpug/match-api'
 import { describe, expect, it } from 'vitest'
 import type { MatchAssignment } from './assignment'
 import { SIM_CHAT_EVENT } from './chat'
@@ -808,5 +818,98 @@ describe('what the mode records (PRD-03 T9c)', () => {
     expect(said.demos.map(demo => demo.mapNumber)).toEqual(
       ofType(said, 'demo_available').map(event => event.mapNumber),
     )
+  })
+})
+
+describe('the knife perk (ezpug/ezpug-iron#6)', () => {
+  const perkStory = (
+    knifePerk: SimKnifePerk | null,
+    seed = 'knife-perk',
+    overrides: Partial<MatchAssignment> = {},
+  ): MatchStory =>
+    buildMatchStory({
+      prng: createPrng(seed),
+      assignment: fixtureAssignment(overrides),
+      scenario: SIMULATOR_SCENARIOS['happy-path'],
+      source: SOURCE,
+      bootDelayMs: 4_000,
+      positionTickIntervalMs: 5_000,
+      knifePerk,
+    })
+  const knifeKills = (story: MatchStory) =>
+    ofType(story, 'player_death').filter(kill => kill.weapon === SIM_KNIFE_WEAPON)
+  const perkLines = (story: MatchStory) =>
+    ofType(story, 'chat_message').filter(line => line.text === SIM_KNIFE_PERK_LINE)
+
+  it('deals one knife kill in the round asked for, and its killer says the line before the next round starts', () => {
+    const story = perkStory({ round: 4, killer: 'team_b' })
+    const [kill, ...moreKills] = knifeKills(story)
+    const [line, ...moreLines] = perkLines(story)
+    expect(moreKills).toHaveLength(0)
+    expect(moreLines).toHaveLength(0)
+    expect(kill?.mapNumber).toBe(1)
+    expect(kill?.roundNumber).toBe(4)
+    expect(kill?.killer?.team).toBe('team_b')
+    expect(kill?.headshot).toBe(false)
+    expect(line).toMatchObject({ scope: 'all', player: kill?.killer })
+
+    const events = story.beats.map(beat => beat.event)
+    const killAt = events.indexOf(kill as (typeof events)[number])
+    const lineAt = events.indexOf(line as (typeof events)[number])
+    const nextRound = events.findIndex((event, i) => i > killAt && event.type === 'round_start')
+    expect(lineAt).toBeGreaterThan(killAt)
+    expect(lineAt).toBeLessThan(nextRound)
+    for (const event of events) expect(() => gameserverEventSchema.parse(event)).not.toThrow()
+    const times = story.beats.map(beat => beat.atMs)
+    expect(times).toEqual([...times].sort((a, b) => a - b))
+  })
+
+  it('moves nothing else: the same rounds, the same kills and the same winner as without it', () => {
+    const plain = perkStory(null)
+    const perked = perkStory({ round: 4, killer: 'team_b' })
+    const strip = (story: MatchStory) =>
+      story.beats
+        .map(beat => beat.event)
+        .filter(event => !(event.type === 'chat_message' && event.text === SIM_KNIFE_PERK_LINE))
+        .map(event =>
+          event.type === 'player_death'
+            ? { ...event, weapon: 'any', headshot: false, noscope: undefined }
+            : event.type === 'round_end'
+              ? { ...event, players: event.players?.map(p => ({ ...p, headshotKills: 0 })) }
+              : event.type === 'demo_available'
+                ? { ...event, sizeBytes: 0 }
+                : event,
+        )
+    expect(strip(perked)).toEqual(strip(plain))
+  })
+
+  it('keeps the scoreboard true: a knife kill is not a headshot', () => {
+    const story = perkStory({ round: 1 }, 'knife-hs')
+    const kills = ofType(story, 'player_death')
+    const rounds = ofType(story, 'round_end')
+    const summary = rounds[rounds.length - 1]?.players ?? []
+    expect(knifeKills(story)).toHaveLength(1)
+    expect(summary.reduce((sum, p) => sum + (p.headshotKills ?? 0), 0)).toBe(
+      kills.filter(kill => kill.headshot).length,
+    )
+  })
+
+  it('waits for a round the asked-for team kills in: a 1v1 loser kills nobody', () => {
+    const story = perkStory({ round: 1, killer: 'team_a' }, 'knife-1v1', {
+      teamA: { name: 'A', players: [{ steamId64: '76561198000000001', name: 'a' }] },
+      teamB: { name: 'B', players: [{ steamId64: '76561198000000002', name: 'b' }] },
+    })
+    const [kill] = knifeKills(story)
+    const won = ofType(story, 'round_end').find(round => round.winner.team === 'team_a')
+    expect(kill?.killer?.steamId64).toBe('76561198000000001')
+    expect(kill?.roundNumber).toBe(won?.roundNumber)
+    expect(perkLines(story)).toHaveLength(1)
+  })
+
+  it('plays it on round 1 of a mode with a length, and nowhere past it', () => {
+    const story = perkStory({ round: 1 }, 'knife-dm', DEATHMATCH)
+    expect(knifeKills(story)).toHaveLength(1)
+    expect(perkLines(story)[0]?.player).toEqual(knifeKills(story)[0]?.killer)
+    expect(knifeKills(perkStory({ round: 2 }, 'knife-dm', DEATHMATCH))).toHaveLength(0)
   })
 })

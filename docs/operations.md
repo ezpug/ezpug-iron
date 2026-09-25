@@ -810,7 +810,7 @@ do. Its knobs are Match API commands, answered with the simulator's state after 
 | `sim.chaos` | delay and duplicate *this* server's deliveries; `null` makes it honest again |
 | `sim.kill` | pull the plug. Status answers `gone`, heartbeats stop, and the machine's loss detector opens the recovery window on its own — nothing announces it, exactly like a box that lost power. With a backup written by then the match comes back on `sim-N+1` |
 
-A request's own `sim` block (`scenario`, `seed`, `mode`, `timeScale`, `chaos`) decides
+A request's own `sim` block (`scenario`, `seed`, `mode`, `timeScale`, `chaos`, `knifePerk`) decides
 where a match starts. The story is seeded **per match** (`sim#<matchId>` unless the
 request names a seed), not per server, so a replacement server for a match that lost its
 box tells the same story the dead one did — which is what makes the provider's `restore`

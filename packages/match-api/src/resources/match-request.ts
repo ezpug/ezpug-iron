@@ -7,7 +7,7 @@ import { kebabNameSchema } from '../vocabulary/naming'
 import { steamId64Schema } from '../vocabulary/steam-id'
 import { clientMatchIdSchema } from './common'
 import { loadoutSchema } from './loadout'
-import { simChaosSchema, simModeSchema, simTimeScaleSchema } from './sim'
+import { simChaosSchema, simKnifePerkSchema, simModeSchema, simTimeScaleSchema } from './sim'
 
 /**
  * **What a client asks for** (`POST /v1/matches`): everything a server needs
@@ -286,6 +286,8 @@ export const matchSimOptionsSchema = z.object({
   mode: simModeSchema.optional(),
   timeScale: simTimeScaleSchema.optional(),
   chaos: simChaosSchema.nullable().optional(),
+  /** A knife kill and the killer's `get ezpug` in one round (the platform's knife perk). */
+  knifePerk: simKnifePerkSchema.optional(),
 })
 export type MatchSimOptions = z.infer<typeof matchSimOptionsSchema>
 

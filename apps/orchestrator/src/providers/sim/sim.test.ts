@@ -20,7 +20,7 @@ import type {
   ServerOffering,
   ServerStatus,
 } from '../provider'
-import { createSimProvider } from './provider'
+import { createSimProvider, simPlanFor } from './provider'
 
 const PUG = SHIPPED_GAMEMODES.find(mode => mode.id === 'pug') as GamemodeManifest
 
@@ -119,6 +119,14 @@ function stubProvider(id: string): GameServerProvider {
     list: () => Promise.resolve([...alive.values()]),
   }
 }
+
+describe('simPlanFor', () => {
+  it('hands the engine sim.knifePerk as the request said it (#6), and nothing when unsaid', () => {
+    const knifePerk = { round: 3, killer: 'team_b' as const }
+    expect(simPlanFor(request({ sim: { knifePerk } })).knifePerk).toEqual(knifePerk)
+    expect(simPlanFor(request({ sim: {} }))).not.toHaveProperty('knifePerk')
+  })
+})
 
 describe('the sim.* commands', () => {
   it('steps a story by hand, changes mode, speed and chaos, and reports the simulator after each', async () => {

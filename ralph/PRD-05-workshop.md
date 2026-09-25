@@ -87,7 +87,7 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   tolerant of a first-time workshop download (measure AIM Map's cold download on the dev
   node and write the number down). Released like T1, changelog naming PRD-12 T6a's
   follow-up.
-- [ ] **T2b (effort: medium): the sim deals a knife kill and its chat line
+- [x] **T2b (effort: medium): the sim deals a knife kill and its chat line
   ([#6](https://github.com/ezpug/ezpug-iron/issues/6)).** The platform's knife perk
   (PRD-12 T16a) needs a simulated match to produce `player_death` with a knife-family
   `weapon` by a rostered player, then a `chat_message` `{ scope: "all", text: "get ezpug" }`

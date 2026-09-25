@@ -208,6 +208,7 @@ export function simPlanFor(request: MatchRequest, defaults: SimPlan = {}): SimPl
     ...(request.sim?.mode !== undefined && { mode: request.sim.mode }),
     ...(timeScale !== undefined && { timeScale }),
     ...(request.sim?.chaos !== undefined && { chaos: request.sim.chaos }),
+    ...(request.sim?.knifePerk !== undefined && { knifePerk: request.sim.knifePerk }),
   }
 }
 
