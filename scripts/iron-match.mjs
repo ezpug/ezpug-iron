@@ -3125,6 +3125,23 @@ function write(result) {
           format: envelope.payload.format ?? null,
         })),
     },
+    /**
+     * **Which site each bomb fact named** (PRD-05 T2e): per type, how many
+     * named `a`, `b`, or none (`none`). The tick's `bomb.site` is in
+     * {@link utility}; this is the durable facts' own word.
+     */
+    bombSites: Object.fromEntries(
+      ['bomb_planted', 'bomb_defused', 'bomb_exploded'].map(type => [
+        type,
+        result.envelopes
+          .filter(envelope => envelope.payload.type === type)
+          .reduce((counts, envelope) => {
+            const site = envelope.payload.site ?? 'none'
+            counts[site] = (counts[site] ?? 0) + 1
+            return counts
+          }, {}),
+      ]),
+    ),
     /** Every payload type the durable log ended up holding, with its count. */
     payloads: Object.fromEntries(
       Object.entries(

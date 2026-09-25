@@ -115,10 +115,7 @@ internal sealed class UtilityTracker
         {
             _droppedBomb = null;
             var planted = Planted();
-            // The event's `site` is not the 0/1 the entity's `m_nBombSite` is (every
-            // bomb_planted on the dev node came out without one), so the entity's word wins.
-            var site = planted?.Site is { } known and not BombSiteName.Unknown ? known : CounterStrikeWorld.SiteOf(gameEvent.Site);
-            _book.BombPlanted(planted?.At ?? _known(gameEvent.Userid)?.Position ?? Vector3.Zero, site);
+            _book.BombPlanted(planted?.At ?? _known(gameEvent.Userid)?.Position ?? Vector3.Zero, planted?.Site ?? BombSiteName.Unknown);
             return HookResult.Continue;
         });
         plugin.RegisterEventHandler<EventBombExploded>((_, _) => { _book.BombGone(); return HookResult.Continue; });
@@ -271,6 +268,33 @@ internal sealed class UtilityTracker
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// The site a bomb fact names. The <c>site</c> on <c>bomb_planted</c>, <c>bomb_defused</c>
+    /// and <c>bomb_exploded</c> is the entity index of the site's trigger, not the 0/1 of
+    /// <c>planted_c4</c>'s <c>m_nBombSite</c> (PRD-05 T2e: read as 0/1, every bomb fact on the
+    /// dev node came out without a site), so the planted bomb's own word is the one taken,
+    /// and after it the site this round's plant recorded. Game thread only.
+    /// </summary>
+    public BombSiteName PlantedSite()
+    {
+        try
+        {
+            foreach (var planted in Utilities.FindAllEntitiesByDesignerName<CPlantedC4>("planted_c4"))
+            {
+                if (planted is { IsValid: true } && CounterStrikeWorld.SiteOf(planted.BombSite) is var site and not BombSiteName.Unknown)
+                {
+                    return site;
+                }
+            }
+        }
+        catch (Exception error)
+        {
+            Say("planted_c4", error);
+        }
+
+        return _book.PlantedSite;
     }
 
     /// <summary>The bomb that stands in a site now, and which site.</summary>

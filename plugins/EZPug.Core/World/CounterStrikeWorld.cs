@@ -377,7 +377,7 @@ public sealed class CounterStrikeWorld : IGameWorld
         {
             if (Known(gameEvent.Userid) is { } player)
             {
-                BombPlanted?.Invoke(player, SiteOf(gameEvent.Site));
+                BombPlanted?.Invoke(player, _utility.PlantedSite());
             }
 
             return HookResult.Continue;
@@ -387,15 +387,15 @@ public sealed class CounterStrikeWorld : IGameWorld
         {
             if (Known(gameEvent.Userid) is { } player)
             {
-                BombDefused?.Invoke(player, SiteOf(gameEvent.Site));
+                BombDefused?.Invoke(player, _utility.PlantedSite());
             }
 
             return HookResult.Continue;
         });
 
-        _plugin.RegisterEventHandler<EventBombExploded>((gameEvent, _) =>
+        _plugin.RegisterEventHandler<EventBombExploded>((_, _) =>
         {
-            BombExploded?.Invoke(SiteOf(gameEvent.Site));
+            BombExploded?.Invoke(_utility.PlantedSite());
             return HookResult.Continue;
         });
 
@@ -555,7 +555,7 @@ public sealed class CounterStrikeWorld : IGameWorld
             _ => RoundEndReason.Other,
         };
 
-    /// <summary>The engine numbers bomb sites 0 and 1; the vocabulary calls them A and B.</summary>
+    /// <summary><c>planted_c4</c>'s <c>m_nBombSite</c> numbers the sites 0 and 1; the vocabulary calls them A and B. A bomb event's <c>site</c> is not this number (see <see cref="UtilityTracker.PlantedSite"/>).</summary>
     public static BombSiteName SiteOf(int site) =>
         site switch
         {

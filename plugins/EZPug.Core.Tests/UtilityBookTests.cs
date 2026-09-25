@@ -167,4 +167,23 @@ public class UtilityBookTests
         book.BombCarried(_maex);
         Assert.False(book.BombSearchDue);
     }
+
+    [Fact]
+    public void ThePlantsSiteOutlivesTheBombUntilTheNextRound()
+    {
+        var book = new UtilityBook(() => 0);
+        Assert.Equal(BombSiteName.Unknown, book.PlantedSite);
+
+        book.BombCarried(_tk);
+        book.BombPlanted(new Vector3(-2050, 440, 32), BombSiteName.B);
+        Assert.Equal(BombSiteName.B, book.PlantedSite);
+
+        // bomb_exploded or bomb_defused: the tick loses the bomb, the fact still names its site.
+        book.BombGone();
+        Assert.Null(book.Bomb());
+        Assert.Equal(BombSiteName.B, book.PlantedSite);
+
+        book.Reset();
+        Assert.Equal(BombSiteName.Unknown, book.PlantedSite);
+    }
 }

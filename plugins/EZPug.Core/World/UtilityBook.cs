@@ -75,6 +75,12 @@ internal sealed class UtilityBook
     /// <summary>Set at a round's start and by a pick-up nobody announced: the next bomb reading should look for it once.</summary>
     public bool BombSearchDue { get; private set; } = true;
 
+    /// <summary>
+    /// The site of this round's plant. It outlives <see cref="BombGone"/>, so a
+    /// <c>bomb_defused</c> or <c>bomb_exploded</c> can still name the site once the bomb has left the tick.
+    /// </summary>
+    public BombSiteName PlantedSite { get; private set; } = BombSiteName.Unknown;
+
     /// <summary>A flying grenade or a burning fire whose entity the tracker reads on every sample.</summary>
     public readonly record struct Followed(uint Key, uint Index, bool Fire);
 
@@ -266,6 +272,7 @@ internal sealed class UtilityBook
         SearchDue = false;
         _bomb = null;
         BombSearchDue = true;
+        PlantedSite = BombSiteName.Unknown;
     }
 
     /// <summary>Everything flying or active now, and each pop since the last call once.</summary>
@@ -339,6 +346,7 @@ internal sealed class UtilityBook
     {
         BombSearchDue = false;
         _bomb = new BombSighting(BombState.Planted, at, Site: site);
+        PlantedSite = site;
     }
 
     /// <summary><c>bomb_exploded</c> or <c>bomb_defused</c>: no bomb in play until the next round.</summary>

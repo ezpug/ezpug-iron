@@ -114,7 +114,7 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
   the convars after MatchZy set them, and the resolved `format`, so the platform proves
   wingman on every match instead of probing over RCON. Additive, released to Verdaccio with
   a comment on #4.
-- [ ] **T2e (effort: medium): the bomb facts name their site on a real server.** Found by
+- [x] **T2e (effort: medium): the bomb facts name their site on a real server.** Found by
   T2c on 2026-09-25: every `bomb_planted` and `bomb_exploded` the dev node sent carried no
   `site`. `CounterStrikeWorld.SiteOf(gameEvent.Site)` maps 0/1, and the event's `site` is
   not that (the `planted_c4`'s `m_nBombSite` is, which is what the tick's `bomb.site` now

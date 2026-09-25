@@ -186,6 +186,8 @@ type Summary = {
   /** The shared CS2 lane (T13): whether this run took the box's lock, and what it queued behind. */
   lock?: { taken: boolean; path: string | null; waitedSeconds: number; broke: string | null } | null
   payloads?: Record<string, number>
+  /** Per bomb fact type, how many named site `a`, `b`, or `none` (PRD-05 T2e). */
+  bombSites?: Record<string, Record<string, number>>
   /** Which map each fact named: the plan, `server_ready` (the engine's name), `going_live` (the plan's) — PRD-05 T1. */
   maps?: { planned: string[]; ready: (string | null)[]; live: string[] }
   /** The engine game `server_ready` and `going_live` said, and the format (PRD-05 T2d). */
@@ -538,8 +540,15 @@ const CASES: LaneCase[] = [
       expect(utility?.bomb.carried ?? 0, 'nobody was ever seen carrying the bomb').toBeGreaterThan(
         0,
       )
-      if ((utility?.bomb.planted ?? 0) > 0)
+      if ((utility?.bomb.planted ?? 0) > 0) {
         expect(utility?.sites.length, 'a planted bomb never named its site').toBeGreaterThan(0)
+        // Every site the tick drew a planted bomb in, a bomb_planted fact
+        // named too (PRD-05 T2e); the stream may have missed a plant the log holds.
+        expect(
+          Object.keys(summary.bombSites?.bomb_planted ?? {}),
+          'the bomb_planted facts named other sites than the tick',
+        ).toEqual(expect.arrayContaining(utility?.sites ?? []))
+      }
     },
   },
   {
@@ -1409,6 +1418,11 @@ function play(lane: LaneCase): Summary {
       linkFacts,
       'no death and no bomb: the link carried nothing of the match',
     ).toBeGreaterThan(0)
+    // **Every bomb fact names its site** (PRD-05 T2e), on every row that
+    // plants one: the event's own `site` is the trigger's entity index, and
+    // read as 0/1 it left every fact on the dev node without one.
+    for (const [type, sites] of Object.entries(summary.bombSites ?? {}))
+      expect(sites.none ?? 0, `a ${type} named no site`).toBe(0)
   }
 
   lane.facts?.(summary)
