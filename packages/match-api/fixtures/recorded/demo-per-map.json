@@ -156,7 +156,11 @@
         },
         "seq": 1,
         "type": "server_ready",
-        "map": "de_mirage"
+        "map": "de_mirage",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        }
       }
     },
     {
@@ -638,7 +642,12 @@
         "seq": 16,
         "mapNumber": 1,
         "type": "going_live",
-        "map": "de_mirage"
+        "map": "de_mirage",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        },
+        "format": "competitive"
       }
     },
     {
@@ -2057,7 +2066,7 @@
         "mapNumber": 1,
         "type": "demo_available",
         "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_mirage.ezpug-sim.json",
-        "sizeBytes": 12587
+        "sizeBytes": 12647
       }
     },
     {
@@ -2070,8 +2079,8 @@
         "type": "demo.uploaded",
         "mapNumber": 1,
         "key": "demos/conformance/map-1.dem",
-        "size": 12587,
-        "sha256": "3865ff71169fc3e8d3c21a7d6fa1aadb894e99b7837b6ebd60be9190a2dca276",
+        "size": 12647,
+        "sha256": "0662f0550ab9e4b66af6fe96c0dc33a95ceedb4d8f12c36757df211e009b17e0",
         "contentType": "application/json; charset=utf-8"
       }
     },
@@ -2141,7 +2150,12 @@
         "seq": 98,
         "mapNumber": 2,
         "type": "going_live",
-        "map": "de_nuke"
+        "map": "de_nuke",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        },
+        "format": "competitive"
       }
     },
     {
@@ -3347,7 +3361,7 @@
         "mapNumber": 2,
         "type": "demo_available",
         "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map2_de_nuke.ezpug-sim.json",
-        "sizeBytes": 10612
+        "sizeBytes": 10672
       }
     },
     {
@@ -3360,8 +3374,8 @@
         "type": "demo.uploaded",
         "mapNumber": 2,
         "key": "demos/conformance/map-2.dem",
-        "size": 10612,
-        "sha256": "21f8baa8a5a4cbcf3382f3aa4be9c6ebc416740172a923204a55cbadd8169f07",
+        "size": 10672,
+        "sha256": "2cf0906316db820daea0a3c9cd78c4203ef8efb37476cc2336da5b4a69057e41",
         "contentType": "application/json; charset=utf-8"
       }
     },

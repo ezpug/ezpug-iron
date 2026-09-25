@@ -37,3 +37,30 @@ export type MatchFormat = z.infer<typeof matchFormatSchema>
  * rather than sent to a server that cannot seat them.
  */
 export const WINGMAN_TEAM_SIZE = 2
+
+/**
+ * **The engine's own game, as the server read it** (PRD-05 T2d,
+ * ezpug/ezpug-iron#4): the `game_type` and `game_mode` convars when the map
+ * loaded. That is when they take effect, because the engine reads them at
+ * level init. A change after that decides the next map, which is why MatchZy
+ * loads the map again when it switches a server to wingman. So these are the
+ * numbers the map is being played under, not a request relayed back.
+ */
+export const engineGameSchema = z.object({
+  gameType: z.number().int().nonnegative(),
+  gameMode: z.number().int().nonnegative(),
+})
+export type EngineGame = z.infer<typeof engineGameSchema>
+
+/**
+ * The format an engine game is, or `undefined` for one that is neither:
+ * `game_type 0` with `game_mode 1` is `competitive`, with `game_mode 2` it is
+ * `wingman`, the same test MatchZy's `IsWingmanMode` makes. Deathmatch
+ * (`1`/`2`), casual (`0`/`0`) and the rest have no format here.
+ */
+export function formatOfEngineGame(engine: EngineGame): MatchFormat | undefined {
+  if (engine.gameType !== 0) return undefined
+  if (engine.gameMode === 1) return 'competitive'
+  if (engine.gameMode === 2) return 'wingman'
+  return undefined
+}

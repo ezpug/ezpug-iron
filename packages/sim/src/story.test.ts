@@ -978,3 +978,55 @@ describe('the knife perk (ezpug/ezpug-iron#6)', () => {
     expect(knifeKills(perkStory({ round: 2 }, 'knife-dm', DEATHMATCH))).toHaveLength(0)
   })
 })
+
+describe('the engine game on the record (PRD-05 T2d, ezpug/ezpug-iron#4)', () => {
+  it('says competitive on server_ready and every going_live of a five-a-side series', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'])
+    for (const ready of ofType(story, 'server_ready'))
+      expect(ready.engine).toEqual({ gameType: 0, gameMode: 1 })
+    const lives = ofType(story, 'going_live')
+    expect(lives.length).toBeGreaterThan(0)
+    for (const live of lives) {
+      expect(live.engine).toEqual({ gameType: 0, gameMode: 1 })
+      expect(live.format).toBe('competitive')
+    }
+  })
+
+  it('says wingman where the assignment is, as game_mode 2', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'wingman', { wingman: true })
+    const live = ofType(story, 'going_live')[0]
+    expect(live?.engine).toEqual({ gameType: 0, gameMode: 2 })
+    expect(live?.format).toBe('wingman')
+    for (const event of story.beats.map(beat => beat.event))
+      expect(gameserverEventSchema.safeParse(event).success).toBe(true)
+  })
+
+  it('draws no dice for it: the same seed plays the same match either way', () => {
+    const strip = (story: MatchStory) =>
+      story.beats.map(({ atMs, event }) => {
+        if (event.type === 'server_ready') return { atMs, ...event, engine: undefined }
+        if (event.type === 'going_live')
+          return { atMs, ...event, engine: undefined, format: undefined }
+        // The recording holds these beats, so its size moves by the format's name.
+        if (event.type === 'demo_available') return { atMs, ...event, sizeBytes: undefined }
+        return { atMs, ...event }
+      })
+    expect(strip(storyFor(SIMULATOR_SCENARIOS['happy-path'], 'same', { wingman: true }))).toEqual(
+      strip(storyFor(SIMULATOR_SCENARIOS['happy-path'], 'same')),
+    )
+  })
+
+  it('says it again on a restored server', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'restore', { wingman: true })
+    const resumed = resumeStory({
+      story,
+      assignment: fixtureAssignment({ wingman: true }),
+      source: SOURCE,
+      point: { mapNumber: 1, roundNumber: 3 },
+      prng: createPrng('restore-2'),
+      bootDelayMs: 4_000,
+    })
+    expect(ofType(resumed, 'server_ready')[0]?.engine).toEqual({ gameType: 0, gameMode: 2 })
+    expect(ofType(resumed, 'going_live')[0]?.format).toBe('wingman')
+  })
+})

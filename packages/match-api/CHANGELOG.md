@@ -6,6 +6,36 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.27.0 — 2026-09-25
+
+**The format on the record** (PRD-05 T2d, ezpug/ezpug-iron#4, for the platform's `wingman`
+lane row, PRD-12 T6). Additive: two optional fields on `going_live`, one on `server_ready`,
+one new schema and one function. The issue's option 2: a fact on every match rather than
+an RCON probe, which a node answers with nothing.
+
+- **`going_live.engine`** (`engineGameSchema`): `{ gameType, gameMode }`, the engine's
+  `game_type` and `game_mode` as the server read them when the map loaded. That is when
+  the engine applies them, so they are the game the map is being played under. A value
+  set later decides the next map, which is why MatchZy loads the map again for wingman.
+- **`going_live.format`** (`formatOfEngineGame`): `competitive` for `0`/`1`, `wingman` for
+  `0`/`2`, absent for any other game (deathmatch is `1`/`2`). The engine's word, so a
+  client compares it with the `rules.format` it sent.
+- **`server_ready.engine`**, the same per map load. A wingman match under MatchZy says
+  `server_ready` twice, and only the second, after the reload, says `gameMode: 2`, so
+  assert on `going_live`.
+- **Producers.** The core plugin reads both convars at map start, before anything of its
+  own is exec'd, on every node and on Dathost. The SDK's generic flow puts them on its own
+  `going_live`. MatchZy's `going_live` comes over its HTTP log, so the orchestrator copies
+  the engine game from that server's last `server_ready`, and reads it back from the
+  durable log after a restart. The simulator and the fake say `0`/`2` for a wingman
+  request and `0`/`1` otherwise, and draw no dice for it.
+- **Proved on the dev node.** The lane's `wingman` row (iron match
+  `376afd8f-0066-40ac-814f-6a39eb8bbb51`) said `server_ready` at `0`/`1`, then at `0`/`2`
+  after MatchZy's reload, and `going_live` at `0`/`2`, `format: "wingman"`. The `pug-1v1`
+  row (`0d848c51-aca5-45a9-b535-44ada46e498c`) went live at `0`/`1`, `competitive`. Both
+  rows assert it from now on, and the conformance suite checks it in `happy-bo1` and
+  `wingman-format`, which now plays its match out.
+
 ## 0.26.0 — 2026-09-25
 
 **Smokes and the bomb on the live tier** (PRD-05 T2c, ezpug/ezpug-iron#5, for the

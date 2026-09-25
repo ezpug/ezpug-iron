@@ -108,7 +108,7 @@ From the issue, verified against the tree on 2026-09-24 (match-api `0.22.0`).
     where a puppeted match's ticks carry a smoke through `flying` → `active` → gone.
   - **Release:** to Verdaccio, changelog naming the platform's live radar (PRD-12 T8b), and
     a comment on #5.
-- [ ] **T2d (effort: medium): the format on the record
+- [x] **T2d (effort: medium): the format on the record
   ([#4](https://github.com/ezpug/ezpug-iron/issues/4)).** The issue's option 2:
   `server_ready` (or `going_live`) carries the engine's `game_type` / `game_mode`, read off
   the convars after MatchZy set them, and the resolved `format`, so the platform proves

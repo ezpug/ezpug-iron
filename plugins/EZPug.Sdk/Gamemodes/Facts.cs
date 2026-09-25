@@ -54,7 +54,7 @@ public sealed class Facts
     }
 
     public ServerReadyEvent ServerReady(string map) =>
-        new() { MatchId = MatchId, Source = Source, Map = map };
+        new() { MatchId = MatchId, Source = Source, Map = map, Engine = Context.Engine };
 
     public PlayerConnectedEvent PlayerConnected(IGamePlayer player) =>
         new() { MatchId = MatchId, Source = Source, Player = Player(player) };
@@ -62,8 +62,32 @@ public sealed class Facts
     public PlayerDisconnectedEvent PlayerDisconnected(IGamePlayer player) =>
         new() { MatchId = MatchId, Source = Source, Player = Player(player) };
 
+    /// <summary><c>going_live</c> with the engine game this map loaded under and the format that is (PRD-05 T2d).</summary>
     public GoingLiveEvent GoingLive(string map, LiveLength? length = null) =>
-        new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Map = map, Length = length };
+        new()
+        {
+            MatchId = MatchId,
+            Source = Source,
+            MapNumber = Context.MapNumber,
+            Map = map,
+            Length = length,
+            Engine = Context.Engine,
+            Format = Context.Engine is { } engine ? FormatOf(engine) : null,
+        };
+
+    /// <summary>
+    /// The format an engine game is, or <c>null</c> for one that is neither: <c>game_type 0</c>
+    /// with <c>game_mode 1</c> is competitive, with <c>game_mode 2</c> wingman. The C# twin of
+    /// <c>formatOfEngineGame</c> in <c>@ezpug/match-api</c>, and MatchZy's own
+    /// <c>IsWingmanMode</c> test.
+    /// </summary>
+    public static MatchFormat? FormatOf(EngineGame engine) =>
+        (engine.GameType, engine.GameMode) switch
+        {
+            (0, 1) => MatchFormat.Competitive,
+            (0, 2) => MatchFormat.Wingman,
+            _ => null,
+        };
 
     public RoundStartEvent RoundStart(TeamScore? score = null) =>
         new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, RoundNumber = Context.RoundNumber, Score = score };

@@ -333,6 +333,12 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         'going_live precedes the first round',
         order.indexOf('going_live') < order.indexOf('round_start'),
       )
+      const wentLive = payload(envelopes, 'going_live')
+      ctx.check(
+        'going_live says the engine plays the five-a-side game',
+        wentLive?.format === 'competitive' && wentLive.engine?.gameMode === 1,
+        `going_live.format ${wentLive?.format}, engine ${JSON.stringify(wentLive?.engine)}`,
+      )
       ctx.check(
         'the commands landed as events',
         order.includes('match_paused') && order.includes('match_unpaused'),
@@ -1037,7 +1043,19 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       const body = ctx.request({ teams: duo, rules: wingmanRules })
       const created = await ctx.api.matches.create({ body })
       ctx.require('a wingman pug is accepted', UUID.test(created.id), created.id)
-      await ctx.api.matches.cancel({ params: { matchId: created.id } })
+
+      // PRD-05 T2d (ezpug/ezpug-iron#4): the server says which game the
+      // engine is playing when the map goes live, so a client proves the
+      // format from a fact rather than a console probe.
+      const { final, envelopes } = await playToEnd(ctx, created.id)
+      ctx.require('the wingman match ends', final.state === 'ended', terminal(final))
+      const live = payload(envelopes, 'going_live')
+      ctx.require('the wingman match goes live', live !== undefined, types(envelopes).join(','))
+      ctx.check(
+        'going_live says the engine plays wingman: game_type 0, game_mode 2',
+        live?.format === 'wingman' && live.engine?.gameType === 0 && live.engine.gameMode === 2,
+        `going_live.format ${live?.format}, engine ${JSON.stringify(live?.engine)}`,
+      )
 
       // `flying-scoutsman` runs no match plugin of its own (`flow: "none"`),
       // so there is nothing on that server to switch the engine game.

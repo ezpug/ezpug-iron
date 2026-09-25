@@ -17,6 +17,7 @@
  */
 import type { Prng } from '@ezpug/core'
 import type {
+  EngineGame,
   GamemodeLength,
   GameserverEvent,
   GameserverPlayer,
@@ -32,6 +33,7 @@ import type {
   TeamSide,
 } from '@ezpug/match-api'
 import {
+  formatOfEngineGame,
   isEphemeralGameserverEvent,
   radarToWorld,
   SDK_TOLD_FLOWS,
@@ -200,6 +202,21 @@ interface PlayerState {
   mvps: number
 }
 
+/**
+ * **The engine game every map of this story loads under** (PRD-05 T2d): what
+ * `server_ready.engine` and `going_live.engine` / `format` say. MatchZy sets
+ * `game_type 0` and `game_mode 2` for a wingman match and `1` for every other
+ * (`SetCorrectGameMode`), and a mode with another flow plays the image's boot
+ * game, which is competitive; wingman is refused for those at the door.
+ */
+function enginePlayed(assignment: MatchAssignment): {
+  engine: EngineGame
+  format?: ReturnType<typeof formatOfEngineGame>
+} {
+  const engine = { gameType: 0, gameMode: assignment.wingman ? 2 : 1 }
+  const format = formatOfEngineGame(engine)
+  return { engine, ...(format && { format }) }
+}
 /** Which side team A plays in round `round` (1-based, within one map). */
 export function teamASideAt(
   round: number,
@@ -386,9 +403,11 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
   // --- boot & connects ------------------------------------------------------
 
   const firstMap = assignment.maps[0] as (typeof assignment.maps)[number]
+  const engineOf = enginePlayed(assignment)
+  const { engine } = engineOf
   t += options.bootDelayMs
   const readyAtMs = t
-  emit(t, { type: 'server_ready', matchId, source, map: firstMap.map })
+  emit(t, { type: 'server_ready', matchId, source, map: firstMap.map, engine })
 
   /**
    * **This map's demo, if this mode makes one at all** (PRD-03 T9c). Only a
@@ -472,6 +491,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
       mapNumber: 1,
       map: firstMap.map,
       ...(inForce && { length: inForce }),
+      ...engineOf,
     })
     emit(liveAtMs, {
       type: 'round_start',
@@ -673,6 +693,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
       mapNumber: 1,
       map: firstMap.map,
       length: inForce,
+      ...engineOf,
     })
     emit(t, {
       type: 'round_start',
@@ -771,7 +792,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
 
     // Where this map's recording begins: everything from `going_live` on.
     const mapStartIndex = beats.length
-    emit(t, { type: 'going_live', matchId, source, mapNumber, map: decidedMap.map })
+    emit(t, { type: 'going_live', matchId, source, mapNumber, map: decidedMap.map, ...engineOf })
 
     const isFirstMap = mapIndex === 0
     const roundWinners = planMapRounds(
@@ -1576,6 +1597,7 @@ export interface ResumeStoryOptions {
  */
 export function resumeStory(options: ResumeStoryOptions): MatchStory {
   const { story, assignment, source, point, prng } = options
+  const engineOf = enginePlayed(assignment)
   const { matchId } = assignment
   const index = story.beats.findIndex(
     ({ event }) =>
@@ -1588,7 +1610,10 @@ export function resumeStory(options: ResumeStoryOptions): MatchStory {
 
   const beats: StoryBeat[] = []
   let t = options.bootDelayMs
-  beats.push({ atMs: t, event: { type: 'server_ready', matchId, source, map } })
+  beats.push({
+    atMs: t,
+    event: { type: 'server_ready', matchId, source, map, engine: engineOf.engine },
+  })
 
   const players: GameserverPlayer[] = [
     ...assignment.teamA.players.map(player => ({ ...player, team: 'team_a' as MatchTeam })),
@@ -1620,7 +1645,7 @@ export function resumeStory(options: ResumeStoryOptions): MatchStory {
   t += 3_000
   beats.push({
     atMs: t,
-    event: { type: 'going_live', matchId, source, mapNumber: point.mapNumber, map },
+    event: { type: 'going_live', matchId, source, mapNumber: point.mapNumber, map, ...engineOf },
   })
 
   // The sides at the resumed round, read off the round's own end — so a

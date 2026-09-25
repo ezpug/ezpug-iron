@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Clock, Timer } from '@ezpug/core'
 import type {
+  EngineGame,
   GamemodeManifest,
   GameserverEvent,
   GameserverPlayer,
@@ -22,6 +23,7 @@ import type {
 import {
   ApiError,
   demoUploadUrlFor,
+  formatOfEngineGame,
   gamemodeAllowsMap,
   hasDemoUploadUrl,
   isSimCommand,
@@ -302,6 +304,13 @@ interface Runtime {
   demos: { announced: number; uploaded: number }
   /** `series_end` arrived and the match is holding the server open for its demo. */
   awaitingDemo: boolean
+  /**
+   * The engine game the server's last `server_ready` read (PRD-05 T2d): what
+   * a `going_live` that does not say it is told, which is MatchZy's, because
+   * its `going_live` comes over MatchZy's own log and knows no convar. Read
+   * back from the durable log by `resume()`, like the demos.
+   */
+  engine: EngineGame | null
 }
 
 /** Round backups kept per match — MatchZy writes one a round; recovery wants the newest. */
@@ -454,6 +463,7 @@ export function createMatches(options: MatchesOptions): Matches {
         resumePending: null,
         demos: { announced: 0, uploaded: 0 },
         awaitingDemo: false,
+        engine: null,
       }
       runtimes.set(row.id, runtime)
     }
@@ -1257,6 +1267,24 @@ export function createMatches(options: MatchesOptions): Matches {
 
   // --- events from the server -----------------------------------------------------------
 
+  /**
+   * **The format on the record** (PRD-05 T2d, ezpug/ezpug-iron#4). A server
+   * reads `game_type` / `game_mode` when a map loads and says them on
+   * `server_ready`; the SDK's own `going_live` says them again. MatchZy's
+   * `going_live` reaches us through its HTTP log, which knows no convar, so
+   * it is told the engine game of this server's last `server_ready` here: the
+   * one after MatchZy's reload for wingman, which is the game it plays.
+   */
+  const withEngine = (runtime: Runtime, event: GameserverEvent): GameserverEvent => {
+    if (event.type === 'server_ready') {
+      if (event.engine) runtime.engine = event.engine
+      return event
+    }
+    if (event.type !== 'going_live' || event.engine || !runtime.engine) return event
+    const format = formatOfEngineGame(runtime.engine)
+    return { ...event, engine: runtime.engine, ...(format && { format }) }
+  }
+
   const onServerEvent = async (
     row: MatchRow,
     source: ServerRef,
@@ -1269,10 +1297,11 @@ export function createMatches(options: MatchesOptions): Matches {
     // (PRD-03 T4): this is the one funnel every server's events pass — the
     // link, MatchZy's door, the simulator's channel — so it is stamped here
     // and a consumer never has to read the request to know nobody was real.
-    const event: GameserverEvent = isSimulated(row)
+    const stamped: GameserverEvent = isSimulated(row)
       ? { ...said, source: { ...said.source, simulated: true } }
       : said
     const runtime = runtimeOf(row)
+    const event = withEngine(runtime, stamped)
     if (event.seq !== undefined) {
       const mark = `${serverKey(source)}#${event.seq}`
       if (runtime.seen.has(mark)) return 'duplicate'
@@ -1932,6 +1961,8 @@ export function createMatches(options: MatchesOptions): Matches {
    * demo arrived, was relayed, and ended nothing. The log holds every fact
    * the wait is made of, so the runtime is read back from it: the map the
    * series reached, the demos already announced, and when `series_end` came.
+   * The engine game the last `server_ready` read comes back the same way
+   * (T2d), so a MatchZy `going_live` after a restart still carries it.
    * A demo that is already in ends the match now; one still owed gets the
    * window that was left of it, counted from the `series_end` it followed.
    */
@@ -1944,6 +1975,7 @@ export function createMatches(options: MatchesOptions): Matches {
       for (const event of events) {
         const payload = event.payload
         if (payload.type === 'going_live') runtime.currentMap = payload.mapNumber
+        else if (payload.type === 'server_ready' && payload.engine) runtime.engine = payload.engine
         else if (payload.type === 'series_end')
           seriesEnd = { at: event.occurredAt.getTime(), reason: payload.reason }
         else if (payload.type === 'demo_available') {

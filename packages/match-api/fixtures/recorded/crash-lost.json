@@ -143,7 +143,11 @@
         },
         "seq": 1,
         "type": "server_ready",
-        "map": "de_mirage"
+        "map": "de_mirage",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        }
       }
     },
     {
@@ -625,7 +629,12 @@
         "seq": 16,
         "mapNumber": 1,
         "type": "going_live",
-        "map": "de_mirage"
+        "map": "de_mirage",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        },
+        "format": "competitive"
       }
     },
     {

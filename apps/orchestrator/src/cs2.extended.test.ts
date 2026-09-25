@@ -188,6 +188,11 @@ type Summary = {
   payloads?: Record<string, number>
   /** Which map each fact named: the plan, `server_ready` (the engine's name), `going_live` (the plan's) — PRD-05 T1. */
   maps?: { planned: string[]; ready: (string | null)[]; live: string[] }
+  /** The engine game `server_ready` and `going_live` said, and the format (PRD-05 T2d). */
+  engine?: {
+    ready: ({ gameType: number; gameMode: number } | null)[]
+    live: { engine: { gameType: number; gameMode: number } | null; format: string | null }[]
+  }
   /** The grenades and the bomb on the stream's position ticks (PRD-05 T2c); `null` when no tick sampled them. */
   utility?: {
     ticks: number
@@ -452,6 +457,11 @@ const CASES: LaneCase[] = [
       args: [],
       facts: summary => {
         readiedUp(summary, puppets)
+        // **The format on the record** (PRD-05 T2d): the five-a-side game,
+        // read off the engine, on the fact the platform asserts on.
+        expect(summary.engine?.live, 'going_live did not say the engine game').toEqual([
+          { engine: { gameType: 0, gameMode: 1 }, format: 'competitive' },
+        ])
         // **The full pug carries the demo** (PRD-02 T21, T21a). A forced end
         // cuts GOTV off before it finishes the file and a box without the
         // platform's S3 credentials never minted a target at all; neither is
@@ -557,6 +567,17 @@ const CASES: LaneCase[] = [
         summary.payloads?.server_ready,
         'no second server_ready: the map was never reloaded for game_mode 2',
       ).toBe(2)
+      // **And the engine says so** (PRD-05 T2d, #4): the first `server_ready`
+      // is the map before MatchZy's reload, the second the one it plays, and
+      // `going_live` carries that one, so the platform proves wingman from a
+      // fact rather than an RCON read that a node answers with nothing.
+      expect(summary.engine?.ready.at(-1), 'the reloaded map is not game_mode 2').toEqual({
+        gameType: 0,
+        gameMode: 2,
+      })
+      expect(summary.engine?.live, 'going_live did not say wingman').toEqual([
+        { engine: { gameType: 0, gameMode: 2 }, format: 'wingman' },
+      ])
     },
   },
   {

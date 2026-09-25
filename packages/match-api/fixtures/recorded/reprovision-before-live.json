@@ -193,7 +193,11 @@
         },
         "seq": 1,
         "type": "server_ready",
-        "map": "de_mirage"
+        "map": "de_mirage",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        }
       }
     },
     {
@@ -483,7 +487,11 @@
         },
         "seq": 1,
         "type": "server_ready",
-        "map": "de_mirage"
+        "map": "de_mirage",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        }
       }
     },
     {
@@ -931,7 +939,12 @@
         "seq": 14,
         "mapNumber": 1,
         "type": "going_live",
-        "map": "de_mirage"
+        "map": "de_mirage",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        },
+        "format": "competitive"
       }
     },
     {
@@ -2214,7 +2227,7 @@
         "mapNumber": 1,
         "type": "demo_available",
         "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_mirage.ezpug-sim.json",
-        "sizeBytes": 11358
+        "sizeBytes": 11418
       }
     },
     {
@@ -2227,8 +2240,8 @@
         "type": "demo.uploaded",
         "mapNumber": 1,
         "key": "demos/conformance.dem",
-        "size": 11358,
-        "sha256": "997ce43352626d97e4314ab49d06cfda714ce72e44b61af628983af4b25b1148",
+        "size": 11418,
+        "sha256": "2c9916dde124abe35a26ae4129a7d6bb4d663b2b408405475db1d346fda93771",
         "contentType": "application/json; charset=utf-8"
       }
     },

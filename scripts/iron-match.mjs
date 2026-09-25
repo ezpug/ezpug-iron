@@ -3109,6 +3109,22 @@ function write(result) {
         .filter(envelope => envelope.payload.type === 'going_live')
         .map(envelope => envelope.payload.map),
     },
+    /**
+     * **Which engine game each fact said** (PRD-05 T2d, ezpug/ezpug-iron#4):
+     * `game_type` / `game_mode` on every `server_ready`, and on every
+     * `going_live` with the format that is. `null` where a fact did not say.
+     */
+    engine: {
+      ready: result.envelopes
+        .filter(envelope => envelope.payload.type === 'server_ready')
+        .map(envelope => envelope.payload.engine ?? null),
+      live: result.envelopes
+        .filter(envelope => envelope.payload.type === 'going_live')
+        .map(envelope => ({
+          engine: envelope.payload.engine ?? null,
+          format: envelope.payload.format ?? null,
+        })),
+    },
     /** Every payload type the durable log ended up holding, with its count. */
     payloads: Object.fromEntries(
       Object.entries(

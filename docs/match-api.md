@@ -199,6 +199,21 @@ decision 2026-09-19).
   mode: a wingman match costs one map change before warmup. Your `rules` still win over
   that cfg — they are re-applied after it — so send the rounds you mean.
 
+**The engine says which game it played** (since 0.27.0, PRD-05 T2d, #4). `going_live`
+carries `engine: { gameType, gameMode }`, the `game_type` / `game_mode` the server read
+when that map loaded, and `format`, which game that is: `0`/`1` is `competitive`, `0`/`2`
+is `wingman` (`formatOfEngineGame`, MatchZy's own `IsWingmanMode` test), and anything else
+(deathmatch is `1`/`2`) has no `format`. It is the engine's word, not your request echoed,
+so comparing `going_live.format` with the `rules.format` you sent proves the format on
+every match, with no RCON read (a node's RCON answers a convar read with nothing). They are
+read at map load because that is when the engine applies them: a value set later decides
+the next map, which is why MatchZy loads the map again for wingman. `server_ready.engine`
+says the same per load, so a wingman match's first `server_ready` is the map before that
+reload and its second is the one played; assert on `going_live`. A MatchZy flow's
+`going_live` comes over MatchZy's own log, which knows no convar, so the orchestrator copies
+the engine game from that server's last `server_ready`, and reads it back from the log
+after a restart. Both fields are optional: a source that never read them leaves them off.
+
 **`simulation` is a match played by puppets** (PRD-03 T4, decision 25): a body on the
 server for every roster entry — or for the entries `simulation.puppets` names (PRD-04 T2) —
 carrying that entry's SteamID and name, that connects, readies up through the match

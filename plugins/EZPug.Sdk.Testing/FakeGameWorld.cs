@@ -49,7 +49,12 @@ public sealed record WorldAction(string Verb, ulong? SteamId64, string Detail)
 public sealed class FakeGameWorld : IGameWorld
 {
     private readonly List<FakePlayer> _players = [];
-    private readonly Dictionary<string, string> _cvars = new(StringComparer.OrdinalIgnoreCase);
+    // The engine game the server image boots with (`docker/cs2/entrypoint.sh`): competitive.
+    private readonly Dictionary<string, string> _cvars = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["game_type"] = "0",
+        ["game_mode"] = "1",
+    };
     private readonly Queue<PlayerTeam?> _askedBots = new();
     private int _botsNamed = 1;
 

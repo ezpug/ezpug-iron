@@ -1,5 +1,6 @@
 import {
   bombSiteSchema,
+  engineGameSchema,
   gamemodeCapabilitiesSchema,
   gamemodeFlowSchema,
   gamemodeLengthSchema,
@@ -20,6 +21,7 @@ import {
   matchApiErrorCodeSchema,
   matchBrandingSchema,
   matchEndReasonSchema,
+  matchFormatSchema,
   matchRulesSchema,
   matchSimulationSchema,
   matchTeamSchema,
@@ -158,6 +160,16 @@ const SHARED_NAMES: readonly Named[] = [
     schema: liveLengthSchema,
     id: 'LiveLength',
     description: 'The length in force for a live map.',
+  },
+  {
+    schema: engineGameSchema,
+    id: 'EngineGame',
+    description: 'The engine game a map loaded under: game_type and game_mode.',
+  },
+  {
+    schema: matchFormatSchema,
+    id: 'MatchFormat',
+    description: 'Which game the engine plays: competitive or wingman.',
   },
   {
     schema: matchEndReasonSchema,

@@ -26,6 +26,14 @@ public sealed class MatchContext
     /// <summary>The side team A is on right now. From the map plan at assignment, swapped by a <c>side_swap</c>.</summary>
     public TeamSide TeamASide { get; internal set; } = TeamSide.Ct;
 
+    /// <summary>
+    /// The engine game this map loaded under (PRD-05 T2d): <c>game_type</c> and
+    /// <c>game_mode</c>, read when the map started, because that is when the engine reads
+    /// them. <c>null</c> before a map of this match started, or when the world could not
+    /// read them.
+    /// </summary>
+    public EngineGame? Engine { get; internal set; }
+
     /// <summary>The per-match sequence hint the last emitted event carried.</summary>
     public long LastSeq { get; internal set; }
 
@@ -45,6 +53,7 @@ public sealed class MatchContext
         RoundNumber = 0;
         Live = false;
         TeamASide = teamASide;
+        Engine = null;
         LastSeq = 0;
     }
 
@@ -54,6 +63,7 @@ public sealed class MatchContext
         MapNumber = 1;
         RoundNumber = 0;
         Live = false;
+        Engine = null;
         LastSeq = 0;
     }
 }

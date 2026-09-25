@@ -146,7 +146,11 @@
         },
         "seq": 1,
         "type": "server_ready",
-        "map": "workshop/3084291314/aim_map"
+        "map": "workshop/3084291314/aim_map",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        }
       }
     },
     {
@@ -628,7 +632,12 @@
         "seq": 16,
         "mapNumber": 1,
         "type": "going_live",
-        "map": "workshop/3084291314/aim_map"
+        "map": "workshop/3084291314/aim_map",
+        "engine": {
+          "gameType": 0,
+          "gameMode": 1
+        },
+        "format": "competitive"
       }
     },
     {
@@ -1967,7 +1976,7 @@
         "mapNumber": 1,
         "type": "demo_available",
         "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_workshop/3084291314/aim_map.ezpug-sim.json",
-        "sizeBytes": 11133
+        "sizeBytes": 11193
       }
     },
     {
@@ -1980,8 +1989,8 @@
         "type": "demo.uploaded",
         "mapNumber": 1,
         "key": "demos/conformance.dem",
-        "size": 11133,
-        "sha256": "5fe0e06629270cbb63524ad01ceca1f9ebf3ba940a15a744e18b789b8824ab52",
+        "size": 11193,
+        "sha256": "92b6d8dbfb9b163630b6bbe44a46b771534d6f86a0f3a651f2680dc9e79d5b91",
         "contentType": "application/json; charset=utf-8"
       }
     },

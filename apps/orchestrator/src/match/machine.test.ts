@@ -1783,6 +1783,86 @@ describe('the demo', () => {
     await app.close()
   })
 
+  /**
+   * **The format on the record** (PRD-05 T2d, ezpug/ezpug-iron#4). MatchZy's
+   * `going_live` comes over its HTTP log and knows no convar; the machine tells
+   * it the engine game of the server's last `server_ready`, which for wingman
+   * is the second one, after MatchZy loaded the map again under `game_mode 2`.
+   */
+  const readied = async (app: TestApp) => {
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, withDemo())
+    await app.settle()
+    const row = app.store.rows.servers.find(server => server.matchId === match.id)
+    if (!row?.serverId) throw new Error('the walk left no server')
+    const source = { provider: PHANTOM, serverId: row.serverId }
+    const sayTo =
+      (matches: { ingest: TestApp['matches']['ingest'] }) =>
+      (event: Record<string, unknown> & { type: GameserverEvent['type'] }) =>
+        matches.ingest(source, { ...event, matchId: match.id, source } as GameserverEvent)
+    const say = sayTo(app.matches)
+    await say({ type: 'server_ready', map: 'de_mirage', engine: { gameType: 0, gameMode: 1 } })
+    await say({ type: 'server_ready', map: 'de_mirage', engine: { gameType: 0, gameMode: 2 } })
+    await app.settle()
+    return { match, say, sayTo }
+  }
+  const goingLive = (app: TestApp, matchId: string) =>
+    app.store.rows.events.find(e => e.matchId === matchId && e.payload.type === 'going_live')
+      ?.payload
+
+  it('tells a going_live that knows no engine game the last server_ready’s', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { match, say } = await readied(app)
+    await say({ type: 'going_live', mapNumber: 1, map: 'de_mirage' })
+    await app.settle()
+    expect(goingLive(app, match.id)).toMatchObject({
+      engine: { gameType: 0, gameMode: 2 },
+      format: 'wingman',
+    })
+    await app.close()
+  })
+
+  it('leaves a going_live that said its own engine game as it said it', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { match, say } = await readied(app)
+    await say({
+      type: 'going_live',
+      mapNumber: 1,
+      map: 'de_mirage',
+      engine: { gameType: 1, gameMode: 2 },
+    })
+    await app.settle()
+    const live = goingLive(app, match.id)
+    expect(live).toMatchObject({ engine: { gameType: 1, gameMode: 2 } })
+    expect(live).not.toHaveProperty('format')
+    await app.close()
+  })
+
+  it('says nothing it was never told', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key, match, say } = await scripted(app)
+    await say({ type: 'series_end', seriesScore: { teamA: 1, teamB: 0 }, winner: 'team_a' })
+    const live = goingLive(app, match.id)
+    expect(live).not.toHaveProperty('engine')
+    expect(live).not.toHaveProperty('format')
+    expect((await app.matches.get(key, match.id)).state).toBe('live')
+    await app.close()
+  })
+
+  it('still tells it after a restart between server_ready and going_live', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { match, sayTo } = await readied(app)
+    const revived = await restarted(app)
+    await sayTo(revived)({ type: 'going_live', mapNumber: 1, map: 'de_mirage' })
+    await revived.settle()
+    expect(goingLive(app, match.id)).toMatchObject({
+      engine: { gameType: 0, gameMode: 2 },
+      format: 'wingman',
+    })
+    await revived.close()
+    await app.close()
+  })
+
   it('does not hold a mode that records no demo, nor one with nowhere to put it', async () => {
     for (const body of [request(), withDemo({ gamemode: 'flying-scoutsman', rules: undefined })]) {
       const app = createTestApp({ providers: [createPhantomProvider()] })

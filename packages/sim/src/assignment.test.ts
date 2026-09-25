@@ -25,6 +25,37 @@ describe('readMatchAssignment', () => {
     expect(assignment.overtime).toEqual({ enabled: true, maxRounds: 6 })
   })
 
+  it("reads MatchZy's wingman flag, which is what switches the engine game", () => {
+    expect(readMatchAssignment(handoff(matchzyBo1)).wingman).toBeUndefined()
+    expect(readMatchAssignment(handoff({ ...matchzyBo1, wingman: true })).wingman).toBe(true)
+    const request = {
+      matchId: FIXTURE_MATCH_ID,
+      game: 'cs2' as const,
+      teams: {
+        teamA: {
+          name: 'A',
+          players: [{ steamId64: '76561198070000101', name: 'hunzR', locale: 'de' as const }],
+        },
+        teamB: {
+          name: 'B',
+          players: [{ steamId64: '76561198070000201', name: 'wickeD', locale: 'en' as const }],
+        },
+      },
+      maps: [{ map: 'de_nuke', sides: 't' as const }],
+    }
+    const rules = {
+      regulationRounds: 16,
+      overtime: { enabled: false, maxRounds: 6, startMoney: 10_000 },
+    }
+    expect(
+      assignmentFromMatchRequest({ ...request, rules: { ...rules, format: 'wingman' } }).wingman,
+    ).toBe(true)
+    expect(
+      assignmentFromMatchRequest({ ...request, rules: { ...rules, format: 'competitive' } })
+        .wingman,
+    ).toBeUndefined()
+  })
+
   it('reads a Get5 config the same way (the csgo dialect)', () => {
     const assignment = readMatchAssignment(handoff(get5Bo1, 'csgo'))
     expect(assignment.game).toBe('csgo')

@@ -276,6 +276,35 @@
       },
       "additionalProperties": false
     },
+    "EngineGame": {
+      "description": "The engine game a map loaded under: game_type and game_mode.",
+      "type": "object",
+      "properties": {
+        "gameType": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "gameMode": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "gameType",
+        "gameMode"
+      ],
+      "additionalProperties": false
+    },
+    "MatchFormat": {
+      "description": "Which game the engine plays: competitive or wingman.",
+      "type": "string",
+      "enum": [
+        "competitive",
+        "wingman"
+      ]
+    },
     "MatchEndReason": {
       "description": "Which part of a mode’s length ended the match.",
       "type": "string",
@@ -347,6 +376,9 @@
             "map": {
               "type": "string",
               "minLength": 1
+            },
+            "engine": {
+              "$ref": "#/$defs/EngineGame"
             }
           },
           "required": [
@@ -752,6 +784,12 @@
             },
             "length": {
               "$ref": "#/$defs/LiveLength"
+            },
+            "engine": {
+              "$ref": "#/$defs/EngineGame"
+            },
+            "format": {
+              "$ref": "#/$defs/MatchFormat"
             }
           },
           "required": [
@@ -2085,11 +2123,7 @@
         "format": {
           "default": "competitive",
           "description": "the engine game: competitive (5v5) or wingman (2v2)",
-          "type": "string",
-          "enum": [
-            "competitive",
-            "wingman"
-          ]
+          "$ref": "#/$defs/MatchFormat"
         },
         "regulationRounds": {
           "type": "integer",

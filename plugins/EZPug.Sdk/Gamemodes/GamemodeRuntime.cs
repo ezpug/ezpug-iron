@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using EZPug.Sdk.Protocol;
 
@@ -560,6 +561,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         CancelSettle();
         _mapReady = true;
         _ready = false;
+        // Read before the host's MapLoaded execs anything: this is the game the level
+        // initialised under, and a cfg or MatchZy setting them now decides the next map.
+        Match.Engine = ReadEngineGame();
         Commands?.Reset(PlayerCommandChargePeriod.Map);
         Flow.OnMapStarted();
         MapLoaded?.Invoke(Assignment, map);
@@ -593,6 +597,23 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Active?.OnStart();
         Puppets.OnReady();
         Length.OnReady();
+    }
+
+    /// <summary>The engine's <c>game_type</c> and <c>game_mode</c>, or <c>null</c> when either cannot be read as a number.</summary>
+    private EngineGame? ReadEngineGame()
+    {
+        var type = World.GetCvar("game_type");
+        var mode = World.GetCvar("game_mode");
+        if (long.TryParse(type, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gameType)
+            && long.TryParse(mode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gameMode)
+            && gameType >= 0
+            && gameMode >= 0)
+        {
+            return new EngineGame { GameType = gameType, GameMode = gameMode };
+        }
+
+        _log.Warn($"the engine game could not be read (game_type {type ?? "unset"}, game_mode {mode ?? "unset"}); server_ready and going_live will not carry it");
+        return null;
     }
 
     private void CancelSettle()

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { engineGameSchema, matchFormatSchema } from './format'
 import { gameserverEventTypeSchema, kebabNameSchema } from './naming'
 import { steamId64Schema } from './steam-id'
 
@@ -205,6 +206,13 @@ export const serverReadyEventSchema = eventBase.extend({
    * `workshop/<id>/<name>`; `going_live.map` is the plan's.
    */
   map: z.string().min(1).optional(),
+  /**
+   * The engine game this map loaded under (PRD-05 T2d), where the source
+   * reads it. A wingman match under MatchZy says `server_ready` twice, and
+   * only the second, after the map was loaded again, says `gameMode: 2`;
+   * `going_live.engine` is the one to assert on.
+   */
+  engine: engineGameSchema.optional(),
 })
 
 /** Periodic liveness. A gap in these opens Match.md §2's recovery window. */
@@ -329,6 +337,22 @@ export const goingLiveEventSchema = mapScoped.extend({
   map: z.string().min(1),
   /** Present when the mode's manifest gives the match a duration or a frag limit. */
   length: liveLengthSchema.optional(),
+  /**
+   * **The engine game the map is being played under** (PRD-05 T2d,
+   * ezpug/ezpug-iron#4): `game_type` / `game_mode` as the server read them
+   * when this map loaded. On a MatchZy flow, whose `going_live` reaches the
+   * orchestrator over MatchZy's own log, the orchestrator copies it from
+   * this server's last `server_ready` for the match. Absent where the source
+   * never read it.
+   */
+  engine: engineGameSchema.optional(),
+  /**
+   * The format `engine` is (`formatOfEngineGame`): the engine's word,
+   * not the request's, so a client proves the format it asked for by
+   * comparing the two. Absent when `engine` is, or when it is a game with no
+   * format (deathmatch).
+   */
+  format: matchFormatSchema.optional(),
 })
 
 export const roundStartEventSchema = roundScoped.extend({

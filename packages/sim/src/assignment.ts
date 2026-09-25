@@ -83,6 +83,13 @@ export interface MatchAssignment {
   /** The manifest's `slots.openJoin`: a tap from a SteamID64 not on the roster is a joined player's, not a stranger's. */
   openJoin?: boolean
   /**
+   * **The two-a-side game** (PRD-03 T3b): MatchZy's `wingman`, or the request's
+   * `rules.format`. It decides the engine game the story's `server_ready` and
+   * `going_live` report (PRD-05 T2d), as it decides `game_mode` on a real
+   * server. Absent: the five-a-side game.
+   */
+  wingman?: boolean
+  /**
    * The manifest's `slots.teams`. `1` is a free-for-all: the roster is still
    * dealt into two sides, because that is the only shape a request has, but
    * **no map and no series has a winner** — the SDK's own rule
@@ -240,6 +247,7 @@ export function readMatchAssignment(handoff: MatchConfigHandoff): MatchAssignmen
     maps,
     regulationRounds,
     overtime,
+    ...(config.wingman === true && { wingman: true }),
   })
 }
 
@@ -250,7 +258,7 @@ export interface MatchRequestHandoff {
   teams: MatchTeams
   maps: readonly MapPlan[]
   /** Absent = the platform's ranked defaults: MR12 (MR15 on csgo), MR3 overtime. */
-  rules?: Pick<MatchRules, 'regulationRounds' | 'overtime'>
+  rules?: Pick<MatchRules, 'regulationRounds' | 'overtime'> & Partial<Pick<MatchRules, 'format'>>
   /** The manifest's `commands`, for a mode with a widget. */
   commands?: readonly PlayerCommandSpec[]
   /** The manifest's `slots.openJoin`. */
@@ -293,6 +301,7 @@ export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchA
     overtime: handoff.rules
       ? { enabled: handoff.rules.overtime.enabled, maxRounds: handoff.rules.overtime.maxRounds }
       : { enabled: true, maxRounds: DEFAULT_OVERTIME_ROUNDS },
+    ...(handoff.rules?.format === 'wingman' && { wingman: true }),
     ...(handoff.commands !== undefined && { commands: handoff.commands }),
     ...(handoff.openJoin !== undefined && { openJoin: handoff.openJoin }),
     ...(handoff.teamCount !== undefined && { teamCount: handoff.teamCount }),

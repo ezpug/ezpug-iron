@@ -253,6 +253,27 @@ public sealed record LiveLength
     public long? FragLimit { get; init; }
 }
 
+/// <summary>The engine game a map loaded under: game_type and game_mode.</summary>
+public sealed record EngineGame
+{
+    [JsonPropertyName("gameType")]
+    [JsonPropertyOrder(0)]
+    public required long GameType { get; init; }
+
+    [JsonPropertyName("gameMode")]
+    [JsonPropertyOrder(1)]
+    public required long GameMode { get; init; }
+}
+
+/// <summary>Which game the engine plays: competitive or wingman.</summary>
+public enum MatchFormat
+{
+    [JsonStringEnumMemberName("competitive")]
+    Competitive,
+    [JsonStringEnumMemberName("wingman")]
+    Wingman,
+}
+
 /// <summary>Which part of a mode’s length ended the match.</summary>
 public enum MatchEndReason
 {
@@ -344,6 +365,11 @@ public sealed record ServerReadyEvent : GameserverEvent
     [JsonPropertyOrder(4)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Map { get; init; }
+
+    [JsonPropertyName("engine")]
+    [JsonPropertyOrder(5)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EngineGame? Engine { get; init; }
 }
 
 /// <summary><c>heartbeat</c> — one branch of <see cref="GameserverEvent"/>.</summary>
@@ -720,6 +746,16 @@ public sealed record GoingLiveEvent : GameserverEvent
     [JsonPropertyOrder(6)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public LiveLength? Length { get; init; }
+
+    [JsonPropertyName("engine")]
+    [JsonPropertyOrder(7)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EngineGame? Engine { get; init; }
+
+    [JsonPropertyName("format")]
+    [JsonPropertyOrder(8)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MatchFormat? Format { get; init; }
 }
 
 /// <summary><c>round_start</c> — one branch of <see cref="GameserverEvent"/>.</summary>
@@ -1919,7 +1955,7 @@ public sealed record MatchRules
 {
     [JsonPropertyName("format")]
     [JsonPropertyOrder(0)]
-    public MatchRulesFormat Format { get; init; } = MatchRulesFormat.Competitive;
+    public MatchFormat Format { get; init; } = MatchFormat.Competitive;
 
     [JsonPropertyName("regulationRounds")]
     [JsonPropertyOrder(1)]
@@ -1936,14 +1972,6 @@ public sealed record MatchRules
     [JsonPropertyName("cvars")]
     [JsonPropertyOrder(4)]
     public Dictionary<string, string> Cvars { get; init; } = new();
-}
-
-public enum MatchRulesFormat
-{
-    [JsonStringEnumMemberName("competitive")]
-    Competitive,
-    [JsonStringEnumMemberName("wingman")]
-    Wingman,
 }
 
 /// <summary>The <c>overtime</c> block of <see cref="MatchRules"/>.</summary>
