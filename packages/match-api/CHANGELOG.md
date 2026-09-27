@@ -6,6 +6,44 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.28.0 — 2026-09-27
+
+**Rush, and the vocabulary of a tower round** (PRD-06 T1, for the platform's PRD-13 T19).
+Additive: a fifth manifest in the catalog, two values of `RoundWinCondition`, one optional
+field on `round_end` and one on `map_end`, and the schemas they are made of. Every event a
+0.27.0 client parsed still parses.
+
+- **The `rush` manifest.** Valve's Rush (2026-09-22), 3v3 on `rush_001`: tier `config`, flow
+  `none`, records `events`, `slots { teamSize: 3, teams: 2, openJoin: false }`, unranked,
+  `maps: { catalog: ["rush_001"] }` (an engine name, so `mapIdentifierSchema` already admits
+  it), `cfg ["ezpug/rush.cfg"]`, which execs the game's own `gamemode_rush.cfg`, and the
+  cvars `bot_quota 0`, `mp_maxrounds 15`, `sv_cheats 0`. It claims `simulation` and
+  `mixedRoster`. The engine game is `game_type 0` / `game_mode 6`, read off the node's own
+  `gamemodes.txt`, so a Rush `going_live.engine` says `0`/`6` and carries no `format`. **Send
+  a Rush request without `rules`.** `regulationRounds` is even by schema and would override
+  the mode's 15.
+- **`RoundWinCondition` gains `tower_held` and `tower_captured`.** In a tower round the owner
+  of the tower wins. `tower_held`: the side that held it as the round began still owns it
+  when the clock runs out. `tower_captured`: the winner took it during the round.
+  `elimination`: the holders kept it and every attacker died. A client with an exhaustive
+  switch over the enum has two cases to add.
+- **`round_end.tower`** (`roundTowerSchema`): `{ room, roomId?, heldBy }`. `room` is where on
+  the line of seven the round was played, 1-based in side order: `1` is the T castle (`401`),
+  `4` the start room, `7` the CT castle (`301`). `roomId` is the arena, one of
+  `RUSH_ROOM_IDS` (`101`–`104`, `201`–`212`, `301`, `401`, `convoy`). `heldBy` is the side
+  that held the tower as the round began, `null` for a room nobody owns. The owner at the
+  end is always the round's `winner`.
+- **`map_end.tower`** (`mapTowerSchema`): `{ room, roomId?, ending }`. This is the last room
+  played. `ending` is `castle` when a win inside the enemy castle ended the match, `rounds`
+  when the rounds ran out (15, or 8 clinched).
+- **Fixtures.** `TOWER_EVENT_FIXTURES` in `@ezpug/match-api/fixtures`: a Rush `going_live`,
+  a round of each of the three conditions, walked along the line as the map walks it, and
+  a `map_end` for each ending.
+- **Producers.** Nothing speaks these yet. The simulator learns Rush in PRD-06 T2 and the
+  SDK's generic flow on the dev node in T3; both follow the walk and the deaths rather
+  than read the map script's state. The generated C# (`RoundTower`, `MapTower`,
+  `RushRoomId`, `TowerMapEnding`) is already in `EZPug.Sdk`.
+
 ## 0.27.0 — 2026-09-25
 
 **The format on the record** (PRD-05 T2d, ezpug/ezpug-iron#4, for the platform's `wingman`

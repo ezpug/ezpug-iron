@@ -12,7 +12,7 @@ import {
   WEBHOOK_SECRET_ID,
 } from '../fake/testing'
 import type { StreamFrame, WebhookEnvelope } from '../index'
-import { STREAM_CLOSE_CODES } from '../index'
+import { SHIPPED_GAMEMODE_IDS, STREAM_CLOSE_CODES } from '../index'
 import {
   createDeliveryDeduper,
   createMemoryDeliveryStore,
@@ -200,7 +200,7 @@ describe('the client and the verifier against the fake over HTTP', () => {
 
     const before = h.clock.now()
     const catalog = await drive(h.clock, client.gamemodes.list())
-    expect(catalog.gamemodes).toHaveLength(4)
+    expect(catalog.gamemodes).toHaveLength(SHIPPED_GAMEMODE_IDS.length)
     expect(retries.map(info => info.status)).toEqual([429, 429, 429])
     expect(retries.map(info => info.delayMs)).toEqual([1_000, 1_000, 1_000])
     expect(h.clock.now()).toBe(before + 3_000)

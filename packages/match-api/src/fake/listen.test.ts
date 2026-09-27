@@ -3,7 +3,7 @@ import { eventually } from '@ezpug/core/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
 import { createMatchApiClient } from '../client'
-import { STREAM_CLOSE_CODES, streamFrameSchema } from '../index'
+import { SHIPPED_GAMEMODE_IDS, STREAM_CLOSE_CODES, streamFrameSchema } from '../index'
 import { createHarness, type FakeListener, type Harness, pugRequest } from './testing'
 
 /**
@@ -42,7 +42,7 @@ describe('the fake on a socket', () => {
     const client = createMatchApiClient({ baseUrl: listener.url, apiKey: h.platform.secret })
     const match = await client.matches.create({ body: pugRequest() })
     expect(match.state).toBe('allocating')
-    expect((await client.gamemodes.list()).gamemodes).toHaveLength(4)
+    expect((await client.gamemodes.list()).gamemodes).toHaveLength(SHIPPED_GAMEMODE_IDS.length)
 
     const wsUrl = `${listener.url.replace('http', 'ws')}/v1/matches/${match.id}/stream`
     const byKey = open(wsUrl, { authorization: `Bearer ${h.platform.secret}` })

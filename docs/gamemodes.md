@@ -37,6 +37,7 @@ Three tiers, each proved by one shipped mode (decision 15), plus the queue's mod
 | `plugin` | `retakes`          | two vendored community plugins (B3none/cs2-retakes and a weapon allocator, `docs/pins.md`) under the core plugin: its own rounds and spawns, its own map pool, open join, **one group of ten rather than two teams** (T10: the plugin rebuilds an attacking and a defending side out of the pool every round, so no EZPug team survives one and nobody wins the map), events without a demo. Its settings arrive as a file, not as cvars ("A vendored plugin's own config file" below), and the SDK's generic emitter tells the match flow |
 | `plugin` | `pug`              | 5v5 on MatchZy: knife, overtime, demo, round backups — the queue's default and its only mode |
 | `sdk`    | `powerup-dm`       | an original mode on `EZPug.Sdk`: player commands, per-player state and a phone widget |
+| `config` | `rush`             | Valve's Rush, 3v3 on `rush_001` (`game_type 0` / `game_mode 6`): the rules are the map's own script, so the cfg execs the engine's `gamemode_rush.cfg` and the SDK's generic emitter tells the story. Its rounds say `tower_held` or `tower_captured` and carry the room (PRD-06) |
 
 The tier decides what the rest of the manifest may say. What each mode actually does on the
 server is PRD-02's work; the manifests were authored first so both loops build against the

@@ -77,7 +77,7 @@ function issuesOf(input: GamemodeManifestInput): string[] {
   return result.success ? [] : result.error.issues.map(issue => issue.path.join('.'))
 }
 
-describe('the four shipped manifests', () => {
+describe('the shipped manifests', () => {
   it('are every directory under gamemodes/, each with a manifest.json, in catalog order', () => {
     const directories = readdirSync(gamemodesDir, { withFileTypes: true })
       // `@ezpug/gamemodes` has a devDependency on the kit that builds its
@@ -127,7 +127,7 @@ describe('the four shipped manifests', () => {
 
   it('serve as the catalog and each as a summary', () => {
     const catalog = gamemodeCatalogSchema.parse({ gamemodes: SHIPPED_GAMEMODES })
-    expect(catalog.gamemodes).toHaveLength(4)
+    expect(catalog.gamemodes).toHaveLength(SHIPPED_GAMEMODE_IDS.length)
     for (const manifest of SHIPPED_GAMEMODES) {
       expect(gamemodeSummarySchema.parse(manifest).id).toBe(manifest.id)
     }

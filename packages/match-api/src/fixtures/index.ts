@@ -197,6 +197,80 @@ export const GAMESERVER_EVENT_FIXTURES: {
 }
 
 /**
+ * **The shapes of a Rush match** (PRD-06 T1) — the events a `rush` map says
+ * that no other mode does, one per way the map's script ends a round or the
+ * match. The line runs `401` (the T castle, room 1) to `301` (the CT castle,
+ * room 7) with `104` in the middle; CT holds the start room and the three
+ * behind it, T the three behind its own side.
+ */
+export const TOWER_EVENT_FIXTURES = {
+  /** Rush is `game_type 0` / `game_mode 6`, a game with no format of ours. */
+  going_live: {
+    type: 'going_live',
+    ...base,
+    mapNumber: 1,
+    map: 'rush_001',
+    engine: { gameType: 0, gameMode: 6 },
+  },
+  /** The clock ran out on CT still holding the start room. */
+  held: {
+    type: 'round_end',
+    ...base,
+    mapNumber: 1,
+    roundNumber: 1,
+    winner: { team: 'team_a', side: 'ct' },
+    winCondition: 'tower_held',
+    score: { teamA: 1, teamB: 0 },
+    roundTimeMs: 40_000,
+    tower: { room: 4, roomId: '104', heldBy: 'ct' },
+  },
+  /** CT walked into the T side's mid room, and every CT died there: T kept it. */
+  elimination: {
+    type: 'round_end',
+    ...base,
+    mapNumber: 1,
+    roundNumber: 2,
+    winner: { team: 'team_b', side: 't' },
+    winCondition: 'elimination',
+    score: { teamA: 1, teamB: 1 },
+    roundTimeMs: 27_310,
+    tower: { room: 3, roomId: '207', heldBy: 't' },
+  },
+  /** Back in the start room: CT was wiped out, and T pressed the button in the seconds left. */
+  captured: {
+    type: 'round_end',
+    ...base,
+    mapNumber: 1,
+    roundNumber: 3,
+    winner: { team: 'team_b', side: 't' },
+    winCondition: 'tower_captured',
+    score: { teamA: 1, teamB: 2 },
+    roundTimeMs: 33_900,
+    tower: { room: 4, roomId: '104', heldBy: 'ct' },
+  },
+  /** The CT side won in the T castle, four rooms clear: over before its fifteen rounds. */
+  castle: {
+    type: 'map_end',
+    ...base,
+    mapNumber: 1,
+    map: 'rush_001',
+    score: { teamA: 7, teamB: 3 },
+    winner: 'team_a',
+    tower: { room: 1, roomId: '401', ending: 'castle' },
+  },
+  /** 7–7, so round 15 was Convoy, in the start room's place; nobody reached a castle. */
+  rounds: {
+    type: 'map_end',
+    ...base,
+    mapNumber: 1,
+    map: 'rush_001',
+    score: { teamA: 8, teamB: 7 },
+    winner: 'team_a',
+    tower: { room: 4, roomId: 'convoy', ending: 'rounds' },
+  },
+} as const satisfies Record<string, GameserverEvent>
+
+/**
  * **One valid orchestration fact per type** — the same idea for the other
  * branch of the webhook payload, so a consumer can prove its fact handling
  * against every shape the orchestrator can send. Exhaustive by construction.

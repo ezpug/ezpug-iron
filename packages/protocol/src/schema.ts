@@ -18,6 +18,7 @@ import {
   localizedTextSchema,
   mapPlanSchema,
   mapPlanSidesSchema,
+  mapTowerSchema,
   matchApiErrorCodeSchema,
   matchBrandingSchema,
   matchEndReasonSchema,
@@ -33,14 +34,17 @@ import {
   playerRoundSummarySchema,
   rosterEntrySchema,
   rosterSchema,
+  roundTowerSchema,
   roundWinConditionSchema,
   roundWinnerSchema,
+  rushRoomIdSchema,
   serverChatScopeSchema,
   serverSlotSchema,
   sideLoadoutSchema,
   stickerSchema,
   teamScoreSchema,
   teamSideSchema,
+  towerMapEndingSchema,
   weaponSkinSchema,
 } from '@ezpug/match-api'
 import { z } from 'zod'
@@ -150,6 +154,26 @@ const SHARED_NAMES: readonly Named[] = [
     schema: roundWinnerSchema,
     id: 'RoundWinner',
     description: 'Who took a round, and on which side.',
+  },
+  {
+    schema: rushRoomIdSchema,
+    id: 'RushRoomId',
+    description: 'A room of Rush, as the map script numbers it.',
+  },
+  {
+    schema: roundTowerSchema,
+    id: 'RoundTower',
+    description: 'A tower round: its room on the line and the side that held it as it began.',
+  },
+  {
+    schema: towerMapEndingSchema,
+    id: 'TowerMapEnding',
+    description: 'How a tower match ended: in a castle, or when the rounds ran out.',
+  },
+  {
+    schema: mapTowerSchema,
+    id: 'MapTower',
+    description: 'Where a tower map’s line stood at the end, and why.',
   },
   {
     schema: playerRoundSummarySchema,

@@ -122,6 +122,7 @@ describe('the orchestrator over a real socket', () => {
       'flying-scoutsman',
       'retakes',
       'powerup-dm',
+      'rush',
     ])
     const created = await client.keys.create({
       body: {

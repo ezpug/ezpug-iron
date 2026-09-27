@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { GAMESERVER_EVENT_FIXTURES } from '../fixtures'
+import { GAMESERVER_EVENT_FIXTURES, TOWER_EVENT_FIXTURES } from '../fixtures'
 import serverChat from '../fixtures/platform/server-chat.json'
 import simulatedRecord from '../fixtures/platform/simulated-history.record.json'
+import { formatOfEngineGame } from './format'
 import {
   EPHEMERAL_GAMESERVER_EVENT_TYPES,
   GAMESERVER_EVENT_CONTRACT_VERSION,
@@ -11,6 +12,8 @@ import {
   MATCH_END_REASONS,
   parseServerChatLine,
   playerRoundSummarySchema,
+  RUSH_ROOM_IDS,
+  TOWER_LINE_LENGTH,
 } from './gameserver'
 
 /**
@@ -192,6 +195,67 @@ describe('the normalized gameserver event union', () => {
       damage: 0,
     }
     expect(playerRoundSummarySchema.parse(minimal)).toEqual(minimal)
+  })
+})
+
+describe('a tower round (rush, PRD-06 T1)', () => {
+  const tower = TOWER_EVENT_FIXTURES
+
+  it.each(Object.keys(tower) as (keyof typeof tower)[])('parses the %s shape', name => {
+    expect(gameserverEventSchema.parse(tower[name])).toEqual(tower[name])
+  })
+
+  it('goes live under an engine game that is no format of ours', () => {
+    expect(formatOfEngineGame(tower.going_live.engine)).toBeUndefined()
+  })
+
+  it('names the three ways the tower decides, by the winner against who held it', () => {
+    expect(tower.held.winner.side).toBe(tower.held.tower.heldBy)
+    expect(tower.elimination.winner.side).toBe(tower.elimination.tower.heldBy)
+    expect(tower.captured.winner.side).not.toBe(tower.captured.tower.heldBy)
+  })
+
+  it('walks the fixtures along the line as the map does: a T win up, a CT win down', () => {
+    const rounds = [tower.held, tower.elimination, tower.captured]
+    for (const [previous, next] of rounds.slice(0, -1).map((round, i) => [round, rounds[i + 1]])) {
+      if (!previous || !next) continue
+      const step = previous.winner.side === 't' ? 1 : -1
+      expect(next.tower.room).toBe(previous.tower.room + step)
+      // The room play moves into belongs to the round's loser.
+      expect(next.tower.heldBy).not.toBe(previous.winner.side)
+    }
+  })
+
+  it('ends a map in a castle or on the rounds, with the room the line stood in', () => {
+    expect(tower.castle.tower).toEqual({ room: 1, roomId: '401', ending: 'castle' })
+    expect(tower.rounds.tower.ending).toBe('rounds')
+    const { tower: _dropped, ...plain } = tower.castle
+    expect(gameserverEventSchema.parse(plain)).toEqual(plain)
+  })
+
+  it('stays optional, so every round and map of every other mode parses as it did', () => {
+    const { tower: _dropped, ...plain } = tower.held
+    expect(gameserverEventSchema.parse(plain)).toEqual(plain)
+    expect(gameserverEventSchema.parse(fixtures.round_end)).not.toHaveProperty('tower')
+    expect(gameserverEventSchema.parse(fixtures.map_end)).not.toHaveProperty('tower')
+  })
+
+  it('refuses a room off the line or an arena the map does not have', () => {
+    const off = (room: number) => ({ ...tower.held, tower: { ...tower.held.tower, room } })
+    expect(() => gameserverEventSchema.parse(off(0))).toThrow()
+    expect(() => gameserverEventSchema.parse(off(TOWER_LINE_LENGTH + 1))).toThrow()
+    expect(() =>
+      gameserverEventSchema.parse({ ...tower.held, tower: { ...tower.held.tower, roomId: '213' } }),
+    ).toThrow()
+    expect(RUSH_ROOM_IDS).toHaveLength(19)
+  })
+
+  it('holds a room nobody owns after a draw, and needs the key said', () => {
+    const unowned = { ...tower.held, tower: { room: 4, heldBy: null } }
+    expect(gameserverEventSchema.parse(unowned)).toEqual(unowned)
+    expect(() =>
+      gameserverEventSchema.parse({ ...tower.held, tower: { room: 4, roomId: '104' } }),
+    ).toThrow()
   })
 })
 

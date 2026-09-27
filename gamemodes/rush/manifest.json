@@ -1,0 +1,36 @@
+{
+  "id": "rush",
+  "game": "cs2",
+  "tier": "config",
+  "title": { "de": "Rush 3v3", "en": "Rush 3v3" },
+  "description": {
+    "de": "Valves Rush, drei gegen drei auf rush_001. Jeder Raum hat einen Turm, und wem er beim Rundenende gehört, der gewinnt die Runde. Wer gewinnt, zieht einen Raum weiter Richtung gegnerische Burg; wer dort gewinnt, hat das Match. Sonst gelten 15 Runden, bei 7:7 entscheidet der Konvoi. Die Regeln stecken in der Karte selbst, wir erzählen nur mit, was passiert.",
+    "en": "Valve's Rush, three against three on rush_001. Every room has a tower, and whoever owns it when the round ends wins the round. The winner moves one room on towards the other team's castle; win in there and the match is yours. Otherwise it's 15 rounds, and at 7–7 the Convoy decides. The rules live in the map itself; we just tell you what happened."
+  },
+  "slots": { "teamSize": 3, "teams": 2, "openJoin": false },
+  "flow": "none",
+  "length": { "idleTimeoutSeconds": 300 },
+  "records": "events",
+  "ranked": false,
+  "maps": { "catalog": ["rush_001"] },
+  "plugins": [],
+  "cfg": ["ezpug/rush.cfg"],
+  "cvars": {
+    "bot_quota": "0",
+    "mp_maxrounds": "15",
+    "sv_cheats": "0"
+  },
+  "capabilities": {
+    "positions": true,
+    "chat": true,
+    "playerCommands": false,
+    "widget": false,
+    "backups": false,
+    "scoreboardRating": false,
+    "simulation": true,
+    "mixedRoster": true
+  },
+  "commands": [],
+  "version": "0.1.0",
+  "sdkVersion": "0.1.0"
+}

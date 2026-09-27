@@ -1,6 +1,7 @@
 import { createFakeClock } from '@ezpug/core'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ApiError } from '../errors'
+import { SHIPPED_GAMEMODE_IDS } from '../gamemodes'
 import type { Match, WebhookEnvelope } from '../index'
 import {
   verifyWebhookSignature,
@@ -1282,7 +1283,7 @@ describe('the fleet', () => {
     const h = setup()
     const client = h.fake.client(h.platform.secret)
     const { gamemodes } = await client.gamemodes.list()
-    expect(gamemodes.map(g => g.id)).toEqual(['pug', 'flying-scoutsman', 'retakes', 'powerup-dm'])
+    expect(gamemodes.map(g => g.id)).toEqual([...SHIPPED_GAMEMODE_IDS])
     expect((await client.gamemodes.get({ params: { gamemodeId: 'retakes' } })).slots.openJoin).toBe(
       true,
     )

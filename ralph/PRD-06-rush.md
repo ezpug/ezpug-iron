@@ -106,7 +106,7 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
 
 ## Tasks
 
-- [ ] **T1: the `rush` manifest, its cfg, and the vocabulary of a tower round.**
+- [x] **T1: the `rush` manifest, its cfg, and the vocabulary of a tower round.**
   `gamemodes/rush/manifest.json`: `game cs2`, tier `config` (or `plugin` with the
   thinnest possible plugin if `going_live` and the roster gate need one; say why in the
   decision), `slots {teamSize 3, teams 2, openJoin false}`, `flow none`, `records events`
@@ -126,6 +126,13 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
   can say the match ended in a castle; a fixture in `packages/match-api` for each shape;
   the conformance suite green. Release **x.y.0** to Verdaccio with the changelog line
   "PRD-13 T19".
+- [ ] **T1a (effort: medium): a Rush request's `rules`.** Found in T1: a request's `rules`
+  derive `mp_maxrounds` from `regulationRounds` **over** the manifest's cvars
+  (`match-config/cvars.ts`), and `regulationRounds` is even by schema, so a Rush request that
+  carries `rules` plays 14 or 16 rounds rather than the map's 15, and `overtime.enabled` would
+  switch on an overtime the script does not know. 0.28.0's changelog tells the platform to
+  send none. Decide whether the door refuses `rules` for such a mode (a manifest field, an
+  additive release) or the assignment drops what it derives. Either way a test in the unit tier.
 - [ ] **T2: the sim plays Rush.** `packages/sim`: a `rush` story: the line of seven rooms
   drawn at random from the ids above, play from the start room (CT owns it, T attacks),
   the tower's owner per room, rounds of 40/60 s on the fake clock that end the four ways

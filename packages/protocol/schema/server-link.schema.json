@@ -162,6 +162,8 @@
         "bomb_exploded",
         "bomb_defused",
         "time_expired",
+        "tower_held",
+        "tower_captured",
         "other"
       ]
     },
@@ -179,6 +181,90 @@
       "required": [
         "team",
         "side"
+      ],
+      "additionalProperties": false
+    },
+    "RushRoomId": {
+      "description": "A room of Rush, as the map script numbers it.",
+      "type": "string",
+      "enum": [
+        "101",
+        "102",
+        "103",
+        "104",
+        "201",
+        "202",
+        "203",
+        "204",
+        "205",
+        "206",
+        "207",
+        "208",
+        "209",
+        "210",
+        "211",
+        "212",
+        "301",
+        "401",
+        "convoy"
+      ]
+    },
+    "RoundTower": {
+      "description": "A tower round: its room on the line and the side that held it as it began.",
+      "type": "object",
+      "properties": {
+        "room": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "roomId": {
+          "$ref": "#/$defs/RushRoomId"
+        },
+        "heldBy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TeamSide"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "room",
+        "heldBy"
+      ],
+      "additionalProperties": false
+    },
+    "TowerMapEnding": {
+      "description": "How a tower match ended: in a castle, or when the rounds ran out.",
+      "type": "string",
+      "enum": [
+        "castle",
+        "rounds"
+      ]
+    },
+    "MapTower": {
+      "description": "Where a tower map’s line stood at the end, and why.",
+      "type": "object",
+      "properties": {
+        "room": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "roomId": {
+          "$ref": "#/$defs/RushRoomId"
+        },
+        "ending": {
+          "$ref": "#/$defs/TowerMapEnding"
+        }
+      },
+      "required": [
+        "room",
+        "ending"
       ],
       "additionalProperties": false
     },
@@ -893,6 +979,9 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 9007199254740991
+            },
+            "tower": {
+              "$ref": "#/$defs/RoundTower"
             }
           },
           "required": [
@@ -1002,6 +1091,9 @@
             },
             "reason": {
               "$ref": "#/$defs/MatchEndReason"
+            },
+            "tower": {
+              "$ref": "#/$defs/MapTower"
             }
           },
           "required": [

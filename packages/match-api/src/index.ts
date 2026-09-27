@@ -9,7 +9,7 @@
  * - **The resources** (`resources/`): what a match request is, what a match
  *   looks like, the commands, player tokens, the gamemode manifest and the
  *   widget host contract, capacity, the fleet and its money, API keys.
- * - **The gamemodes** (`gamemodes/`): the four manifests this round ships,
+ * - **The gamemodes** (`gamemodes/`): the manifests the orchestrator ships,
  *   read from `gamemodes/<id>/manifest.json` at the repo root and bundled.
  * - **The routes** (`routes.ts`): the table the orchestrator serves and the
  *   client is generated from; `rpc.ts` is the declaration helper.

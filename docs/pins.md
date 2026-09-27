@@ -130,9 +130,9 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.27.0`** in this tree and on the box's Verdaccio (`http://172.17.0.1:4873/`, `latest`;
+is **`0.28.0`** in this tree and on the box's Verdaccio (`http://172.17.0.1:4873/`, `latest`;
 `0.20.0` and `0.21.0` each published from the commit that cut it, PRD-04 T9, `0.23.0`
-from PRD-05 T1's, `0.24.0` from PRD-05 T2's, `0.25.0` from PRD-05 T2b's, `0.26.0` from PRD-05 T2c's, and `0.27.0` from PRD-05 T2d's) — and waiting
+from PRD-05 T1's, `0.24.0` from PRD-05 T2's, `0.25.0` from PRD-05 T2b's, `0.26.0` from PRD-05 T2c's, `0.27.0` from PRD-05 T2d's, and `0.28.0` from PRD-06 T1's) — and waiting
 on an `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -211,7 +211,9 @@ ephemeral `position_tick` gains optional `grenades[]` and `bomb`, produced by th
 from the game's events and by the simulator. **0.27.0** is the format on the record
 (PRD-05 T2d, #4, for the platform's `wingman` row, PRD-12 T6): `going_live` gains optional
 `engine { gameType, gameMode }` and `format`, and `server_ready` gains `engine`, read by the
-core plugin at map load.
+core plugin at map load. **0.28.0** is Rush (PRD-06 T1, for the platform's PRD-13 T19): the `rush`
+manifest joins the catalog, `RoundWinCondition` gains `tower_held` and `tower_captured`, and
+`round_end` and `map_end` gain an optional `tower`.
 
 ## Bumping one
 

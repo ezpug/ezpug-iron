@@ -2,10 +2,11 @@ import flyingScoutsman from '@ezpug/gamemodes/flying-scoutsman/manifest.json'
 import powerupDm from '@ezpug/gamemodes/powerup-dm/manifest.json'
 import pug from '@ezpug/gamemodes/pug/manifest.json'
 import retakes from '@ezpug/gamemodes/retakes/manifest.json'
+import rush from '@ezpug/gamemodes/rush/manifest.json'
 import { type GamemodeManifest, gamemodeManifestSchema } from '../resources/gamemode'
 
 /**
- * **The four manifests this round ships** (decision 15), read from
+ * **The manifests the orchestrator ships** (decision 15), read from
  * `gamemodes/<id>/manifest.json` at the repo root (`@ezpug/gamemodes`, data
  * only) — the files are the source, PRD-02 builds what they name, and the
  * published bundle inlines them so a
@@ -13,18 +14,26 @@ import { type GamemodeManifest, gamemodeManifestSchema } from '../resources/game
  * schema here so the defaults are filled and a manifest that stops parsing
  * fails every import, not one request.
  *
- * `pug` is the queue's mode and the first entry; the rest are the tier
- * proofs in decision 15's order.
+ * `pug` is the queue's mode and the first entry; then the tier proofs in
+ * decision 15's order, then `rush` (PRD-06), Valve's 3v3 whose rules are a
+ * script on its one map.
  */
 export const SHIPPED_GAMEMODES: readonly GamemodeManifest[] = [
   pug,
   flyingScoutsman,
   retakes,
   powerupDm,
+  rush,
 ].map(manifest => gamemodeManifestSchema.parse(manifest))
 
 /** The shipped ids, in catalog order. */
-export const SHIPPED_GAMEMODE_IDS = ['pug', 'flying-scoutsman', 'retakes', 'powerup-dm'] as const
+export const SHIPPED_GAMEMODE_IDS = [
+  'pug',
+  'flying-scoutsman',
+  'retakes',
+  'powerup-dm',
+  'rush',
+] as const
 export type ShippedGamemodeId = (typeof SHIPPED_GAMEMODE_IDS)[number]
 
 /** One shipped manifest by id. */

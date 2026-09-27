@@ -123,15 +123,105 @@ export type TeamScore = z.infer<typeof teamScoreSchema>
  * CounterStrikeSharp `RoundEndReason` integers; the adapter maps them).
  * `other` is the honest bucket for exotic reasons (surrender, game commencing
  * quirks) — an adapter never invents a condition and never crashes on one.
+ *
+ * **A tower round** (`rush`, PRD-06 T1) is won by whoever owns the room's
+ * tower when it ends, and says which of three ways that happened:
+ *
+ * - `tower_held` — the round ran out and the side that held the tower as it
+ *   began still owns it, alive or not (an owner wiped out while nobody
+ *   presses the button in the short window still wins on the clock).
+ * - `tower_captured` — the winner did not hold the tower as the round began:
+ *   it pressed the button and kept it, to the clock or until the side it took
+ *   the tower from was dead.
+ * - `elimination` — the holders kept the tower and every attacker died (or
+ *   both sides did, which the tower's owner wins too).
+ *
+ * The rule is the winner against {@link roundTowerSchema}'s `heldBy`, so a
+ * source that follows the walk and the deaths can name it without reading
+ * the map script's state.
  */
 export const roundWinConditionSchema = z.enum([
   'elimination',
   'bomb_exploded',
   'bomb_defused',
   'time_expired',
+  'tower_held',
+  'tower_captured',
   'other',
 ])
 export type RoundWinCondition = z.infer<typeof roundWinConditionSchema>
+
+/**
+ * **The rooms of Rush** (PRD-06 T1), as `maps/scripts/rush_001.vjs` numbers
+ * them: the start rooms `101`–`104`, the mid rooms `201`–`212`, the castles
+ * `301` (the CT end) and `401` (the T end), and `convoy`, the decider swapped
+ * in at 7–7. A match draws one line of seven from these.
+ */
+export const RUSH_ROOM_IDS = [
+  '101',
+  '102',
+  '103',
+  '104',
+  '201',
+  '202',
+  '203',
+  '204',
+  '205',
+  '206',
+  '207',
+  '208',
+  '209',
+  '210',
+  '211',
+  '212',
+  '301',
+  '401',
+  'convoy',
+] as const
+export const rushRoomIdSchema = z.enum(RUSH_ROOM_IDS)
+export type RushRoomId = z.infer<typeof rushRoomIdSchema>
+
+/** How many rooms a Rush line holds: a castle, two mid rooms, the start, two mid rooms, a castle. */
+export const TOWER_LINE_LENGTH = 7
+
+/**
+ * **Where on the line of seven a room is**, 1-based and in side order: `1` is
+ * the T castle, `4` the start room, `7` the CT castle. A T win moves play one
+ * room up, a CT win one room down; winning in the enemy castle ends the match.
+ * Sides are fixed for the whole map (`mp_halftime 0`), so the order never flips.
+ */
+const towerRoomSchema = z.object({
+  room: z.number().int().min(1).max(TOWER_LINE_LENGTH),
+  /** The arena the map put there, where the source knows it. */
+  roomId: rushRoomIdSchema.optional(),
+})
+
+/**
+ * **The tower of a round** (PRD-06 T1): the room it was played in and the side
+ * that held the tower as the round began. The owner at the end is the
+ * round's `winner`, always. `heldBy: null` is a room nobody owns, which only a
+ * drawn round leaves behind; a drawn round replays the room and, having no
+ * winner, is no `round_end`.
+ */
+export const roundTowerSchema = towerRoomSchema.extend({
+  heldBy: teamSideSchema.nullable(),
+})
+export type RoundTower = z.infer<typeof roundTowerSchema>
+
+/**
+ * How a tower match ended: `castle` — a win inside the enemy castle, before
+ * the rounds ran out; `rounds` — the rounds did (15, or 8 clinched), and the
+ * map score decides.
+ */
+export const TOWER_MAP_ENDINGS = ['castle', 'rounds'] as const
+export const towerMapEndingSchema = z.enum(TOWER_MAP_ENDINGS)
+export type TowerMapEnding = z.infer<typeof towerMapEndingSchema>
+
+/** **Where the line stood when a tower map ended** (PRD-06 T1): the last room played, and why it was the last. */
+export const mapTowerSchema = towerRoomSchema.extend({
+  ending: towerMapEndingSchema,
+})
+export type MapTower = z.infer<typeof mapTowerSchema>
 
 /** Who took a round: the team, and the side they were playing at the time. */
 export const roundWinnerSchema = z.object({
@@ -375,6 +465,8 @@ export const roundEndEventSchema = roundScoped.extend({
   /** Per-player cumulative summaries, where the source provides them. */
   players: z.array(playerRoundSummarySchema).optional(),
   roundTimeMs,
+  /** A tower round's room and who held it (`rush`, PRD-06 T1); absent on every other mode. */
+  tower: roundTowerSchema.optional(),
 })
 
 /** Halftime (or overtime half): the sides now in effect, per team. */
@@ -396,6 +488,8 @@ export const mapEndEventSchema = mapScoped.extend({
   winner: matchTeamSchema.nullable(),
   /** Present when the mode's `length` ended the map; absent when the game did. */
   reason: matchEndReasonSchema.optional(),
+  /** Where a tower map's line stood at the end, and whether a castle ended it (`rush`, PRD-06 T1). */
+  tower: mapTowerSchema.optional(),
 })
 
 /**

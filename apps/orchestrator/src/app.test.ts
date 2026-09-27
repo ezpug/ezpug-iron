@@ -76,7 +76,7 @@ describe('authentication and scopes', () => {
 })
 
 describe('the catalog', () => {
-  it('serves the four shipped manifests, pug first, and one by id', async () => {
+  it('serves the shipped manifests, pug first, and one by id', async () => {
     const t = createTestApp()
     const key = (await t.keys.mint(keyRequest('platform'))).secret
     const list = await t.request('/v1/gamemodes', { key })
@@ -86,6 +86,7 @@ describe('the catalog', () => {
       'flying-scoutsman',
       'retakes',
       'powerup-dm',
+      'rush',
     ])
     const one = await t.request('/v1/gamemodes/retakes', { key })
     expect(one.status).toBe(200)

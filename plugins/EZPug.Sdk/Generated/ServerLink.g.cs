@@ -159,6 +159,10 @@ public enum RoundWinCondition
     BombDefused,
     [JsonStringEnumMemberName("time_expired")]
     TimeExpired,
+    [JsonStringEnumMemberName("tower_held")]
+    TowerHeld,
+    [JsonStringEnumMemberName("tower_captured")]
+    TowerCaptured,
     [JsonStringEnumMemberName("other")]
     Other,
 }
@@ -173,6 +177,92 @@ public sealed record RoundWinner
     [JsonPropertyName("side")]
     [JsonPropertyOrder(1)]
     public required TeamSide Side { get; init; }
+}
+
+/// <summary>A room of Rush, as the map script numbers it.</summary>
+public enum RushRoomId
+{
+    [JsonStringEnumMemberName("101")]
+    _101,
+    [JsonStringEnumMemberName("102")]
+    _102,
+    [JsonStringEnumMemberName("103")]
+    _103,
+    [JsonStringEnumMemberName("104")]
+    _104,
+    [JsonStringEnumMemberName("201")]
+    _201,
+    [JsonStringEnumMemberName("202")]
+    _202,
+    [JsonStringEnumMemberName("203")]
+    _203,
+    [JsonStringEnumMemberName("204")]
+    _204,
+    [JsonStringEnumMemberName("205")]
+    _205,
+    [JsonStringEnumMemberName("206")]
+    _206,
+    [JsonStringEnumMemberName("207")]
+    _207,
+    [JsonStringEnumMemberName("208")]
+    _208,
+    [JsonStringEnumMemberName("209")]
+    _209,
+    [JsonStringEnumMemberName("210")]
+    _210,
+    [JsonStringEnumMemberName("211")]
+    _211,
+    [JsonStringEnumMemberName("212")]
+    _212,
+    [JsonStringEnumMemberName("301")]
+    _301,
+    [JsonStringEnumMemberName("401")]
+    _401,
+    [JsonStringEnumMemberName("convoy")]
+    Convoy,
+}
+
+/// <summary>A tower round: its room on the line and the side that held it as it began.</summary>
+public sealed record RoundTower
+{
+    [JsonPropertyName("room")]
+    [JsonPropertyOrder(0)]
+    public required long Room { get; init; }
+
+    [JsonPropertyName("roomId")]
+    [JsonPropertyOrder(1)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RushRoomId? RoomId { get; init; }
+
+    [JsonPropertyName("heldBy")]
+    [JsonPropertyOrder(2)]
+    public TeamSide? HeldBy { get; init; }
+}
+
+/// <summary>How a tower match ended: in a castle, or when the rounds ran out.</summary>
+public enum TowerMapEnding
+{
+    [JsonStringEnumMemberName("castle")]
+    Castle,
+    [JsonStringEnumMemberName("rounds")]
+    Rounds,
+}
+
+/// <summary>Where a tower map’s line stood at the end, and why.</summary>
+public sealed record MapTower
+{
+    [JsonPropertyName("room")]
+    [JsonPropertyOrder(0)]
+    public required long Room { get; init; }
+
+    [JsonPropertyName("roomId")]
+    [JsonPropertyOrder(1)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RushRoomId? RoomId { get; init; }
+
+    [JsonPropertyName("ending")]
+    [JsonPropertyOrder(2)]
+    public required TowerMapEnding Ending { get; init; }
 }
 
 /// <summary>One player’s cumulative stats as of a round end.</summary>
@@ -853,6 +943,11 @@ public sealed record RoundEndEvent : GameserverEvent
     [JsonPropertyOrder(10)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? RoundTimeMs { get; init; }
+
+    [JsonPropertyName("tower")]
+    [JsonPropertyOrder(11)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RoundTower? Tower { get; init; }
 }
 
 /// <summary><c>side_swap</c> — one branch of <see cref="GameserverEvent"/>.</summary>
@@ -949,6 +1044,11 @@ public sealed record MapEndEvent : GameserverEvent
     [JsonPropertyOrder(8)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public MatchEndReason? Reason { get; init; }
+
+    [JsonPropertyName("tower")]
+    [JsonPropertyOrder(9)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MapTower? Tower { get; init; }
 }
 
 /// <summary><c>series_end</c> — one branch of <see cref="GameserverEvent"/>.</summary>
