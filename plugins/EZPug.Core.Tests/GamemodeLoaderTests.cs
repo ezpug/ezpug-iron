@@ -229,6 +229,22 @@ public class GamemodeLoaderTests
     }
 
     [Fact]
+    public void ATowerMapLoadsUnderItsOwnEngineGame()
+    {
+        // PRD-06 T3: `rush.cfg` sets `game_mode 6` once the map is up, which is one load too
+        // late — measured on the dev node, `rush_001` came up as 0/1. So the engine game is
+        // set in the frame that asks for the level, and the cfg still says the same after.
+        using var rig = new Rig();
+        rig.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("rush"), map: "rush_001"));
+        Assert.Equal(["command game_type 0; game_mode 6", "changelevel rush_001"], rig.Actions.Skip(1));
+
+        // Any other map is left to the engine game it is already in.
+        using var other = new Rig();
+        other.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), map: "de_inferno"));
+        Assert.DoesNotContain(other.Actions, action => action.Contains("game_mode"));
+    }
+
+    [Fact]
     public void AWorkshopPlanIsHostedByIdAndTheHostnameNamesTheMap()
     {
         // The wire's own spelling (ezpug/ezpug-iron#3): `changelevel workshop/…` is a map

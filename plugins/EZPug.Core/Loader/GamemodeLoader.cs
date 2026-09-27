@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using EZPug.Sdk;
 using EZPug.Sdk.Protocol;
@@ -139,6 +140,16 @@ public sealed class GamemodeLoader
         }
         else
         {
+            // **A tower map loads under its own engine game** (PRD-06 T3). The engine reads
+            // `game_type`/`game_mode` at level init, and a mode's cfg runs after the map is
+            // up, so `rush.cfg` alone decided only the next load: on the dev node `rush_001`
+            // came up as `0`/`1` and `going_live` called a Rush match competitive. The map's
+            // script plays either way; the engine game is what the wire says it is.
+            if (TowerLine.Maps.TryGetValue(map, out var engine))
+            {
+                _world.ExecCommand(string.Create(CultureInfo.InvariantCulture, $"game_type {engine.GameType}; game_mode {engine.GameMode}"));
+            }
+
             _world.ChangeLevel(map);
         }
     }

@@ -1633,6 +1633,11 @@ async function run() {
     ttlMinutes: 60,
   }
 
+  // **A mode that owns its rounds takes no rules** (PRD-06 T1a): `rush`'s are the map
+  // script's, and the door refuses a request that brings its own. Everything above is a
+  // MatchZy match's (or a drop-in mode's), and none of it applies.
+  if (manifest.rules === 'mode') delete request.rules
+
   const match = await api('POST', '/v1/matches', request)
   const matchId = match.id
   say(`match ${matchId} created (${match.state})`)
@@ -3125,6 +3130,24 @@ function write(result) {
           format: envelope.payload.format ?? null,
         })),
     },
+    /**
+     * **A tower map's rounds as the wire told them** (PRD-06 T3): every
+     * `round_end`'s condition and tower, and where the line stood at
+     * `map_end`. `null` for a map that is not one.
+     */
+    tower: (() => {
+      const rounds = result.envelopes
+        .filter(envelope => envelope.payload.type === 'round_end')
+        .map(envelope => ({
+          round: envelope.payload.roundNumber,
+          winner: envelope.payload.winner?.side ?? null,
+          condition: envelope.payload.winCondition ?? null,
+          tower: envelope.payload.tower ?? null,
+        }))
+      const end = result.envelopes.find(envelope => envelope.payload.type === 'map_end')?.payload
+      if (!rounds.some(round => round.tower) && !end?.tower) return null
+      return { rounds, end: end?.tower ?? null }
+    })(),
     /**
      * **Which site each bomb fact named** (PRD-05 T2e): per type, how many
      * named `a`, `b`, or none (`none`). The tick's `bomb.site` is in

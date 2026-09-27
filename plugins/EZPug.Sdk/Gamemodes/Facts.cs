@@ -92,7 +92,7 @@ public sealed class Facts
     public RoundStartEvent RoundStart(TeamScore? score = null) =>
         new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, RoundNumber = Context.RoundNumber, Score = score };
 
-    public RoundEndEvent RoundEnd(MatchTeam winner, TeamSide side, RoundWinCondition condition, TeamScore score, IReadOnlyList<PlayerRoundSummary>? players = null, long? roundTimeMs = null) =>
+    public RoundEndEvent RoundEnd(MatchTeam winner, TeamSide side, RoundWinCondition condition, TeamScore score, IReadOnlyList<PlayerRoundSummary>? players = null, long? roundTimeMs = null, RoundTower? tower = null) =>
         new()
         {
             MatchId = MatchId,
@@ -104,6 +104,7 @@ public sealed class Facts
             Score = score,
             Players = players,
             RoundTimeMs = roundTimeMs,
+            Tower = tower,
         };
 
     public SideSwapEvent SideSwap(TeamSide teamA) =>
@@ -115,8 +116,8 @@ public sealed class Facts
             Sides = new SideSwapEventSides { TeamA = teamA, TeamB = teamA == TeamSide.Ct ? TeamSide.T : TeamSide.Ct },
         };
 
-    public MapEndEvent MapEnd(TeamScore score, MatchTeam? winner, string? map = null, MatchEndReason? reason = null) =>
-        new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Map = map, Score = score, Winner = winner, Reason = reason };
+    public MapEndEvent MapEnd(TeamScore score, MatchTeam? winner, string? map = null, MatchEndReason? reason = null, MapTower? tower = null) =>
+        new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Map = map, Score = score, Winner = winner, Reason = reason, Tower = tower };
 
     public SeriesEndEvent SeriesEnd(TeamScore seriesScore, MatchTeam? winner, MatchEndReason? reason = null) =>
         new() { MatchId = MatchId, Source = Source, SeriesScore = seriesScore, Winner = winner, Reason = reason };

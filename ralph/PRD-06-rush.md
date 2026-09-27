@@ -143,7 +143,7 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
   0.27.0 says them; the recording nothing (`records: events`). Determinism under the
   seeded PRNG (`determinism.test.ts`), `story.test.ts` cases for each ending, and the
   scenario door (`scenario.ts`) knows `rush`. Patch release if the wire moved, else none.
-- [ ] **T3: Rush on the dev node.** A lane row (`cs2.extended.test.ts`, named at `:1556`):
+- [x] **T3: Rush on the dev node.** A lane row (`cs2.extended.test.ts`, named at `:1556`):
   a `rush` match requested through the front door with six puppets (`mixedRoster`), the
   server assigned, `rush.cfg` exec'd, `rush_001` loaded, `server_ready`, `going_live`
   carrying the engine's type and mode, at least two `round_end`s with a tower reason and

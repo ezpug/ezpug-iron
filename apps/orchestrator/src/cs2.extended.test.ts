@@ -195,6 +195,16 @@ type Summary = {
     ready: ({ gameType: number; gameMode: number } | null)[]
     live: { engine: { gameType: number; gameMode: number } | null; format: string | null }[]
   }
+  /** A tower map's rounds (PRD-06 T3): each `round_end`'s condition and tower, and the line at `map_end`; `null` off a tower map. */
+  tower?: {
+    rounds: {
+      round: number
+      winner: 'ct' | 't' | null
+      condition: string | null
+      tower: { room: number; roomId?: string; heldBy: 'ct' | 't' | null } | null
+    }[]
+    end: { room: number; roomId?: string; ending: 'castle' | 'rounds' } | null
+  } | null
   /** The grenades and the bomb on the stream's position ticks (PRD-05 T2c); `null` when no tick sampled them. */
   utility?: {
     ticks: number
@@ -1150,6 +1160,73 @@ const CASES: LaneCase[] = [
     },
   },
   {
+    // **Rush on the dev node** (PRD-06 T3): Valve's tower mode, whose rules are a
+    // `cs_script` on `rush_001` and nobody's plugin. Six puppets seated by the SDK
+    // (`flow: none`, a closed 3v3), the map loaded under its own engine game, and every
+    // round ended by the map's script. What the SDK says about each is read off the
+    // engine's own events: the room, who held its tower, and whether it was held to the
+    // clock, captured, or held by killing every attacker (`TowerLine`). The request carries
+    // no `rules`, because the door refuses them for a mode that owns its rounds (T1a).
+    id: 'rush',
+    what: 'plays a Rush 3v3 of six puppets, every round a tower round in its room on the line',
+    puppets: 6,
+    args: ['--gamemode', 'rush', '--map', 'rush_001', '--no-demo'],
+    facts: summary => {
+      expect(summary.payloads?.player_ready ?? 0, 'a flow: none mode ran a ready system').toBe(0)
+      expect(
+        summary.payloads?.player_connected ?? 0,
+        'the six puppets were not announced',
+      ).toBeGreaterThanOrEqual(6)
+      expect(summary.maps?.ready, 'the server did not load rush_001').toEqual(['rush_001'])
+      expect(summary.maps?.live).toEqual(['rush_001'])
+      // **Rush's own engine game** (`gamemodes.txt`: classic, mode 6), on both facts, and
+      // no format: Rush is neither of the two a request can ask for.
+      expect(summary.engine?.ready, 'the map did not load under game_mode 6').toEqual([
+        { gameType: 0, gameMode: 6 },
+      ])
+      expect(summary.engine?.live).toEqual([{ engine: { gameType: 0, gameMode: 6 }, format: null }])
+
+      const rounds = summary.tower?.rounds ?? []
+      expect(rounds.length, 'no round_end carried a tower').toBeGreaterThanOrEqual(2)
+      for (const round of rounds) {
+        expect(round.tower, `round ${round.round} carried no tower`).not.toBeNull()
+        expect(['tower_held', 'tower_captured', 'elimination']).toContain(round.condition)
+        // The rule the vocabulary names: captured exactly when the winner did not hold it.
+        expect(
+          round.condition === 'tower_captured',
+          `round ${round.round}: ${round.condition} by ${round.winner} of a tower ${round.tower?.heldBy} held`,
+        ).toBe(round.winner !== round.tower?.heldBy)
+      }
+      expect(
+        rounds.filter(
+          round => round.condition === 'tower_held' || round.condition === 'tower_captured',
+        ).length,
+        'fewer than two rounds were decided by the tower',
+      ).toBeGreaterThanOrEqual(2)
+      // **The walk**: play starts in the start room, which CT holds, and every round moves
+      // it one room towards the loser's castle — or replays it, after a draw nobody won.
+      expect(rounds[0]?.tower).toMatchObject({ room: 4, heldBy: 'ct' })
+      for (const [index, round] of rounds.slice(1).entries()) {
+        const before = rounds[index]
+        const walked = (before?.tower?.room ?? 0) + (before?.winner === 't' ? 1 : -1)
+        expect([walked, before?.tower?.room], `round ${round.round} is off the line`).toContain(
+          round.tower?.room,
+        )
+      }
+      if (!summary.forcedEnd) {
+        const end = summary.tower?.end
+        expect(end, 'map_end did not say where the line stood').not.toBeNull()
+        const last = rounds[rounds.length - 1]
+        expect(end?.room).toBe(last?.tower?.room)
+        // A castle is a win walked out past the line's end; otherwise the rounds ran out.
+        const castle =
+          (end?.room === 7 && last?.winner === 't') || (end?.room === 1 && last?.winner === 'ct')
+        expect(end?.ending).toBe(castle ? 'castle' : 'rounds')
+        expect(summary.length?.mapEnd, 'a Rush map was ended by a length').toBeNull()
+      }
+    },
+  },
+  {
     // **The movement spike** (PRD-03 T12), and the only row here that is not a
     // shape of match: it is a question about hardware. Can a puppet be *moved*
     // — by `Teleport`, once an engine frame — smoothly enough that the
@@ -1438,7 +1515,8 @@ function play(lane: LaneCase): Summary {
     budget,
     waited: Math.round(((summary.lock?.waitedSeconds ?? 0) / 60) * 10) / 10,
     rounds,
-    overtime: rounds > 4,
+    // Rush has fifteen rounds and no overtime at all: its script plays them (PRD-06 T3).
+    overtime: lane.id !== 'rush' && rounds > 4,
   })
   return summary
 }
@@ -1553,7 +1631,7 @@ describe('the iron-match script', () => {
    * be a lane case nobody missed.** Cheap, and it runs in `pnpm verify` where
    * the lane itself never does.
    */
-  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's and T2b's mixed rosters, T8's rewind, PRD-05's workshop map and its utility on the live tier", () => {
+  it("covers every shape PRD-03 T6 names, T10's retakes, T8's phone, PRD-04 T2's and T2b's mixed rosters, T8's rewind, PRD-05's workshop map and its utility on the live tier, and PRD-06's Rush", () => {
     const ids = CASES.map(lane => lane.id)
     expect(ids).toEqual([
       'pug-1v1',
@@ -1588,6 +1666,8 @@ describe('the iron-match script', () => {
       // and run a second time on the simulator inside the row so the two can
       // be compared by the classes and order of their facts.
       'idle',
+      // PRD-06 T3's: six puppets on Rush, the mode whose rounds are the map's script.
+      'rush',
       // **T12**'s spike, which is not part of the matrix and runs only when
       // it is named: can a puppet be moved smoothly enough for a radar?
       'radar',

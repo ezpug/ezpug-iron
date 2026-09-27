@@ -92,3 +92,30 @@ restart; nothing else in the runtime was checked for the same gap).
 play lane rows through it, or runs the orchestrator the way production does and restarts
 it on purpose. Until then, a proving run compares the serving process's start time with the
 source it depends on.
+
+## §11 A real Rush server names only the castles and Convoy
+
+**What is known** (PRD-06 T3, 2026-09-27): the SDK walks Rush's line from the engine's own
+round ends (`TowerLine`) and never reads the map script's state, so a real server's
+`round_end.tower` carries `room` and `heldBy` always and `roomId` only where the rules fix
+it: `401` at room 1, `301` at room 7, `convoy` once 7–7 swapped it in. Which of `101`–`104`
+and `201`–`212` the script drew for the other five rooms is its own `Math.random()`, and no
+engine event carries it. The lane's `rush` row (`iron-match-2026-09-27T18-21-01-028Z`,
+match `eea2da68-abf8-4677-a3f9-9f954420d2c8`) said, for its first rounds:
+
+```
+round_end tower_held     ct {"room": 4, "heldBy": "ct"}
+round_end tower_held     t  {"room": 3, "heldBy": "t"}
+round_end tower_captured t  {"room": 4, "heldBy": "ct"}
+map_end                     {"room": 5, "ending": "rounds"}
+```
+
+The simulator (PRD-06 T2) and `TOWER_EVENT_FIXTURES` name every room (`104`, `207`, …), so a
+platform built against the fake sees arena ids a real match never sends. The field is
+optional, so nothing fails to parse. What could still be wrong is a room strip that relies on
+the id.
+
+**What needs a decision.** Either the simulator stops naming the rooms a real server cannot
+(a patch release, and the fixtures follow), or the arena is found from an engine fact without
+reading the script, for example where the spawns stand at a round start against each arena's
+known origin. That would be a measurement, and then a `TowerLine` input.

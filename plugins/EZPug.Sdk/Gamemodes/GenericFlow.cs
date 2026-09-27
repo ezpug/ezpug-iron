@@ -26,6 +26,11 @@ namespace EZPug.Sdk;
 /// halftime flag is transient, which is why it is polled every
 /// <see cref="PollIntervalMs"/> rather than read at a hook, exactly as
 /// <c>MatchZyFlow</c> polls for the same fact.</item>
+/// <item><b>A tower map's line</b> (<c>rush_001</c>, PRD-06 T3): the map's own script ends
+/// every round, and <see cref="TowerLine"/> walks the same line from the winners, so each
+/// <c>round_end</c> carries its room and who held the tower, its condition is
+/// <c>tower_held</c>, <c>tower_captured</c> or <c>elimination</c>, and <c>map_end</c> says
+/// whether a castle ended it.</item>
 /// <item><c>map_end</c> on the win panel — the engine's own full stop, whether the map
 /// was decided by <c>mp_maxrounds</c>, a clinch or <c>mp_timelimit</c> — and
 /// <c>series_end</c> with it when the map that ended was the last one the assignment
@@ -90,6 +95,7 @@ public sealed class GenericFlow
     private long _goLiveAtMs;
     private long _lastWarmupEndMs;
     private IClockTimer? _poll;
+    private TowerLine? _tower;
 
     internal GenericFlow(IGameWorld world, GamemodeRuntime runtime, ILinkLog log)
     {
@@ -200,6 +206,9 @@ public sealed class GenericFlow
         if (!_live)
         {
             _live = true;
+            // The script starts its line over when the rounds played go back to zero,
+            // which is the warmup's end, so this one does too.
+            _tower = TowerLine.IsTowerMap(_world.Map) ? new TowerLine() : null;
             _runtime.Emit(_runtime.Facts.GoingLive(PlannedMap(), _runtime.Length.InForce));
             _runtime.Length.OnLive();
         }
@@ -229,6 +238,14 @@ public sealed class GenericFlow
             return;
         }
 
+        RoundTower? tower = null;
+        RoundWinCondition? towerCondition = null;
+        if (_tower is not null)
+        {
+            // Before the winner is looked for: a drawn round still leaves its room nobody's.
+            (tower, towerCondition) = _tower.Play(SideOf(roundEnd.Winner), AttackersStanding(_tower.HeldBy));
+        }
+
         if (_runtime.Match.TeamOf(roundEnd.Winner) is not { } winner)
         {
             // The engine ends a round with no side when it is restarting one; there is no
@@ -243,8 +260,9 @@ public sealed class GenericFlow
         _runtime.Emit(_runtime.Facts.RoundEnd(
             winner,
             winner == MatchTeam.TeamA ? _runtime.Match.TeamASide : Other(_runtime.Match.TeamASide),
-            ConditionOf(roundEnd.Reason),
-            new TeamScore { TeamA = _teamA, TeamB = _teamB }));
+            towerCondition ?? ConditionOf(roundEnd.Reason),
+            new TeamScore { TeamA = _teamA, TeamB = _teamB },
+            tower: tower));
     }
 
     /// <summary>The win panel: this map is over, and the series with it when it was the last one planned.</summary>
@@ -289,7 +307,10 @@ public sealed class GenericFlow
         if (_live)
         {
             var winner = Winner(assignment, _teamA, _teamB);
-            _runtime.Emit(_runtime.Facts.MapEnd(new TeamScore { TeamA = _teamA, TeamB = _teamB }, winner, PlannedMap(), reason));
+            // A tower map's line says where it ended only when the game ended it: a map
+            // the mode's length cut short ended in no castle and on no round limit.
+            var tower = reason is null ? _tower?.End() : null;
+            _runtime.Emit(_runtime.Facts.MapEnd(new TeamScore { TeamA = _teamA, TeamB = _teamB }, winner, PlannedMap(), reason, tower));
             _live = false;
             if (winner == MatchTeam.TeamA)
             {
@@ -370,7 +391,32 @@ public sealed class GenericFlow
         _pendingSwap = false;
         _teamA = 0;
         _teamB = 0;
+        _tower = null;
     }
+
+    /// <summary>
+    /// Whether the side that did not hold the tower still had anybody alive as the round
+    /// ended — what tells a tower held to the clock from one held by killing every
+    /// attacker. A room nobody held has no attackers to count.
+    /// </summary>
+    private bool AttackersStanding(TeamSide? heldBy)
+    {
+        if (heldBy is not { } holder)
+        {
+            return true;
+        }
+
+        var attackers = holder == TeamSide.Ct ? PlayerTeam.Terrorist : PlayerTeam.CounterTerrorist;
+        return _world.Players.Any(player => player.Team == attackers && player.IsAlive);
+    }
+
+    private static TeamSide? SideOf(PlayerTeam team) =>
+        team switch
+        {
+            PlayerTeam.CounterTerrorist => TeamSide.Ct,
+            PlayerTeam.Terrorist => TeamSide.T,
+            _ => null,
+        };
 
     /// <summary>
     /// Nobody, for a one-team mode (<c>slots.teams: 1</c>): the engine still keeps a CT and
