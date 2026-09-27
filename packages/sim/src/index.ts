@@ -3,6 +3,7 @@
 // everything under the seed, `server` plays it back on the injected clock, and
 // `record` is what the match leaves behind. Radar calibration for the Active
 // Duty maps rides along as data so positions land on real overview coordinates.
+// `tower` is a tower map's rules (Rush), as the map's own script plays them.
 export * from './assignment'
 export * from './chat'
 export * from './chatter'
@@ -12,3 +13,4 @@ export * from './record'
 export * from './scenario'
 export * from './server'
 export * from './story'
+export * from './tower'

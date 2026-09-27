@@ -37,7 +37,9 @@ describe('the scenario table', () => {
       pauses: 0,
       overtimes: 0,
       comeback: false,
+      towerEnding: null,
     })
+    expect(listed.find(entry => entry.name === 'rush-convoy')?.towerEnding).toBe('convoy')
   })
 })
 
@@ -86,6 +88,9 @@ describe('what a real server’s puppets can execute (T11)', () => {
         /asks for neverReady/,
       )
       expect(scenarioPuppetProblem(SIMULATOR_SCENARIOS.comeback, flow)).toMatch(/asks for comeback/)
+      expect(scenarioPuppetProblem(SIMULATOR_SCENARIOS['rush-castle'], flow)).toMatch(
+        /rush-castle asks for towerEnding/,
+      )
     }
   })
 })

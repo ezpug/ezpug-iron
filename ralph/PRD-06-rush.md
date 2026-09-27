@@ -133,7 +133,7 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
   switch on an overtime the script does not know. 0.28.0's changelog tells the platform to
   send none. Decide whether the door refuses `rules` for such a mode (a manifest field, an
   additive release) or the assignment drops what it derives. Either way a test in the unit tier.
-- [ ] **T2: the sim plays Rush.** `packages/sim`: a `rush` story: the line of seven rooms
+- [x] **T2: the sim plays Rush.** `packages/sim`: a `rush` story: the line of seven rooms
   drawn at random from the ids above, play from the start room (CT owns it, T attacks),
   the tower's owner per room, rounds of 40/60 s on the fake clock that end the four ways
   the script ends them (time, all attackers dead, both dead, the owners wiped and the short

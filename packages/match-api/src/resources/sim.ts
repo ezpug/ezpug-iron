@@ -75,6 +75,17 @@ export const simOutcomeSchema = z.enum(['completed', 'crashed', 'idle'])
 export type SimOutcome = z.infer<typeof simOutcomeSchema>
 
 /**
+ * **How a simulated tower map ends** (`rush`, PRD-06 T2), the endings the
+ * map's script has: `castle`, a win inside the enemy castle before the rounds
+ * run out; `clinch`, eight round wins with nobody at a castle and no 7–7;
+ * `convoy`, 7–7 and the decider room settles it 8–7. The last two are both
+ * `map_end.tower.ending: "rounds"` on the wire.
+ */
+export const SIM_TOWER_ENDINGS = ['castle', 'clinch', 'convoy'] as const
+export const simTowerEndingSchema = z.enum(SIM_TOWER_ENDINGS)
+export type SimTowerEnding = z.infer<typeof simTowerEndingSchema>
+
+/**
  * **One scenario the simulator can play**, with every knob spelled out —
  * what `GET /v1/sim/scenarios` lists so a console that offers a name knows
  * this build has it. `MatchRequest.sim.scenario` takes the `name`; a name
@@ -102,6 +113,12 @@ export const simScenarioSchema = z.object({
   overtimes: z.number().int().nonnegative(),
   /** The winner trails badly at the half, then runs the table. */
   comeback: z.boolean(),
+  /**
+   * How a tower map ends (`rush`, PRD-06 T2), or null to leave it to the
+   * dice. Ignored on any other map. Absent from a catalog older than 0.30.0,
+   * which reads as null.
+   */
+  towerEnding: simTowerEndingSchema.nullable().default(null),
 })
 export type SimScenario = z.infer<typeof simScenarioSchema>
 

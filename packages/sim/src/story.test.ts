@@ -1030,3 +1030,223 @@ describe('the engine game on the record (PRD-05 T2d, ezpug/ezpug-iron#4)', () =>
     expect(ofType(resumed, 'going_live')[0]?.format).toBe('wingman')
   })
 })
+
+describe('Rush: a tower map (PRD-06 T2)', () => {
+  /** The `rush` manifest's assignment: 3v3 on rush_001, `flow: none`, events only. */
+  const RUSH: Partial<MatchAssignment> = {
+    teamA: { name: 'Team hunzR', players: fixtureAssignment().teamA.players.slice(0, 3) },
+    teamB: { name: 'Team wickeD', players: fixtureAssignment().teamB.players.slice(0, 3) },
+    maps: [{ map: 'rush_001', teamASide: 'ct' }],
+    flow: 'none',
+    records: 'events',
+    teamCount: 2,
+    length: { idleTimeoutSeconds: 300 },
+  }
+  const rush = (scenario: SimulatorScenario, seed = 'rush') => storyFor(scenario, seed, RUSH)
+  const SEEDS = Array.from({ length: 40 }, (_, i) => `rush-${i}`)
+
+  /** Who died in a round, by SteamID64, off the kill feed. */
+  const deadIn = (story: MatchStory, round: number): Set<string> =>
+    new Set(
+      ofType(story, 'player_death')
+        .filter(death => death.roundNumber === round)
+        .map(death => death.victim.steamId64),
+    )
+
+  it('plays a whole match of events that parse, in time order, under the engine’s own game', () => {
+    const story = rush(SIMULATOR_SCENARIOS['happy-path'])
+    expect(story.outcome).toBe('completed')
+    let previous = 0
+    for (const beat of story.beats) {
+      gameserverEventSchema.parse(beat.event)
+      expect(beat.atMs).toBeGreaterThanOrEqual(previous)
+      previous = beat.atMs
+    }
+    expect(ofType(story, 'server_ready')[0]?.engine).toEqual({ gameType: 0, gameMode: 6 })
+    const [live] = ofType(story, 'going_live')
+    expect(live).toMatchObject({ map: 'rush_001', engine: { gameType: 0, gameMode: 6 } })
+    expect(live?.format).toBeUndefined()
+    expect(ofType(story, 'player_connected')).toHaveLength(6)
+    // No bomb, no MatchZy backups, no halftime, no recording.
+    for (const type of [
+      'bomb_planted',
+      'bomb_defused',
+      'bomb_exploded',
+      'backup_written',
+      'side_swap',
+      'demo_available',
+    ] as const)
+      expect(ofType(story, type), type).toHaveLength(0)
+    for (const tick of ofType(story, 'position_tick')) expect(tick.bomb).toBeUndefined()
+    expect(story.demos).toHaveLength(0)
+  })
+
+  it('says every round’s room and holder, and walks the line the way the winner says', () => {
+    for (const seed of SEEDS) {
+      const story = rush(SIMULATOR_SCENARIOS['happy-path'], seed)
+      const rounds = ofType(story, 'round_end')
+      expect(rounds[0]?.tower).toMatchObject({ room: 4, heldBy: 'ct' })
+      // Every room keeps its last winner; unplayed rooms are held as the map began.
+      const held = new Map<number, string>(
+        [1, 2, 3, 4, 5, 6, 7].map(room => [room, room <= 3 ? 't' : 'ct']),
+      )
+      rounds.forEach((round, index) => {
+        const tower = round.tower
+        if (!tower) throw new Error(`round ${round.roundNumber} has no tower`)
+        expect(round.roundNumber).toBe(index + 1)
+        expect(round.score.teamA + round.score.teamB).toBe(index + 1)
+        expect(tower.heldBy).toBe(held.get(tower.room))
+        held.set(tower.room, round.winner.side)
+        // The side team A plays never changes (`mp_halftime 0`).
+        expect(round.winner.side).toBe(round.winner.team === 'team_a' ? 'ct' : 't')
+        const next = rounds[index + 1]?.tower
+        if (next) expect(next.room).toBe(tower.room + (round.winner.side === 't' ? 1 : -1))
+        expect(round.winCondition).toBe(
+          round.winner.side !== tower.heldBy
+            ? 'tower_captured'
+            : round.winCondition === 'elimination'
+              ? 'elimination'
+              : 'tower_held',
+        )
+        const clock = [1, 7].includes(tower.room) || tower.roomId === 'convoy' ? 60_000 : 40_000
+        expect(round.roundTimeMs).toBeLessThanOrEqual(clock)
+      })
+    }
+  })
+
+  it('ends the four ways the script ends a round', () => {
+    const seen = new Set<string>()
+    for (const seed of SEEDS) {
+      const story = rush(SIMULATOR_SCENARIOS['happy-path'], seed)
+      for (const round of ofType(story, 'round_end')) {
+        const tower = round.tower
+        if (!tower) continue
+        const clock = [1, 7].includes(tower.room) || tower.roomId === 'convoy' ? 60_000 : 40_000
+        const dead = deadIn(story, round.roundNumber)
+        const sideDead = (side: string) =>
+          story.beats
+            .map(beat => beat.event)
+            .filter(event => event.type === 'player_connected')
+            .map(event => event.player)
+            .filter(player => (player.team === 'team_a' ? 'ct' : 't') === side)
+            .every(player => dead.has(player.steamId64))
+        const holdersDead = sideDead(tower.heldBy ?? '')
+        const attackersDead = sideDead(tower.heldBy === 'ct' ? 't' : 'ct')
+        if (round.roundTimeMs === clock) {
+          // The clock: whoever owned the tower won, and nobody's side was wiped
+          // out unless it was the holders' with nobody pressing in time.
+          seen.add(`time:${round.winCondition}`)
+          expect(attackersDead).toBe(false)
+        } else if (round.winCondition === 'elimination') {
+          expect(attackersDead).toBe(true)
+          seen.add(holdersDead ? 'both dead' : 'attackers dead')
+        } else if (holdersDead) {
+          // The short window: the holders are all dead, and the round is over
+          // within seven seconds of the last of them.
+          const lastHolder = Math.max(
+            ...ofType(story, 'player_death')
+              .filter(death => death.roundNumber === round.roundNumber)
+              .filter(death => (death.victim.team === 'team_a' ? 'ct' : 't') === tower.heldBy)
+              .map(death => death.roundTimeMs ?? 0),
+          )
+          expect((round.roundTimeMs ?? 0) - lastHolder).toBeLessThanOrEqual(7_000)
+          seen.add(`window:${round.winCondition}`)
+        } else {
+          seen.add(`other:${round.winCondition}`)
+        }
+      }
+    }
+    expect([...seen].sort()).toEqual(
+      [
+        'attackers dead',
+        'both dead',
+        'time:tower_captured',
+        'time:tower_held',
+        'window:tower_captured',
+        'window:tower_held',
+      ].sort(),
+    )
+  })
+
+  it('ends in a castle, before its rounds run out', () => {
+    for (const seed of SEEDS.slice(0, 10)) {
+      const story = rush(SIMULATOR_SCENARIOS['rush-castle'], seed)
+      const [mapEnd] = ofType(story, 'map_end')
+      const rounds = ofType(story, 'round_end')
+      const last = rounds[rounds.length - 1]
+      expect(mapEnd?.tower?.ending).toBe('castle')
+      expect(mapEnd?.tower?.room).toBe(last?.winner.side === 't' ? 7 : 1)
+      expect(mapEnd?.tower?.roomId).toBe(last?.winner.side === 't' ? '301' : '401')
+      expect(rounds.length).toBeLessThan(15)
+      expect(mapEnd?.score).toEqual(last?.score)
+      expect(mapEnd?.winner).toBe(last?.winner.team)
+    }
+  })
+
+  it('ends on eight round wins when nobody reaches a castle', () => {
+    for (const seed of SEEDS.slice(0, 10)) {
+      const story = rush(SIMULATOR_SCENARIOS['rush-clinch'], seed)
+      const [mapEnd] = ofType(story, 'map_end')
+      expect(mapEnd?.tower?.ending).toBe('rounds')
+      expect(Math.max(mapEnd?.score.teamA ?? 0, mapEnd?.score.teamB ?? 0)).toBe(8)
+      for (const round of ofType(story, 'round_end')) expect(round.tower?.roomId).not.toBe('convoy')
+    }
+  })
+
+  it('plays Convoy at 7–7, in the start room’s place, for sixty seconds', () => {
+    for (const seed of SEEDS.slice(0, 10)) {
+      const story = rush(SIMULATOR_SCENARIOS['rush-convoy'], seed)
+      const rounds = ofType(story, 'round_end')
+      expect(rounds).toHaveLength(15)
+      expect(rounds[13]?.score).toEqual({ teamA: 7, teamB: 7 })
+      expect(rounds[14]?.tower).toMatchObject({ room: 4, roomId: 'convoy' })
+      const [mapEnd] = ofType(story, 'map_end')
+      expect(mapEnd?.tower).toEqual({ room: 4, roomId: 'convoy', ending: 'rounds' })
+      expect(mapEnd?.winner).toBe(rounds[14]?.winner.team)
+    }
+  })
+
+  it('lets the scenario name the winner, and ends the series with it', () => {
+    const story = rush({ name: 'b-wins', winner: 'team_b', towerEnding: 'castle' }, 'winner')
+    expect(ofType(story, 'map_end')[0]?.winner).toBe('team_b')
+    expect(ofType(story, 'series_end')[0]).toMatchObject({
+      winner: 'team_b',
+      seriesScore: { teamA: 0, teamB: 1 },
+    })
+  })
+
+  it('keeps the scoreboard true, and buys with the money there is', () => {
+    for (const seed of SEEDS.slice(0, 10)) {
+      const story = rush(SIMULATOR_SCENARIOS['happy-path'], seed)
+      const deaths = ofType(story, 'player_death')
+      const rounds = ofType(story, 'round_end')
+      const final = rounds[rounds.length - 1]?.players ?? []
+      expect(final.reduce((sum, p) => sum + p.kills, 0)).toBe(deaths.length)
+      expect(final.reduce((sum, p) => sum + p.deaths, 0)).toBe(deaths.length)
+      // Nobody kills a teammate, and nobody dies twice in a round.
+      for (const death of deaths) expect(death.killer?.team).not.toBe(death.victim.team)
+      for (const round of rounds) {
+        const victims = deaths.filter(d => d.roundNumber === round.roundNumber).map(d => d.victim)
+        expect(new Set(victims.map(v => v.steamId64)).size).toBe(victims.length)
+      }
+      // $800 buys a pistol and some armour, nothing more.
+      const pistols = ['glock', 'deagle', 'p250', 'tec9', 'usp_silencer', 'fiveseven']
+      for (const death of deaths.filter(d => d.roundNumber === 1))
+        expect(pistols).toContain(death.weapon)
+    }
+  })
+
+  it('goes live under 0/6 on an empty server too', () => {
+    const story = rush(SIMULATOR_SCENARIOS.idle)
+    expect(ofType(story, 'going_live')[0]?.engine).toEqual({ gameType: 0, gameMode: 6 })
+    expect(ofType(story, 'series_end')[0]?.reason).toBe('idle')
+  })
+
+  it('leaves a map without a tower alone: the scenario’s tower ending moves nothing there', () => {
+    // Under the same name, since a recording carries the scenario's.
+    const castle = { ...SIMULATOR_SCENARIOS['rush-castle'], name: 'happy-path' }
+    expect(JSON.stringify(storyFor(castle, 'plain'))).toBe(
+      JSON.stringify(storyFor(SIMULATOR_SCENARIOS['happy-path'], 'plain')),
+    )
+  })
+})

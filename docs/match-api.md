@@ -634,8 +634,11 @@ Scope `matches`. `Capacity`.
 
 Scope `matches`. `{ scenarios: SimScenario[], default }` — the scripted shapes this build's
 simulator can play, and the one a `sim` block without a `scenario` gets. A `SimScenario` is
-`{ name, neverReady, absentPlayers, crashAfterRound, pauses, idle, overtimes, comeback }`:
-the knobs spelled out, so a console renders facts rather than a hard-coded list. `idle`
+`{ name, neverReady, absentPlayers, crashAfterRound, pauses, idle, overtimes, comeback,
+towerEnding }`: the knobs spelled out, so a console renders facts rather than a hard-coded
+list. `towerEnding` (0.30.0) is how a tower map ends, `castle`, `clinch` or `convoy`, or null
+for the dice; `rush-castle`, `rush-clinch` and `rush-convoy` set it, and it is ignored on a
+map without a tower. `idle`
 is the story where **nobody ever connects**, and what happens then is the *mode's*: a
 `matchzy` mode holds its warmup open for ever, so the join deadline is the only thing
 that gives up on it, while a mode whose flow the server's own plugin tells (`plugin`,

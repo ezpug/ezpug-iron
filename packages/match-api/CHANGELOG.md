@@ -6,6 +6,31 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.30.0 — 2026-09-27
+
+**The fake plays Rush** (PRD-06 T2, for the platform's PRD-13 T19 and T20). Additive: one
+field on a scenario in the catalog, three scenario names, and a fake that now plays a
+`rush_001` map the way the map's script does. No event changed shape. 0.29.0 was never
+published, so this is the first release on the registry with its `rules` field.
+
+- **The fake and the `sim` provider play tower rounds.** A match on `rush_001` goes live under
+  `engine { gameType: 0, gameMode: 6 }` with no `format`, and walks a line of seven rooms
+  drawn as the map draws them. Every `round_end` carries `tower` and ends one of the ways the
+  map's script ends a round: on the clock (`tower_held` or `tower_captured`), when every
+  attacker is dead (`elimination`), when both sides are dead (`elimination`, the owner wins),
+  or in the short window after the holders are wiped out (`tower_captured` on a press,
+  `tower_held` when nobody presses). The walk ends in a castle (`map_end.tower.ending:
+  "castle"`) or on the rounds (`"rounds"`: eight wins, or 8–7 in Convoy after 7–7). No bomb, no
+  backups, no halftime and no demo. Rounds are 40 s, 60 s in a castle and in Convoy, after
+  Valve's 13 s freeze, and nobody buys what the Rush economy would not pay for.
+- **`SimScenario.towerEnding`** (`simTowerEndingSchema`, `SIM_TOWER_ENDINGS`): `castle`,
+  `clinch`, `convoy`, or null for the dice. The schema defaults it to null, so a catalog from
+  an older orchestrator still parses. It is ignored on a map without a tower.
+- **Scenarios `rush-castle`, `rush-clinch` and `rush-convoy`** set it, so a test can ask the
+  fake for each ending of a Rush match. A puppets request is refused them
+  (`validation_failed` on `simulation.scenario`): the map's script decides every round, and
+  nothing on a real server can walk six bots to a castle.
+
 ## 0.29.0 — 2026-09-27
 
 **A mode that owns its rounds refuses `rules`** (PRD-06 T1a, for the platform's PRD-13 T19).

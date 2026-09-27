@@ -491,6 +491,7 @@ is which lives in one place, `packages/sim/src/scenario.ts`, and this table is t
 | `pauses` | refused | nothing pauses a stock server but an admin, and that admin is the Match API’s own `pause` command — the lane pauses a live match through the front door instead (PRD-03 T6) |
 | `overtimes` | refused | two even sides of bots cannot be made to draw on demand — PRD-03 T6 counted an overtime in five of the matrix’s ten maps and could force none of them |
 | `comeback` | refused | nothing scripts a bot’s aim, so no real server can be told who trails at the half |
+| `towerEnding` | refused | the map’s own script decides every tower round, and nothing walks six bots into a castle or holds them at 7–7 on cue |
 
 Two more things follow from who holds the bodies. **Under a `matchzy` flow even the two
 knobs a puppet can do are refused**: MatchZy-Enhanced's simulation mode seats one bot per

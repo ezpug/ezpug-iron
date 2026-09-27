@@ -1318,7 +1318,9 @@ describe('the fleet', () => {
       idle: false,
       overtimes: 0,
       comeback: false,
+      towerEnding: null,
     })
+    expect(catalog.scenarios.find(s => s.name === 'rush-convoy')?.towerEnding).toBe('convoy')
     // And a name from the catalog is a name the door takes.
     const match = await client.matches.create({
       body: pugRequest({ sim: { scenario: catalog.scenarios[0]?.name } }),
@@ -1408,5 +1410,38 @@ describe('the fleet', () => {
       expect(order).toContain('round_end')
     }
     expect(h.uploads).toEqual([])
+  })
+
+  it('plays Rush as the map’s script does: tower rounds along the line, to a castle (PRD-06 T2)', async () => {
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    const match = await client.matches.create({
+      body: pugRequest({
+        clientMatchId: 'rush',
+        gamemode: 'rush',
+        rules: undefined,
+        teams: {
+          teamA: { name: 'Team hunzR', players: rosterOf(['hunzR', 'maex', 'Zerberus'], 0) },
+          teamB: { name: 'Team wickeD', players: rosterOf(['wickeD', 'Jörg', 'schnitzL'], 100) },
+        },
+        maps: [{ map: 'rush_001', sides: 'ct' }],
+        sim: { scenario: 'rush-castle' },
+      }),
+    })
+    await h.fake.playOut()
+    const final: Match = await client.matches.get({ params: { matchId: match.id } })
+    expect(final.state).toBe('ended')
+    const payloads = (await allEvents(h, match.id)).map(e => e.payload)
+    const live = payloads.find(p => p.type === 'going_live')
+    expect(live).toMatchObject({ map: 'rush_001', engine: { gameType: 0, gameMode: 6 } })
+    const rounds = payloads.filter(p => p.type === 'round_end')
+    expect(rounds.length).toBeGreaterThanOrEqual(4)
+    for (const round of rounds) {
+      expect(round.tower).toBeDefined()
+      expect(['tower_held', 'tower_captured', 'elimination']).toContain(round.winCondition)
+    }
+    const mapEnd = payloads.find(p => p.type === 'map_end')
+    expect(mapEnd?.type === 'map_end' && mapEnd.tower?.ending).toBe('castle')
+    expect(types(await allEvents(h, match.id))).not.toContain('demo.uploaded')
   })
 })

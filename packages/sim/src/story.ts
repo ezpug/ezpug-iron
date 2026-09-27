@@ -47,6 +47,8 @@ import { planSimulatedChatter } from './chatter'
 import type { SimulatedRecording } from './record'
 import { simulatedRecording } from './record'
 import type { SimulatorScenario } from './scenario'
+import type { TowerRound } from './tower'
+import { drawTowerLine, isTowerMap, planTowerWalk, TOWER_MAPS, TOWER_WINDOW_MS } from './tower'
 import { bombAt, planRoundUtility, utilitySampler } from './utility'
 
 /** One event at its game-time offset. `seq` is stamped at emission, not here. */
@@ -203,16 +205,23 @@ interface PlayerState {
 }
 
 /**
- * **The engine game every map of this story loads under** (PRD-05 T2d): what
+ * **The engine game a map of this story loads under** (PRD-05 T2d): what
  * `server_ready.engine` and `going_live.engine` / `format` say. MatchZy sets
  * `game_type 0` and `game_mode 2` for a wingman match and `1` for every other
  * (`SetCorrectGameMode`), and a mode with another flow plays the image's boot
- * game, which is competitive; wingman is refused for those at the door.
+ * game, which is competitive; wingman is refused for those at the door. A
+ * tower map is played under its own game (`rush_001`: `0`/`6`, PRD-06 T2),
+ * which is no format of ours.
  */
-function enginePlayed(assignment: MatchAssignment): {
+function enginePlayed(
+  assignment: MatchAssignment,
+  map: string,
+): {
   engine: EngineGame
   format?: ReturnType<typeof formatOfEngineGame>
 } {
+  const tower = TOWER_MAPS[map]
+  if (tower) return { engine: { ...tower } }
   const engine = { gameType: 0, gameMode: assignment.wingman ? 2 : 1 }
   const format = formatOfEngineGame(engine)
   return { engine, ...(format && { format }) }
@@ -403,7 +412,7 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
   // --- boot & connects ------------------------------------------------------
 
   const firstMap = assignment.maps[0] as (typeof assignment.maps)[number]
-  const engineOf = enginePlayed(assignment)
+  const engineOf = enginePlayed(assignment, firstMap.map)
   const { engine } = engineOf
   t += options.bootDelayMs
   const readyAtMs = t
@@ -757,6 +766,149 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     return { beats, outcome: 'completed', demos }
   }
 
+  // --- a tower map -----------------------------------------------------------
+  //
+  // **Rush** (PRD-06 T2): the map's script plays the rounds, so a tower map is
+  // told from its walk (`tower.ts`) rather than from `planMapRounds`. The
+  // line is drawn and the walk decided before the map goes live, the planned
+  // map winner winning it. Nothing here is MatchZy's: no knife round (the
+  // side is the plan's, or a coin where it said knife), no backups, no
+  // halftime (`mp_halftime 0`), no overtime. Returns whether the server died.
+  const playTowerMap = (
+    mapIndex: number,
+    decidedMap: (typeof assignment.maps)[number],
+    mapWinner: MatchTeam,
+    lastMap: boolean,
+  ): boolean => {
+    const mapNumber = mapIndex + 1
+    const isFirstMap = mapIndex === 0
+    const teamASide: TeamSide =
+      decidedMap.teamASide === 'knife' ? prng.pick(['ct', 't'] as const) : decidedMap.teamASide
+    const teamOn = (side: TeamSide): MatchTeam => (side === teamASide ? 'team_a' : 'team_b')
+    const line = drawTowerLine(prng)
+    const walk = planTowerWalk(
+      prng,
+      line,
+      mapWinner === 'team_a' ? teamASide : flip(teamASide),
+      scenario.towerEnding,
+    )
+    const pauseRounds = new Set(
+      isFirstMap && scenario.pauses
+        ? prng.sample(
+            indices(walk.rounds.length - 1).map(i => i + 2),
+            Math.min(scenario.pauses, walk.rounds.length - 1),
+          )
+        : [],
+    )
+
+    const mapStartIndex = beats.length
+    emit(t, {
+      type: 'going_live',
+      matchId,
+      source,
+      mapNumber,
+      map: decidedMap.map,
+      ...enginePlayed(assignment, decidedMap.map),
+    })
+
+    const score = { teamA: 0, teamB: 0 }
+    const lossStreak: Record<MatchTeam, number> = { team_a: 0, team_b: 0 }
+    const wallets = new Map<string, TowerWallet>(
+      players.map(state => [state.player.steamId64, { money: TOWER_START_MONEY, kit: null }]),
+    )
+
+    for (const [index, towerRound] of walk.rounds.entries()) {
+      const round = index + 1
+      if (pauseRounds.has(round)) {
+        t += 2_000
+        emit(t, {
+          type: 'match_paused',
+          matchId,
+          source,
+          mapNumber,
+          kind: 'tactical',
+          pausedBy: prng.pick(['team_a', 'team_b'] as const),
+        })
+        t += prng.int(30_000, 60_001)
+        emit(t, { type: 'match_unpaused', matchId, source, mapNumber })
+      }
+      t += (round === 1 ? TOWER_TEAM_INTRO_MS : TOWER_RESTART_MS) + TOWER_FREEZE_MS
+      emit(t, {
+        type: 'round_start',
+        matchId,
+        source,
+        mapNumber,
+        roundNumber: round,
+        score: { ...score },
+      })
+
+      const roundWinner = teamOn(towerRound.winner)
+      const roundStartIndex = beats.length
+      const { durationMs, winCondition } = playTowerRound({
+        prng,
+        matchId,
+        source,
+        emit,
+        players,
+        roster,
+        asGameserverPlayer,
+        tStart: t,
+        mapNumber,
+        round,
+        tower: towerRound,
+        holder: teamOn(towerRound.heldBy),
+        roundWinner,
+        teamASide,
+        wallets,
+        lossStreak,
+        positionTickIntervalMs,
+        radar: radars[mapIndex] ?? null,
+      })
+      t += durationMs
+      if (isFirstMap) dealKnifePerk(round, roundStartIndex, t)
+
+      if (roundWinner === 'team_a') score.teamA++
+      else score.teamB++
+
+      emit(t, {
+        type: 'round_end',
+        matchId,
+        source,
+        mapNumber,
+        roundNumber: round,
+        winner: { team: roundWinner, side: towerRound.winner },
+        winCondition,
+        score: { ...score },
+        players: players.map(summarize),
+        roundTimeMs: durationMs,
+        tower: {
+          room: towerRound.index + 1,
+          roomId: towerRound.roomId,
+          heldBy: towerRound.heldBy,
+        },
+      })
+
+      if (isFirstMap && round === 1) say(t, 'pistol')
+      if (lastMap && round === walk.rounds.length) say(t, 'end')
+      if (isFirstMap && scenario.crashAfterRound === round) return true
+    }
+
+    const last = walk.rounds[walk.rounds.length - 1] as TowerRound
+    t += 2_000
+    emit(t, {
+      type: 'map_end',
+      matchId,
+      source,
+      mapNumber,
+      map: decidedMap.map,
+      score: { ...score },
+      winner: winnerOf(assignment, score.teamA, score.teamB),
+      tower: { room: last.index + 1, roomId: last.roomId, ending: walk.ending },
+    })
+    announceDemo(mapNumber, decidedMap.map, mapStartIndex)
+    return false
+  }
+
   // --- the series -----------------------------------------------------------
 
   const seriesWinner = scenario.winner ?? prng.pick(['team_a', 'team_b'] as const)
@@ -769,6 +921,19 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
     const decidedMap = assignment.maps[mapIndex] ?? firstMap
     const mapWinner = mapWinners[mapIndex] as MatchTeam
     if (mapIndex > 0) t += MAP_GAP_MS
+
+    if (isTowerMap(decidedMap.map)) {
+      const crashed = playTowerMap(
+        mapIndex,
+        decidedMap,
+        mapWinner,
+        mapIndex === mapWinners.length - 1,
+      )
+      if (crashed) return { beats, outcome: 'crashed', demos }
+      if (mapWinner === 'team_a') seriesScore.teamA++
+      else seriesScore.teamB++
+      continue
+    }
 
     // A knife round decides sides where the config left them open — the
     // ranked queue never does , custom contexts may.
@@ -792,7 +957,14 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
 
     // Where this map's recording begins: everything from `going_live` on.
     const mapStartIndex = beats.length
-    emit(t, { type: 'going_live', matchId, source, mapNumber, map: decidedMap.map, ...engineOf })
+    emit(t, {
+      type: 'going_live',
+      matchId,
+      source,
+      mapNumber,
+      map: decidedMap.map,
+      ...enginePlayed(assignment, decidedMap.map),
+    })
 
     const isFirstMap = mapIndex === 0
     const roundWinners = planMapRounds(
@@ -1366,6 +1538,355 @@ function playRound(options: RoundOptions): {
 }
 
 // ---------------------------------------------------------------------------
+// A tower round
+// ---------------------------------------------------------------------------
+
+// Rush's rhythm and money, as `gamemode_rush.cfg` on the dev node sets them.
+/** `mp_team_intro_type rush`: the walk-out before the first round only. */
+const TOWER_TEAM_INTRO_MS = 9_000
+const TOWER_FREEZE_MS = 13_000
+/** `mp_round_restart_delay 5`. */
+const TOWER_RESTART_MS = 5_000
+const TOWER_START_MONEY = 800
+const TOWER_MAX_MONEY = 10_000
+/** `AddTeamMoney(…, 2500)` from the script, however the round was won. */
+const TOWER_WIN_MONEY = 2_500
+const TOWER_LOSER_BONUS = 2_100
+/** `cash_team_loser_bonus_consecutive_rounds`, for up to four losses in a row. */
+const TOWER_LOSER_BONUS_STEP = 750
+const TOWER_KILL_MONEY = 300
+/** `cash_team_per_dead_enemy`, to everybody on the killing side. */
+const TOWER_DEAD_ENEMY_MONEY = 50
+
+type TowerKit = 'pistol' | 'smg' | 'rifle' | 'awp'
+const KIT_RANK: Record<TowerKit, number> = { pistol: 0, smg: 1, rifle: 2, awp: 3 }
+
+/** One player's money and what they carry into the next round (nothing, once they died). */
+interface TowerWallet {
+  money: number
+  kit: TowerKit | null
+}
+
+/**
+ * **How a tower round ends**, the ways the script ends one:
+ *
+ * - `held`, `taken` — the clock ran out, and the tower's owner won it: its
+ *   holders (`tower_held`), or the attackers who pressed the button and kept
+ *   it (`tower_captured`).
+ * - `wiped` — every attacker died and the holders won there and then
+ *   (`elimination`).
+ * - `trade` — the last holder and the last attacker killed each other; both
+ *   sides dead, the owner wins (`elimination`).
+ * - `missed`, `window` — the holders were wiped out and the clock dropped to
+ *   the short window: nobody pressed, and the owner won on the clock
+ *   (`tower_held`); or an attacker pressed, and with the side it took the
+ *   tower from all dead the round ended on the press (`tower_captured`).
+ * - `taken_wiped` — the attackers pressed first, then killed every holder
+ *   (`tower_captured`).
+ *
+ * Who pressed is on no event the engine sends, so no beat here names them.
+ */
+type TowerEnding = 'held' | 'taken' | 'wiped' | 'trade' | 'missed' | 'window' | 'taken_wiped'
+
+interface TowerRoundOptions {
+  prng: Prng
+  matchId: string
+  source: GameserverSource
+  emit: (atMs: number, event: GameserverEvent) => void
+  players: PlayerState[]
+  roster: (team: MatchTeam) => PlayerState[]
+  asGameserverPlayer: (state: PlayerState) => GameserverPlayer
+  tStart: number
+  mapNumber: number
+  round: number
+  tower: TowerRound
+  /** The team holding the tower as the round begins. */
+  holder: MatchTeam
+  roundWinner: MatchTeam
+  teamASide: TeamSide
+  wallets: Map<string, TowerWallet>
+  lossStreak: Record<MatchTeam, number>
+  positionTickIntervalMs: number | null
+  radar: MapRadar | null
+}
+
+/**
+ * One tower round's in-round events, the way {@link playRound} tells a bomb
+ * round: the ending is chosen to fit the winner the walk already decided,
+ * the deaths are planned to fit the ending, and every kill is dealt to somebody
+ * alive on the other side at that instant, so the kill feed, the summaries and
+ * the win condition never disagree. Nobody buys more than they can pay for,
+ * and a body that lived keeps its gun.
+ */
+function playTowerRound(options: TowerRoundOptions): {
+  durationMs: number
+  winCondition: RoundWinCondition
+} {
+  const { prng, matchId, source, tStart, mapNumber, round, teamASide, wallets } = options
+  const clockMs = options.tower.clockMs
+  const roundBeats: { atMs: number; event: GameserverEvent }[] = []
+  const emit = (atMs: number, event: GameserverEvent): void => {
+    roundBeats.push({ atMs, event })
+  }
+  const sideOf = (state: PlayerState): TeamSide =>
+    state.team === 'team_a' ? teamASide : flip(teamASide)
+
+  // The buy: what each body carries into this round. One who lived keeps a
+  // gun at least as good as the one they could buy now.
+  const kits = new Map<string, TowerKit>()
+  for (const state of options.players) {
+    const wallet = wallets.get(state.player.steamId64) as TowerWallet
+    const affordable: TowerKit =
+      wallet.money >= 5_750
+        ? prng.bool(0.2)
+          ? 'awp'
+          : 'rifle'
+        : wallet.money >= 3_700
+          ? 'rifle'
+          : wallet.money >= 1_900
+            ? 'smg'
+            : 'pistol'
+    if (wallet.kit && KIT_RANK[wallet.kit] >= KIT_RANK[affordable]) {
+      kits.set(state.player.steamId64, wallet.kit)
+      continue
+    }
+    const cost =
+      affordable === 'awp'
+        ? 5_750
+        : affordable === 'rifle'
+          ? 3_700
+          : affordable === 'smg'
+            ? 1_900
+            : Math.min(wallet.money, 650)
+    wallet.money -= cost
+    wallet.kit = affordable
+    kits.set(state.player.steamId64, affordable)
+  }
+
+  const holders = options.roster(options.holder)
+  const attackers = options.roster(other(options.holder))
+  const kept = options.roundWinner === options.holder
+  const roll = prng.next()
+  const ending: TowerEnding = kept
+    ? roll < 0.35
+      ? 'wiped'
+      : roll < 0.6
+        ? 'held'
+        : roll < 0.8
+          ? 'missed'
+          : 'trade'
+    : roll < 0.4
+      ? 'window'
+      : roll < 0.75
+        ? 'taken_wiped'
+        : 'taken'
+  const winCondition: RoundWinCondition = !kept
+    ? 'tower_captured'
+    : ending === 'wiped' || ending === 'trade'
+      ? 'elimination'
+      : 'tower_held'
+
+  /** Up to all but one of `team`, dying some time in [from, until). */
+  const some = (team: PlayerState[], from: number, until: number) =>
+    prng
+      .sample(team, prng.int(0, team.length))
+      .map(victim => ({ victim, atMs: prng.int(from, until), trade: false }))
+  /** All of `team`, the last of them at `atMs` exactly. */
+  const wipe = (team: PlayerState[], atMs: number, trade = false) =>
+    prng
+      .shuffle(team)
+      .map((victim, i, order) =>
+        i === order.length - 1
+          ? { victim, atMs, trade }
+          : { victim, atMs: prng.int(4_000, atMs), trade: false },
+      )
+
+  let endMs: number
+  let planned: { victim: PlayerState; atMs: number; trade: boolean }[]
+  if (ending === 'held' || ending === 'taken') {
+    endMs = clockMs
+    planned = [...some(holders, 4_000, clockMs - 1_000), ...some(attackers, 4_000, clockMs - 1_000)]
+  } else if (ending === 'wiped') {
+    endMs = prng.int(12_000, clockMs - 2_000)
+    planned = [...wipe(attackers, endMs), ...some(holders, 4_000, endMs)]
+  } else if (ending === 'trade') {
+    endMs = prng.int(12_000, clockMs - 2_000)
+    planned = [...wipe(holders, endMs, true), ...wipe(attackers, endMs, true)]
+  } else if (ending === 'missed' || ending === 'window') {
+    const wipedAtMs = prng.int(10_000, clockMs - 3_000)
+    planned = [...wipe(holders, wipedAtMs), ...some(attackers, 4_000, wipedAtMs)]
+    const windowMs = Math.min(clockMs - wipedAtMs, TOWER_WINDOW_MS)
+    endMs = ending === 'missed' ? wipedAtMs + windowMs : wipedAtMs + prng.int(1_000, windowMs)
+  } else {
+    const pressedAtMs = prng.int(8_000, clockMs - 12_000)
+    endMs = prng.int(pressedAtMs + 2_000, clockMs - 1_000)
+    planned = [...wipe(holders, endMs), ...some(attackers, 4_000, endMs)]
+  }
+  planned.sort((a, b) => a.atMs - b.atMs)
+
+  const deathTime = new Map<string, number>()
+  const aliveOf = (team: MatchTeam, atMs: number): PlayerState[] =>
+    options
+      .roster(team)
+      .filter(p => (deathTime.get(p.player.steamId64) ?? Number.POSITIVE_INFINITY) > atMs)
+  const weightedPick = (candidates: PlayerState[]): PlayerState => {
+    const total = candidates.reduce((sum, p) => sum + p.skill, 0)
+    let roll = prng.next() * total
+    for (const candidate of candidates) {
+      roll -= candidate.skill
+      if (roll <= 0) return candidate
+    }
+    return candidates[candidates.length - 1] as PlayerState
+  }
+  const weaponOf = (killer: PlayerState): string => {
+    const kit = kits.get(killer.player.steamId64) ?? 'pistol'
+    return kit === 'awp' ? 'awp' : prng.pick(WEAPONS[kit][sideOf(killer)])
+  }
+
+  // A trade's two deaths share an instant, and each is the other's killer.
+  const traded = planned.filter(death => death.trade)
+  const roundKills = new Map<string, number>()
+  const dealt: { victim: PlayerState; killer: PlayerState; atMs: number }[] = []
+  for (const death of planned) {
+    let killer: PlayerState | undefined
+    if (death.trade) {
+      killer = traded.find(other => other.victim.team !== death.victim.team)?.victim
+    } else {
+      const opponents = aliveOf(other(death.victim.team), death.atMs)
+      // Nobody left on the other side to credit: this death never happened.
+      if (opponents.length > 0) killer = weightedPick(opponents)
+    }
+    if (!killer) continue
+    dealt.push({ victim: death.victim, killer, atMs: death.atMs })
+    if (!death.trade) deathTime.set(death.victim.player.steamId64, death.atMs)
+  }
+  for (const death of traded) deathTime.set(death.victim.player.steamId64, death.atMs)
+
+  for (const { victim, killer, atMs } of dealt) {
+    const weapon = weaponOf(killer)
+    const headshot = weapon === 'awp' ? prng.bool(0.15) : prng.bool(0.45)
+    const assists: { player: GameserverPlayer; flash: boolean }[] = []
+    if (prng.bool(0.35)) {
+      const helpers = aliveOf(killer.team, atMs).filter(p => p !== killer)
+      if (helpers.length > 0) {
+        const helper = prng.pick(helpers)
+        const flash = prng.bool(0.25)
+        assists.push({ player: options.asGameserverPlayer(helper), flash })
+        if (flash) helper.flashAssists++
+        else helper.assists++
+        helper.damage += prng.int(15, 61)
+      }
+    }
+    victim.deaths++
+    killer.kills++
+    killer.damage += prng.int(80, 141)
+    if (headshot) killer.headshotKills++
+    roundKills.set(killer.player.steamId64, (roundKills.get(killer.player.steamId64) ?? 0) + 1)
+    const wallet = wallets.get(killer.player.steamId64) as TowerWallet
+    wallet.money += TOWER_KILL_MONEY
+    for (const mate of options.roster(killer.team)) {
+      const mateWallet = wallets.get(mate.player.steamId64) as TowerWallet
+      mateWallet.money += TOWER_DEAD_ENEMY_MONEY
+    }
+    emit(tStart + atMs, {
+      type: 'player_death',
+      matchId,
+      source,
+      mapNumber,
+      roundNumber: round,
+      victim: options.asGameserverPlayer(victim),
+      killer: options.asGameserverPlayer(killer),
+      assists,
+      weapon,
+      headshot,
+      ...(weapon === 'awp' && prng.bool(0.05) ? { noscope: true } : {}),
+      ...(prng.bool(0.08) ? { penetrated: true } : {}),
+      ...(prng.bool(0.06) ? { throughSmoke: true } : {}),
+      roundTimeMs: atMs,
+    })
+  }
+
+  // The ephemeral tier: the living, wandering; one grenade each at most
+  // (`ammo_grenade_limit_total 1`), on a fork of its own; no bomb in this game.
+  if (options.positionTickIntervalMs !== null) {
+    const ground = wanderer(prng, options.radar)
+    const positions = new Map(
+      options.players.map(p => [p.player.steamId64, ground.spawn(sideOf(p))]),
+    )
+    const diedAt = (steamId64: string): number =>
+      deathTime.get(steamId64) ?? Number.POSITIVE_INFINITY
+    const holderSide = options.tower.heldBy
+    const thrown = new Set<string>()
+    const throws = planRoundUtility({
+      prng: prng.fork(`utility:${mapNumber}:${round}`),
+      idPrefix: `m${mapNumber}r${round}`,
+      sides: (['team_a', 'team_b'] as const).map(team => ({
+        side: team === options.holder ? holderSide : flip(holderSide),
+        players: options.roster(team).map(p => p.player.steamId64),
+      })),
+      endMs,
+      aliveAt: (steamId64, atMs) => diedAt(steamId64) > atMs,
+    }).filter(planned => {
+      if (thrown.has(planned.thrower)) return false
+      thrown.add(planned.thrower)
+      return true
+    })
+    const sampleUtility = utilitySampler(throws, options.positionTickIntervalMs)
+    const worldOf = (steamId64: string) => {
+      const point = positions.get(steamId64)
+      return point ? ground.world(point) : undefined
+    }
+    for (
+      let atMs = options.positionTickIntervalMs;
+      atMs < endMs;
+      atMs += options.positionTickIntervalMs
+    ) {
+      const tickPositions = options.players
+        .filter(p => diedAt(p.player.steamId64) > atMs)
+        .map(p => {
+          const point = positions.get(p.player.steamId64) as WanderPoint
+          ground.step(point)
+          return { steamId64: p.player.steamId64, ...ground.world(point), yaw: prng.int(0, 360) }
+        })
+      emit(tStart + atMs, {
+        type: 'position_tick',
+        matchId,
+        source,
+        mapNumber,
+        roundNumber: round,
+        positions: tickPositions,
+        grenades: sampleUtility(atMs, worldOf),
+      })
+    }
+  }
+
+  const winners = options.roster(options.roundWinner)
+  const topFragger = winners
+    .map(p => ({ p, kills: roundKills.get(p.player.steamId64) ?? 0 }))
+    .sort((a, b) => b.kills - a.kills)[0]
+  if (topFragger) (topFragger.kills > 0 ? topFragger.p : weightedPick(winners)).mvps++
+
+  // The money after the round: the script's $2500 to the winners, the loss
+  // bonus to the losers, and nobody past the cap. The dead lost their guns.
+  const loser = other(options.roundWinner)
+  const bonus = TOWER_LOSER_BONUS + TOWER_LOSER_BONUS_STEP * Math.min(options.lossStreak[loser], 4)
+  options.lossStreak[options.roundWinner] = 0
+  options.lossStreak[loser]++
+  for (const state of options.players) {
+    const wallet = wallets.get(state.player.steamId64) as TowerWallet
+    wallet.money = Math.min(
+      TOWER_MAX_MONEY,
+      wallet.money + (state.team === options.roundWinner ? TOWER_WIN_MONEY : bonus),
+    )
+    if (deathTime.has(state.player.steamId64)) wallet.kit = null
+  }
+
+  roundBeats.sort((a, b) => a.atMs - b.atMs)
+  for (const beat of roundBeats) options.emit(beat.atMs, beat.event)
+  return { durationMs: endMs, winCondition }
+}
+
+// ---------------------------------------------------------------------------
 // A mode with a length
 // ---------------------------------------------------------------------------
 
@@ -1597,7 +2118,6 @@ export interface ResumeStoryOptions {
  */
 export function resumeStory(options: ResumeStoryOptions): MatchStory {
   const { story, assignment, source, point, prng } = options
-  const engineOf = enginePlayed(assignment)
   const { matchId } = assignment
   const index = story.beats.findIndex(
     ({ event }) =>
@@ -1607,6 +2127,7 @@ export function resumeStory(options: ResumeStoryOptions): MatchStory {
   )
   if (index < 0) throw new SimulatorRestoreError(point)
   const map = assignment.maps[point.mapNumber - 1]?.map ?? assignment.maps[0]?.map ?? ''
+  const engineOf = enginePlayed(assignment, map)
 
   const beats: StoryBeat[] = []
   let t = options.bootDelayMs

@@ -14,7 +14,8 @@
             "pauses": 0,
             "idle": false,
             "overtimes": 0,
-            "comeback": false
+            "comeback": false,
+            "towerEnding": null
           },
           {
             "name": "overtime",
@@ -24,7 +25,8 @@
             "pauses": 0,
             "idle": false,
             "overtimes": 1,
-            "comeback": false
+            "comeback": false,
+            "towerEnding": null
           },
           {
             "name": "pauses",
@@ -34,7 +36,8 @@
             "pauses": 2,
             "idle": false,
             "overtimes": 0,
-            "comeback": false
+            "comeback": false,
+            "towerEnding": null
           },
           {
             "name": "comeback",
@@ -44,7 +47,8 @@
             "pauses": 0,
             "idle": false,
             "overtimes": 0,
-            "comeback": true
+            "comeback": true,
+            "towerEnding": null
           },
           {
             "name": "no-show",
@@ -54,7 +58,8 @@
             "pauses": 0,
             "idle": false,
             "overtimes": 0,
-            "comeback": false
+            "comeback": false,
+            "towerEnding": null
           },
           {
             "name": "idle",
@@ -64,7 +69,8 @@
             "pauses": 0,
             "idle": true,
             "overtimes": 0,
-            "comeback": false
+            "comeback": false,
+            "towerEnding": null
           },
           {
             "name": "server-crash",
@@ -74,7 +80,8 @@
             "pauses": 0,
             "idle": false,
             "overtimes": 0,
-            "comeback": false
+            "comeback": false,
+            "towerEnding": null
           },
           {
             "name": "never-ready",
@@ -84,7 +91,41 @@
             "pauses": 0,
             "idle": false,
             "overtimes": 0,
-            "comeback": false
+            "comeback": false,
+            "towerEnding": null
+          },
+          {
+            "name": "rush-castle",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "idle": false,
+            "overtimes": 0,
+            "comeback": false,
+            "towerEnding": "castle"
+          },
+          {
+            "name": "rush-clinch",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "idle": false,
+            "overtimes": 0,
+            "comeback": false,
+            "towerEnding": "clinch"
+          },
+          {
+            "name": "rush-convoy",
+            "neverReady": false,
+            "absentPlayers": 0,
+            "crashAfterRound": null,
+            "pauses": 0,
+            "idle": false,
+            "overtimes": 0,
+            "comeback": false,
+            "towerEnding": "convoy"
           }
         ],
         "default": "happy-path"

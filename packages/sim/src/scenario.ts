@@ -9,7 +9,7 @@
  * The platform's `scenario.ts` on 2026-09-05, verbatim: the names are what
  * the platform's console dropdown sends as `MatchRequest.sim.scenario`.
  */
-import type { MatchTeam } from '@ezpug/match-api'
+import type { MatchTeam, SimTowerEnding } from '@ezpug/match-api'
 
 export interface SimulatorScenario {
   /** kebab-case, so a console dropdown and a test name read the same. */
@@ -57,6 +57,14 @@ export interface SimulatorScenario {
   comeback?: boolean
   /** Fix the match winner; omitted, the seeded PRNG decides. */
   winner?: MatchTeam
+  /**
+   * **How a tower map ends** (`rush`, PRD-06 T2): in the loser's castle, on
+   * eight round wins, or 8–7 in Convoy after 7–7. Omitted, the dice walk the
+   * line. Ignored on every other map, which has no tower to end on; and
+   * `overtimes` and `comeback` are ignored on a tower map, which has neither
+   * an overtime nor a half.
+   */
+  towerEnding?: SimTowerEnding
 }
 
 /** The named scenarios, one per failure branch worth reproducing. */
@@ -69,6 +77,9 @@ export const SIMULATOR_SCENARIOS = {
   idle: { name: 'idle', idle: true },
   'server-crash': { name: 'server-crash', crashAfterRound: 9 },
   'never-ready': { name: 'never-ready', neverReady: true },
+  'rush-castle': { name: 'rush-castle', towerEnding: 'castle' },
+  'rush-clinch': { name: 'rush-clinch', towerEnding: 'clinch' },
+  'rush-convoy': { name: 'rush-convoy', towerEnding: 'convoy' },
 } as const satisfies Record<string, SimulatorScenario>
 
 export type SimulatorScenarioName = keyof typeof SIMULATOR_SCENARIOS
@@ -110,6 +121,7 @@ export interface SimulatorScenarioInfo {
   idle: boolean
   overtimes: number
   comeback: boolean
+  towerEnding: SimTowerEnding | null
 }
 
 /**
@@ -128,6 +140,7 @@ export function listScenarios(): SimulatorScenarioInfo[] {
     idle: scenario.idle ?? false,
     overtimes: scenario.overtimes ?? 0,
     comeback: scenario.comeback ?? false,
+    towerEnding: scenario.towerEnding ?? null,
   }))
 }
 
@@ -208,6 +221,12 @@ export const SCENARIO_KNOB_REACH: readonly ScenarioKnobReach[] = [
     puppets: null,
     reason: 'nothing scripts a bot’s aim, so no real server can be told who trails at the half',
   },
+  {
+    knob: 'towerEnding',
+    puppets: null,
+    reason:
+      'the map’s own script decides every tower round, and nothing walks six bots into a castle or holds them at 7–7 on cue',
+  },
 ]
 
 /**
@@ -244,6 +263,7 @@ export function puppetScriptFor(scenario: SimulatorScenario): PuppetScript | nul
 export function scenarioPuppetProblem(scenario: SimulatorScenario, flow: string): string | null {
   const asked = SCENARIO_KNOB_REACH.filter(reach => {
     const value = scenario[reach.knob]
+    if (typeof value === 'string') return true
     return typeof value === 'number' ? value > 0 : value === true
   })
   const impossible = asked.find(reach => reach.puppets === null)
