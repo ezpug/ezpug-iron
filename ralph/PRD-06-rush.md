@@ -188,8 +188,16 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
 
 ## Closing note
 
-Written in T4, 2026-09-27. The completion run (one green `EZPUG_CS2_TESTS=required`
-extended run with the Rush row in it) is still to do.
+Written in T4, 2026-09-27.
+
+**The completion run**, also 2026-09-27: one green `EZPUG_CS2_TESTS=required pnpm verify:extended`
+run. All 20 rows of the matrix passed, 92.6 min of lane time; `radar` is a spike and was
+skipped by design, and so was the Dathost smoke. Each row held the lane lock for its one
+match, and every ledger row closed. The Rush row took 2.2 min and ended in the first
+**castle ending** seen on a real server. T captured the tower four times in a row (rooms 4,
+5, 6, then 7 = `301`), each round `tower_captured` with `heldBy: ct`. `map_end` then said
+`{room 7, roomId 301, ending castle}`. T3's run had covered the other ending (`rounds`, 8–6),
+so a real server has now sent both of `map_end`'s endings.
 
 **Releases.** `@ezpug/match-api` **0.28.0** (the manifest and the tower vocabulary, T1) and
 **0.30.0** (the fake plays Rush, T2) are on the box's Verdaccio, and `latest` is `0.30.0`.
