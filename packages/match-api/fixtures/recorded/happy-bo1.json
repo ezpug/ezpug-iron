@@ -29,6 +29,7 @@
             ],
             "flow": "matchzy",
             "records": "demo",
+            "rules": "request",
             "ranked": false,
             "version": "0.3.0",
             "maps": "any",
@@ -83,6 +84,7 @@
               "idleTimeoutSeconds": 300
             },
             "records": "events",
+            "rules": "request",
             "ranked": false,
             "version": "0.4.0",
             "maps": "any",
@@ -129,6 +131,7 @@
               "idleTimeoutSeconds": 300
             },
             "records": "events",
+            "rules": "request",
             "ranked": false,
             "version": "0.4.0",
             "maps": {
@@ -195,6 +198,7 @@
               "idleTimeoutSeconds": 300
             },
             "records": "events",
+            "rules": "request",
             "ranked": false,
             "version": "0.4.0",
             "maps": {
@@ -301,8 +305,9 @@
               "idleTimeoutSeconds": 300
             },
             "records": "events",
+            "rules": "mode",
             "ranked": false,
-            "version": "0.1.0",
+            "version": "0.2.0",
             "maps": {
               "catalog": [
                 "rush_001"

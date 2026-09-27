@@ -71,6 +71,7 @@ import {
   matchDemoOutcome,
   matchFormatProblem,
   matchHumans,
+  matchRulesProblem,
   matchSimulationProblem,
 } from '../resources'
 import { matchRequestScopes, scopeAllows } from '../scopes'
@@ -934,6 +935,11 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     const formatProblem = matchFormatProblem(request, manifest)
     if (formatProblem)
       throw refuse('validation_failed', formatProblem.message, { field: formatProblem.field })
+    // Rules a mode's own script would fight (PRD-06 T1a): refused on the
+    // field, never stripped, by the same rule the orchestrator uses.
+    const rulesProblem = matchRulesProblem(request, manifest)
+    if (rulesProblem)
+      throw refuse('validation_failed', rulesProblem.message, { field: rulesProblem.field })
     // Puppets, by the same rule the orchestrator uses (PRD-03 T4).
     const simulationProblem = matchSimulationProblem(request, manifest)
     if (simulationProblem)

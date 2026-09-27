@@ -2391,6 +2391,14 @@
         "none"
       ]
     },
+    "GamemodeRulesOwner": {
+      "description": "Who decides how many rounds a match plays: the request or the mode.",
+      "type": "string",
+      "enum": [
+        "request",
+        "mode"
+      ]
+    },
     "GamemodeSlots": {
       "description": "How many people, in what shape.",
       "type": "object",
@@ -2719,6 +2727,10 @@
         "records": {
           "$ref": "#/$defs/GamemodeRecords"
         },
+        "rules": {
+          "default": "request",
+          "$ref": "#/$defs/GamemodeRulesOwner"
+        },
         "ranked": {
           "type": "boolean",
           "const": false
@@ -2782,6 +2794,7 @@
         "slots",
         "flow",
         "records",
+        "rules",
         "ranked",
         "version",
         "plugins",

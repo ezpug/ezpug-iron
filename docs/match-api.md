@@ -1325,7 +1325,8 @@ facts, live, an announce replayed by its `correlationId`, a pause and an unpause
 `match.ended`), `config-only` (`flying-scoutsman`: a `config`-tier mode plays and uploads no
 demo), `open-join` (`retakes` with empty rosters: `player.joined` with `rostered: false`),
 `player-command` (`powerup-dm`: a player token, a widget's tap, the `plugin_event` back),
-`cancel-allocating`, `crash-restore`, `crash-lost`, `csgo-refused`, `wingman-format`,
+`cancel-allocating`, `crash-restore`, `crash-lost`, `csgo-refused`, `mode-owned-rules` (`rush`
+refuses a request with `rules`, `validation_failed` on `rules`), `wingman-format`,
 `simulation-switch` (a puppets request is `forbidden` by scope name on the suite's own key,
 `validation_failed` on a mode the catalog says cannot seat them and on a scenario nobody defined, and
 on the scoped key plays a Bo1 whose `Match.simulated` and every `source.simulated` are

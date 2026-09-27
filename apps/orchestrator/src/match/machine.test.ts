@@ -283,6 +283,44 @@ describe('the format the engine plays', () => {
 })
 
 /**
+ * **A mode that owns its rounds takes no rules** (PRD-06 T1a). Rush's map
+ * script plays 15 rounds and no overtime; a request's even `regulationRounds`
+ * would override it, so the door names the field rather than play 14 or 16.
+ */
+describe('rules a mode owns', () => {
+  const rush = (overrides: Partial<MatchRequestInput> = {}) =>
+    request({
+      gamemode: 'rush',
+      maps: [{ map: 'rush_001', sides: 'ct' }],
+      teams: {
+        teamA: { name: 'Team hunzR', players: roster(TEAM_A.slice(0, 3), 0) },
+        teamB: { name: 'Team wickeD', players: roster(TEAM_B.slice(0, 3), 100) },
+      },
+      ...overrides,
+    })
+
+  it('refuses a Rush request that carries rules, naming the field', async () => {
+    const app = createTestApp()
+    const { key } = await platformKey(app)
+    const error = await refused(app.matches.create(key, rush()))
+    expect(error.code).toBe('validation_failed')
+    expect(error.details).toEqual({ field: 'rules' })
+    expect(app.store.rows.matches).toHaveLength(0)
+    await app.close()
+  })
+
+  it('plays a Rush request without them', async () => {
+    const app = createTestApp()
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, rush({ rules: undefined }))
+    expect(app.store.rows.matches.find(row => row.id === match.id)?.requestJson.rules).toBe(
+      undefined,
+    )
+    await app.close()
+  })
+})
+
+/**
  * **Puppets are behind a scope, a capability and a marker** (PRD-03 T4). The
  * scope is judged first and by name, so a production key can never ask for a
  * simulated match by accident; the mode's capability is judged at the door,

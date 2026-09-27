@@ -1028,6 +1028,44 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
   },
 
   {
+    id: 'mode-owned-rules',
+    title: 'a mode whose own script owns the rounds refuses a request that carries rules',
+    needs: [],
+    async run(ctx) {
+      // PRD-06 T1a: Rush's map plays 15 rounds and no overtime; an even
+      // `regulationRounds` would override it, so the door names the field.
+      const manifest = await ctx.api.gamemodes.get({ params: { gamemodeId: 'rush' } })
+      ctx.check('rush says its rules are its own', manifest.rules === 'mode', manifest.rules)
+      const body = ctx.request({
+        clientMatchId: 'conformance-mode-owned-rules',
+        gamemode: 'rush',
+        maps: [{ map: 'rush_001', sides: 'ct' }],
+        teams: {
+          teamA: { name: 'Team hunzR', players: conformanceRoster(TEAM_A_NAMES.slice(0, 3), 0) },
+          teamB: { name: 'Team wickeD', players: conformanceRoster(TEAM_B_NAMES.slice(0, 3), 100) },
+        },
+        rules: SHORT_RULES,
+      })
+      const error = await refusal(
+        ctx,
+        'a rush request with rules is refused',
+        ctx.api.matches.create({ body }),
+      )
+      ctx.check(
+        'the refusal is validation_failed on rules',
+        error.code === 'validation_failed' && error.details?.field === 'rules',
+        `${error.code} ${JSON.stringify(error.details)}`,
+      )
+      const listed = await ctx.api.matches.list({ query: { clientMatchId: body.clientMatchId } })
+      ctx.check(
+        'a refused request left no match behind',
+        listed.items.length === 0,
+        `${listed.items.length} matches`,
+      )
+    },
+  },
+
+  {
     id: 'wingman-format',
     title: 'the two-a-side game is played where it can be, and refused where it cannot',
     needs: [],

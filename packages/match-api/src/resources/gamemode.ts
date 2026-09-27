@@ -57,6 +57,21 @@ export const gamemodeRecordsSchema = z.enum(GAMEMODE_RECORDS)
 export type GamemodeRecords = z.infer<typeof gamemodeRecordsSchema>
 
 /**
+ * **Who decides how many rounds a match of this mode plays** (PRD-06 T1a).
+ * `request` — the request's `rules` (`regulationRounds`, `overtime`), and a
+ * request without them plays the mode's own defaults; what every manifest
+ * written before the field said. `mode` — the mode itself: its map script or
+ * plugin sets the round limit, ends the match early and knows no overtime, so
+ * a request that carries `rules` would only fight it (an even
+ * `regulationRounds` over Rush's 15, an overtime the script never plays) and
+ * is refused `validation_failed` on `rules` ({@link matchRulesProblem}),
+ * never quietly stripped.
+ */
+export const GAMEMODE_RULES_OWNERS = ['request', 'mode'] as const
+export const gamemodeRulesOwnerSchema = z.enum(GAMEMODE_RULES_OWNERS)
+export type GamemodeRulesOwner = z.infer<typeof gamemodeRulesOwnerSchema>
+
+/**
  * How many people, in what shape. `teams: 1` is a free-for-all (a deathmatch):
  * the request still carries `teamA` and `teamB`, and `teamB.players` is
  * empty. `teamSize` is the most a team may hold; an open-join mode fills up
@@ -403,6 +418,11 @@ export const gamemodeSummarySchema = z.object({
    */
   length: gamemodeLengthSchema.optional(),
   records: gamemodeRecordsSchema,
+  /**
+   * Whether a request may carry `rules` ({@link gamemodeRulesOwnerSchema}).
+   * Absent — what every manifest written before the field said — is `request`.
+   */
+  rules: gamemodeRulesOwnerSchema.default('request'),
   /** Always false this round: the manifest states what the server records, never what counts. */
   ranked: z.literal(false),
   /** The manifest's own version, semver. Bumped with any change to the file. */

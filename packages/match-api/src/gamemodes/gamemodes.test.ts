@@ -10,6 +10,7 @@ import {
   GAMEMODE_CVARS_MAX,
   GAMEMODE_FLOWS,
   GAMEMODE_RECORDS,
+  GAMEMODE_RULES_OWNERS,
   GAMEMODE_TIERS,
   type GamemodeManifestInput,
   gamemodeAllowsMap,
@@ -123,6 +124,13 @@ describe('the shipped manifests', () => {
       expect(manifest.sdkVersion).toBe('0.1.0')
       for (const command of manifest.commands) expect(command.title.de).not.toBe('')
     }
+  })
+
+  it('take the request’s rules, except Rush, whose map script owns its rounds', () => {
+    // PRD-06 T1a: the manifest written before the field parses as `request`.
+    expect(gamemodeManifestSchema.parse(sdkManifest()).rules).toBe('request')
+    for (const manifest of SHIPPED_GAMEMODES)
+      expect(manifest.rules, manifest.id).toBe(manifest.id === 'rush' ? 'mode' : 'request')
   })
 
   it('serve as the catalog and each as a summary', () => {
@@ -356,6 +364,7 @@ describe('docs/gamemodes.md', () => {
       ...GAMEMODE_TIERS,
       ...GAMEMODE_FLOWS,
       ...GAMEMODE_RECORDS,
+      ...GAMEMODE_RULES_OWNERS,
       ...GAMEMODE_CAPABILITIES,
       ...PLAYER_COMMAND_CHARGE_PERIODS,
       ...WIDGET_NEEDS,

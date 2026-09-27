@@ -108,6 +108,7 @@
           },
           "flow": "matchzy",
           "records": "demo",
+          "rules": "request",
           "ranked": false,
           "version": "0.3.0",
           "plugins": [

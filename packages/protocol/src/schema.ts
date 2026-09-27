@@ -5,6 +5,7 @@ import {
   gamemodeFlowSchema,
   gamemodeLengthSchema,
   gamemodeRecordsSchema,
+  gamemodeRulesOwnerSchema,
   gamemodeSlotsSchema,
   gamemodeTierSchema,
   gameSchema,
@@ -282,6 +283,11 @@ const SHARED_NAMES: readonly Named[] = [
     schema: gamemodeRecordsSchema,
     id: 'GamemodeRecords',
     description: 'What the server keeps of a match.',
+  },
+  {
+    schema: gamemodeRulesOwnerSchema,
+    id: 'GamemodeRulesOwner',
+    description: 'Who decides how many rounds a match plays: the request or the mode.',
   },
   {
     schema: gamemodeSlotsSchema,

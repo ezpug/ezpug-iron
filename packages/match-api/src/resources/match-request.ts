@@ -488,6 +488,26 @@ export function matchFormatProblem(
   return undefined
 }
 
+/**
+ * **Whether a gamemode takes the request's rules at all** (PRD-06 T1a),
+ * decided once here so an orchestrator and the fake refuse the same requests.
+ * A mode whose own script owns the round format (`GamemodeManifest.rules:
+ * "mode"`, Rush) refuses a request that carries `rules`: the rules would
+ * derive an even `mp_maxrounds` over the map's own and could switch on an
+ * overtime it never plays, and dropping them quietly would leave the client
+ * believing it had asked for something. `undefined` means play it.
+ */
+export function matchRulesProblem(
+  request: Pick<MatchRequest, 'rules'>,
+  mode: { id: string; rules: 'request' | 'mode' },
+): { message: string; field: string } | undefined {
+  if (mode.rules !== 'mode' || request.rules === undefined) return undefined
+  return {
+    message: `${mode.id} decides its own rounds; send the request without rules`,
+    field: 'rules',
+  }
+}
+
 /** The longest a match may hold a server. The key's own ceiling may be lower. */
 export const MATCH_TTL_MINUTES_MAX = 24 * 60
 

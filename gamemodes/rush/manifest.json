@@ -11,6 +11,7 @@
   "flow": "none",
   "length": { "idleTimeoutSeconds": 300 },
   "records": "events",
+  "rules": "mode",
   "ranked": false,
   "maps": { "catalog": ["rush_001"] },
   "plugins": [],
@@ -31,6 +32,6 @@
     "mixedRoster": true
   },
   "commands": [],
-  "version": "0.1.0",
+  "version": "0.2.0",
   "sdkVersion": "0.1.0"
 }

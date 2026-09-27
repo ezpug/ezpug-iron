@@ -28,6 +28,7 @@ import {
   matchHumans,
   matchPuppets,
   matchRequestSchema,
+  matchRulesProblem,
   matchSimulationProblem,
   rosterEntrySchema,
   SIMULATION_PUPPETS_MAX,
@@ -71,6 +72,17 @@ describe('MatchRequest', () => {
     expect(parsed.requirements).toEqual({})
     expect(parsed.rules?.cvars).toEqual({})
     expect(parsed.teams.teamA.players[0]?.locale).toBe('de')
+  })
+
+  it('refuses rules on a mode that owns its rounds, and only there (PRD-06 T1a)', () => {
+    const withRules = matchRequestSchema.parse(pugRequest())
+    const without = matchRequestSchema.parse(pugRequest({ gamemode: 'rush', rules: undefined }))
+    expect(matchRulesProblem(withRules, { id: 'rush', rules: 'mode' })).toEqual({
+      message: expect.stringContaining('without rules'),
+      field: 'rules',
+    })
+    expect(matchRulesProblem(without, { id: 'rush', rules: 'mode' })).toBeUndefined()
+    expect(matchRulesProblem(withRules, { id: 'pug', rules: 'request' })).toBeUndefined()
   })
 
   it('rejects a player rostered twice, across teams', () => {

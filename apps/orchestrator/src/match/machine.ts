@@ -32,6 +32,7 @@ import {
   matchDemoOutcome,
   matchFormatProblem,
   matchRequestScopes,
+  matchRulesProblem,
   matchSimulationProblem,
   SERVER_READY_DEADLINE_MS,
   STREAM_CLOSE_CODES,
@@ -334,6 +335,17 @@ function refuse(code: MatchApiErrorCode, message: string, details?: Record<strin
  */
 function assertFormatIsPlayable(request: MatchRequest, manifest: GamemodeManifest): void {
   const problem = matchFormatProblem(request, manifest)
+  if (problem) throw refuse('validation_failed', problem.message, { field: problem.field })
+}
+
+/**
+ * **Rules a mode's own script would fight are refused, never stripped**
+ * (PRD-06 T1a). A mode that owns its round format (`rules: "mode"`) takes a
+ * request without `rules`; the rule lives in `@ezpug/match-api`
+ * ({@link matchRulesProblem}) so the fake answers the same.
+ */
+function assertRulesArePlayable(request: MatchRequest, manifest: GamemodeManifest): void {
+  const problem = matchRulesProblem(request, manifest)
   if (problem) throw refuse('validation_failed', problem.message, { field: problem.field })
 }
 
@@ -1576,6 +1588,7 @@ export function createMatches(options: MatchesOptions): Matches {
     if (manifest.game !== request.game)
       throw refuse('game_unsupported', `${manifest.id} plays ${manifest.game}, not ${request.game}`)
     assertFormatIsPlayable(request, manifest)
+    assertRulesArePlayable(request, manifest)
     assertSimulationIsPlayable(request, manifest)
     for (const plan of request.maps) {
       if (!gamemodeAllowsMap(manifest.maps, plan.map))

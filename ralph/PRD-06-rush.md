@@ -126,7 +126,7 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
   can say the match ended in a castle; a fixture in `packages/match-api` for each shape;
   the conformance suite green. Release **x.y.0** to Verdaccio with the changelog line
   "PRD-13 T19".
-- [ ] **T1a (effort: medium): a Rush request's `rules`.** Found in T1: a request's `rules`
+- [x] **T1a (effort: medium): a Rush request's `rules`.** Found in T1: a request's `rules`
   derive `mp_maxrounds` from `regulationRounds` **over** the manifest's cvars
   (`match-config/cvars.ts`), and `regulationRounds` is even by schema, so a Rush request that
   carries `rules` plays 14 or 16 rounds rather than the map's 15, and `overtime.enabled` would

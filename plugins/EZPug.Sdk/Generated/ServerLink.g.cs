@@ -2188,6 +2188,15 @@ public enum GamemodeRecords
     None,
 }
 
+/// <summary>Who decides how many rounds a match plays: the request or the mode.</summary>
+public enum GamemodeRulesOwner
+{
+    [JsonStringEnumMemberName("request")]
+    Request,
+    [JsonStringEnumMemberName("mode")]
+    Mode,
+}
+
 /// <summary>How many people, in what shape.</summary>
 public sealed record GamemodeSlots
 {
@@ -2462,36 +2471,40 @@ public sealed record AssignedGamemode
     [JsonPropertyOrder(8)]
     public required GamemodeRecords Records { get; init; }
 
-    [JsonPropertyName("ranked")]
+    [JsonPropertyName("rules")]
     [JsonPropertyOrder(9)]
+    public GamemodeRulesOwner Rules { get; init; } = GamemodeRulesOwner.Request;
+
+    [JsonPropertyName("ranked")]
+    [JsonPropertyOrder(10)]
     public bool Ranked => false;
 
     [JsonPropertyName("version")]
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(11)]
     public required string Version { get; init; }
 
     [JsonPropertyName("plugins")]
-    [JsonPropertyOrder(11)]
+    [JsonPropertyOrder(12)]
     public IReadOnlyList<string> Plugins { get; init; } = [];
 
     [JsonPropertyName("cfg")]
-    [JsonPropertyOrder(12)]
+    [JsonPropertyOrder(13)]
     public IReadOnlyList<string> Cfg { get; init; } = [];
 
     [JsonPropertyName("cvars")]
-    [JsonPropertyOrder(13)]
+    [JsonPropertyOrder(14)]
     public Dictionary<string, string> Cvars { get; init; } = new();
 
     [JsonPropertyName("capabilities")]
-    [JsonPropertyOrder(14)]
+    [JsonPropertyOrder(15)]
     public required GamemodeCapabilities Capabilities { get; init; }
 
     [JsonPropertyName("commands")]
-    [JsonPropertyOrder(15)]
+    [JsonPropertyOrder(16)]
     public IReadOnlyList<PlayerCommandSpec> Commands { get; init; } = [];
 
     [JsonPropertyName("sdkVersion")]
-    [JsonPropertyOrder(16)]
+    [JsonPropertyOrder(17)]
     public required string SdkVersion { get; init; }
 }
 

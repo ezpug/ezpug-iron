@@ -6,6 +6,23 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.29.0 — 2026-09-27
+
+**A mode that owns its rounds refuses `rules`** (PRD-06 T1a, for the platform's PRD-13 T19).
+Additive: one manifest field with a default, one refusal a client following 0.28.0's advice
+never meets.
+
+- **`GamemodeManifest.rules`** (`gamemodeRulesOwnerSchema`, `GAMEMODE_RULES_OWNERS`), also on
+  the summary: `request` (the default, what every manifest before it meant) or `mode`. For
+  `mode`, the mode's own script or plugin owns the round format, and a request carrying
+  `rules` is refused `validation_failed` with `details.field: "rules"`. It is never stripped
+  quietly. `rush` says `mode`, so its manifest is `0.2.0`: the map plays 15 rounds and no
+  overtime, and `regulationRounds` is even. Build a Rush request without `rules`, as 0.28.0
+  already advised; the catalog now says so.
+- **`matchRulesProblem(request, mode)`**: the rule the orchestrator and the fake share, next
+  to `matchFormatProblem`.
+- **Conformance:** `mode-owned-rules`. The catalog's goldens re-recorded with the field.
+
 ## 0.28.0 — 2026-09-27
 
 **Rush, and the vocabulary of a tower round** (PRD-06 T1, for the platform's PRD-13 T19).
