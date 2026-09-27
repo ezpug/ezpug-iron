@@ -106,6 +106,21 @@ nobody came. Either way the match ends `completed` and the server is released. *
 one-team mode (`slots.teams: 1`) names no winner**: `winner` is `null` on both facts,
 whatever the engine's two side scores said.
 
+**A tower round says who owned the tower** (since 0.28.0, PRD-06; decision 33). On
+`rush_001` a round is won by whoever owns the room's tower when it ends, and the match walks
+a line of seven rooms. Sides are fixed for the whole map and there is no `side_swap`.
+
+| Field | Values |
+| ----- | ------ |
+| `round_end.reason` | `tower_held`: the side that held the tower as the round began still owns it, alive or not. `tower_captured`: the winner did not hold it. `elimination`: the holders kept it and every attacker died, or both sides did |
+| `round_end.tower` | `{ room, roomId?, heldBy }`. `room` is 1–7 in side order: 1 is the T castle (`401`), 4 the start room, 7 the CT castle (`301`). `heldBy` is the side that held it as the round began, `null` only for a room a draw left empty. The winner is always the owner at the end |
+| `map_end.tower` | `{ room, roomId?, ending }`. `ending` is `castle` (a win inside the enemy castle) or `rounds` (8 clinched, or 8–7 after Convoy at 7–7) |
+
+A draw replays the room and has no `round_end`. **`roomId` is sometimes missing.** A real
+server names only `401`, `301` and `convoy`, because no engine event says which arena the
+map drew for the other rooms. The simulator names every room (`ralph/OPEN-POINTS.md` §11), so
+draw the line from `room` and use `roomId` only as a label.
+
 **The ready gate is the server's arithmetic, never the client's.** `player_ready`,
 `player_unready` and `team_ready` each carry a `tally`: `ready` is the ready player count
 per team, in team order, and `expected` is how many the server is waiting for across both

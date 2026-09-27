@@ -16,7 +16,7 @@ gamemodes, the node agent and the server image.
 - `packages/core` — the injected clock, the seeded PRNG, chaos toggles and `eventually()`:
   the determinism primitives everything reproducible is built on.
 - `gamemodes/` — the gamemode manifests as data (`pug`, `flying-scoutsman`, `retakes`,
-  `powerup-dm`); the package bundles them, the orchestrator and the plugin read them.
+  `powerup-dm`, `rush`); the package bundles them, the orchestrator and the plugin read them.
 - `apps/orchestrator` — the service behind `gs.ezpug.com`.
 - `apps/node` — `ezpug-node`, turns a docker host into capacity.
 - `apps/cli` — `ezpug-iron`, an operator's terminal over the Match API and nothing else.

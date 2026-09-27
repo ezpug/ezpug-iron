@@ -152,7 +152,7 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
   fixed in T1's shapes (an additive release) or filed in `ralph/OPEN-POINTS.md` with the
   captured lines. Note what the node's bots do when `bot_quota` is left to the engine's cfg,
   and pin what a match wants.
-- [ ] **T4 (effort: medium): the docs, the decision, the release.** A decision in
+- [x] **T4 (effort: medium): the docs, the decision, the release.** A decision in
   `docs/decisions.md` (Rush is a `none`/`plugin` flow because the map's script owns the
   rounds; the map's name on the wire; the round-end vocabulary; what a Rush match records),
   `docs/gamemodes.md` gets the mode in its table and the authoring note ("a mode whose
@@ -185,3 +185,46 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
 - Closing note: the versions, the `game_type`/`game_mode` pair, the round-end vocabulary
   in one table, what a Rush match does and does not record, and the line the platform's
   PRD-13 T19 unblocks on.
+
+## Closing note
+
+Written in T4, 2026-09-27. The completion run (one green `EZPUG_CS2_TESTS=required`
+extended run with the Rush row in it) is still to do.
+
+**Releases.** `@ezpug/match-api` **0.28.0** (the manifest and the tower vocabulary, T1) and
+**0.30.0** (the fake plays Rush, T2) are on the box's Verdaccio, and `latest` is `0.30.0`.
+**0.29.0** (`rules: "mode"`, T1a) was cut in the tree but never published. Everything in it
+ships inside 0.30.0. T3 and T4 did not change the wire, so nothing else was released. The
+services and plugins sit under "Unreleased" in `CHANGELOG.md`, with no tag and no deploy.
+
+**The engine game.** `game_type 0` / `game_mode 6`, from the node's `gamemodes.txt` on CS2
+1.41.8.2. The loader sets the pair before the level change, because `rush.cfg` runs one
+load too late (decision 33).
+
+**The round-end vocabulary.**
+
+| Fact | Field | Says |
+| ---- | ----- | ---- |
+| `round_end` | `reason: tower_held` | the side that held the tower as the round began still owns it when the round ends |
+| `round_end` | `reason: tower_captured` | the winner did not hold the tower as the round began |
+| `round_end` | `reason: elimination` | the holders kept the tower and every attacker died, or both sides did |
+| `round_end` | `tower { room, roomId?, heldBy }` | room 1–7 (1 is the T castle, 4 the start room, 7 the CT castle), and who held it at the start. A real server sends `roomId` only for `401`, `301` and `convoy` (`OPEN-POINTS.md` §11) |
+| `map_end` | `tower { room, roomId?, ending }` | the last room, and `castle` or `rounds` |
+
+A drawn round replays the room and sends no `round_end`.
+
+**What a Rush match records.** Events only: `round_end`s with their tower, `player_death`s,
+per-player stats and positions. It records no demo (a `none` flow's demo is a later
+question), no backups, no bomb events and no `side_swap` (`mp_halftime 0`). The engine's
+bots are pinned out (`bot_quota 0`, `bot_quota_mode normal`), so the match holds its six
+people or the puppets in their places.
+
+**What the platform does.** It bumps its pin to `0.30.0` (a `chore(deps): match-api 0.30.0`
+commit; it holds `0.27.0` today). **PRD-13 T19 unblocks on that bump**: the Rush room row,
+then T20's queue row. The platform builds a Rush request without `rules`, and draws the line
+from `tower.room`, using `roomId` only as a label.
+
+**German titles that jar.** The platform's list has not arrived yet: its PRD-13 T11, which
+sends it, is unchecked. **Request:** send the list of manifest titles and descriptions
+that read badly in German here as a new `- [ ]` task, and this repo rewrites them in the
+manifests with a release.

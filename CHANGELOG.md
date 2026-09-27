@@ -21,6 +21,31 @@ there, not this file.
 
 ## Unreleased
 
+**Rush** (`ralph/PRD-06-rush.md`; decision 33). Valve's Rush 3v3 on `rush_001`, as the
+fifth gamemode. The dev node runs this work from local builds. It is not deployed to
+`gs.ezpug.com` yet, and no tag has been cut. The contract went out as `@ezpug/match-api`
+**0.28.0** and **0.30.0** (0.29.0 was cut but never published, and ships inside 0.30.0), and
+the package's own changelog has every line.
+
+- **The gamemode**: `gamemodes/rush`, tier `config`, flow `none`, records `events`, 3v3,
+  unranked, `rules: "mode"`. `ezpug/rush.cfg` sets `game_type 0` / `game_mode 6`, execs the
+  game's own `gamemode_rush.cfg` and pins `bot_quota_mode normal`. The manifest pins
+  `bot_quota 0`.
+- **The orchestrator**:
+  - A Rush request carrying `rules` is refused `validation_failed` on `rules` (T1a). The
+    map's script plays 15 rounds, and `regulationRounds` is even.
+  - The `sim` provider plays tower rounds on `rush_001` the way the map's script does (T2).
+    It walks the line, uses the four ways a round ends, and ends in a castle or on the
+    rounds. The scenarios `rush-castle`, `rush-clinch` and `rush-convoy` ask for each ending.
+- **The plugins**:
+  - The loader sets `game_type 0` / `game_mode 6` in the frame that changes level to
+    `rush_001` (T3). A cfg runs after the map is up, so `rush.cfg` alone loaded the map as
+    competitive.
+  - The SDK's generic flow walks the line from the round winners (`TowerLine`). Every
+    `round_end` carries `tower` and a tower reason, and `map_end` says whether a castle or
+    the rounds ended the map. It never reads the map script's state.
+- **The lane**: a `rush` row plays six puppets on the dev node (T3).
+
 **Workshop maps go live** (`ralph/PRD-05-workshop.md`, #3, #4, #5, #6; decision 32). The
 dev node runs this work from a local build of the CS2 image. It is not deployed to
 `gs.ezpug.com` yet, and no tag has been cut. The contract went out as `@ezpug/match-api`

@@ -110,6 +110,48 @@ it here.
     through the Match API, manifests and capability matching; no provider advertises
     `csgo` yet, so a request gets a clean no-capable-server refusal. CounterStrikeSharp is
     CS2-only; CS:GO would be SourceMod + Get5 and is a later round.
+33. **Rush is a `config` mode, because the map's script owns the rounds.** (PRD-06,
+    2026-09-27, for the platform's PRD-13 T19/T20.) Valve's Rush (2026-09-22) is a
+    `cs_script` on `rush_001` (`maps/scripts/rush_001.vjs`): every live round it switches
+    the engine's win conditions off, ends the round itself (the tower's owner wins), pays
+    the winners, moves the spawns and the tower one room along a line of seven, and ends
+    the match early by setting `mp_maxrounds` to the rounds played. MatchZy cannot run
+    that, and nothing here re-implements it. So `rush` is tier `config`, flow `none`,
+    `plugins: []`, and the SDK's generic flow tells the story from the engine's own events.
+    `going_live` and the roster gate need nothing a plugin would add. Six rules under it.
+    **The engine game is `game_type 0` / `game_mode 6`**, read off the node's
+    `gamemodes.txt` (classic type, mode `rush`, `maxplayers 6`, exec `gamemode_rush.cfg`;
+    CS2 1.41.8.2). The engine reads the pair only at level init, and the dev node loaded
+    `rush_001` as `0`/`1` when `rush.cfg` set it after the map was up. The script still
+    played, but `going_live` called the match competitive. So the core plugin's loader sets
+    the pair in the frame that changes level to a tower map, and the engine then execs
+    `gamemode_rush.cfg` itself. `rush.cfg` restates the pair and execs the engine's cfg
+    rather than copying it, so the mode stays what the game's current build says it is.
+    **The map's name on the wire is `rush_001`**, a `catalog` id. `mapIdentifierSchema`
+    already admits an engine name, so the schema did not change. **A tower round has its
+    own vocabulary** (0.28.0): `round_end.reason` is `tower_held` when the side that held
+    the tower as the round began still owns it, `tower_captured` when the winner did not
+    hold it, and `elimination` when the holders kept it and every attacker died.
+    `round_end.tower` is `{ room, roomId?, heldBy }` (room 1 is the T castle, 4 the start
+    room, 7 the CT castle), and `map_end.tower` is `{ room, roomId?, ending: castle |
+    rounds }`. The rule is the winner against `heldBy`, because the engine calls every
+    Rush round end `CTsWin` or `TerroristsWin`, a Convoy won on the clock included, so the
+    engine's reason cannot tell the three apart. The SDK's `TowerLine` walks the line from
+    the round winners and never reads the script's state, so a real server names `roomId`
+    only where the rules fix it (`401`, `301`, `convoy`). **A mode that owns its rounds
+    refuses `rules`** (0.29.0): the manifest's `rules: "mode"` makes the door answer
+    `validation_failed` on `rules`, never strip them, because `regulationRounds` is even
+    and the map plays 15. **The simulator is keyed on the map, not the mode**, the way the
+    loader is: `rush_001` plays tower rounds on the fake (0.30.0), with the scenarios
+    `rush-castle`, `rush-clinch` and `rush-convoy`. **A Rush match records events and
+    nothing else**: no demo, no backups (`records: events`, `capabilities.backups:
+    false`), no bomb, no halftime and no `side_swap`. Whether a `none` flow should record
+    a demo is a later question. The engine's cfg asks for `bot_quota 2` under `fill`, so
+    the manifest pins `bot_quota 0` and `rush.cfg` pins `bot_quota_mode normal`. Under
+    `fill`, every person joining a mixed roster would send one puppet home. Not chosen: a
+    thin `plugin` mode (it would own nothing the script does not); reading the script's
+    state for the arena ids (the SDK only listens, and `ralph/OPEN-POINTS.md` §11 holds
+    the id question); a `rush` format of `pug` (the rounds are not MatchZy's to play).
 
 ## Inside the server
 

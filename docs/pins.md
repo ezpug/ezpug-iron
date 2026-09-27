@@ -46,7 +46,7 @@ orchestrator's rails (Drizzle, postgres.js, ioredis) are the versions the platfo
 | CounterStrikeSharp (the release) | `1.0.375`, `counterstrikesharp-with-runtime-linux` | `docker/cs2/Dockerfile`, `COUNTER_STRIKE_SHARP_VERSION` (+ `COUNTER_STRIKE_SHARP_SHA256`) | the same number as the NuGet row above — `check-pins` holds the two against each other, because a plugin compiled against one API and loaded by another is the failure mode this table exists to prevent. "with runtime" because the steamrt base ships no .NET. **It follows the game.** CounterStrikeSharp calls into CS2 through offsets and signatures that a game update can move, and the game in the volume updates on its own. 1.0.375 is upstream's fix for CS2 1.41.8.2 (2026-09-23). Under 1.0.373, that update moved `CBaseEntity_Teleport`, and every retakes server segfaulted at its first round (PRD-05 T2f). A console that says `Failed to find signature` at boot is the early warning |
 | steamrt sniper (the base image) | `latest-container-runtime-depot@sha256:8cd1bdfc` (truncated; the Dockerfile carries the whole digest) | `docker/cs2/Dockerfile` (`FROM registry.gitlab.steamos.cloud/…`) | the runtime Valve builds the CS2 dedicated server against. Pinned **by digest**: the tag moves, and a server that ran yesterday has to run today |
 | Debian `bullseye-security` (the base's apt suite) | snapshot `20260801T000000Z` | `docker/cs2/Dockerfile`, `DEBIAN_SECURITY_SNAPSHOT` | the pinned base is Debian 11 and still names `deb.debian.org/debian-security`, whose pool lost the packages its index lists (404 on `libc6-i386 2.31-13+deb11u14`, 2026-09-19) before `archive.debian.org` took the suite. `snapshot.debian.org` is the same signed archive frozen on a day index and pool agreed, with the exact `libc6-i386` the base's `libc6` demands |
-| steamcmd | unversioned | `docker/cs2/Dockerfile` (the one Valve URL) | it updates itself on every run; there is no version to pin and pretending otherwise would be a lie in this table |
+| steamcmd | unversioned | `docker/cs2/Dockerfile` (the one Valve URL) | it updates itself on every run; there is no version to pin and pretending otherwise would be a lie in this table. The game it installs is not pinned either, but `rush` has a floor: `rush_001`, its script and `gamemode_rush.cfg` arrived with the Rush update (2026-09-22), measured on the dev node's CS2 1.41.8.2 under `game_type 0` / `game_mode 6` (PRD-06, decision 33) |
 
 Everything above ships **in the image** (decision 16): one image with every plugin baked
 in, the core plugin enabling exactly what a gamemode manifest names. Nothing is downloaded
@@ -138,13 +138,13 @@ only run `release.yml` into a registry nobody here can write to; the plugin zip 
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
 sha-256 in the notes.
 
-**What the platform pins today** (PRD-05 T3, read off `/root/ezpug` on 2026-09-25):
-`@ezpug/match-api` **`0.25.0`** in its `pnpm-workspace.yaml` catalog (its `09d6ae52` of
-2026-09-25), and `ghcr.io/ezpug/ezpug-iron/orchestrator:dev` — a local build — for the copy
-its dev world runs in `sim` mode. The number is behind what this repo has released (0.26.0
-and 0.27.0, both additive), and moving it is the platform's own commit to make — its
-PRD-12 T32a (smokes and the bomb on the live radar) wants 0.26.0, and its T32b (wingman
-proved) wants 0.27.0. The history of how it got here, release by release (PRD-02
+**What the platform pins today** (PRD-06 T4, read off `/root/ezpug` on 2026-09-27):
+`@ezpug/match-api` **`0.27.0`** in its `pnpm-workspace.yaml` catalog (its `93a40b46` of
+2026-09-26), and `ghcr.io/ezpug/ezpug-iron/orchestrator:dev` — a local build — for the copy
+its dev world runs in `sim` mode. The number is behind what this repo has released (0.28.0
+and 0.30.0, both additive), and moving it is the platform's own commit to make — its
+PRD-13 T19 (the Rush room row) waits for 0.30.0, the first release in which the fake plays
+Rush and the door refuses `rules` for it. The history of how it got here, release by release (PRD-02
 T40 read `0.9.0` on 2026-09-08): none of 0.10.0, 0.10.1, 0.11.0 or 0.11.1 moved a schema, a
 route or a default — two added a hardware recording, one repaired a conformance flow, and
 0.11.1 wrote down what `warmup.minPlayersToReady` counts (PRD-03 T1) — so nothing over

@@ -37,7 +37,7 @@ Three tiers, each proved by one shipped mode (decision 15), plus the queue's mod
 | `plugin` | `retakes`          | two vendored community plugins (B3none/cs2-retakes and a weapon allocator, `docs/pins.md`) under the core plugin: its own rounds and spawns, its own map pool, open join, **one group of ten rather than two teams** (T10: the plugin rebuilds an attacking and a defending side out of the pool every round, so no EZPug team survives one and nobody wins the map), events without a demo. Its settings arrive as a file, not as cvars ("A vendored plugin's own config file" below), and the SDK's generic emitter tells the match flow |
 | `plugin` | `pug`              | 5v5 on MatchZy: knife, overtime, demo, round backups — the queue's default and its only mode |
 | `sdk`    | `powerup-dm`       | an original mode on `EZPug.Sdk`: player commands, per-player state and a phone widget |
-| `config` | `rush`             | Valve's Rush, 3v3 on `rush_001` (`game_type 0` / `game_mode 6`): the rules are the map's own script, so the cfg execs the engine's `gamemode_rush.cfg` and the SDK's generic emitter tells the story. Its rounds say `tower_held` or `tower_captured` and carry the room (PRD-06) |
+| `config` | `rush`             | Valve's Rush, 3v3 on `rush_001` (`game_type 0` / `game_mode 6`, which the loader sets before the level change): the rules are the map's own script, so the cfg execs the engine's `gamemode_rush.cfg` and the SDK's generic emitter tells the story. Its rounds say `tower_held`, `tower_captured` or `elimination` and carry the room, `map_end` says whether a castle or the rounds ended it, and it records events only (PRD-06, decision 33) |
 
 The tier decides what the rest of the manifest may say. What each mode actually does on the
 server is PRD-02's work; the manifests were authored first so both loops build against the
@@ -314,7 +314,8 @@ one; a mode does not enable it and a `config` mode has nothing to enable it *wit
 | ----- | --------- |
 | `going_live` | the first round start outside warmup. "After warmup" is the only start a stock server gives: `mp_warmup_end`, or the warmup running out, restarts the game and the round after it is round 1 |
 | `round_start` | every round start after that, with the score so far |
-| `round_end` | the engine's round-end event: the winning side, why it won (`elimination`, `bomb_exploded`, `bomb_defused`, `time_expired`), and the two team scores as `cs_gamerules` keeps them |
+| `round_end` | the engine's round-end event: the winning side, why it won (`elimination`, `bomb_exploded`, `bomb_defused`, `time_expired`), and the two team scores as `cs_gamerules` keeps them. On a tower map, `TowerLine` walks the line from the winners and adds `tower`; the reason is then `tower_captured` when the winner did not hold the tower, `elimination` when no attacker stands, else `tower_held` |
+| `map_end` on a tower map | the same win panel, plus `tower`: the last room and whether a castle or the rounds ended it |
 | `side_swap` | the gamerules flagging a swap at the next round reset (`mp_halftime`), polled every 250 ms because the flag is transient — and at a new map of a series, on the ends its plan named |
 | `map_end` | the win panel (`cs_win_panel_match`), the engine's own full stop, whatever decided the map — `mp_maxrounds`, a clinch or `mp_timelimit` |
 | `series_end` | the same win panel, when the map that ended was the last one the request planned |
@@ -529,3 +530,29 @@ fixture widget; a gamemode's widget is checked by `vue-tsc` in `pnpm typecheck` 
    PRD-02; a manifest may lead its implementation, never trail it. A widget is
    `gamemodes/<id>/widget/index.ts` ("Building a widget" above) and `entry` is
    `dist/widget.js`.
+
+### A mode whose rules are a map script
+
+`rush` is the example (decision 33). Valve ships some modes as a `cs_script` on the map, not
+as cvars: the script ends rounds, pays money and moves spawns itself. For a mode like that:
+
+- **Read the script, never copy it or its cfg.** Decompile it on the node with the
+  platform's pinned VRF, then write down what it decides. Your cfg execs the engine's
+  `gamemode_<x>.cfg`, so the mode stays what the current build says it is.
+- **Find the engine game in the node's `gamemodes.txt`.** The engine reads `game_type` and
+  `game_mode` only at level init, and a cfg runs after the map is up, one load too late. The
+  loader has to set the pair in the frame that changes level. It does that for a tower map
+  today (`GamemodeLoader`, keyed on the map through `TowerLine.Maps`). A new scripted map is a
+  new key there.
+- **Tier `config`, flow `none`, no plugin.** The generic flow reads the engine's events. If
+  the engine's round-end reason loses what the script meant (Rush calls every round
+  `CTsWin` or `TerroristsWin`), derive the meaning in the SDK from what the events do carry,
+  like the winner and the deaths. A shape no event carries is a fixture question, never a
+  plugin that reads the script's state.
+- **`rules: "mode"`** when the script owns the round count, so the door refuses a request's
+  `rules` instead of deriving an `mp_maxrounds` the script will not play.
+- **Pin the bots.** Valve's cfgs are written for the matchmaking queue and top short teams up
+  with `bot_quota_mode fill`. Pin `bot_quota 0` in the manifest and `normal` in your cfg, or
+  the puppeteer and a mixed roster fight the engine for seats.
+- **Teach the simulator the same rules, keyed on the map**, and prove them with a lane row
+  on the dev node. The row is what shows the fake is telling the truth.
