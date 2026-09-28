@@ -161,6 +161,38 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
   T19/T20's rows), and the platform's list of manifest titles that jar in German (PRD-13
   T11 sends it here; rewrite them in this task if the list has arrived, else leave the
   request in the note).
+- [ ] **T5 (effort: medium): the manifests in the platform's voice.** Sent by the platform's
+  PRD-13 T11 (2026-09-28), the list the closing note asked for. The room's gamemode picker
+  shows each manifest's `title` and `description` to players (`GamemodePicker.vue:183`),
+  and the platform's copy rules (`apps/web/i18n/VOICE.md` in ezpug, `scripts/lint/copy.mjs`)
+  do not reach a manifest. What jars, by manifest, with a suggestion (yours to improve):
+  - **every description:** en dashes (`–`, `—`; the platform refuses a dash used as
+    punctuation in both languages), and ops words a player never meets: `SDK`, `Plugin`,
+    `Engine`, `Allocator`, `Ereignisse ohne Demo`, `MatchZy` (a provider name on a player
+    surface). Say what the player gets, not how the server is built.
+  - **pug** `description.de` "Das Spiel der Warteschlange: fünf gegen fünf, Messerrunde,
+    Overtime, Demo und Rundenbackups – MatchZy führt das Match." → "Das Spiel aus der Queue:
+    fünf gegen fünf, mit Messerrunde, Overtime und Demo." (en: "The queue's game: five
+    against five, with a knife round, overtime and a demo."). `title.de` "5v5 Wettkampf"
+    reads as a form label; "Wettkampf 5v5" or just "5v5" is what people say.
+  - **flying-scoutsman** `description.de` "CS2s Modus mit Scout und wenig Schwerkraft auf
+    den normalen Karten. Nur Konfiguration, kein Plugin: den Matchablauf … erzählt das SDK
+    …" → "Nur Scouts, kaum Schwerkraft, auf den normalen Maps." (en: "Scouts only, low
+    gravity, on the normal maps.").
+  - **retakes** `description.de` "Die Bombe liegt, die CTs kommen zurück: … eine Gruppe statt
+    zweier Teams — die Seiten verteilt das Plugin jede Runde neu. Waffen verteilt der
+    Allocator, den Spielablauf erzählt das SDK … Ereignisse ohne Demo." → "Die Bombe ist
+    gelegt, die CTs holen sich die Site zurück. Kurze Runden, jeder kann jederzeit
+    einsteigen, und die Seiten werden jede Runde neu gemischt. Waffen bekommst du
+    gestellt." (en to match).
+  - **powerup-dm** `description.de` "… Jeder gegen jeden, offener Beitritt, Ereignisse ohne
+    Demo." → "Deathmatch mit einem Knopf auf dem Handy: einmal pro Leben ein Power-up. Jeder
+    gegen jeden, und du kannst jederzeit einsteigen."
+  - **rush** `description.en` "at 7–7" carries an en dash ("at 7:7" or "at seven all");
+    `description.de` says "Karte" twice where a player says "Map", and "wir erzählen nur
+    mit, was passiert" can go (how the server is built, again).
+  Release additively (strings only) with a changelog line; the platform takes it with its
+  next `chore(deps): match-api` bump.
 
 ## Working rules
 
@@ -232,7 +264,5 @@ commit; it holds `0.27.0` today). **PRD-13 T19 unblocks on that bump**: the Rush
 then T20's queue row. The platform builds a Rush request without `rules`, and draws the line
 from `tower.room`, using `roomId` only as a label.
 
-**German titles that jar.** The platform's list has not arrived yet: its PRD-13 T11, which
-sends it, is unchecked. **Request:** send the list of manifest titles and descriptions
-that read badly in German here as a new `- [ ]` task, and this repo rewrites them in the
-manifests with a release.
+**German titles that jar.** The platform's list arrived on 2026-09-28 (its PRD-13 T11) and is
+T5 above: the descriptions more than the titles.
