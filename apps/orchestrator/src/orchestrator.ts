@@ -257,6 +257,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
         registry: nodeRegistry,
         image: config.nodeServerImage,
         baseUrl: config.baseUrl,
+        ...(config.hudAddon !== null && { hudAddon: config.hudAddon }),
         link: () => link,
         facts: {
           emit: (matchId, fact) => matches.emit(matchId, fact),
@@ -281,6 +282,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
             // `user_data` carries this deployment's name are ours (T21c).
             tag: config.deployment,
             gslt,
+            ...(config.hudAddon !== null && { hudAddon: config.hudAddon }),
             ...(options.dathostFetch && { fetch: options.dathostFetch }),
           }),
         )

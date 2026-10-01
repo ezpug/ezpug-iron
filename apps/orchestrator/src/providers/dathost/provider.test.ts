@@ -4,6 +4,7 @@ import type { GamemodeManifest, MatchRequest, MatchRequestInput } from '@ezpug/m
 import { matchRequestSchema, SHIPPED_GAMEMODES } from '@ezpug/match-api'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Log } from '../../log'
+import { HUD_ADDON_LOADER, HUD_ADDON_LOADER_PATH } from '../hud-addon'
 import type { AllocationRequest, GameServerProvider, ServerConfiguration } from '../provider'
 import type { FakeDathost } from './fake'
 import { createFakeDathost } from './fake'
@@ -470,6 +471,45 @@ describe('configuration and the boot', () => {
       url: 'wss://gs.ezpug.com/link',
       token: 'ezis_a-server-token-for-a-test',
     })
+  })
+
+  it('without the HUD writes exactly what it wrote before the HUD existed (PRD-07 T2a)', async () => {
+    const adapter = provider()
+    const allocated = await drive(adapter.allocate(allocation()))
+    const before = fake.calls.length
+    await drive(adapter.configure(allocated.serverId, configuration()))
+
+    const id = allocated.serverId
+    expect(fake.calls.slice(before)).toEqual([
+      `PUT /api/0.1/game-servers/${id}`,
+      `POST /api/0.1/game-servers/${id}/files/ezpug.json`,
+    ])
+    const clone = fake.server(id)
+    expect(clone?.files.has(HUD_ADDON_LOADER_PATH)).toBe(false)
+    expect(clone?.files.get('ezpug.json')).toBe(
+      '{\n  "url": "wss://gs.ezpug.com/link",\n  "token": "ezis_a-server-token-for-a-test"\n}\n',
+    )
+  })
+
+  it('with the HUD wakes MultiAddonManager on the clone, and only there (PRD-07 T2a)', async () => {
+    const adapter = provider({ hudAddon: '3811574606' })
+    const allocated = await drive(adapter.allocate(allocation()))
+    await drive(adapter.configure(allocated.serverId, configuration()))
+
+    const id = allocated.serverId
+    // A path with a directory is the route's own segments, never `%2F`.
+    expect(fake.calls).toContain(
+      `POST /api/0.1/game-servers/${id}/files/addons/metamod/multiaddonmanager.vdf`,
+    )
+    const clone = fake.server(id)
+    expect(clone?.files.get(HUD_ADDON_LOADER_PATH)).toBe(HUD_ADDON_LOADER)
+    expect(JSON.parse(clone?.files.get('ezpug.json') ?? '{}')).toEqual({
+      url: 'wss://gs.ezpug.com/link',
+      token: 'ezis_a-server-token-for-a-test',
+      hudAddon: '3811574606',
+    })
+    // The template every other clone comes from stays asleep.
+    expect(fake.server(templateId)?.files.has(HUD_ADDON_LOADER_PATH)).toBe(false)
   })
 
   it('boots on the clock: allocated, then starting, then running', async () => {

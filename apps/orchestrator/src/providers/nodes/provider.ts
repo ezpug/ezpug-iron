@@ -7,6 +7,7 @@ import type { MatchStore, NodeRow, ServerRow } from '../../match/store'
 import type { ConnectedNode, NodeRegistry } from '../../nodes/registry'
 import { createRconClient, type RconClient } from '../../rcon/client'
 import { hashToken, mintToken, type RandomBytes } from '../../tokens'
+import { HUD_ADDON_SERVER_VAR } from '../hud-addon'
 import type {
   AllocatedServer,
   AllocationRequest,
@@ -128,6 +129,12 @@ export interface NodesProviderOptions {
   image: string
   /** What a container's plugin dials — the orchestrator's own public origin. */
   baseUrl: string
+  /**
+   * The HUD's Workshop id (PRD-07 T2a). Set, every container this provider
+   * starts, warm or cold, carries it as `EZPUG_HUD_ADDON` and the image's
+   * entrypoint wakes MultiAddonManager. Absent, the spec is today's.
+   */
+  hudAddon?: string
   /** Resolved lazily: the link exists after the provider (the composition root's knot). */
   link: () => NodeAssignSeam | undefined
   /** Where `fleet.node_disconnected` goes; absent in a test that does not care. */
@@ -290,6 +297,7 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
       ...(instance.rconPassword !== undefined && {
         [CS2_RCON_PASSWORD_VAR]: instance.rconPassword,
       }),
+      ...(options.hudAddon !== undefined && { [HUD_ADDON_SERVER_VAR]: options.hudAddon }),
     },
     ...(instance.matchId !== undefined && { matchId: instance.matchId }),
   })

@@ -199,7 +199,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   Write down what a client goes through when the download cannot finish (read
   `multiaddonmanager.cpp`'s timeout path): whether they still get in, after how long, and
   which setting decides. That paragraph is the reason the switch exists.
-- [ ] **T2a: the id reaches the servers the orchestrator starts.** T2 made
+- [x] **T2a: the id reaches the servers the orchestrator starts.** T2 made
   `EZPUG_HUD_ADDON` a server's value: the CS2 entrypoint places MultiAddonManager's `.vdf`
   only when it is set, and `pnpm cs2:up` passes it through. Nothing sets it for a server
   the orchestrator allocates yet. One operator value on the orchestrator (unset in

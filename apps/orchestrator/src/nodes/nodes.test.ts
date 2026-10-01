@@ -11,6 +11,7 @@ import { createTestApp, type TestApp } from '../http/testing'
 import type { AuthenticatedKey } from '../keys/service'
 import { attachNodeLink, type NodeLink } from '../link/node-link'
 import { attachServerLink, type ServerLink } from '../link/server-link'
+import { HUD_ADDON_SERVER_VAR } from '../providers/hud-addon'
 import {
   CS2_RCON_PASSWORD_VAR,
   createNodesProvider,
@@ -122,7 +123,9 @@ async function findRigPortBase(): Promise<number> {
 let rigPortBase: Promise<number> | undefined
 const rigPorts = (): Promise<number> => (rigPortBase ??= findRigPortBase())
 
-async function createNodeRig(options: { portBase?: number } = {}): Promise<NodeRig> {
+async function createNodeRig(
+  options: { portBase?: number; hudAddon?: string } = {},
+): Promise<NodeRig> {
   const portBase = options.portBase ?? (await rigPorts())
   const holder: { link?: NodeLink } = {}
   const app = createTestApp({
@@ -158,6 +161,7 @@ async function createNodeRig(options: { portBase?: number } = {}): Promise<NodeR
     link: () => link,
     facts: { emit: (matchId, fact) => app.matches.emit(matchId, fact) },
     portBase,
+    ...(options.hudAddon !== undefined && { hudAddon: options.hudAddon }),
   })
   app.providers.register(provider)
   const port = await new Promise<number>(resolve =>
@@ -534,6 +538,40 @@ describe('a server that never gets ready (PRD-05 T2)', () => {
     )
     expect(await server.next('release')).toMatchObject({ type: 'release' })
     expect(openRows(rig).filter(row => row.matchId === match.id)).toEqual([])
+  })
+})
+
+describe('the HUD’s addon (PRD-07 T2a)', () => {
+  it('is in no container’s environment while the orchestrator has none', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 2, warm: 1 } })
+    await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    // The warm one and the match's: the cold-match test above pins the keys.
+    for (const spec of node.starts()) {
+      expect(Object.keys(spec.env).sort()).toEqual([CS2_RCON_PASSWORD_VAR, 'EZPUG_IRON_URL'])
+    }
+  })
+
+  it('reaches every container this provider starts, warm or cold, as the image’s variable', async () => {
+    const rig = await createNodeRig({ hudAddon: '3811574606' })
+    const node = await rig.enrol('devbox', { capacity: { maxInstances: 3, warm: 1 } })
+    await rig.app.matches.create(rig.key, request())
+    await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+
+    // One warm container, claimed by the first match; the second starts cold.
+    const purposes = node.starts().map(spec => spec.purpose)
+    expect(purposes).toContain('warm')
+    expect(purposes).toContain('match')
+    for (const spec of node.starts()) {
+      expect(spec.env[HUD_ADDON_SERVER_VAR]).toBe('3811574606')
+      expect(Object.keys(spec.env).sort()).toEqual([
+        HUD_ADDON_SERVER_VAR,
+        CS2_RCON_PASSWORD_VAR,
+        'EZPUG_IRON_URL',
+      ])
+    }
   })
 })
 

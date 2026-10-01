@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createFakeClock } from '@ezpug/core'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { HUD_ADDON_LOADER_PATH } from '../hud-addon'
 import type { FakeDathost } from './fake'
 import { createFakeDathost } from './fake'
 import { DATHOST_DEFAULT_TAG, decodeTag } from './provider'
@@ -237,6 +238,12 @@ describe('the artifact tree', () => {
     )
     writeFileSync(join(tree, script.ASLEEP_PLUGIN_LOADER), '"Metamod Plugin" {}\n')
     expect(() => script.planFiles(tree)).toThrow(/every server cloned from the template/)
+  })
+
+  it('refuses the very file the provider plants on a clone that has the HUD', () => {
+    // PRD-07 T2a: one path, two ends. A rename on either side would let the
+    // template carry the loader, or put it where Metamod never looks.
+    expect(script.ASLEEP_PLUGIN_LOADER).toBe(HUD_ADDON_LOADER_PATH)
   })
 
   it('wears the tag the orchestrator claims a server by', () => {

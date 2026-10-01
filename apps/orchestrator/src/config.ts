@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { TEST_POOL_MAX } from './db/connections'
 import { DEFAULT_DEPLOYMENT } from './deployment'
 import { DATHOST_DEFAULT_LOCATION } from './providers/dathost/provider'
+import { WORKSHOP_ID_PATTERN } from './providers/hud-addon'
 import { looksLikeToken } from './tokens'
 
 /**
@@ -63,6 +64,14 @@ export const STEAM_FAKE_TOKENS_VAR = 'EZPUG_IRON_STEAM_FAKE_TOKENS'
 
 /** How many Steam game server accounts a deployment holds unless it says otherwise. */
 export const DEFAULT_GSLT_POOL_MAX = 16
+
+/**
+ * The HUD's Workshop addon (PRD-07 T2a, `docs/hud.md`): when set, every
+ * server this orchestrator starts gets it, and MultiAddonManager loads there
+ * at boot. **Unset in production** until the owner has walked PRD-07's look
+ * list; unset, the providers send exactly what they sent before the HUD.
+ */
+export const HUD_ADDON_VAR = 'EZPUG_IRON_HUD_ADDON'
 
 /** The dev port, decided in `.env.example` against `ss -tlnp` on this box. */
 export const DEFAULT_PORT = 3430
@@ -197,6 +206,8 @@ export interface OrchestratorConfig {
   readonly dathost: DathostConfig | null
   /** The GSLT pool's Steam door and ceiling (T17). */
   readonly gslt: GsltConfig
+  /** The HUD's Workshop id for every server started here, or null ({@link HUD_ADDON_VAR}). */
+  readonly hudAddon: string | null
 }
 
 function numberFromEnv(fallback: number) {
@@ -407,6 +418,12 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       migrationsDir: z.string().min(1).nullable(),
       gamemodesDir: z.string().min(1).nullable(),
       nodeServerImage: z.string().min(1).max(512),
+      // A value that is not a Workshop id would boot every server without
+      // the HUD and say so only in each server's log; refused here instead.
+      hudAddon: z
+        .string()
+        .regex(WORKSHOP_ID_PATTERN, 'must be a Workshop id (digits only)')
+        .nullable(),
     })
     .safeParse({
       // `EZPUG_IRON_PUBLIC_URL` is the name the dev contract other projects'
@@ -428,6 +445,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       migrationsDir: env[MIGRATIONS_DIR_VAR] || null,
       gamemodesDir: env.EZPUG_IRON_GAMEMODES_DIR || null,
       nodeServerImage: env.EZPUG_IRON_NODE_SERVER_IMAGE || DEFAULT_NODE_SERVER_IMAGE,
+      hudAddon: env[HUD_ADDON_VAR]?.trim() || null,
     })
   if (!parsed.success)
     fail(parsed.error.issues, {
@@ -444,6 +462,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       migrationsDir: 'EZPUG_IRON_MIGRATIONS_DIR',
       gamemodesDir: 'EZPUG_IRON_GAMEMODES_DIR',
       nodeServerImage: 'EZPUG_IRON_NODE_SERVER_IMAGE',
+      hudAddon: HUD_ADDON_VAR,
     })
   const { rateLimitBurst, rateLimitPerSecond, ...rest } = parsed.data
   const production = env.NODE_ENV === 'production'

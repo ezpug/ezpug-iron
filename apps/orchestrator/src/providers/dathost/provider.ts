@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import type { Clock } from '@ezpug/core'
 import type { Log } from '../../log'
 import type { RandomBytes } from '../../tokens'
+import { HUD_ADDON_LOADER, HUD_ADDON_LOADER_PATH } from '../hud-addon'
 import type {
   AllocatedServer,
   AllocationRequest,
@@ -169,6 +170,12 @@ export interface DathostProviderOptions {
   tag?: string
   /** Where `ezpug.json` is uploaded. Default {@link DATHOST_SIDECAR_PATH}. */
   sidecarPath?: string
+  /**
+   * The HUD's Workshop id (PRD-07 T2a). A clone has no entrypoint to wake
+   * MultiAddonManager, so `configure` uploads its loader file and names the
+   * id in `ezpug.json`. Absent, `configure` writes what it always has.
+   */
+  hudAddon?: string
   offeringsTtlMs?: number
   templateSyncTtlMs?: number
   requestTimeoutMs?: number
@@ -286,6 +293,7 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
   const region = options.region ?? regionOfLocation(location)
   const tag = options.tag ?? DATHOST_DEFAULT_TAG
   const sidecarPath = options.sidecarPath ?? DATHOST_SIDECAR_PATH
+  const hudAddon = options.hudAddon
   const tvDelaySeconds = options.tvDelaySeconds ?? DATHOST_TV_DELAY_SECONDS
   const offeringsTtlMs = options.offeringsTtlMs ?? DATHOST_OFFERINGS_TTL_MS
   const templateSyncTtlMs = options.templateSyncTtlMs ?? DATHOST_TEMPLATE_SYNC_TTL_MS
@@ -448,6 +456,18 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
   }
 
   /** `GET /game-servers/{id}` — the single read, the one that refreshes `booting`. */
+  /**
+   * One file through the files API. The path is the route's, segment by
+   * segment: a `/` in it is a directory on the server, never `%2F`.
+   */
+  const upload = async (serverId: string, path: string, content: string): Promise<void> => {
+    const route = path.split('/').map(encodeURIComponent).join('/')
+    await send('POST', `/game-servers/${encodeURIComponent(serverId)}/files/${route}`, {
+      idempotent: true,
+      file: { content },
+    })
+  }
+
   const getServer = async (serverId: string): Promise<DathostServer | null> => {
     return await sendJson<DathostServer>('GET', `/game-servers/${encodeURIComponent(serverId)}`, {
       idempotent: true,
@@ -636,21 +656,25 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
         idempotent: true,
         form: { 'cs2_settings.password': configuration.joinPassword },
       })
+      // The HUD (PRD-07 T2a): what the CS2 entrypoint does on a node, done
+      // here, before the first boot, because Metamod reads its loader files
+      // once. The template never carries this file (`dathost-image.mjs`).
+      if (hudAddon !== undefined) await upload(serverId, HUD_ADDON_LOADER_PATH, HUD_ADDON_LOADER)
       // Where home is (`EZPug.Sdk.Sidecar`): the link URL and this server's
-      // token, nothing else. The assignment itself comes down the link.
-      await send(
-        'POST',
-        `/game-servers/${encodeURIComponent(serverId)}/files/${encodeURIComponent(sidecarPath)}`,
-        {
-          idempotent: true,
-          file: {
-            content: `${JSON.stringify(
-              { url: configuration.link.url, token: configuration.link.serverToken },
-              null,
-              2,
-            )}\n`,
+      // token, and the HUD's id when there is one. The assignment itself
+      // comes down the link.
+      await upload(
+        serverId,
+        sidecarPath,
+        `${JSON.stringify(
+          {
+            url: configuration.link.url,
+            token: configuration.link.serverToken,
+            ...(hudAddon !== undefined && { hudAddon }),
           },
-        },
+          null,
+          2,
+        )}\n`,
       )
     },
 

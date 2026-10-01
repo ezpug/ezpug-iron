@@ -37,6 +37,11 @@ is deployed to `gs.ezpug.com` yet, and no tag has been cut.
     search paths and the boot log are unchanged. `pnpm dathost:image` uploads the binary
     and the cfg to the template, never the loader file, and `--check` is red if the
     template has it.
+- **The orchestrator**:
+  - `EZPUG_IRON_HUD_ADDON` (T2a, `docs/hud.md`), unset in production. Set, a node's
+    containers get the id as `EZPUG_HUD_ADDON`. A Dathost clone gets MultiAddonManager's
+    loader file and `hudAddon` in `ezpug.json` at `configure`. Unset, nothing a server
+    receives changes, and a value that is not a Workshop id stops the orchestrator at boot.
 
 **Rush** (`ralph/PRD-06-rush.md`; decision 33). Valve's Rush 3v3 on `rush_001`, as the
 fifth gamemode. The dev node runs this work from local builds. It is not deployed to

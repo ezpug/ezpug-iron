@@ -254,7 +254,31 @@ a server that is already running cannot be given the plugin. Restart it with the
 **Dathost.** The template carries the binary and the cfg (`pnpm dathost:image`) and never
 the `.vdf`. `planFiles` refuses a tree that has it, and `--check` is red if the template
 does. A clone gets the `.vdf` only from the provider, at `configure`, and only when the id is
-set (PRD-07 T2a).
+set (next section).
+
+### The servers the orchestrator starts
+
+`EZPUG_IRON_HUD_ADDON` is the orchestrator's one value for it, and **it is unset in
+production** until the owner has walked the look list. Set, every server the orchestrator
+starts from then on gets the id, each provider in the way it can
+(`apps/orchestrator/src/providers/hud-addon.ts`):
+
+| Provider | What it does with the id |
+| -------- | ------------------------ |
+| `nodes` | puts `EZPUG_HUD_ADDON=<id>` in the container spec, warm and cold alike, and the entrypoint above does the rest |
+| `dathost` | at `configure`, before the first boot, uploads the release's `.vdf` to `addons/metamod/multiaddonmanager.vdf` on the clone and adds `"hudAddon": "<id>"` to `ezpug.json`. A clone has no entrypoint, and Metamod reads its loader files only at boot |
+| `sim` | nothing: there is no game |
+
+Unset, the container spec and the files a clone receives are what they were before the
+HUD existed, and the tests compare them exactly. A value that is not a Workshop id (digits
+only) stops the orchestrator at boot rather than reaching servers that would each log it
+and stay off. A server that is already running keeps what it booted with: changing the
+value affects only the servers started after the orchestrator restarts with it. That includes a
+warm container that booted on a node before the change: it keeps its environment until it
+is replaced, at the latest when its seven-day ceiling runs out (`WARM_TTL_MS`).
+
+`pnpm cs2:up` reads `EZPUG_HUD_ADDON` itself, because the dev container is started
+by hand, not by the orchestrator.
 
 ### When the download cannot finish
 

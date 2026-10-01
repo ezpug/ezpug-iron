@@ -3,6 +3,7 @@ import {
   BOOTSTRAP_API_KEY_VAR,
   DATABASE_URL_VAR,
   DEFAULT_GSLT_POOL_MAX,
+  HUD_ADDON_VAR,
   REDIS_URL_VAR,
   readDatabaseConfig,
   readDathostConfig,
@@ -106,6 +107,20 @@ describe('readOrchestratorConfig', () => {
         [BOOTSTRAP_API_KEY_VAR]: `ezik_${'a'.repeat(43)}`,
       }),
     ).toThrow(/EZPUG_IRON_BOOTSTRAP_API_KEY.*NODE_ENV=production/s)
+  })
+
+  it('has no HUD addon unless the operator names a Workshop id (PRD-07 T2a)', () => {
+    expect(readOrchestratorConfig(env).hudAddon).toBeNull()
+    expect(readOrchestratorConfig({ ...env, [HUD_ADDON_VAR]: '  ' }).hudAddon).toBeNull()
+    expect(readOrchestratorConfig({ ...env, [HUD_ADDON_VAR]: ' 3811574606 ' }).hudAddon).toBe(
+      '3811574606',
+    )
+    // A typo would boot every server without the HUD and say so only in
+    // each server's own log; the orchestrator refuses to start instead.
+    for (const wrong of ['ezpug_hud', '0123', '3811574606,1'])
+      expect(() => readOrchestratorConfig({ ...env, [HUD_ADDON_VAR]: wrong })).toThrow(
+        /EZPUG_IRON_HUD_ADDON: must be a Workshop id/,
+      )
   })
 
   it('names the variable that is wrong', () => {
