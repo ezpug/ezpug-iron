@@ -16,6 +16,11 @@
       "!plugins/vendor",
       "!ralph/logs",
       "!scripts/lint/__fixtures__",
+      // Panorama stylesheets (PRD-07): Valve's CSS dialect, not the web's —
+      // `flow-children` and `horizontal-align` are its properties, and its
+      // compiler, not Biome, is the authority. `hud/test/addon.test.ts` holds
+      // the rules that matter.
+      "!hud/styles",
       // The conformance suite's golden files (PRD-01 T8): machine-written by
       // one writer (`stringifyRecording`), compared byte for byte by a test,
       // never edited by hand. A formatter that reflowed them would only ever

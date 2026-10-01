@@ -1,0 +1,7 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  // Authored data, like the gamemode manifests: the addon's sources and its
+  // committed compiled output. The CLI beside them runs from source.
+  "tags": ["data"]
+}

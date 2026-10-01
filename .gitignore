@@ -1,6 +1,9 @@
 # Dependencies & build output
 node_modules/
 dist/
+# The HUD's compiled addon is committed (PRD-07 T1): building it needs Wine,
+# 10 GB of Windows depots and a Steam session, using it needs none of them.
+!hud/dist/
 .turbo/
 *.log
 test-results/

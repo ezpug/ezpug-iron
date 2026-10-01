@@ -1,0 +1,19 @@
+{
+  "name": "@ezpug/hud",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The client addon of EZPug's in-game HUD (PRD-07): the Panorama layouts, styles and pictures a custom_hud_layout draws, authored here, compiled by Valve's resource compiler under Wine (docker/hud), committed compiled under dist/ with a manifest of hashes, packed as a VPK and published as one Workshop item.",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -23,6 +23,8 @@ const orchestratorImage = read('docker/orchestrator/Dockerfile')
 const nodeImage = read('docker/node/Dockerfile')
 const cs2Image = read('docker/cs2/Dockerfile')
 const vendored = JSON.parse(read('plugins/vendor/vendored.json'))
+const hudImage = read('docker/hud/Dockerfile')
+const hudReadback = read('hud/src/readback.ts')
 
 /** The value of an `ARG NAME=value` line in a Dockerfile, or undefined. */
 const dockerArg = (dockerfile, name) =>
@@ -86,6 +88,21 @@ const expected = [
       ?.slice(1, 3)
       .join('@sha256:'),
     'docker/cs2/Dockerfile',
+  ],
+  // The HUD's build image (PRD-07 T1), whose Wine is the base's own package,
+  // and the decoder that reads the compiled addon back.
+  [
+    'Debian trixie (the HUD build image)',
+    hudImage
+      .match(/^FROM debian:(\S+)@sha256:(\w{8})/m)
+      ?.slice(1, 3)
+      .join('@sha256:'),
+    'docker/hud/Dockerfile',
+  ],
+  [
+    'ValveResourceFormat CLI',
+    hudReadback.match(/^\s+version: '([^']+)',$/m)?.[1],
+    'hud/src/readback.ts',
   ],
   // The vendored **source** trees (PRD-02 T23): the home is the source itself.
   // `vendored.json` names the file and the exact line that carries the version,

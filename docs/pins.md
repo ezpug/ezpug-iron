@@ -57,6 +57,17 @@ The three downloaded artifacts carry a SHA-256 beside their version in the Docke
 Refreshing one after a bump is `curl -fsSL <url> | sha256sum`; a mismatch fails the build
 rather than shipping something nobody looked at.
 
+## The HUD's build (PRD-07)
+
+What compiles the client addon (`hud/`, `docs/hud.md`). None of it is in a server image
+and none of it runs on a server; it runs on this box, inside `ezpug-iron/hud-build:dev`.
+
+| What | Pin | Home | Why this one |
+| ---- | --- | ---- | ------------ |
+| Debian trixie (the HUD build image) | `trixie-slim@sha256:a99cfc51` (truncated; the Dockerfile carries the whole digest) | `docker/hud/Dockerfile` (`FROM debian:…`) | the base whose own `wine` package is 10.0, which runs Valve's `resourcecompiler.exe` headless under Xvfb (measured 2026-10-01: a layout, a stylesheet and a texture). Wine is the base's package, so the digest is its pin too |
+| Valve's resource compiler | unversioned; `hud/dist/manifest.json` records its sha-256 and the depot manifests | the build volume `ezpug-iron-hud-build`, fetched by `pnpm hud:build --tools` | depots 2347771 (the Windows binaries) and 2347779 (the Workshop Tools) of app 730, fetched with the logged-in session at whatever is public. Like steamcmd it moves with the game; the manifest of what built `hud/dist/` is the record |
+| ValveResourceFormat CLI | `20.0` (`cli-linux-x64.zip`, sha-256 `3e8af47c…`) | `hud/src/readback.ts` (`VRF`) | the decoder `pnpm hud:build` reads every compiled file back with. The release and checksum the platform's asset scripts pin (`/root/ezpug/scripts/valve-tools.mjs`), so both repos read the game with one tool |
+
 ## The vendored community plugins
 
 Pinned, never patched, with two exceptions: the WeaponPaints data layer (decision 20) and

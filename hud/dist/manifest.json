@@ -1,0 +1,34 @@
+{
+  "compiler": {
+    "resourcecompiler": "00db3daca0e733601bf3fcc1d1bf9df1b2ade805629098c48bd6c51af3d96f51",
+    "depots": {
+      "2347771": "4472721471834965775",
+      "2347779": "2061476879682333089"
+    }
+  },
+  "sources": {
+    "addoninfo.txt": "9d98fed61a289196f6b887705240846a41dda0833363bf5cfcc32a61d66ace58",
+    "layout/ezpug_hello.xml": "3dfd4402a4e7bf5a761a143a2503c26b3ad53ef3cd0fb888ab316ac96fc11603",
+    "styles/ezpug_hello.css": "65dfa22563f6f1e7d202aee54d2303c8626de20e07a66f2ec7acbee628de2a42",
+    "images/cast/hello.png": "7074ee2c698f334e6438387b1c828d0d1bc9d9efa0788aa1ca465a1c047df6f1"
+  },
+  "files": {
+    "panorama/images/custom_game/ezpug/cast/hello.vtex_c": {
+      "sha256": "b0b95cce3b9ca49916fbdd7c8d59be9476634071e902d8b6cad065ccd4971d80",
+      "bytes": 405251
+    },
+    "panorama/layout/custom_game/ezpug_hello.vxml_c": {
+      "sha256": "9b17ce52638b9a3a8bec9e184fa9aa8aca5a82ea03e0a44f4bb94d8529af8752",
+      "bytes": 1547
+    },
+    "panorama/styles/custom_game/ezpug_hello.vcss_c": {
+      "sha256": "52d5e2230f35149edc8a1156d958bf93a5bd688b1dea65878f6bc799d8d7a4b5",
+      "bytes": 2886
+    }
+  },
+  "pack": {
+    "file": "ezpug_hud.vpk",
+    "sha256": "b44bf8fa7cc0925d429f17556bb3815841b27f9e4ae3418a0382b0c73fdbf6a8",
+    "bytes": 409967
+  }
+}

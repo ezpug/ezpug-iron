@@ -9,6 +9,9 @@ packages:
   # The manifests, as data (`@ezpug/gamemodes`), so the package that bundles
   # them and the apps that read them share one source.
   - gamemodes
+  # The HUD's client addon (`@ezpug/hud`, PRD-07): sources, the committed
+  # compiled output, and the CLI that builds and publishes it.
+  - hud
 
 # Dependencies whose install scripts are allowed to run (pnpm 10 blocks all
 # build scripts by default).
