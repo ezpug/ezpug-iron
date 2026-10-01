@@ -26,12 +26,16 @@ round's release; nothing else of it does.
   T10 only.
 - **Contract:** additive only; one release to the box's Verdaccio with a changelog line
   naming PRD-18 T5.
-- **Disk:** the Windows build of CS2 the compiler needs is about 60 GB. It lives in a named
-  volume of its own, outside git, and `docs/hud.md` says how to delete it. Never
-  `docker volume prune`.
-- **A human gate before T1:** the owner logs a Steam account in once (see T1). Without it
-  T1 writes a `> blocked:` note with the exact command and the round continues at T2, since
-  T2 to T8 are provable without a compiled addon.
+- **Disk:** what the compiler needs lives in a named volume of its own, outside git, and
+  `docs/hud.md` says how to delete it. The node's game volume is mounted read-only and
+  never written. Never `docker volume prune`.
+- **The Steam session exists** (logged in by hand, 2026-10-01): volume
+  `ezpug-iron-hud-steam`, mounted at `/serverdata/Steam` for the `steam` user of the cs2
+  image, where `steamcmd +login "$EZPUG_HUD_STEAM_USER"` answers "Logging in using cached
+  credentials". The account's name and password are in `.env` (`EZPUG_HUD_STEAM_USER`,
+  `EZPUG_HUD_STEAM_PASSWORD`, gitignored, mode 600). If Steam asks for a Steam Guard code
+  again, that is the owner's mailbox and not a loop's: write `> blocked:` and go on with the
+  tasks that need no compiler.
 
 ## Findings
 
@@ -118,6 +122,14 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   runs the compiler, a VPK is packed, SteamCMD uploads). Its own README says the Wine step
   is **not proven end to end**, so T1 is a spike with a fallback, and
   `cs2-ui-kit/kit/build.ps1` is the fallback's shape.
+- **What the compiler needs is about 10 GB, not 60.** App 730's depots, read with the
+  session above: `2347770` is the common content (65 GB, no OS, the same files the dev
+  node already holds in the `ezpug-iron-cs2_cs2-data` volume), `2347771` is the Windows
+  binaries (7.75 GB), and `2347779` is the Workshop Tools (2.11 GB, DLC app `2279721`,
+  which the account's licence covers). So the build tree can be the two Windows depots laid
+  over a read-only view of the node's content rather than a second copy of the game.
+  Whether the account may **publish** is not known: it is from July 2026, and Steam refuses
+  Workshop uploads from a limited account. T1 finds out and says so.
 - **The box.** No Wine, no SteamCMD outside the cs2 image, 308 GB free, no GPU.
 - **Still open from before:** `ralph/PRD-06-rush.md:164`, its T5 (the manifests in the
   platform's voice). It is T12 here.
@@ -154,11 +166,10 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   whether `resourcecompiler.exe` compiles a layout, a stylesheet and a texture headless
   under Wine; prove it with one hello panel (a label with a dialog variable, a picture as a
   background, a class that slides it in) and read the outputs back with the pinned VRF CLI
-  the platform uses (`/root/ezpug/references/radar-overviews.md`). **The owner's step**, and
-  the only one: `docker run -it` into the build image and `steamcmd +login <account>` once,
-  with an account that owns the Workshop Tools DLC and may publish (not a limited account).
-  The session is a secret: a volume, never a file in the repo, never a log line. If the
-  session is absent, write `> blocked:` with the command and go on. **If Wine cannot do
+  the platform uses (`/root/ezpug/references/radar-overviews.md`). The Steam session is the volume named in Budgets; mount it where
+  the build's SteamCMD looks. The session is a secret: a volume, never a file in the repo,
+  never a log line. If
+  Steam refuses it, write `> blocked:` with what it said and go on. **If Wine cannot do
   it**, say exactly where it failed, ship `hud/build.ps1` for a Windows machine instead, and
   keep the rest of the pipeline (pack, verify, publish) on this box. Either way the compiled
   output is committed under `hud/dist/` with a manifest of hashes, so every later task and a
