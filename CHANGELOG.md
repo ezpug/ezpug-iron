@@ -21,6 +21,17 @@ there, not this file.
 
 ## Unreleased
 
+**The HUD** (`ralph/PRD-07-hud.md`). A client addon for CS2's custom HUD layout, built on
+this box, and the plumbing that hands it to players. Everything ships switched off. Nothing
+is deployed to `gs.ezpug.com` yet, and no tag has been cut.
+
+- **The CS2 image**:
+  - CounterStrikeSharp goes from 1.0.375 to **1.0.376**, and so does the API the plugins
+    compile against (T2). 1.0.375 leaves every `{s:…}` dialog variable of a custom HUD
+    layout blank once a player has taken the slot, and 1.0.376 is upstream's fix (#1434).
+    It also carries the schema for CS2 1.41.8.4. Metamod stays at git1469, because both
+    releases build against the same Metamod commit.
+
 **Rush** (`ralph/PRD-06-rush.md`; decision 33). Valve's Rush 3v3 on `rush_001`, as the
 fifth gamemode. The dev node runs this work from local builds. It is not deployed to
 `gs.ezpug.com` yet, and no tag has been cut. The contract went out as `@ezpug/match-api`

@@ -43,7 +43,7 @@ cs2-retakes allocates weapons itself (`EnableFallbackAllocation`) and its README
 three standalone allocators that do it better.
 [Ravid's](https://github.com/Ravid-A/cs2-retakes-weapon-allocator) is picked because it is
 the only one built against what we actually run: `net10.0` and CounterStrikeSharp.API
-**1.0.373** (the image has loaded it on 1.0.375 since PRD-05 T2f), against `RetakesPluginShared` 2.0.0, which
+**1.0.373** (the image has loaded it on 1.0.375 since PRD-05 T2f, on 1.0.376 since PRD-07 T2), against `RetakesPluginShared` 2.0.0, which
 is the contract cs2-retakes 3.1.0 publishes. Yoni's — the original, which this one forks —
 is at API 1.0.315 and `net8.0` and has not moved since mid-2025; fifty-eight API releases
 of drift is the failure mode `docs/pins.md` exists to prevent.
