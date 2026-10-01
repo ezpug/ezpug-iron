@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { itemVdf, parseWorkshopItem, publishedIdFromVdf, uploadVerdict } from '../src/workshop.ts'
 
 const HUD = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const paths = { contentFolder: '/work/content', previewFile: '/work/preview.png' }
 
 describe('hud/workshop.json', () => {
   it('describes an unlisted item, in German and English', () => {
@@ -25,16 +24,18 @@ describe('the item VDF', () => {
   }
 
   it('creates with title, description and visibility, escaped', () => {
-    const vdf = itemVdf(item, paths, 'abc1234: first')
+    const vdf = itemVdf(item, '/work/content', 'abc1234: first')
     expect(vdf).toContain('"publishedfileid"\t\t"0"')
     expect(vdf).toContain('"visibility"\t\t"3"')
     expect(vdf).toContain('"title"\t\t"EZPug \\"HUD\\""')
     expect(vdf).toContain('"description"\t\t"a\\\\b"')
     expect(vdf).toContain('"changenote"\t\t"abc1234: first"')
+    // SteamCMD fails every preview upload for app 730 (src/workshop.ts).
+    expect(vdf).not.toContain('previewfile')
   })
 
   it('updates the content alone, leaving what was edited on the item page', () => {
-    const vdf = itemVdf({ ...item, publishedFileId: '3812345678' }, paths, 'n')
+    const vdf = itemVdf({ ...item, publishedFileId: '3812345678' }, '/work/content', 'n')
     expect(vdf).toContain('"publishedfileid"\t\t"3812345678"')
     expect(vdf).not.toMatch(/"title"|"description"|"visibility"/)
   })

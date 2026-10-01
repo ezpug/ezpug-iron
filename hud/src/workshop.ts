@@ -32,17 +32,20 @@ export function parseWorkshopItem(text: string): WorkshopItem {
 
 const quote = (value: string) => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 
-/** The VDF `workshop_build_item` reads. Title, description and visibility go along only when creating. */
-export function itemVdf(
-  item: WorkshopItem,
-  paths: { contentFolder: string; previewFile: string },
-  changeNote: string,
-): string {
+/**
+ * The VDF `workshop_build_item` reads. Title, description and visibility go
+ * along only when creating. **No `previewfile`:** for app 730 SteamCMD fails
+ * every preview upload, on a new item and on an update alike, with
+ * `clientugc.cpp (2069) : k_EPublishedFileStorageSystemLegacyCloud == eStorage`
+ * and "Failed to update workshop item (Failure)", while the same update
+ * without one commits (measured 2026-10-02). The preview is set on the item's
+ * page instead (docs/hud.md).
+ */
+export function itemVdf(item: WorkshopItem, contentFolder: string, changeNote: string): string {
   const fields: [string, string][] = [
     ['appid', '730'],
     ['publishedfileid', item.publishedFileId || '0'],
-    ['contentfolder', paths.contentFolder],
-    ['previewfile', paths.previewFile],
+    ['contentfolder', contentFolder],
   ]
   if (!item.publishedFileId)
     fields.push(

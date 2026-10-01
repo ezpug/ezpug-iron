@@ -144,21 +144,54 @@ docker run --rm -it --user steam -v ezpug-iron-hud-steam:/serverdata/Steam --ent
 ## Publishing: `pnpm hud:publish`
 
 This uploads `hud/dist/ezpug_hud.vpk` to the one Workshop item that `hud/workshop.json`
-names (title, a description in German and English, `unlisted`). The preview picture is
-`hud/images/cast/hello.png`.
+names: **3811574606**, titled "EZPug HUD", with a description in German and English, and
+`unlisted`.
 
 - **Only what is committed.** A dirty tree (`git status --porcelain`, untracked files
   included) is refused, and so is a `hud/dist/` that fails `verifyDist`. The change note
-  is the commit's short sha and subject.
-- **The first run creates the item.** It writes the new id into `hud/workshop.json`,
-  which then needs a commit, and uploads again under the name a client mounts:
-  `<id>.vpk`. MultiAddonManager looks for `<id>/<id>_dir.vpk`, then `<id>/<id>.vpk`
-  (`src/multiaddonmanager.cpp:425`). Later runs only update the content. A title,
+  is the commit's short sha and subject. `pnpm hud:publish --dry-run` does all of this
+  and prints the item VDF without going near Steam.
+- **Under the name a client mounts.** The pack is uploaded as `<id>.vpk`.
+  MultiAddonManager looks for `<id>/<id>_dir.vpk`, then `<id>/<id>.vpk`
+  (`src/multiaddonmanager.cpp:425`). A run with no id in `hud/workshop.json` creates the
+  item and writes the id there, even if the upload after the creation fails, so a rerun
+  updates that item and never makes a second. Later runs send only the content. A title,
   description or visibility edited on the item's page is left alone.
+- **No preview from here.** For app 730, SteamCMD fails every preview upload, on a new
+  item and on an update alike: `clientugc.cpp (2069) :
+  k_EPublishedFileStorageSystemLegacyCloud == eStorage`, then "Failed to update workshop
+  item (Failure)". The same update without a preview commits. The preview,
+  `hud/images/cast/hello.png`, is set on the item's page by hand.
 - **Then it checks.** It asks the Steam Web API (`GetPublishedFileDetails`, no key) what
   Steam says about the item. Then it downloads the item **anonymously** with SteamCMD,
   the way a server or a stranger's client would, and compares the bytes with
-  `hud/dist/ezpug_hud.vpk`.
+  `hud/dist/ezpug_hud.vpk`. To run the check alone: `node hud/src/cli.ts check <id>`.
+
+### What happened on 2026-10-02
+
+The account is a limited one: it has not spent the five dollars Steam asks for
+(`ralph/PRD-07-hud.md`, Findings). Steam **did not refuse** the upload. It created the
+item and committed its content, and the owner's own session downloads it byte for byte.
+**Nobody else can see it.** The public API answers `result 9` (not found), an anonymous
+SteamCMD gets "Download item 3811574606 failed (Access Denied)", and the item's page
+shows a stranger "Error". An anonymous SteamCMD does fetch a public CS2 item
+(`3084291314`, 67 MB) through the same path, so the path works. A limited account, or
+a Workshop legal agreement the account has not accepted yet, are the two reasons Steam
+gives for keeping an item to its owner.
+
+The next steps are the owner's, because they happen in a browser logged in as the account
+and the Steam Guard code goes to the owner's mailbox:
+
+1. Top the account up, and accept the
+   [Steam Workshop legal agreement](https://steamcommunity.com/sharedfiles/workshoplegalagreement)
+   if steamcommunity.com asks.
+2. On the item's page, set the preview to `hud/images/cast/hello.png` and check that
+   visibility says *Unlisted*.
+3. Run `node hud/src/cli.ts check 3811574606`. It should end "an anonymous SteamCMD
+   fetched 3811574606 by id, byte for byte hud/dist/ezpug_hud.vpk".
+4. If it still says "Access Denied", set the item to *Public* for one check. If that
+   fetches, unlisted is not enough and *Public* is what the HUD needs. If it still fails,
+   the account is the problem, not the visibility.
 
 ## Deleting it
 

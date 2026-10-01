@@ -7,6 +7,7 @@
  *   pnpm hud:build --tools      fetch or update the Windows depots first (about 10 GB)
  *   pnpm hud:verify             is hud/dist/ honest? (no compiler, no network)
  *   pnpm hud:publish            upload hud/dist/'s pack to the Workshop item, then fetch it anonymously
+ *   pnpm hud:publish --dry-run  everything but Steam: the clean tree, the honest dist, the item VDF
  *
  * `docs/hud.md` is the page for people: the volumes, the session, what Wine
  * needed, how to delete it all.
@@ -206,44 +207,54 @@ function git(args: string[]) {
  * the item (unlisted, `hud/workshop.json`), writes its id back into that file
  * for a commit, and uploads again under the name a client mounts, `<id>.vpk`.
  */
-async function publish() {
+async function publish(args: string[]) {
   const dirty = git(['status', '--porcelain'])
   if (dirty) die(`the tree is dirty; publish only what is committed:\n${dirty}`)
   verify()
-  requireSession()
-  buildImage()
   const itemPath = join(HUD, 'workshop.json')
   let item = parseWorkshopItem(readFileSync(itemPath, 'utf8'))
   const note = `${git(['rev-parse', '--short', 'HEAD'])}: ${git(['log', '-1', '--format=%s'])}`
+  // Everything but Steam: the checks above, and the item VDF as it would go.
+  if (args.includes('--dry-run')) {
+    const name = item.publishedFileId ? `${item.publishedFileId}.vpk` : VPK_NAME
+    log(`dry run: would upload hud/dist/${VPK_NAME} as ${name} with this item VDF:`)
+    console.log(itemVdf(item, '/work/content', note))
+    return
+  }
+  requireSession()
+  buildImage()
 
   const upload = (name: string) => {
     const work = join(CACHE, 'publish')
     rm(work)
     mkdirSync(join(work, 'content'), { recursive: true })
     copyFileSync(join(DIST, VPK_NAME), join(work, 'content', name))
-    copyFileSync(join(HUD, 'images', 'cast', 'hello.png'), join(work, 'preview.png'))
-    writeFileSync(
-      join(work, 'item.vdf'),
-      itemVdf(item, { contentFolder: '/work/content', previewFile: '/work/preview.png' }, note),
-    )
+    writeFileSync(join(work, 'item.vdf'), itemVdf(item, '/work/content', note))
     log(item.publishedFileId ? `updating item ${item.publishedFileId}…` : 'creating the item…')
     container(['publish'], [`${STEAM_VOLUME}:/serverdata/Steam`, `${work}:/work`])
     const transcript = existsSync(join(work, 'steamcmd.txt'))
       ? readFileSync(join(work, 'steamcmd.txt'), 'utf8')
       : ''
-    const verdict = uploadVerdict(transcript)
-    if (!verdict.ok) die(`Steam refused the upload: ${verdict.reason}`)
-    return publishedIdFromVdf(readFileSync(join(work, 'item.vdf'), 'utf8'))
+    return {
+      verdict: uploadVerdict(transcript),
+      id: publishedIdFromVdf(readFileSync(join(work, 'item.vdf'), 'utf8')),
+    }
   }
 
   if (!item.publishedFileId) {
-    const id = upload(VPK_NAME)
+    // The id is kept even when the upload after the creation fails: a second
+    // run must update this item, never make another.
+    const { verdict, id } = upload(VPK_NAME)
+    if (id) {
+      item = { ...item, publishedFileId: id }
+      writeFileSync(itemPath, `${JSON.stringify(item, null, 2)}\n`)
+      log(`created item ${id}; hud/workshop.json now names it (commit it)`)
+    }
+    if (!verdict.ok) die(`Steam refused the upload: ${verdict.reason}`)
     if (!id) die('the item was created but SteamCMD did not say its id')
-    item = { ...item, publishedFileId: id }
-    writeFileSync(itemPath, `${JSON.stringify(item, null, 2)}\n`)
-    log(`created item ${id}; hud/workshop.json now names it (commit it)`)
   }
-  upload(`${item.publishedFileId}.vpk`)
+  const { verdict } = upload(`${item.publishedFileId}.vpk`)
+  if (!verdict.ok) die(`Steam refused the upload: ${verdict.reason}`)
   log(`uploaded ${VPK_NAME} as ${item.publishedFileId}.vpk`)
   await check(item.publishedFileId)
 }
@@ -260,6 +271,9 @@ async function check(id: string) {
   log(
     `Steam Web API: result ${details?.result}, visibility ${details?.visibility}, ${details?.file_size} bytes, banned ${details?.banned}`,
   )
+  // 9 is "file not found": Steam shows the item to its owner alone (docs/hud.md, "Publishing").
+  if (details?.result === 9)
+    log('Steam hides the item from everyone but its owner; until that changes nobody can fetch it')
   const out = join(CACHE, 'fetch')
   rm(out)
   mkdirSync(out, { recursive: true })
@@ -290,7 +304,7 @@ switch (command) {
     verify()
     break
   case 'publish':
-    await publish()
+    await publish(args)
     break
   case 'check':
     if (!args[0]) die('usage: hud check <workshop id>')
@@ -298,5 +312,5 @@ switch (command) {
     await check(args[0])
     break
   default:
-    die('usage: node hud/src/cli.ts build [--tools] | verify | publish | check <id>')
+    die('usage: node hud/src/cli.ts build [--tools] | verify | publish [--dry-run] | check <id>')
 }

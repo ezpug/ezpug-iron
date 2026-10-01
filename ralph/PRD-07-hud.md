@@ -160,7 +160,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
 
 ## Tasks
 
-- [ ] **T1: the addon builds on this box.** A source folder (`hud/`: layouts, styles,
+- [x] **T1: the addon builds on this box.** A source folder (`hud/`: layouts, styles,
   images, an `addoninfo.txt`) and `pnpm hud:build`, which compiles it and packs the VPK
   without a Windows machine: a build image of our own (Wine, Xvfb, SteamCMD) so the box
   itself gains no packages, the Windows build of CS2 and the Workshop Tools depot in a
@@ -179,6 +179,14 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   revert work without the compiler. `pnpm hud:publish` uploads to one Workshop item
   (unlisted; prove a client can fetch an unlisted item by id, or say what visibility it
   needs) and refuses to run when the tree is dirty.
+  > note (T1, 2026-10-02): the upload was made before this run saw `067cb27`, and Steam
+  > did not refuse it. It created Workshop item `3811574606` (unlisted, `hud/workshop.json`)
+  > and committed the pack, which the owner's session downloads byte for byte. Steam shows
+  > the item to its owner alone: the Web API answers `result 9`, an anonymous SteamCMD
+  > "Access Denied", the page "Error". SteamCMD fails every preview upload for app 730.
+  > T9 publishes to this item (`pnpm hud:publish`, `--dry-run` without Steam) and runs
+  > `node hud/src/cli.ts check 3811574606` once the account is topped up (`docs/hud.md`,
+  > "What happened on 2026-10-02").
 - [ ] **T2: MultiAddonManager, in the image and asleep.** Pinned by sha256 like its
   neighbours (`docker/cs2/Dockerfile`, `docs/pins.md`, `scripts/check-pins.mjs`), in the
   Dathost template through `dathost-image.mjs` with its `--check`. **It loads only when
