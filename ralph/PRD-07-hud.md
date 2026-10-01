@@ -128,8 +128,11 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   binaries (7.75 GB), and `2347779` is the Workshop Tools (2.11 GB, DLC app `2279721`,
   which the account's licence covers). So the build tree can be the two Windows depots laid
   over a read-only view of the node's content rather than a second copy of the game.
-  Whether the account may **publish** is not known: it is from July 2026, and Steam refuses
-  Workshop uploads from a limited account. T1 finds out and says so.
+  **The account cannot publish yet**: it is a limited account (the owner, 2026-10-01: it has
+  not spent the five dollars Steam asks for), and Steam refuses Workshop uploads from one.
+  Downloading the tools and compiling are not affected. So T1 builds `hud:publish` and
+  proves it as far as a dry run goes, and the first real upload (T9) writes `> blocked:` if
+  Steam still refuses, with Steam's own words; nothing else in the round waits for it.
 - **The box.** No Wine, no SteamCMD outside the cs2 image, 308 GB free, no GPU.
 - **Still open from before:** `ralph/PRD-06-rush.md:164`, its T5 (the manifests in the
   platform's voice). It is T12 here.
