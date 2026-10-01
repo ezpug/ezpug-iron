@@ -78,6 +78,7 @@ const expected = [
     dockerArg(cs2Image, 'RETAKES_ALLOCATOR_VERSION'),
     'docker/cs2/Dockerfile',
   ],
+  ['MultiAddonManager', dockerArg(cs2Image, 'MULTIADDONMANAGER_VERSION'), 'docker/cs2/Dockerfile'],
   [
     'steamrt sniper (the base image)',
     // Tag plus the first eight of the digest, which is how the table writes

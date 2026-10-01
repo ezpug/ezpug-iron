@@ -65,6 +65,7 @@ interface ImageScript {
   TEMPLATE_TAG: string
   TEMPLATE_ROLE: string
   IMAGE_MANIFEST_PATH: string
+  ASLEEP_PLUGIN_LOADER: string
   remotePathFor(relativePath: string): string | null
   planFiles(treeDir: string): PlannedFile[]
   templateUserData(): string
@@ -222,6 +223,20 @@ describe('the artifact tree', () => {
     expect(pins.counterstrikesharp).toBe(CSS_PIN)
     expect(pins.metamod).toBeTruthy()
     expect(pins.matchzy).toBeTruthy()
+    expect(pins.multiaddonmanager).toBeTruthy()
+  })
+
+  it('refuses a tree that would wake MultiAddonManager on every clone', () => {
+    // PRD-07 T2: the image drops the release's `.vdf`, because Metamod loads
+    // every one at boot. A tree that carries it anyway is a template on which
+    // the HUD is on for every server, whatever `EZPUG_HUD_ADDON` says.
+    mkdirSync(join(tree, 'addons/multiaddonmanager/bin'), { recursive: true })
+    writeFileSync(join(tree, 'addons/multiaddonmanager/bin/multiaddonmanager.so'), 'asleep')
+    expect(script.planFiles(tree).map(file => file.path)).toContain(
+      'addons/multiaddonmanager/bin/multiaddonmanager.so',
+    )
+    writeFileSync(join(tree, script.ASLEEP_PLUGIN_LOADER), '"Metamod Plugin" {}\n')
+    expect(() => script.planFiles(tree)).toThrow(/every server cloned from the template/)
   })
 
   it('wears the tag the orchestrator claims a server by', () => {
@@ -508,6 +523,15 @@ describe('--check', () => {
 
     expect(await run(['--tree', tree, '--template', id, '--check', '--json'])).toBe(1)
     expect(JSON.stringify(summary().problems)).toContain('matchzy 0.8.14')
+  })
+
+  it('is red when MultiAddonManager’s loader file is on the template', async () => {
+    const id = await build()
+    await putFile(id, script.ASLEEP_PLUGIN_LOADER, '"Metamod Plugin" {}\n')
+    expect(await run(['--tree', tree, '--template', id, '--check', '--json'])).toBe(1)
+    expect(JSON.stringify(summary().problems)).toContain(
+      'every clone loads MultiAddonManager at boot',
+    )
   })
 
   it('is red when a setting drifted, and says which', async () => {

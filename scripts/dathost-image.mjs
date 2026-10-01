@@ -111,6 +111,16 @@ const METAMOD_GAMEINFO_NEEDLE = 'csgo/addons/metamod'
 const GAMEINFO_PATH = 'gameinfo.gi'
 const GAMEINFO_ANCHOR = 'Game_LowViolence'
 
+/**
+ * The loader file MultiAddonManager's release ships and the image drops
+ * (PRD-07 T2). Metamod loads every `.vdf` in `addons/metamod/` at boot, so
+ * this file on the template would wake the plugin on every clone, whether or
+ * not the server has `EZPUG_HUD_ADDON`. A clone gets it from the provider,
+ * only when the id is set, so a tree carrying it is refused, and so is a
+ * template.
+ */
+export const ASLEEP_PLUGIN_LOADER = 'addons/metamod/multiaddonmanager.vdf'
+
 const HELP = `dathost-image — build or refresh the Dathost template server (PRD-02 T18)
 
   (no verb)            create or refresh the template from the CS2 image's artifacts
@@ -209,6 +219,7 @@ export function readPins(dockerfile) {
     metamod: arg('METAMOD_VERSION'),
     counterstrikesharp: arg('COUNTER_STRIKE_SHARP_VERSION'),
     matchzy: arg('MATCHZY_VERSION'),
+    multiaddonmanager: arg('MULTIADDONMANAGER_VERSION'),
   }
 }
 
@@ -278,6 +289,11 @@ export function planFiles(treeDir) {
   for (const relativePath of walk(treeDir)) {
     const remote = remotePathFor(relativePath)
     if (remote === null) continue
+    if (remote.toLowerCase() === ASLEEP_PLUGIN_LOADER)
+      throw new Error(
+        `${relativePath} would load MultiAddonManager on every server cloned from the ` +
+          'template; it stays asleep unless the server has EZPUG_HUD_ADDON (docs/hud.md)',
+      )
     const previous = seen.get(remote)
     if (previous !== undefined)
       throw new Error(
@@ -652,7 +668,8 @@ export async function main(options = {}) {
     const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
     say(
       `plan: ${files.length} files, ${(totalBytes / 1024 / 1024).toFixed(1)} MB — Metamod ` +
-        `${pins.metamod}, CounterStrikeSharp ${pins.counterstrikesharp}, MatchZy ${pins.matchzy}` +
+        `${pins.metamod}, CounterStrikeSharp ${pins.counterstrikesharp}, MatchZy ${pins.matchzy}, ` +
+        `MultiAddonManager ${pins.multiaddonmanager} (asleep)` +
         (build ? `, EZPug ${build.core} (${build.commit})` : ''),
     )
     result.pins = pins
@@ -828,6 +845,11 @@ export async function main(options = {}) {
       for (const line of drift) problems.push(`settings: ${line}`)
       if (gameinfoNeedsLoader)
         problems.push(`${GAMEINFO_PATH} has no Metamod loader line — no plugin would load`)
+      if (listed.has(ASLEEP_PLUGIN_LOADER))
+        problems.push(
+          `${ASLEEP_PLUGIN_LOADER} is on the template, so every clone loads MultiAddonManager ` +
+            'at boot — delete it in the control panel (docs/hud.md)',
+        )
       if (problems.length === 0)
         say(`ok: ${files.length} files, the pins and the settings all match this tree`)
       return finish()

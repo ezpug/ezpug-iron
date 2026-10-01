@@ -83,6 +83,8 @@ ARG MATCHZY_VERSION=1.4.32-ezpug.1
 ARG MATCHZY_SHA256=508199c0e8fd8e0cbc7be34f448eacdfaf6c79eee1933003818d4545eed2a717
 ARG RETAKES_ALLOCATOR_VERSION=3.2.5
 ARG RETAKES_ALLOCATOR_SHA256=68e6e8ecfe999e7a09898b17bc33250efb0aa47ff35fb82e4040e9fa871ef24d
+ARG MULTIADDONMANAGER_VERSION=1.6.2
+ARG MULTIADDONMANAGER_SHA256=21176ec47b45b1c7b480ad17cd765ac2d9ab7f8626f9959b1c49b0f8a74a1412
 
 # `/out` is overlaid onto `game/csgo` at boot, so it is laid out exactly like it.
 RUN mkdir -p /out/addons /out/cfg
@@ -168,6 +170,33 @@ RUN curl -fsSL -o allocator.zip \
     && mkdir -p /out/addons/counterstrikesharp/gamedata \
     && cp -a allocator/addons/counterstrikesharp/gamedata/. /out/addons/counterstrikesharp/gamedata/ \
     && rm -rf allocator allocator.zip
+
+# MultiAddonManager (PRD-07 T2, `docs/hud.md`), the Metamod plugin that tells a
+# client to download the HUD's Workshop addon while it connects. **Installed
+# asleep.** Metamod loads every `.vdf` in `addons/metamod/` at boot, so the
+# release's `multiaddonmanager.vdf` is kept outside the overlay, in `asleep/`,
+# and the entrypoint puts it in place only on a server that has
+# `EZPUG_HUD_ADDON`. Without one, the binary sits unloaded in
+# `addons/multiaddonmanager/` and `meta list`, the search paths and the boot log
+# are what they were before this stage existed. It is loaded at boot or not at
+# all: a `meta load` after boot crashed the server 5 boots in 6 on the dev node,
+# inside the map reload the plugin asks for when Steam comes up. The `steamrt3`
+# build, because the base below is sniper (Steam Linux Runtime 3). Its cfg is
+# ours: the release's sets every value to its default, and two of ours differ.
+COPY docker/cs2/cfg/multiaddonmanager/multiaddonmanager.cfg ./
+RUN curl -fsSL -o mam.tar.gz \
+      "https://github.com/Source2ZE/MultiAddonManager/releases/download/v${MULTIADDONMANAGER_VERSION}/MultiAddonManager-v${MULTIADDONMANAGER_VERSION}-steamrt3.tar.gz" \
+    && echo "${MULTIADDONMANAGER_SHA256}  mam.tar.gz" | sha256sum -c - \
+    && mkdir mam \
+    && tar -xzf mam.tar.gz -C mam \
+    && grep -q '"addons/multiaddonmanager/bin/multiaddonmanager"' mam/addons/metamod/multiaddonmanager.vdf \
+    && test -f mam/addons/multiaddonmanager/bin/multiaddonmanager.so \
+    && mkdir -p /out/asleep/metamod /out/cfg/multiaddonmanager \
+    && mv mam/addons/metamod/multiaddonmanager.vdf /out/asleep/metamod/ \
+    && mv mam/addons/multiaddonmanager /out/addons/multiaddonmanager \
+    && mv multiaddonmanager.cfg /out/cfg/multiaddonmanager/multiaddonmanager.cfg \
+    && rm -rf mam mam.tar.gz \
+    && ! ls /out/addons/metamod/ | grep -qi multiaddonmanager
 
 # cs2-retakes with its shared contract, and the WeaponPaints fork with its
 # `gamedata/weaponpaints.json`, built from the vendored source by the

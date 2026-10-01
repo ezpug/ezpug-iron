@@ -187,7 +187,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > T9 publishes to this item (`pnpm hud:publish`, `--dry-run` without Steam) and runs
   > `node hud/src/cli.ts check 3811574606` once the account is topped up (`docs/hud.md`,
   > "What happened on 2026-10-02").
-- [ ] **T2: MultiAddonManager, in the image and asleep.** Pinned by sha256 like its
+- [x] **T2: MultiAddonManager, in the image and asleep.** Pinned by sha256 like its
   neighbours (`docker/cs2/Dockerfile`, `docs/pins.md`, `scripts/check-pins.mjs`), in the
   Dathost template through `dathost-image.mjs` with its `--check`. **It loads only when
   `EZPUG_HUD_ADDON` (the Workshop id) is set for the server**: unset, the Metamod plugin is
@@ -199,6 +199,15 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   Write down what a client goes through when the download cannot finish (read
   `multiaddonmanager.cpp`'s timeout path): whether they still get in, after how long, and
   which setting decides. That paragraph is the reason the switch exists.
+- [ ] **T2a: the id reaches the servers the orchestrator starts.** T2 made
+  `EZPUG_HUD_ADDON` a server's value: the CS2 entrypoint places MultiAddonManager's `.vdf`
+  only when it is set, and `pnpm cs2:up` passes it through. Nothing sets it for a server
+  the orchestrator allocates yet. One operator value on the orchestrator (unset in
+  production, `docs/hud.md`) flows to the nodes provider's container env and, on Dathost,
+  to the clone at `configure` (the `.vdf` uploaded to `addons/metamod/` and `hudAddon` in
+  `ezpug.json`, since a clone has no entrypoint). The template stays without the `.vdf`
+  (`dathost-image.mjs` refuses it). Tests on the fake vendor and the node spec; unset
+  means byte-identical specs and uploads to today's.
 - [ ] **T3 (fable): the HUD seam.** `IGameWorld` grows the smallest set of verbs that can
   show a layout to people (create and remove a layout, set a class and a variable for one
   player or all) and **no input-capture verb**; `CounterStrikeWorld` implements them;

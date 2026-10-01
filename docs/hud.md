@@ -6,9 +6,10 @@ server sets. The layout reaches a client as a **Workshop addon**, so the HUD has
 client half, and this repo builds and publishes it. `ralph/PRD-07-hud.md` is the round
 that made it; its Findings are the reading list.
 
-This page covers the client half: where the sources are, how they become the addon, and
-how the addon reaches Steam. The server half and the three switches come with the round's
-later tasks.
+This page covers the client half (where the sources are, how they become the addon, and
+how the addon reaches Steam) and the first piece of the server half, MultiAddonManager,
+which hands the addon to a client. The rest of the server half and the three switches
+come with the round's later tasks.
 
 ## The sources
 
@@ -192,6 +193,101 @@ and the Steam Guard code goes to the owner's mailbox:
 4. If it still says "Access Denied", set the item to *Public* for one check. If that
    fetches, unlisted is not enough and *Public* is what the HUD needs. If it still fails,
    the account is the problem, not the visibility.
+
+## Handing it to a client: MultiAddonManager
+
+The addon is client-only, and the engine tells a client which addons to mount while it
+connects. [MultiAddonManager](https://github.com/Source2ZE/MultiAddonManager), a Metamod
+plugin, adds addons to that list: `mm_add_client_addon <id>` and
+`mm_remove_client_addon <id>` change it for every client who connects afterwards. The CS2
+image carries **1.6.2**, the `steamrt3` build, pinned by sha-256 (`docs/pins.md`). It
+breaks on CS2 updates (client addons stopped arriving after 1.41.8.x until 1.6.1), so
+nothing may depend on it.
+
+### Asleep unless the server has an id
+
+`EZPUG_HUD_ADDON` is the Workshop id, set per server. **Unset or empty, MultiAddonManager
+is not loaded at all.** Metamod loads every `.vdf` in `addons/metamod/`, so the image
+keeps the release's `multiaddonmanager.vdf` outside the overlay
+(`/opt/ezpug/asleep/metamod/`), and only the binary sits in `addons/multiaddonmanager/`.
+At every boot `docker/cs2/entrypoint.sh` replaces `addons/metamod/` with the image's and
+copies the `.vdf` in only when the id is digits. It then logs one line:
+`hud: addon <id>; MultiAddonManager loads with an empty client list`. A value that is not
+a Workshop id is logged and treated as unset.
+
+Measured on the dev node on 2026-10-02 (CS2 build 11026673, CounterStrikeSharp 1.0.376):
+with the id unset, `meta list` and `path` (the search paths) were byte for byte the image
+without MultiAddonManager. The boot logs differed only in timings, bot names, the
+server's Steam id and one Steam performance warning. With the id set, `meta list` named
+MultiAddonManager 1.6.2 beside CounterStrikeSharp, the cvars read back as in the table
+below, and `mm_add_client_addon <id>` / `mm_remove_client_addon <id>` over RCON filled
+and emptied `mm_client_extra_addons` on the running server.
+
+With the id set, the plugin loads at boot and reads
+`cfg/multiaddonmanager/multiaddonmanager.cfg`, which is ours
+(`docker/cs2/cfg/multiaddonmanager/`):
+
+| Setting | Ours | Why |
+| ------- | ---- | --- |
+| `mm_client_extra_addons` | empty | the id reaches clients only when a match asks for the HUD: `mm_add_client_addon` at assign, `mm_remove_client_addon` at release (PRD-07 T3) |
+| `mm_cache_clients_with_addons` | `1` | a player who has the addon is not sent through the download handshake again on a map change or a rejoin |
+| `mm_cache_clients_duration` | `0` | for the life of the server, which is one match |
+| `mm_block_disconnect_messages` | `0` | blocking it suppresses the `player_disconnect` **event** for the reason "loop shutdown", not just the chat line, so MatchZy, every CounterStrikeSharp plugin and our own vocabulary would stop seeing it. Upstream believes only the addon's reconnect uses that reason, but nobody has proved it. The HUD is decoration and must not change what a server says happened. The cost is one "left the game" line per player on a first join |
+| `mm_addon_connection_timeout` | `30` (upstream's) | see the next section |
+
+Two things change on a server that has the id, with or without a match asking for the
+HUD:
+
+- **One extra map load at boot.** When the server logs on to Steam, MultiAddonManager
+  reloads the map (`Host activate: Changelevel`), even with nothing to mount.
+- **It takes over the handshake on a Workshop map.** Its list starts with the current
+  Workshop map (`GetClientAddons`), so on a map from `host_workshop_map` the timeout
+  below applies to the map's own download too.
+
+**Loaded at boot or not at all.** The first design loaded the plugin later, from the core
+plugin with `meta load`. The dev node crashed in 5 boots of 6, right after
+`[MultiAddonManager] Refreshing addons ()`. On a late load the plugin takes `gpGlobals`
+while the server is still idle, and the map reload it asks for when Steam comes up reads
+`gpGlobals->mapname` (`ReloadMap`). Loaded at boot from its `.vdf`, it booted 5 of 5. So
+a server that is already running cannot be given the plugin. Restart it with the id set.
+
+**Dathost.** The template carries the binary and the cfg (`pnpm dathost:image`) and never
+the `.vdf`. `planFiles` refuses a tree that has it, and `--check` is red if the template
+does. A clone gets the `.vdf` only from the provider, at `configure`, and only when the id is
+set (PRD-07 T2a).
+
+### When the download cannot finish
+
+This is why the switch exists. It is read from `src/multiaddonmanager.cpp` at 1.6.2 and
+has not been watched on a real client yet (the look list, T11).
+
+When a client connects, the plugin hooks the server's reply (`Hook_ReplyConnection`). On
+the client's first attempt it notes the time and marks the client *connecting*. It
+answers with the addon list, cut down to the addons the client already has plus the
+**one** it should fetch next. A client that lacks that addon downloads it and connects
+again, which is the "loop shutdown" disconnect. When it comes back and the engine
+admits it (`ClientConnect`), the plugin marks it *joined*, and the next addon goes out
+the same way.
+
+The only clock is `mm_addon_connection_timeout` (30 s). It is checked only **when the
+client comes back**. If a client returns more than 30 s after its first attempt and is
+still *connecting*, the plugin withholds the reply. On the next frame it disconnects the
+client with "Required Workshop addon download was not accepted in time", and forgets the
+attempt. So:
+
+- **A download that takes longer than 30 s costs one kick.** The player connects again.
+  The addon is on their disk by then, so the second attempt should go through.
+- **A download that cannot finish keeps the player out.** Steam may refuse the item to
+  them, which is what happens to anyone but its owner today (see "What happened on
+  2026-10-02"), or the Workshop may be down. Nothing on the server times out a client
+  that sits in its loading screen. What the client does then is the client's business.
+  Each retry after the first 30 s is kicked with the line above, and the one after that
+  starts over with the same download. **No retry gets in while the id is on the client
+  list.**
+- `mm_addon_connection_timeout 0` removes the kick but not the loop. Taking the id off
+  the list (`mm_remove_client_addon <id>`, effective from the player's next attempt,
+  because the list is rebuilt for every attempt) or starting the server without
+  `EZPUG_HUD_ADDON` are the ways out. A player who retries never gets in on their own.
 
 ## Deleting it
 

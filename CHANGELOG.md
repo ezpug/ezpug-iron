@@ -31,6 +31,12 @@ is deployed to `gs.ezpug.com` yet, and no tag has been cut.
     layout blank once a player has taken the slot, and 1.0.376 is upstream's fix (#1434).
     It also carries the schema for CS2 1.41.8.4. Metamod stays at git1469, because both
     releases build against the same Metamod commit.
+  - **MultiAddonManager 1.6.2**, installed asleep (T2, `docs/hud.md`). It loads at boot
+    only on a server with `EZPUG_HUD_ADDON`, starts with an empty client list, caches who
+    has the addon, and leaves disconnect events alone. Without the id, `meta list`, the
+    search paths and the boot log are unchanged. `pnpm dathost:image` uploads the binary
+    and the cfg to the template, never the loader file, and `--check` is red if the
+    template has it.
 
 **Rush** (`ralph/PRD-06-rush.md`; decision 33). Valve's Rush 3v3 on `rush_001`, as the
 fifth gamemode. The dev node runs this work from local builds. It is not deployed to

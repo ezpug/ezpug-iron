@@ -33,7 +33,7 @@ fi
 
 # ── The addons overlay ─────────────────────────────────────────────────────
 log 'installing the addons from the image…'
-rm -rf "$CSGO/addons/metamod" "$CSGO/addons/counterstrikesharp"
+rm -rf "$CSGO/addons/metamod" "$CSGO/addons/counterstrikesharp" "$CSGO/addons/multiaddonmanager"
 mkdir -p "$CSGO/addons"
 cp -a "$IMAGE_DIR/addons/." "$CSGO/addons/"
 
@@ -46,6 +46,24 @@ if [[ -f "$gameinfo" ]] && ! grep -qF 'csgo/addons/metamod' "$gameinfo"; then
   line_number="$(awk '/Game_LowViolence/{print NR; exit}' "$gameinfo")"
   [[ -n "$line_number" ]] || die 'gameinfo.gi has no Game_LowViolence line to anchor Metamod to'
   sed -i "${line_number}a\\$metamod_line" "$gameinfo"
+fi
+
+# ── The HUD's addon (PRD-07 T2, docs/hud.md) ───────────────────────────────
+# MultiAddonManager is in the overlay asleep: its loader file waits in the
+# image, and Metamod loads only what is in `addons/metamod/`, which the copy
+# above has just replaced. So a server without `EZPUG_HUD_ADDON` never loads
+# it, and says nothing about it here. A server with one loads it at boot, with
+# the empty client list of `cfg/multiaddonmanager/multiaddonmanager.cfg`. The id
+# reaches a client only when a match asks for the HUD.
+hud_addon="${EZPUG_HUD_ADDON:-}"
+hud_addon="${hud_addon//[[:space:]]/}"
+if [[ -n "$hud_addon" ]]; then
+  if [[ "$hud_addon" =~ ^[1-9][0-9]{0,19}$ ]]; then
+    cp "$IMAGE_DIR/asleep/metamod/multiaddonmanager.vdf" "$CSGO/addons/metamod/"
+    log "hud: addon $hud_addon; MultiAddonManager loads with an empty client list"
+  else
+    log 'hud: EZPUG_HUD_ADDON is not a Workshop id (digits only); the HUD stays off'
+  fi
 fi
 
 # ── The cfg set ────────────────────────────────────────────────────────────

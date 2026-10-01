@@ -52,6 +52,9 @@ services:
       EZPUG_IRON_URL: ${EZPUG_IRON_CS2_LINK_URL:-}
       EZPUG_SERVER_TOKEN: ${EZPUG_IRON_CS2_SERVER_TOKEN:-}
       EZPUG_LOBBY_MAP: ${EZPUG_IRON_CS2_START_MAP:-de_dust2}
+      # The HUD's Workshop addon (PRD-07, docs/hud.md). Empty means no HUD, and
+      # MultiAddonManager is not loaded at all.
+      EZPUG_HUD_ADDON: ${EZPUG_HUD_ADDON:-}
     volumes:
       # The game: ~67 GB installed once by `pnpm cs2:install`, never rebuilt,
       # never in the repository.
