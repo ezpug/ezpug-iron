@@ -227,35 +227,61 @@ names: **3811574606**, titled "EZPug HUD", with a description in German and Engl
   item (Failure)". The same update without a preview commits. The preview,
   `hud/images/cast/hello.png`, is set on the item's page by hand.
 - **Then it checks.** It asks the Steam Web API (`GetPublishedFileDetails`, no key) what
-  Steam says about the item. Then it downloads the item **anonymously** with SteamCMD,
-  the way a server or a stranger's client would, and compares the bytes with
-  `hud/dist/ezpug_hud.vpk`. To run the check alone: `node hud/src/cli.ts check <id>`.
+  Steam says about the item, which for this unlisted item is `result 9` whatever is true
+  of it. Then it downloads the item **anonymously** with SteamCMD, the way a server or a
+  stranger's client would, and compares the bytes with `hud/dist/ezpug_hud.vpk`: that is
+  the test. To run the check alone: `node hud/src/cli.ts check <id>`. **Right after an
+  upload it fails**, because Steam goes on serving the revision before for most of an
+  hour (below); run it again later.
 
 ### What happened on 2026-10-02
 
-The account is a limited one: it has not spent the five dollars Steam asks for
-(`ralph/PRD-07-hud.md`, Findings). Steam **did not refuse** the upload. It created the
-item and committed its content, and the owner's own session downloads it byte for byte.
-**Nobody else can see it.** The public API answers `result 9` (not found), an anonymous
-SteamCMD gets "Download item 3811574606 failed (Access Denied)", and the item's page
-shows a stranger "Error". An anonymous SteamCMD does fetch a public CS2 item
-(`3084291314`, 67 MB) through the same path, so the path works. A limited account, or
-a Workshop legal agreement the account has not accepted yet, are the two reasons Steam
-gives for keeping an item to its owner.
+**The first upload** (PRD-07 T1). The account is a limited one: it has not spent the five
+dollars Steam asks for (`ralph/PRD-07-hud.md`, Findings). Steam **did not refuse** the
+upload. It created the item and committed its content, and the owner's own session
+downloaded it byte for byte. **Nobody else could see it**: the public API answered
+`result 9` (not found), an anonymous SteamCMD got "Download item 3811574606 failed
+(Access Denied)", and the item's page showed a stranger "Error". An anonymous SteamCMD
+did fetch a public CS2 item (`3084291314`, 67 MB) through the same path, so the path
+works. A limited account, or a Workshop legal agreement the account has not accepted
+yet, are the two reasons Steam gives for keeping an item to its owner.
 
-The next steps are the owner's, because they happen in a browser logged in as the account
-and the Steam Guard code goes to the owner's mailbox:
+**Later the same day** (PRD-07 T9), with nothing done from this box in between:
 
-1. Top the account up, and accept the
-   [Steam Workshop legal agreement](https://steamcommunity.com/sharedfiles/workshoplegalagreement)
-   if steamcommunity.com asks.
-2. On the item's page, set the preview to `hud/images/cast/hello.png` and check that
+- **An anonymous SteamCMD fetches the item by id.** `node hud/src/cli.ts check 3811574606`
+  downloaded it "Connecting anonymously to Steam Public", 409,967 bytes, byte for byte
+  the first upload's pack (`b44bf8fa…`, commit `e3d0c64`). So an unlisted item is enough
+  for a client who is told the id, and whatever kept the first upload to its owner did
+  not last. The public Web API still answers `result 9` for it, so that API is not the
+  test of whether a client can fetch it; the anonymous download is.
+- **Steam serves a new revision late.** `pnpm hud:publish` uploaded
+  `hud/dist/ezpug_hud.vpk` (8,422,739 bytes, `f4e428dc…`) as `3811574606.vpk` at 06:52
+  CEST and SteamCMD ended "Committing update... Success.". At 06:53, at 07:33 and through
+  the owner's own session at 07:36, a download still got the first upload's 409,967
+  bytes. **At 07:39 an anonymous SteamCMD got today's pack, byte for byte.** Steam said
+  nothing in between. The first upload went the same way (kept to its owner right after
+  it was made, fetchable by anybody by the time this task looked), so what the first
+  note took for a limited account's wall was most likely this delay. **A republish is
+  therefore not live when `hud:publish` returns**: its own check fails for most of an
+  hour, and until `node hud/src/cli.ts check 3811574606` prints the "byte for byte" line
+  a client downloads the revision before, whose layouts may not be the ones the server
+  drives.
+
+`hud:publish` judged that upload a failure, because SteamCMD had put an IPC warning
+between "Committing update..." and "Success." and coloured both; the verdict now strips
+the colours and takes "Success." anywhere after the commit line
+(`hud/test/workshop.test.ts` holds the transcript).
+
+So the item holds what the tree holds (`hud/dist/` at `4677bf5`, change note "4ff69ef:
+chore(ralph): T8 progress line"), unlisted, and anybody who is told the id can fetch it.
+What is left is the owner's, in a browser logged in as the account:
+
+1. On the item's page, set the preview to `hud/images/cast/hello.png` and check that
    visibility says *Unlisted*.
-3. Run `node hud/src/cli.ts check 3811574606`. It should end "an anonymous SteamCMD
-   fetched 3811574606 by id, byte for byte hud/dist/ezpug_hud.vpk".
-4. If it still says "Access Denied", set the item to *Public* for one check. If that
-   fetches, unlisted is not enough and *Public* is what the HUD needs. If it still fails,
-   the account is the problem, not the visibility.
+2. If a later republish never turns up in the check, the item's page is where Steam
+   says why (an update waiting, a
+   [legal agreement](https://steamcommunity.com/sharedfiles/workshoplegalagreement) to
+   accept, the account's limit).
 
 ## Handing it to a client: MultiAddonManager
 
@@ -404,15 +430,100 @@ The id goes on the client list at the assignment because a client is told what t
 while it connects, and players connect to a match after it is assigned. Somebody already
 on the server at that moment keeps playing without the addon and sees nothing, which is
 what the HUD being decoration means. `ezpug_status` on a server that can draw says where
-it stands (`hud: addon <id>, on, 2 layout(s) in the world`); on one that cannot, the
+it stands and what it holds ("What the server holds", below); on one that cannot, the
 report has no such line.
 
 The rules the plugin keeps (no entity before a round has started, orphans removed by
-name, a slot told everything again at connect, at spawn and two seconds later, bots
-skipped, everything gone at release and unload) are in `docs/sdk.md`, "The HUD", and
-`plugins/EZPug.Sdk.Tests/HudTests.cs` has a test for each. Every entity of ours carries
-the targetname `ezpug_hud`, which is how a later load of the plugin finds what an earlier
-one left behind.
+name, layouts that went with the map before made again, a slot told everything again at
+connect, at spawn and two seconds later, bots skipped, everything gone at release and
+unload) are in `docs/sdk.md`, "The HUD", and `plugins/EZPug.Sdk.Tests/HudTests.cs` has a
+test for each. Every entity of ours carries the targetname `ezpug_hud`, which is how a
+later load of the plugin finds what an earlier one left behind.
+
+### What the server holds
+
+`ezpug_status` (the fleet's RCON route runs it, the fleet's console route reads it) says
+three things about the HUD on a server that can draw one, the last two **read back** and
+not remembered:
+
+```
+hud: addon 3811574606, on, 2 layout(s) in the world
+hud: clients who connect now are handed 3811574606
+hud: layout panorama/layout/custom_game/ezpug_moment.xml is entity 371, observable, 64 slot(s); panels [moment_toast_1, moment_toast_2], classes [tier-common, tier-uncommon, tier-rare, tier-legendary], strings []
+hud:   everybody, moment_toast_1: +tier-common -tier-uncommon -tier-rare -tier-legendary
+hud:   everybody, moment_toast_2: -tier-common -tier-uncommon +tier-rare -tier-legendary
+hud:   64 of 64 slot(s) hold nothing
+hud: layout panorama/layout/custom_game/ezpug_welcome.xml is entity 370, 64 slot(s); panels [welcome_title, welcome_mark_title, welcome_url, welcome_mark_url], classes [], strings [text]
+hud:   everybody, welcome_title: {s:text}="iron-match"
+…
+```
+
+- The first line is what the SDK believes: on or off for this match, and whether a round
+  start has made the layouts.
+- The second is MultiAddonManager's own `mm_client_extra_addons`: what a client who
+  connects **now** is told to mount. This is the line to look at after
+  `mm_remove_client_addon <id>` on a live server ("no addon"), and it says
+  "does not answer" when the Metamod plugin is not there.
+- The rest is every `custom_hud_layout` named `ezpug_hud`, off the entity
+  (`CounterStrikeWorld.ReadHudLayouts`): its path, `observable`, the entity's three
+  tables of names (the engine networks a panel, a class and a variable as an index into
+  them), everybody's state, and each slot that holds anything. `+` is "has the class",
+  `-` "does not", `?` "was told once and says nothing now". A slot that took the mouse
+  would be one loud line; nothing of ours can ask for that. "No layout of ours is in the
+  world" while the first line says they are is the report catching the SDK out, which
+  is how the map-change rule above was found.
+
+CounterStrikeSharp's `NetworkedVector` hands out elements for entity handles only
+("Networked vectors currently only support CHandle<T>"), so the read walks them itself:
+the vector's count and first element from CounterStrikeSharp's own natives, the stride
+from the schema's class size, a string as one pointer. It writes nothing and runs only
+when somebody asks for the status.
+
+### The lane, both ways
+
+Two rows of the CS2 lane (`apps/orchestrator/src/cs2.extended.test.ts`,
+`docs/operations.md`, "The `EZPUG_CS2_TESTS` lane") play the same puppeted 1v1 pug with
+`branding.hud: true` and two `moment`s, and hold the server to its own account: the
+status above, and the container's whole console, which `iron-match --console` keeps.
+
+| Row | The server | What it is held to |
+| --- | ---------- | ------------------ |
+| `hud-off`, in the matrix | no `EZPUG_HUD_ADDON`: what production runs | the hello names no `hud`; Metamod says `[META] Loaded 1 plugin.`; not one `hud:` or MultiAddonManager line in the whole console; the status says nothing about a HUD; both moments `applied` |
+| `hud-on`, by name only | has the id | the hello names `hud`; `[META] Loaded 2 plugins.` and MultiAddonManager's "Plugin loaded successfully!"; clients are handed the id while the match is assigned; both layouts are entities, the moment's `observable` and the welcome's not; a toast row tinted `tier-rare` and one `tier-common` for everybody, which is what the two moments left; every slot holds nothing and nobody's mouse is taken |
+
+`hud-on` runs only when it is named, because the id is one value on the dev orchestrator
+and every server it starts gets it. So the row is played inside a hold of the lane, with
+the orchestrator restarted for it and back again before the hold ends:
+
+1. Take the lane by hand (`takeLaneLock` from `scripts/cs2-lane-lock.mjs`, in a process
+   that stays alive) and keep its token.
+2. Restart the dev orchestrator with `EZPUG_IRON_HUD_ADDON=<the id in hud/workshop.json>`
+   in its environment (the process environment wins over `.env`).
+3. `EZPUG_CS2_LANE_TOKEN=<the token> EZPUG_CS2_TESTS=required EZPUG_CS2_CASES=hud-on pnpm --filter @ezpug/orchestrator exec vitest run src/cs2.extended.test.ts`.
+   The token is how a row plays inside somebody's hold: it checks the lock on the box
+   carries it, takes nothing and releases nothing (`iron-match --lock-token`).
+4. Restart the dev orchestrator without the value, **then** release the lane, so no
+   other loop's row ever lands on a server that has the id.
+
+Played on 2026-10-02 (CS2 1.41.8.2, CounterStrikeSharp 1.0.376, MultiAddonManager
+1.6.2), both green, and `retakes` and `mixed` after them on the same image. What they do
+not say:
+
+- **Nothing was drawn.** Every player was a puppet, and a bot has no screen, which the
+  read-back shows as 64 of 64 slots holding nothing: the welcome leaves only its strings
+  for everybody, and a moment only its row's tint. What one person's slot holds after a
+  welcome and a card is the unit tests' (`WelcomeTests`, `MomentTests`) and the look
+  list's.
+- **There is no "after the release" on a node.** The orchestrator's `release` and the
+  node's stop reach the container within the same second (`SIGTERM received while server
+  was **not** hibernating` right behind `series_end`), so a server never says what was
+  left: what remains is no container, which every row of the lane is held to. That
+  `mm_remove_client_addon` empties the list and that removal by name takes the entities
+  were measured on a live server in T2 and T3 (above), and `HudTests` holds the order.
+- **A node's RCON hands back nothing.** `meta list` through the fleet's RCON route comes
+  back empty on a node, like every other command there, so the rows read Metamod's own
+  line off the console instead. (A plain Source RCON client that waits for quiet reads
+  the same server's answers; the node's client stops at its own end marker.)
 
 Measured on the dev node on 2026-10-02 (CS2 1.41.8.2, CounterStrikeSharp 1.0.376), with
 a throwaway console command calling the world's verbs on a server booted with the id:
@@ -578,10 +689,8 @@ the moment's entity read back `m_bObservable` true and the welcome's false, both
 their names, layout paths and 64 slot states. No client was connected, so what a spectator
 is shown is the look list's. One thing to look for there: somebody who is dead and watching
 a team-mate when their own card plays is presumably shown the team-mate's version (the
-toast), not their card. CounterStrikeSharp cannot read the entity's panel, class and
-variable names back (`NetworkedVector` only takes handles: "Networked vectors currently
-only support CHandle<T>"), so a check of what a slot was told has to go through the slot
-states or the service's own record.
+toast), not their card. What each state of the entity holds is in `ezpug_status`
+("What the server holds", above).
 
 **Put away at once** is the stylesheet's to keep, since all the server does is take
 `shown` and `turned` off in the frame the freeze ends: the card's body fades in 0.12 s

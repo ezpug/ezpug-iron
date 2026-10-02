@@ -17,7 +17,10 @@ public static class StatusReport
         Uri? LinkUrl,
         (long LastSeq, int Pending)? Buffer,
         PluginCatalog Catalog,
-        GamemodeLoader Loader);
+        GamemodeLoader Loader,
+        // The layouts of ours in the world, read back off the entities; only a server
+        // that can draw a HUD is asked for them.
+        IReadOnlyList<HudLayoutReading>? HudLayouts = null);
 
     public static string Render(Input input)
     {
@@ -46,6 +49,18 @@ public static class StatusReport
         if (runtime.Hud.Addon is { } addon)
         {
             lines.AppendLine($"hud: addon {addon}, {(runtime.Hud.On ? $"on, {runtime.Hud.Layouts.Count} layout(s) {(runtime.Hud.Spawned ? "in the world" : "waiting for a round start")}" : "off for this match")}");
+            // Read back, both of them: MultiAddonManager's own list and the entities
+            // (PRD-07 T9). What the line above says is what the SDK believes.
+            lines.AppendLine(runtime.Hud.Handed switch
+            {
+                null => $"hud: {Hud.ClientAddons} does not answer, so what clients are handed is not known",
+                "" => "hud: clients who connect now are handed no addon",
+                var handed => $"hud: clients who connect now are handed {handed}",
+            });
+            foreach (var line in HudReadback.Render(input.HudLayouts ?? []))
+            {
+                lines.AppendLine(line);
+            }
         }
 
         lines.AppendLine($"plugins enabled: {(input.Loader.Enabled.Count == 0 ? "none" : string.Join(", ", input.Loader.Enabled))}");

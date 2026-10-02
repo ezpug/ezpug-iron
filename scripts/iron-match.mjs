@@ -20,13 +20,18 @@
 // (`apps/orchestrator/src/trace.ts`) and everything here goes through
 // `scrub()` again, which also rebases every timestamp and every identity onto
 // the fixtures' own so a second run produces the same bytes.
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { createHash, createHmac, randomUUID } from 'node:crypto'
 import {
+  closeSync,
+  createWriteStream,
   existsSync,
+  fstatSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -36,7 +41,13 @@ import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { describeLaneLock, describeLaneQueue, takeLaneLock } from './cs2-lane-lock.mjs'
+import {
+  describeLaneLock,
+  describeLaneQueue,
+  LANE_LOCK_PATH,
+  readLaneLock,
+  takeLaneLock,
+} from './cs2-lane-lock.mjs'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(join(repo, 'apps/orchestrator/package.json'))
@@ -113,7 +124,12 @@ const HELP = `iron-match — run one real match through the Match API and record
                          tell it two moments through the Match API: one about
                          the first rostered player, due two seconds on, and
                          one of a kind and a picture no server has heard of
-                         (PRD-07 T4)
+                         (PRD-07 T4). Then it asks the server what it holds:
+                         the addons a client is handed and the layouts, as
+                         ezpug_status reads them back (T9). Implies --console
+  --console              keep the server's console: follow the container the
+                         node started (docker logs, so only on the node's own
+                         box) into <out>/console.log until it is removed
   --restore              the moment round 3 ends, restore the live match
                          to round 2 through the Match API and lift the pause
                          MatchZy puts on a restored round (PRD-04 T8)
@@ -183,6 +199,12 @@ const HELP = `iron-match — run one real match through the Match API and record
                          box's one CS2 container takes that lock first, because
                          the platform's own lane plays matches on it too
                          (docs/operations.md, "The lane lock")
+  --lock-token <token>   play inside a hold of the lane somebody else has
+                         already taken for this run: the lock on the box has
+                         to carry this token, and the run takes and releases
+                         nothing. For a row that needs something done to the
+                         box first (a rebuild, a dev orchestrator restarted
+                         with another value); default $EZPUG_CS2_LANE_TOKEN
   --no-lock              take no lane lock — a run on a container nobody else
                          shares, or an operator who has just broken a stale one
   --json                 print the run summary as JSON and nothing else
@@ -397,6 +419,24 @@ const PAUSE = flags.get('pause') === 'true'
  * the proof that a real plugin reads the frame, whatever it was started with.
  */
 const MOMENT = flags.get('moment') === 'true'
+/** How long after the two moments the server is asked what it holds: both are due by then, the second one two seconds on. */
+const HUD_READ_AFTER_MS = 4_000
+/**
+ * **The server's console, kept** (PRD-07 T9). A node removes its container
+ * when the match ends and the console goes with it, and what a server says
+ * *after* its release (that its layouts are gone, that clients are handed no
+ * addon any more) can be read nowhere else: no route reaches a server whose
+ * row is closed. So the run follows `docker logs` of the container the node
+ * started, which works on the node's own box and nowhere else, and a run
+ * that finds no such container says so and goes on. The file is the raw
+ * console and stays in the run's folder; the summary quotes only its `hud:`
+ * and MultiAddonManager lines.
+ */
+const CONSOLE = flags.get('console') === 'true' || MOMENT
+/** `apps/node/src/instances.ts`, `CONTAINER_NAME_PREFIX`. */
+const NODE_CONTAINER_PREFIX = 'ezpug-node-'
+/** How long the run waits for the container to go once the match is over, so the file holds what the server said last. */
+const CONSOLE_END_MS = 90_000
 /**
  * **A rewind through the front door** (PRD-04 T8): the moment the third
  * round ends, `restore` to round 2 — the platform's admin console's round
@@ -642,6 +682,17 @@ const TIMEOUT_MS = Number(flags.get('timeout-minutes') ?? 45) * 60_000
  */
 const LOCK = flags.get('no-lock') !== 'true' && (PROVIDER === null || PROVIDER === 'nodes')
 const LOCK_WAIT_MS = Number(flags.get('lock-wait') ?? 45) * 60_000
+/**
+ * **Inside somebody's hold** (PRD-07 T9). Some rows need the box prepared
+ * while nobody else may start a match on it: the image rebuilt, or the dev
+ * orchestrator restarted with a value only that row wants. Whoever does that
+ * holds the lane by hand, and a row that took the lock itself would queue
+ * behind its own holder for ever, while one run with `--no-lock` says nothing
+ * about the lane at all. So the holder hands its token down, the run checks
+ * that the lock on the box still carries it, and then plays as a run that
+ * holds the lane, because it does. It never releases what it did not take.
+ */
+const LOCK_TOKEN = flags.get('lock-token') ?? process.env.EZPUG_CS2_LANE_TOKEN ?? null
 /** How long a run that took the lane waits for the last holder's server to leave the fleet. */
 const LANE_DRAIN_MS = 10 * 60_000
 /**
@@ -1092,10 +1143,26 @@ function traceOffset() {
 
 function readTrace(from) {
   if (!TRACE_FILE || from === null) return []
+  // **Only what this run added, read from where it began.** The dev trace is
+  // appended to for weeks: by 2026-10-02 it was 1.5 GB, more than a string
+  // can hold, so reading the whole file threw, the catch below answered with
+  // nothing, and every run recorded an empty exchange without saying so
+  // (PRD-07 T9). `from` is a byte offset, which a string never understood
+  // either. A file shorter than `from` was replaced, and is read whole.
   let text = ''
   try {
-    text = readFileSync(TRACE_FILE, 'utf8').slice(from)
-  } catch {
+    const file = openSync(TRACE_FILE, 'r')
+    try {
+      const size = fstatSync(file).size
+      const start = from > size ? 0 : from
+      const bytes = Buffer.alloc(size - start)
+      readSync(file, bytes, 0, bytes.length, start)
+      text = bytes.toString('utf8')
+    } finally {
+      closeSync(file)
+    }
+  } catch (error) {
+    say(`the trace could not be read (${error.message}); the link exchange is not recorded`)
     return []
   }
   return text
@@ -1246,7 +1313,15 @@ async function run() {
   //    of this run's own `--timeout-minutes`, and the ledger window below
   //    would otherwise open while somebody else's server was still up.
   let lane = null
-  if (LOCK) {
+  if (LOCK && LOCK_TOKEN) {
+    const held = readLaneLock()
+    if (held?.token !== LOCK_TOKEN)
+      die(
+        `this run was told the CS2 lane is held for it, and it is ${held === null ? 'free' : `held by ${describeLaneLock(held)}`}`,
+      )
+    lane = { path: LANE_LOCK_PATH, waitedMs: 0, broke: null, inherited: true, release: () => false }
+    say(`playing inside a hold of the CS2 lane (${describeLaneLock(held)})`)
+  } else if (LOCK) {
     let told = -1
     lane = await takeLaneLock({
       holder: 'ezpug-iron',
@@ -1950,6 +2025,80 @@ async function run() {
     }
   }
   /**
+   * **The console of the container the node started**, followed into the
+   * run's folder from the container's first line to its last (`--console`).
+   * `docker logs -f` ends when the container is removed, which is how the run
+   * knows the file is whole.
+   */
+  let consoleLog = null
+  const followConsole = async id => {
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      if (!row?.serverId || row.provider !== 'nodes') return
+      const container = `${NODE_CONTAINER_PREFIX}${row.serverId}`
+      const there = spawnSync('docker', ['inspect', '--format', '{{.Id}}', container], {
+        encoding: 'utf8',
+      })
+      if (there.status !== 0) {
+        consoleLog = { container, file: null, done: Promise.resolve(false) }
+        say(`console: no container ${container} on this box; the server's console is not kept`)
+        return
+      }
+      mkdirSync(OUT_DIR, { recursive: true })
+      const file = join(OUT_DIR, 'console.log')
+      const out = createWriteStream(file)
+      const child = spawn('docker', ['logs', '-f', container], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      child.stdout.pipe(out, { end: false })
+      child.stderr.pipe(out, { end: false })
+      const done = new Promise(resolve => {
+        child.on('close', () => out.end(() => resolve(true)))
+        child.on('error', () => resolve(false))
+      })
+      consoleLog = { container, file, done }
+      cleanups.push(() => void child.kill())
+      say(`console: following ${container} into ${file}`)
+    } catch (error) {
+      say(`console: ${error.message}`)
+    }
+  }
+  /**
+   * **What the server holds, in its own words** (PRD-07 T9): the `hud:` lines
+   * of `ezpug_status`, asked through the fleet's routes, which tell the match
+   * nothing. On a server that can draw, the plugin reads back there what a
+   * client who connects now is handed (MultiAddonManager's own list) and
+   * every layout of ours off its entity: the names, everybody's state, each
+   * slot's. A server that cannot draw says nothing about a HUD, and that
+   * silence is the answer. The engine's own answers (`meta list`, a cvar) are
+   * not asked for here: a node's RCON runs a line and hands back nothing
+   * (`readScoreboardAt`, above), so whether MultiAddonManager is loaded is
+   * read off Metamod's line in the kept console instead. `null` rather than
+   * a failure at every step.
+   */
+  const readHud = async id => {
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      if (!row) return null
+      await api('POST', `/v1/fleet/servers/${row.id}/rcon`, { command: 'ezpug_status' })
+      await wall.sleep(1_000)
+      const tail = await api('GET', `/v1/fleet/servers/${row.id}/console`)
+      const lines = tail.lines.map(entry => entry.line.trim())
+      // The tail keeps every earlier report; the last one starts at its header.
+      const from = lines.findLastIndex(line => line.startsWith('[status] EZPug.Core '))
+      return from < 0
+        ? null
+        : lines
+            .slice(from)
+            .filter(line => line.startsWith('[status] hud:'))
+            .map(line => line.slice('[status] '.length))
+    } catch {
+      return null
+    }
+  }
+  /**
    * **One command, and what finally became of it.**
    *
    * `POST /v1/matches/:id/commands` answers `applied` or `rejected` only when
@@ -2188,6 +2337,9 @@ async function run() {
   let widget = null
   /** What `--moment` did: the server's answer to each of the two moments (PRD-07 T4). */
   let moment = null
+  let momentAt = 0
+  /** The `hud:` lines of the server's status once both moments were due (PRD-07 T9): `undefined` until asked, `null` when it could not be read. */
+  let hud
   /** What `--walk` measured: the same bodies moved by the engine and by a teleport (T12). */
   let walked = null
   let rated = false
@@ -2215,6 +2367,9 @@ async function run() {
       last = now.state
     }
     if (TERMINAL.includes(now.state)) break
+    // From the moment the match has a server, whatever state it is in: the
+    // container's log starts at its first line whenever the follow does.
+    if (CONSOLE && consoleLog === null && now.serverId) await followConsole(matchId)
     if (now.state === 'live' && liveAt === 0) liveAt = wall.now()
     if (!forced && liveAt > 0 && wall.now() - liveAt >= MAX_LIVE_MS) {
       forced = true
@@ -2537,8 +2692,18 @@ async function run() {
           },
         }),
       }
+      momentAt = wall.now()
       say(
         `told the match two moments (${moment.about?.status ?? 'no status'}, ${moment.open?.status ?? 'no status'})`,
+      )
+      continue
+    }
+    // And once both are due, what the server holds of them (PRD-07 T9).
+    if (MOMENT && moment !== null && hud === undefined && now.state === 'live') {
+      await wall.sleep(Math.max(0, HUD_READ_AFTER_MS - (wall.now() - momentAt)))
+      hud = await readHud(matchId)
+      say(
+        `the server on its HUD: ${hud === null ? 'no status report' : hud.length === 0 ? 'nothing, it cannot draw one' : `${hud.length} line(s), ${hud[0]}`}`,
       )
       continue
     }
@@ -2720,6 +2885,22 @@ async function run() {
   const ledger = await api('GET', `/v1/fleet/ledger?since=${new Date(startedAt).toISOString()}`)
   const fleet = await api('GET', '/v1/fleet/servers')
 
+  // The console is whole when the container is gone (`--console`): what a
+  // server says after its release is the last thing in it.
+  let consoleKept = null
+  if (consoleLog?.file) {
+    const ended = await Promise.race([
+      consoleLog.done,
+      wall.sleep(CONSOLE_END_MS).then(() => false),
+    ])
+    consoleKept = { container: consoleLog.container, file: consoleLog.file, ended }
+    say(
+      ended
+        ? `console: ${consoleLog.container} is gone, its console is in ${consoleLog.file}`
+        : `console: ${consoleLog.container} was still up after ${CONSOLE_END_MS / 1_000} s; its console is in ${consoleLog.file} as far as it got`,
+    )
+  }
+
   // **The bytes, read back off the store rather than off the report.**
   // `match.ended` carries what the plugin believed about its own upload and
   // the relay carries what arrived at this box; neither is the object. A
@@ -2784,6 +2965,8 @@ async function run() {
           waitedSeconds: Math.round(lane.waitedMs / 1_000),
           /** The corpse this run stepped over, if it did — never a live holder. */
           broke: lane.broke ? describeLaneLock(lane.broke) : null,
+          /** True when the lock was its holder's and this run played inside it (`--lock-token`). */
+          inherited: lane.inherited === true,
         }
       : { taken: false, path: null, waitedSeconds: 0, broke: null },
     demoTarget: s3 ? `${s3.endpoint}/${s3.bucket}/${demoKey}` : null,
@@ -2800,6 +2983,8 @@ async function run() {
     humans: HUMAN_STEAM_IDS,
     widget,
     moment,
+    hud: hud ?? null,
+    console: consoleKept,
     walked,
   }
 }
@@ -2908,6 +3093,34 @@ function utilityOf(frames) {
 /** What `match.ended` said became of this match's demos, or `null` before it landed. */
 function demoOutcome(envelopes) {
   return envelopes.find(envelope => envelope.payload.type === 'match.ended')?.payload.demo ?? null
+}
+
+/**
+ * **What the kept console says about the HUD** (PRD-07 T9), out of the file
+ * `--console` wrote: every line that names it (`hud:`, the image's entrypoint
+ * and the core plugin both print under that word) and every line of
+ * MultiAddonManager's, in order, colours and line ends stripped. `null` when
+ * the run kept no console.
+ */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: the escape is what the console prints
+const CONSOLE_COLOURS = /\x1b\[[0-9;]*m/g
+function consoleFacts(kept) {
+  if (!kept?.file || !existsSync(kept.file)) return null
+  const lines = readFileSync(kept.file, 'utf8')
+    .split('\n')
+    .map(line => line.replace(CONSOLE_COLOURS, '').replace(/\r$/, '').trim())
+  return {
+    container: kept.container,
+    /** True when the follow ended because the container was removed, so the file holds its last line. */
+    whole: kept.ended === true,
+    lines: lines.length,
+    /** Metamod's own count of what it loaded, at boot and at every later look: `[META] Loaded 1 plugin.` is CounterStrikeSharp alone. */
+    metamod: lines.filter(line => line.startsWith('[META] Loaded')),
+    hud: lines.filter(line => /\bhud: /.test(line)),
+    multiAddonManager: lines.filter(line => /multiaddonmanager/i.test(line)),
+    /** The engine's own word for a Metamod plugin it could not load, or a managed one that threw. */
+    crashed: lines.some(line => /Segmentation fault|exited with code 139/i.test(line)),
+  }
 }
 
 function exchanges(trace, kind) {
@@ -3100,6 +3313,28 @@ function write(result) {
      * when the run told none.
      */
     moment: result.moment ?? null,
+    /**
+     * **The HUD, as the server itself accounts for it** (PRD-07 T9), or `null`
+     * when the run told no moment. `hello` is what the server said it can do
+     * when it dialled in (off the trace: `hud` is among it only on a server
+     * that has the addon's id). `status` is the `hud:` lines of `ezpug_status`
+     * once both moments were due: what a client who connects is handed and the
+     * layouts, read back off MultiAddonManager and the entities; empty on a
+     * server that cannot draw. `console` is what the kept console says: what
+     * Metamod loaded at boot, and what the server said **after the release**,
+     * which no route can ask it.
+     */
+    hud: result.moment
+      ? {
+          hello:
+            link
+              .filter(entry => entry.from === 'server' && entry.frame?.type === 'hello')
+              .map(entry => entry.frame.capabilities)
+              .at(-1) ?? null,
+          status: result.hud ?? null,
+          console: consoleFacts(result.console),
+        }
+      : null,
     /**
      * **`--walk`: what a radar would have drawn** (PRD-03 T12). The same
      * bodies in the same match, once as the engine moves them and once on a

@@ -347,13 +347,50 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > is unchanged and no lane row was played for this task.
   > **For T11's look list:** a mode's toast has never been drawn either; nothing but a
   > test mode raises one, so seeing it needs a mode that calls `Toast`.
-- [ ] **T9 (checkpoint): the lane, both ways.** Two rows on the dev node behind the lock.
+- [x] **T9 (checkpoint): the lane, both ways.** Two rows on the dev node behind the lock.
   **Off:** a puppeted match with no `EZPUG_HUD_ADDON`: the boot log, `meta list` and the
   hello are today's; a `moment` prints its line. **On:** the same match with the id set and
   `hud: true`: MultiAddonManager is loaded, the client list holds the id while the match is
   assigned and is empty after release, the layouts exist as entities with the state a
   welcome and a `moment` leave behind (read the networked vectors back), and nothing remains
   after release. Publish the addon from `hud/dist/`. The extended tier green at this sha.
+  > note (T9, 2026-10-02): both rows are lane cases now, `hud-off` in the matrix and
+  > `hud-on` by name inside a hold of the lane (`docs/hud.md`, "The lane, both ways"), and
+  > both are green. **The on row found a bug that every test had passed over:** on a
+  > MatchZy match the layouts were made on the lobby map, went with the match's level
+  > change and were never made again, while the service went on believing they were in
+  > the world (`Hud.OnMapStarted`, fixed, with the test that failed first). It was found
+  > because `ezpug_status` now reads the entities back for real: the networked vectors
+  > are walked in the core plugin's world, so T7's "CounterStrikeSharp cannot" has an
+  > answer. Three things the task asks for cannot be had as it words them, and are had
+  > another way: `meta list` (a node's RCON hands back nothing, T9a; the rows read
+  > Metamod's `[META] Loaded N plugin(s)` off the kept console), "a `moment` prints its
+  > line" (a room of puppets has nobody to print it to, so the row holds `applied` and
+  > the unit tests hold the line), and everything "after release" (a node stops the
+  > container in the second of the release, so nothing is ever said after it: what
+  > remains is no container, which the row asserts).
+  > **Published:** `pnpm hud:publish` uploaded today's pack to item `3811574606`, and an
+  > anonymous SteamCMD fetches it by id, byte for byte `hud/dist/ezpug_hud.vpk`, unlisted
+  > (`node hud/src/cli.ts check 3811574606`). Steam served the revision before for 47
+  > minutes after "Committing update... Success." and then the new one, to a stranger
+  > and to the owner alike, which is most likely what T1 took for a limited account's
+  > wall. So a republish is not live when the command returns (`docs/hud.md`, "What
+  > happened on 2026-10-02"), and T1's "the account cannot publish yet" no longer holds.
+  > **For T11's look list:** the check after every republish, with the wait; the
+  > `hud-on` row as the drill after a CS2 update; the item's preview picture, still to be
+  > set by hand; and the dev trace, which is 1.5 GB and nobody rotates.
+- [ ] **T9a (effort: medium): a node's RCON hands back what the server printed.**
+  `POST /v1/fleet/servers/:id/rcon` on a `nodes` server answers `{"output":""}` for every
+  line (`meta list`, `status`, a cvar's name), which `scripts/iron-match.mjs` has worked
+  around since PRD-02 T27 ("RCON runs a command and does not answer one"). It is not the
+  game: a plain Source RCON client that collects until the socket is quiet read `meta
+  list` and `mm_client_extra_addons` off the same image in T2. `rcon/client.ts` ends on
+  the echo of an empty `RESPONSE_VALUE`, and CS2 very likely answers that marker before
+  it has run the command. Measure it on the dev container (`pnpm cs2:up`, behind the
+  lock), fix the client with a test double that answers in CS2's order, and let the HUD
+  rows read `meta list` and the client list through the front door instead of the
+  console. It matters to T11: the third switch (`mm_remove_client_addon` on a live
+  server) is an RCON preset, and an operator who types it should see an answer.
 - [ ] **T10 (effort: medium): Dathost.** Refresh the template, `--check` green, and one
   short server with the id set: it boots, the plugin loads, a clone of the template carries
   it. One server-hour at most. If the template cannot carry a second Metamod plugin, say

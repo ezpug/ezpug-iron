@@ -65,11 +65,21 @@ export function publishedIdFromVdf(vdf: string): string | undefined {
 
 export type UploadVerdict = { ok: true } | { ok: false; reason: string }
 
-/** What SteamCMD said about an upload. Steam's own result word when it refused. */
-export function uploadVerdict(transcript: string): UploadVerdict {
+/**
+ * What SteamCMD said about an upload. Steam's own result word when it refused.
+ *
+ * SteamCMD colours its lines and ends few of them, and its IPC warnings land
+ * wherever they like: the item's update of 2026-10-02 read
+ * `Committing update...<esc>[0mIPC function call … took too long: 164 msec`,
+ * then `Success.<esc>[0mUnloading Steam API...`. So the colours go first, and
+ * a success is "Success." anywhere after "Committing update".
+ */
+export function uploadVerdict(raw: string): UploadVerdict {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: the escape is what SteamCMD prints
+  const transcript = raw.replace(/\x1b\[[0-9;]*m/g, '')
   const refused = transcript.match(/ERROR!?[^\n(]*\(([^)\n]+)\)/)
   if (refused) return { ok: false, reason: refused[1]! }
-  if (/Committing update\.*\s*Success|^\s*Success\.\s*$/im.test(transcript)) return { ok: true }
+  if (/Committing update[\s\S]*?\bSuccess\./i.test(transcript)) return { ok: true }
   const last = transcript.trim().split('\n').slice(-3).join(' / ')
   return { ok: false, reason: `no success line from SteamCMD (it ended: ${last})` }
 }

@@ -184,7 +184,14 @@ type Summary = {
   endedReason?: { kind?: string } | null
   ledger?: { rows: number; open: number }
   /** The shared CS2 lane (T13): whether this run took the box's lock, and what it queued behind. */
-  lock?: { taken: boolean; path: string | null; waitedSeconds: number; broke: string | null } | null
+  lock?: {
+    taken: boolean
+    path: string | null
+    waitedSeconds: number
+    broke: string | null
+    /** True when the run played inside a hold somebody had taken for it (`--lock-token`, PRD-07 T9). */
+    inherited?: boolean
+  } | null
   payloads?: Record<string, number>
   /** Per bomb fact type, how many named site `a`, `b`, or `none` (PRD-05 T2e). */
   bombSites?: Record<string, Record<string, number>>
@@ -278,6 +285,25 @@ type Summary = {
       minted: string
       steamId64: string
       result: { status?: string; code?: string } | null
+    } | null
+  } | null
+  /** `--moment` (PRD-07 T4): what the server answered each of the two moments. */
+  moment?: { about: { status?: string } | null; open: { status?: string } | null } | null
+  /** The HUD as the server itself accounts for it (PRD-07 T9); `null` when the run told no moment. */
+  hud?: {
+    /** What the server said it can do when it dialled in; `null` when the orchestrator wrote no trace. */
+    hello: string[] | null
+    /** The `hud:` lines of `ezpug_status` once both moments were due: empty on a server that cannot draw. */
+    status: string[] | null
+    /** Out of the container's own console, kept until the node removed it. */
+    console: {
+      container: string
+      whole: boolean
+      lines: number
+      metamod: string[]
+      hud: string[]
+      multiAddonManager: string[]
+      crashed: boolean
     } | null
   } | null
   radar?: {
@@ -414,6 +440,13 @@ type LaneCase = {
    * repeat is an anecdote.
    */
   spike?: true
+  /**
+   * **A row whose world a demanded lane does not have** (PRD-07 T9). It needs
+   * the dev orchestrator started with a value no other row may see, so it runs
+   * only when `EZPUG_CS2_CASES` names it, and its first fact is that the world
+   * was there. Unlike a {@link spike} it is a match held to every invariant.
+   */
+  byName?: true
   /** The facts only this case can produce. The invariants are in {@link play}. */
   facts?: (summary: Summary) => void
 }
@@ -1227,6 +1260,116 @@ const CASES: LaneCase[] = [
     },
   },
   {
+    // **The HUD, off** (PRD-07 T9, decision 34): what production runs until the
+    // owner has looked. The request asks for a HUD (`branding.hud`) and the
+    // server has no addon id, so the platform's switch alone must change
+    // nothing: Metamod loads CounterStrikeSharp and nothing else, the hello
+    // names no `hud`, the plugin says not one word about one, and a `moment`
+    // is still answered `applied`, because its line in chat is owed by every
+    // server. The proof is what the server itself says, off its kept console
+    // and its own status, not an absence of errors.
+    id: 'hud-off',
+    what: 'plays a pug that asks for a HUD on a server with no addon, which stays what it was',
+    puppets: 2,
+    args: ['--moment', '--no-demo'],
+    facts: summary => {
+      readiedUp(summary, 2)
+      expect(summary.moment?.about?.status, 'the moment about a player was not held').toBe(
+        'applied',
+      )
+      expect(summary.moment?.open?.status, 'the moment of an unknown kind was not held').toBe(
+        'applied',
+      )
+      const hud = summary.hud
+      expect(
+        hud?.hello,
+        'no hello was recorded: start the orchestrator with EZPUG_IRON_TRACE_FILE',
+      ).toBeInstanceOf(Array)
+      expect(
+        hud?.hello,
+        'this server can draw a HUD: the dev orchestrator was left with EZPUG_IRON_HUD_ADDON set, and this row is the server without it',
+      ).not.toContain('hud')
+      expect(hud?.status, 'a server without the addon said something about a HUD').toEqual([])
+      expect(hud?.console?.whole, "the server's console was not kept to its last line").toBe(true)
+      expect(hud?.console?.metamod[0], 'Metamod loaded more than CounterStrikeSharp').toBe(
+        '[META] Loaded 1 plugin.',
+      )
+      expect(hud?.console?.multiAddonManager, 'MultiAddonManager spoke').toEqual([])
+      expect(hud?.console?.hud, 'the image or the plugin said something about a HUD').toEqual([])
+    },
+  },
+  {
+    // **The HUD, on** (PRD-07 T9): the same match on a server that has the
+    // addon's id. **By name only**, because that id is one value on the dev
+    // orchestrator (`EZPUG_IRON_HUD_ADDON`) and every server it starts gets
+    // it, so it is set for this row and unset again (`docs/hud.md`, "The
+    // lane, both ways"). MultiAddonManager is loaded, a client who connects
+    // while the match is assigned is handed the id, and both layouts stand in
+    // the world as entities holding what two moments left on them: read back
+    // off the entities' own networked state by `ezpug_status`, not off what
+    // the SDK believes. Nobody in the room has a screen, so every slot holds
+    // nothing and nobody's mouse is taken. What a client draws of it is the
+    // look list's; a release is the container's end on a node, and the
+    // invariants every row is held to say the server is gone.
+    id: 'hud-on',
+    what: 'plays the same pug on a server that has the addon, with both layouts in the world',
+    puppets: 2,
+    byName: true,
+    args: ['--moment', '--no-demo'],
+    facts: summary => {
+      const addon = (
+        JSON.parse(readFileSync(`${REPO}hud/workshop.json`, 'utf8')) as { publishedFileId: string }
+      ).publishedFileId
+      const hud = summary.hud
+      expect(
+        hud?.hello,
+        `this server cannot draw a HUD: start the dev orchestrator with EZPUG_IRON_HUD_ADDON=${addon} for this row`,
+      ).toContain('hud')
+      readiedUp(summary, 2)
+      expect(summary.moment?.about?.status, 'the moment about a player was not held').toBe(
+        'applied',
+      )
+      expect(summary.moment?.open?.status, 'the moment of an unknown kind was not held').toBe(
+        'applied',
+      )
+      // MultiAddonManager, loaded at boot beside CounterStrikeSharp.
+      expect(hud?.console?.whole, "the server's console was not kept to its last line").toBe(true)
+      expect(hud?.console?.crashed, 'the server crashed').toBe(false)
+      expect(hud?.console?.metamod[0], 'Metamod did not load MultiAddonManager').toBe(
+        '[META] Loaded 2 plugins.',
+      )
+      expect(hud?.console?.multiAddonManager.join('\n')).toContain('Plugin loaded successfully')
+      // The client list, as MultiAddonManager holds it while the match is assigned.
+      const status = hud?.status ?? []
+      expect(status).toContain(`hud: addon ${addon}, on, 2 layout(s) in the world`)
+      expect(status).toContain(`hud: clients who connect now are handed ${addon}`)
+      // Both layouts as entities, the moment's one a spectator shares.
+      const layouts = status.filter(line => line.startsWith('hud: layout '))
+      expect(layouts.length, `the world holds ${layouts.length} layout(s) of ours`).toBe(2)
+      expect(layouts.find(line => line.includes('ezpug_moment.xml'))).toContain(', observable,')
+      expect(layouts.find(line => line.includes('ezpug_welcome.xml'))).not.toContain('observable')
+      // What the two moments left: a toast row each, tinted for everybody. Which
+      // row took which is the order they fell due in, and not this row's business.
+      const rows = status.filter(line => line.startsWith('hud:   everybody, moment_toast_'))
+      expect(
+        rows.some(line => line.includes('+tier-rare')),
+        'no row is tinted rare',
+      ).toBe(true)
+      expect(
+        rows.some(line => line.includes('+tier-common')),
+        'no row is tinted common',
+      ).toBe(true)
+      // And the welcome's words, which are everybody's.
+      expect(status.some(line => line.includes('welcome_url: {s:text}="ezpug.com"'))).toBe(true)
+      // A room of puppets: no slot was told anything, and nobody's mouse is taken.
+      const untold = status.filter(line => line.endsWith('slot(s) hold nothing'))
+      expect(untold.length).toBe(2)
+      for (const line of untold)
+        expect(line).toMatch(/^hud: {3}(\d+) of \1 slot\(s\) hold nothing$/)
+      expect(status.join('\n')).not.toContain('TAKES THE MOUSE')
+    },
+  },
+  {
     // **The movement spike** (PRD-03 T12), and the only row here that is not a
     // shape of match: it is a question about hardware. Can a puppet be *moved*
     // — by `Teleport`, once an engine frame — smoothly enough that the
@@ -1586,7 +1729,8 @@ matrix('puppets play real matches on the dev node', () => {
   for (const lane of CASES) {
     // A spike is never part of the matrix a round is judged on: it runs when
     // `EZPUG_CS2_CASES` asks for it by name and not otherwise.
-    const chosen = ONLY.length === 0 ? lane.spike !== true : ONLY.includes(lane.id)
+    const chosen =
+      ONLY.length === 0 ? lane.spike !== true && lane.byName !== true : ONLY.includes(lane.id)
     it.skipIf(!chosen)(`${lane.id}: ${lane.what}`, () => void play(lane), wallOf(lane))
   }
 })
@@ -1668,6 +1812,10 @@ describe('the iron-match script', () => {
       'idle',
       // PRD-06 T3's: six puppets on Rush, the mode whose rounds are the map's script.
       'rush',
+      // PRD-07 T9's: a pug that asks for a HUD on a server with no addon, and,
+      // by name only, on one that has it.
+      'hud-off',
+      'hud-on',
       // **T12**'s spike, which is not part of the matrix and runs only when
       // it is named: can a puppet be moved smoothly enough for a radar?
       'radar',
@@ -1690,6 +1838,10 @@ describe('the iron-match script', () => {
     expect(CASES.filter(lane => lane.spike).map(lane => `${lane.id}:${lane.rcon}`)).toEqual([
       'radar:1',
     ])
+    // And one row needs a world a demanded lane does not have, so it is asked
+    // for by name: the dev orchestrator hands the HUD's addon id to every
+    // server it starts, and no other row may see it.
+    expect(CASES.filter(lane => lane.byName).map(lane => lane.id)).toEqual(['hud-on'])
   })
 })
 

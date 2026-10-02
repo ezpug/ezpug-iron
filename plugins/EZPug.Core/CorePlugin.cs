@@ -242,7 +242,14 @@ public sealed class CorePlugin : BasePlugin
             return;
         }
 
-        var report = StatusReport.Render(new StatusReport.Input(_runtime, _link, _linkUrl, _client?.BufferState, _catalog, _loader));
+        var report = StatusReport.Render(new StatusReport.Input(
+            _runtime,
+            _link,
+            _linkUrl,
+            _client?.BufferState,
+            _catalog,
+            _loader,
+            _runtime.Hud.Addon is null ? null : _world?.ReadHudLayouts()));
         info.ReplyToCommand(report);
         // …and into the buffer the fleet's console route reads. A reply is only a reply
         // to whoever asked, and RCON is not one of them: CounterStrikeSharp answers a

@@ -200,7 +200,11 @@ without:
 - **No entity before a round has started on the map.** CounterStrikeSharp caches a failed
   look at the entity list for the life of the process. The layouts are made at the first
   `round_start` of each map, after anything of ours still in the world has been removed,
-  and whatever was set before that is applied then.
+  and whatever was set before that is applied then. The world announces a map a second
+  after the engine starts it, and a round can start inside that second: when the
+  announcement shows that the layouts in the world were made on the map *before*, they
+  are made again then (the dev node did exactly this on every MatchZy match, whose level
+  change follows a round on the lobby map).
 - **A slot is told everything again** when a person takes it, at every spawn, and two
   seconds after each (`Hud.ResendDelayMs`). The engine keeps a player's state by slot and
   slots are reused, and a client that is still loading drops what it is told.

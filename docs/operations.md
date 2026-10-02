@@ -1796,6 +1796,14 @@ both, repo root first, and **stops** when it finds a trace in neither — a run 
 whole match and then wrote an empty conversation over a good fixture is worse than no run.
 An absolute path in `.env` avoids the question entirely.
 
+**The script reads only what its own run appended**, from the byte the file ended at when
+the run began. The dev trace is appended to for weeks and nothing rotates it: on
+2026-10-02 it was 1.5 GB, more than one string holds, and a script that read the whole
+file and cut it afterwards got an error it swallowed and recorded an empty conversation
+for every run, saying nothing (PRD-07 T9 found it when a `hello` was missing). A trace
+that cannot be read is now a line in the run's own output. Deleting the file between
+runs is safe: the orchestrator opens it again for its next line.
+
 **The trace** (`EZPUG_IRON_TRACE_FILE`) is the only part of this the orchestrator itself
 does: with the variable set it appends one scrubbed NDJSON line per `/link` frame, per
 `/node` frame and per MatchZy payload, so the script can record the two conversations no
@@ -1895,6 +1903,7 @@ is not — `powerup-dm`, whose flow and whose puppets are both the SDK's:
 | `pause` | a pause and an unpause through the Match API | `match_paused` / `match_unpaused` are the **core plugin's**, not MatchZy's |
 | `drop` | one puppet leaves in warmup to a `kick` for its rostered id, and comes back | the gate that holds a loaded match while a rostered SteamID is absent — and the front door reaching a puppet at all |
 | `widget` | a `powerup-dm` of puppets, one of whom taps the phone (T8) | the widget socket end to end: a player token, the mode's verb, the `plugin_event` it leaves, the push that comes back, and the two refusals — `not_alive` and `not_in_match` — and, since PRD-03 T9, **a match that ends because its manifest says how long it is**: `going_live.length.durationSeconds` is the manifest's 600 over the lane's time scale, both terminal facts say `time_limit`, nobody wins a free-for-all, and the row is declared `roundless` (one `round_start`, no `round_end`: the mode's one round outlasts the match on purpose) |
+| `hud-off` | a 1v1 pug that asks for a HUD (`branding.hud`) and is told two `moment`s, on a server with no addon id (PRD-07 T9) | **off is untouched**, in the server's own words: the hello names no `hud`, Metamod loaded one plugin, the whole console holds no `hud:` and no MultiAddonManager line, `ezpug_status` says nothing about a HUD, and both moments are still `applied` (`docs/hud.md`, "The lane, both ways") |
 | `rush` | a Rush 3v3 of six puppets on `rush_001`, no `rules` (PRD-06 T3) | a mode whose rounds are the **map's `cs_script`**: the map loaded under its own engine game (`0`/`6`, set by the loader before the level change, since `rush.cfg` runs one load too late), every `round_end` carrying its room on the line and who held the tower, `tower_captured` exactly when the winner did not hold it, the walk one room per round, and `map_end` saying whether a castle or the rounds ended it |
 
 `pug-5v5` is the one that also asserts the demo, because it is the match the owner
@@ -1930,6 +1939,23 @@ engine frame (`radar.frameMs`, 1000 / (64 × the time scale)) of 100 ms. It is *
 of the matrix**: a demanded lane skips it, and `EZPUG_CS2_CASES=radar` is how it is
 repeated. What it measured, and why puppets
 keep the engine's own movement, is `docs/sdk.md`, "Movement".
+
+**And one row that needs a world the lane does not have.** `hud-on` (PRD-07 T9) is
+`hud-off`'s match on a server that has the HUD's addon id: MultiAddonManager loaded, the
+id on the list clients are handed, both layouts in the world as entities with what two
+moments left on them, read back by `ezpug_status`. The id is one value on the dev
+orchestrator and every server it starts gets it, so the row is **not part of the
+matrix**: it runs when `EZPUG_CS2_CASES=hud-on` names it, inside a hold of the lane, with
+the orchestrator restarted for it and back again (`docs/hud.md` has the four steps). Its
+first fact is that the server could draw at all, so a run against an orchestrator
+without the value fails saying which value.
+
+**The console, kept.** Both rows read the container's own console, which the node
+removes with the container. `iron-match --console` (implied by `--moment`) follows
+`docker logs` of `ezpug-node-<server>` into the run's folder as `console.log` until the
+container is gone; it works on the node's own box and says so anywhere else. The summary
+quotes only Metamod's count, the `hud:` lines and MultiAddonManager's; the file itself
+is a raw console and stays in `.cache/`.
 
 It is opt-in twice over — nothing happens unless `EZPUG_CS2_TESTS` is set, and
 `EZPUG_CS2_TESTS=required` turns "there is no dev node" from a printed skip into a
@@ -1972,6 +1998,16 @@ match. A run that **pins** a provider which is not `nodes` takes nothing — `--
 is the simulator and the Dathost smoke rents its own box — and `--no-lock` is the operator's
 way out. `--lock-wait <minutes>` (default 45) is how long a run queues before it gives up
 and names the holder.
+
+**A row inside somebody's hold** (PRD-07 T9). Some rows need the box prepared while nobody
+else may start a match on it: the image rebuilt, or the dev orchestrator restarted with a
+value only that row wants (`hud-on`). Whoever does that takes the lane by hand
+(`takeLaneLock`, in a process that stays alive) and hands the lock's token down:
+`--lock-token <token>`, or `EZPUG_CS2_LANE_TOKEN` for a row started through the lane's
+own test. The run checks that the lock on the box still carries that token, takes nothing
+and releases nothing, and its summary says `lock.inherited`. A run given a token the lock
+does not carry stops before it creates a match. The lock file and the queue are
+unchanged, so the platform's side needs to know nothing about it.
 
 **The protocol, which is the part the platform implements for itself** (it is a different
 checkout and never imports this repo — forty lines on either side):

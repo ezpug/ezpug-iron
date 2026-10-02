@@ -278,9 +278,11 @@ async function check(id: string) {
   log(
     `Steam Web API: result ${details?.result}, visibility ${details?.visibility}, ${details?.file_size} bytes, banned ${details?.banned}`,
   )
-  // 9 is "file not found": Steam shows the item to its owner alone (docs/hud.md, "Publishing").
+  // 9 is "file not found", and it is what this API says about our unlisted item even
+  // while an anonymous SteamCMD fetches it (docs/hud.md, "What happened on 2026-10-02").
+  // The download below is the test, not this.
   if (details?.result === 9)
-    log('Steam hides the item from everyone but its owner; until that changes nobody can fetch it')
+    log('the public Web API does not list the item (it never has); the download is the test')
   const out = join(CACHE, 'fetch')
   rm(out)
   mkdirSync(out, { recursive: true })

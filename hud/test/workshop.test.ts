@@ -55,6 +55,20 @@ describe("SteamCMD's verdict", () => {
     })
   })
 
+  it('knows one through the colours and an IPC warning in the middle of it', () => {
+    // The item's update of 2026-10-02, as SteamCMD printed it.
+    const transcript =
+      'Uploading content...\x1b[0m.\x1b[0m.\x1b[0m\n' +
+      'Committing update...\x1b[0mIPC function call IClientUGC::GetItemUpdateProgress took too long: 164 msec\n' +
+      'Success.\x1b[0mUnloading Steam API...\x1b[0mOK\n' +
+      '\x1b[0mCWorkThreadPool::~CWorkThreadPool: work processing queue not empty: 1 items discarded.\n'
+    expect(uploadVerdict(transcript)).toEqual({ ok: true })
+  })
+
+  it('does not take a success from before the commit for one', () => {
+    expect(uploadVerdict('Loading Steam API...OK\nSuccess.\nPreparing update...\n').ok).toBe(false)
+  })
+
   it("names Steam's refusal", () => {
     expect(uploadVerdict('ERROR! Failed to update workshop item (Access Denied).')).toEqual({
       ok: false,

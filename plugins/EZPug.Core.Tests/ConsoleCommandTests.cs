@@ -102,9 +102,68 @@ public class ConsoleCommandTests
         world.StartRound();
         Assert.Contains("hud: addon 3811574606, on, 2 layout(s) in the world", Status());
 
+        // What clients are handed is MultiAddonManager's own list, read back: a server
+        // whose plugin does not answer says so, rather than what it once asked for.
+        Assert.Contains($"hud: {Hud.ClientAddons} does not answer", Status());
+        world.SetCvar(Hud.ClientAddons, "3811574606");
+        Assert.Contains("hud: clients who connect now are handed 3811574606", Status());
+        world.SetCvar(Hud.ClientAddons, "");
+        Assert.Contains("hud: clients who connect now are handed no addon", Status());
+        // The entities are the host's to read; a report given none says there are none.
+        Assert.Contains("hud: no layout of ours is in the world", Status());
+
         // And a server without the addon says nothing at all about one.
         using var plain = new GamemodeRuntime(world, new FakePlatformLink());
         Assert.DoesNotContain("hud", StatusReport.Render(new StatusReport.Input(plain, link, null, null, image.Catalog(), loader)));
+    }
+
+    [Fact]
+    public void TheStatusReportSaysWhatTheLayoutsInTheWorldHold()
+    {
+        // The entity's own tables and states, as `CounterStrikeWorld.ReadHudLayouts`
+        // hands them over: names by index, everybody's state, one state per slot.
+        var nobody = Enumerable.Range(0, 4).Select(slot => new HudStateReading(slot, false, [], [])).ToList();
+        var moment = new HudLayoutReading(
+            412,
+            Moments.Layout,
+            Observable: true,
+            Panels: ["moment_toast_1", "moment_toast_1_text", "moment_card"],
+            Classes: ["tier-common", "tier-rare", "shown"],
+            Variables: ["text"],
+            Everybody: new HudStateReading(-1, false, [new(0, 0, HudClassStatus.DoesNotHave), new(0, 1, HudClassStatus.Has)], []),
+            Slots:
+            [
+                nobody[0],
+                new HudStateReading(1, false, [new(0, 2, HudClassStatus.Has), new(2, 2, HudClassStatus.Undefined)], [new(1, 0, "Ada wins: BIG jersey!", true), new(2, 0, "", false)]),
+                nobody[2],
+                nobody[3],
+            ]);
+        var welcome = new HudLayoutReading(413, Welcome.Layout, false, [], [], [], new HudStateReading(-1, false, [], []), nobody);
+
+        Assert.Equal(
+            [
+                $"hud: layout {Moments.Layout} is entity 412, observable, 4 slot(s); panels [moment_toast_1, moment_toast_1_text, moment_card], classes [tier-common, tier-rare, shown], strings [text]",
+                "hud:   everybody, moment_toast_1: -tier-common +tier-rare",
+                "hud:   slot 1, moment_toast_1: +shown",
+                "hud:   slot 1, moment_toast_1_text: {s:text}=\"Ada wins: BIG jersey!\"",
+                "hud:   slot 1, moment_card: ?shown {s:text} unset",
+                "hud:   3 of 4 slot(s) hold nothing",
+                $"hud: layout {Welcome.Layout} is entity 413, 4 slot(s); panels [], classes [], strings []",
+                "hud:   4 of 4 slot(s) hold nothing",
+            ],
+            HudReadback.Render([moment, welcome]));
+
+        // An index past the entity's own table is named by its number, and a state that
+        // took the mouse is shouted: nothing of ours ever asks for that.
+        var odd = moment with { Everybody = new HudStateReading(-1, true, [new(7, 9, HudClassStatus.Has)], []), Slots = [] };
+        Assert.Equal(
+            [
+                $"hud: layout {Moments.Layout} is entity 412, observable, 0 slot(s); panels [moment_toast_1, moment_toast_1_text, moment_card], classes [tier-common, tier-rare, shown], strings [text]",
+                "hud:   everybody TAKES THE MOUSE, which nothing of ours ever asks for",
+                "hud:   everybody, #7: +#9",
+                "hud:   0 of 0 slot(s) hold nothing",
+            ],
+            HudReadback.Render([odd]));
     }
 
     [Fact]

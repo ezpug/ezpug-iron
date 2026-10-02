@@ -676,12 +676,9 @@ public sealed class CounterStrikeWorld : IGameWorld
         {
             var ours = _hudLayouts.Values.Where(entity => entity.IsValid).ToDictionary(entity => entity.Index);
             _hudLayouts.Clear();
-            foreach (var entity in Utilities.FindAllEntitiesByDesignerName<CCSCustomHudLayout>(HudEntityClass))
+            foreach (var entity in OurHudLayouts())
             {
-                if (entity.IsValid && entity.Entity?.Name == HudEntityName)
-                {
-                    ours[entity.Index] = entity;
-                }
+                ours[entity.Index] = entity;
             }
 
             foreach (var entity in ours.Values)
@@ -689,6 +686,92 @@ public sealed class CounterStrikeWorld : IGameWorld
                 entity.Remove();
             }
         });
+
+    /// <summary>Every <c>custom_hud_layout</c> in the world that carries our name, whoever made it.</summary>
+    private static List<CCSCustomHudLayout> OurHudLayouts() =>
+        [.. Utilities.FindAllEntitiesByDesignerName<CCSCustomHudLayout>(HudEntityClass)
+            .Where(entity => entity.IsValid && entity.Entity?.Name == HudEntityName)];
+
+    /// <summary>More elements than any table or state of a layout of ours holds; a count beyond it is memory that is not what it is taken for.</summary>
+    private const int HudVectorMax = 4_096;
+
+    /// <summary>
+    /// <b>The layouts of ours in the world, read back off the entities</b> (PRD-07 T9):
+    /// each one's path and <c>observable</c>, its three tables of names, and what
+    /// everybody's state and every slot's hold. This is what the server networks, so it
+    /// is as near to a client's screen as a server can look. Empty before a round has
+    /// started on the map, for the reason <see cref="HudReady"/> gives.
+    ///
+    /// <para>CounterStrikeSharp's <c>NetworkedVector</c> hands out elements for entity
+    /// handles only, so the elements are walked here: the vector's own count and first
+    /// element from the native side, the stride from the schema's class size (a string
+    /// is one pointer). Nothing is written. A read that does not add up is a line in
+    /// the log and an empty answer, like every other HUD call.</para>
+    /// </summary>
+    public IReadOnlyList<HudLayoutReading> ReadHudLayouts()
+    {
+        var readings = new List<HudLayoutReading>();
+        TouchHud("reading the layouts back", () =>
+        {
+            foreach (var entity in OurHudLayouts())
+            {
+                readings.Add(new HudLayoutReading(
+                    entity.Index,
+                    entity.StrLayout,
+                    entity.Observable,
+                    HudNames(entity.PanelIds.Handle),
+                    HudNames(entity.ClassNames.Handle),
+                    HudNames(entity.DialogVariableNames.Handle),
+                    HudState(entity.GlobalLayoutState),
+                    [.. HudElements(entity.PlayerLayoutStates.Handle, Schema.GetClassSize("CCSCustomHudLayoutState"))
+                        .Select(pointer => HudState(new CCSCustomHudLayoutState(pointer)))]));
+            }
+        });
+        return readings;
+    }
+
+    private static HudStateReading HudState(CCSCustomHudLayoutState state) =>
+        new(
+            state.PlayerSlot,
+            state.InputCaptureEnabled,
+            [.. HudElements(state.HasClasses.Handle, Schema.GetClassSize("HUDPanelHasClass_t"))
+                .Select(pointer => new HUDPanelHasClass_t(pointer))
+                .Select(entry => new HudClassReading(entry.PanelIdIndex, entry.ClassNameIndex, entry.ClassStatus switch
+                {
+                    EHudPanelClassStatus_t.k_eHudPanelClassStatus_HasClass => HudClassStatus.Has,
+                    EHudPanelClassStatus_t.k_eHudPanelClassStatus_DoesNotHaveClass => HudClassStatus.DoesNotHave,
+                    _ => HudClassStatus.Undefined,
+                }))],
+            [.. HudElements(state.DialogVariableStrings.Handle, Schema.GetClassSize("HUDPanelDialogVariableString_t"))
+                .Select(pointer => new HUDPanelDialogVariableString_t(pointer))
+                .Select(entry => new HudStringReading(entry.PanelIdIndex, entry.DialogVariableIndex, entry.Value ?? "", entry.IsSet))]);
+
+    /// <summary>A table of names: a vector of strings, each one pointer to its characters.</summary>
+    private static List<string> HudNames(IntPtr vector) =>
+        [.. HudElements(vector, IntPtr.Size).Select(pointer => Utilities.ReadStringUtf8(pointer) ?? "")];
+
+    /// <summary>Where each element of a networked vector lies, <paramref name="stride"/> bytes apart from the first.</summary>
+    private static List<IntPtr> HudElements(IntPtr vector, int stride)
+    {
+        var count = NativeAPI.GetNetworkVectorSize(vector);
+        if (count is < 0 or > HudVectorMax || stride <= 0)
+        {
+            throw new InvalidOperationException($"a vector of {count} element(s) of {stride} byte(s) is not a layout's");
+        }
+
+        if (count == 0)
+        {
+            return [];
+        }
+
+        var first = NativeAPI.GetNetworkVectorElementAt(vector, 0);
+        if (first == IntPtr.Zero)
+        {
+            throw new InvalidOperationException($"a vector of {count} element(s) has no memory");
+        }
+
+        return [.. Enumerable.Range(0, count).Select(index => first + index * stride)];
+    }
 
     public void SetHudClass(string layout, string panel, string className, bool has) =>
         WithHudLayout(layout, entity => entity.SetHasClass(panel, className, has));

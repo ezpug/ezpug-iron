@@ -88,6 +88,9 @@ public sealed class Hud
     /// <summary>And the one that takes it off again, for the clients who connect after it.</summary>
     public const string RemoveClientAddon = "mm_remove_client_addon";
 
+    /// <summary>MultiAddonManager's own record of that list: the ids, separated by commas, that a client who connects now is told to mount.</summary>
+    public const string ClientAddons = "mm_client_extra_addons";
+
     private readonly record struct ClassKey(string Layout, string Panel, string Class);
 
     private readonly record struct VariableKey(string Layout, string Panel, string Variable);
@@ -127,6 +130,8 @@ public sealed class Hud
     private RoundPhase _phase;
     private long _phaseAtMs;
     private bool _mapOver;
+    /// <summary>When the layouts in the world were made: before a map's start means they went with the map before.</summary>
+    private long _spawnedAtMs;
 
     public Hud(IGameWorld world, string? addon = null, ILinkLog? log = null)
     {
@@ -143,6 +148,13 @@ public sealed class Hud
 
     /// <summary>The layouts are in the world: the HUD is on and a round has started on this map.</summary>
     public bool Spawned => _on && _spawned;
+
+    /// <summary>
+    /// What a client who connects now is handed, as MultiAddonManager holds it: read
+    /// back, not remembered. Empty for no addon, and <c>null</c> on a server that cannot
+    /// draw a HUD (nothing is read there) or whose MultiAddonManager does not answer.
+    /// </summary>
+    public string? Handed => Addon is null ? null : _world.GetCvar(ClientAddons);
 
     /// <summary>The layouts this server shows while the HUD is on, by source path.</summary>
     public IReadOnlyList<string> Layouts => _layouts;
@@ -406,11 +418,23 @@ public sealed class Hud
     /// A map is up. Its entities are new, so the layouts of the map before are gone —
     /// unless a round has already started on this one, which the world may tell us before
     /// it gets round to announcing the map (<see cref="MapStart"/>).
+    ///
+    /// <para>That round start is then the map's first, and it could not know it. If the
+    /// layouts were made before this map came up, it found them "in the world" and made
+    /// none, and they went with the map before: they are made now. The dev node showed
+    /// it on every MatchZy match (PRD-07 T9): the lobby map's round start makes the
+    /// layouts, the match's level change takes them, and the new map's warmup round
+    /// starts inside the beat before the map is announced.</para>
     /// </summary>
     internal void OnMapStarted(MapStart start)
     {
         if (_phase != RoundPhase.None && _phaseAtMs >= start.StartedAtMs)
         {
+            if (_on && _spawned && _spawnedAtMs < start.StartedAtMs)
+            {
+                Spawn();
+            }
+
             return;
         }
 
@@ -495,6 +519,8 @@ public sealed class Hud
         }
 
         _spawned = true;
+        _spawnedAtMs = _world.Clock.NowMs;
+        _log.Info($"hud: {_layouts.Count} layout(s) made on {_world.Map}");
         foreach (var (key, has) in _classes)
         {
             _world.SetHudClass(key.Layout, key.Panel, key.Class, has);

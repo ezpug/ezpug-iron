@@ -243,6 +243,41 @@ public class HudTests
         Assert.Equal([Welcome, Card], host.World.HudActions.Where(action => action.Verb == "hud_create").Select(action => action.Detail));
     }
 
+    [Fact]
+    public void LayoutsMadeOnTheMapBeforeAreMadeAgainWhenARoundBeatTheNewMapsAnnouncement()
+    {
+        // What the dev node did on every MatchZy match (PRD-07 T9): the lobby map's
+        // round start made the layouts, the match's level change took them, and the
+        // new map's first round started before the map was announced. That round start
+        // found the layouts "in the world" and made none; the announcement is when the
+        // service learns they went with the map before.
+        using var host = Assigned();
+        var hud = host.Runtime.Hud;
+        var ada = host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist);
+        host.World.StartRound();
+        hud.SetClass(Welcome, "mark", "shown", true);
+        hud.SetClass(ada, Welcome, "card", "shown", true);
+        Assert.Equal(2, host.World.HudLayouts.Count);
+
+        host.Clock.Advance(60_000);
+        var engineStartedAt = host.Clock.NowMs;
+        host.Clock.Advance(400);
+        host.World.StartRound();
+        host.Clock.Advance(600);
+        host.World.StartMap("de_inferno", startedAtMs: engineStartedAt);
+
+        Assert.True(hud.Spawned);
+        Assert.Equal([Welcome, Card], host.World.HudLayouts.Select(layout => layout.Layout));
+        var layout = host.World.HudLayout(Welcome);
+        Assert.True(layout.Has(ada.Slot, "mark", "shown"));
+        Assert.True(layout.Has(ada.Slot, "card", "shown"));
+
+        // And a later announcement of a map the layouts were made on makes nothing twice.
+        var made = host.World.HudActions.Count(action => action.Verb == "hud_create");
+        host.World.StartMap("de_inferno", startedAtMs: engineStartedAt);
+        Assert.Equal(made, host.World.HudActions.Count(action => action.Verb == "hud_create"));
+    }
+
     // ------------------------------------------------------------------ slots
 
     [Fact]
@@ -479,6 +514,23 @@ public class HudTests
         Assert.Equal($"mm_remove_client_addon {Addon}", Commands(host).Last(line => line.StartsWith("mm_", StringComparison.Ordinal)));
     }
 
+    [Fact]
+    public void WhatClientsAreHandedIsReadBackAndOnlyOnAServerThatCanDraw()
+    {
+        // MultiAddonManager's own list, not what the service once asked for: a status
+        // report says what a client who connects now is told to mount.
+        var world = new FakeGameWorld();
+        var hud = new Hud(world, Addon);
+        Assert.Null(hud.Handed);
+        world.SetCvar(Hud.ClientAddons, Addon);
+        Assert.Equal(Addon, hud.Handed);
+        world.SetCvar(Hud.ClientAddons, "");
+        Assert.Equal("", hud.Handed);
+
+        // A server without the addon reads nothing at all.
+        Assert.Null(new Hud(world).Handed);
+    }
+
     // ------------------------------------------------------------------ freeze end, and who is playing
 
     [Fact]
@@ -655,10 +707,9 @@ public class HudTests
     private sealed class RecordingLog : ILinkLog
     {
         public List<string> Warnings { get; } = [];
+        public List<string> Said { get; } = [];
 
-        public void Info(string message)
-        {
-        }
+        public void Info(string message) => Said.Add(message);
 
         public void Warn(string message) => Warnings.Add(message);
     }
