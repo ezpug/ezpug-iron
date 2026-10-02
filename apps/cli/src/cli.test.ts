@@ -399,6 +399,12 @@ describe('matches', () => {
     expect(announced.code).toBe(EXIT.ok)
     expect(announced.out).toMatch(/announce (applied|accepted)/)
 
+    const moment = await h.run(
+      `matches command ${match.id} moment --kind drop --tier rare --art big-jersey --in-ms 0 --text '{"de":{"everyone":"maex zieht: BIG Trikot!"},"en":{"everyone":"maex wins: BIG jersey!"}}'`,
+    )
+    expect(moment.code).toBe(EXIT.ok)
+    expect(moment.out).toMatch(/moment (applied|accepted)/)
+
     const speed = await h.run(`matches command ${match.id} sim.speed --time-scale 4 --json`)
     expect(speed.code).toBe(EXIT.ok)
     expect(speed.json<{ type: string; status: string }>().type).toBe('sim.speed')

@@ -108,6 +108,12 @@ const HELP = `iron-match — run one real match through the Match API and record
                          ends cancelled, and that is its success (T2b)
   --pause                pause the live match through the Match API and
                          unpause it two polls later (PRD-03 T6)
+  --moment               ask for a HUD on the request (\`branding.hud\`, a
+                         tagline, a banner key) and, once the match is live,
+                         tell it two moments through the Match API: one about
+                         the first rostered player, due two seconds on, and
+                         one of a kind and a picture no server has heard of
+                         (PRD-07 T4)
   --restore              the moment round 3 ends, restore the live match
                          to round 2 through the Match API and lift the pause
                          MatchZy puts on a restored round (PRD-04 T8)
@@ -383,6 +389,14 @@ if (!['ct', 't', 'knife'].includes(SIDES)) die('--sides is `ct`, `t` or `knife`'
  * one lane case that proves that decision on hardware.
  */
 const PAUSE = flags.get('pause') === 'true'
+/**
+ * **A moment, through the front door** (PRD-07 T4): the request asks for a
+ * HUD the way the platform will (`branding.hud`, a tagline, a banner key) and
+ * the live match is told two `moment`s. A server that cannot draw owes the
+ * same answer as one that can — `applied`, and the line in chat — so this is
+ * the proof that a real plugin reads the frame, whatever it was started with.
+ */
+const MOMENT = flags.get('moment') === 'true'
 /**
  * **A rewind through the front door** (PRD-04 T8): the moment the third
  * round ends, `restore` to round 2 — the platform's admin console's round
@@ -1629,7 +1643,11 @@ async function run() {
       ...(demoUploadUrl && { demoUploadUrl }),
     },
     warmupLines: ['Willkommen bei EZPug.', 'Welcome to EZPug.'],
-    branding: { hostname: `EZPug · ${GAMEMODE} · ${MAP}`, eventName: 'iron-match' },
+    branding: {
+      hostname: `EZPug · ${GAMEMODE} · ${MAP}`,
+      eventName: 'iron-match',
+      ...(MOMENT && { tagline: 'Ein Match, alles aufgeschrieben.', banner: 'default', hud: true }),
+    },
     ttlMinutes: 60,
   }
 
@@ -2168,6 +2186,8 @@ async function run() {
   let held = null
   /** What `--widget` did: three taps and everything that came back (T8). */
   let widget = null
+  /** What `--moment` did: the server's answer to each of the two moments (PRD-07 T4). */
+  let moment = null
   /** What `--walk` measured: the same bodies moved by the engine and by a teleport (T12). */
   let walked = null
   let rated = false
@@ -2484,6 +2504,45 @@ async function run() {
       continue
     }
 
+    // Live, and something happened to somebody (PRD-07 T4). The first is the
+    // platform's drop herald as it will send it: about a rostered player, a
+    // tier, a picture key, both languages, due a little later. The second is
+    // every open end of the shape at once. Both are owed `applied` by any
+    // server, with or without a HUD.
+    if (MOMENT && moment === null && liveAt > 0 && wall.now() - liveAt >= 5_000) {
+      const about = request.teams.teamA.players[0]
+      const who = about?.name ?? 'somebody'
+      moment = {
+        about: await command({
+          correlationId: `${RUN_ID}-moment`,
+          type: 'moment',
+          kind: 'drop',
+          ...(about && { steamId64: about.steamId64 }),
+          tier: 'rare',
+          art: 'big-jersey',
+          text: {
+            de: { everyone: `${who} zieht: BIG Trikot!`, you: 'Du ziehst: BIG Trikot!' },
+            en: { everyone: `${who} wins: BIG jersey!`, you: 'You win: BIG jersey!' },
+          },
+          inMs: 2_000,
+        }),
+        open: await command({
+          correlationId: `${RUN_ID}-moment-open`,
+          type: 'moment',
+          kind: 'happy-hour',
+          art: 'a-picture-nobody-drew',
+          text: {
+            de: { everyone: 'Happy Hour an der Theke.' },
+            en: { everyone: 'Happy hour at the bar.' },
+          },
+        }),
+      }
+      say(
+        `told the match two moments (${moment.about?.status ?? 'no status'}, ${moment.open?.status ?? 'no status'})`,
+      )
+      continue
+    }
+
     // Live. **Pause and unpause, through the front door** (PRD-03 T6): two
     // match commands two polls apart, which is the path the platform's admin
     // console takes and the only one a client has. The facts are the core
@@ -2740,6 +2799,7 @@ async function run() {
     held,
     humans: HUMAN_STEAM_IDS,
     widget,
+    moment,
     walked,
   }
 }
@@ -3034,6 +3094,12 @@ function write(result) {
      * one was minted and the run says when it dies, which is the fact.
      */
     widget: result.widget ?? null,
+    /**
+     * `--moment` (PRD-07 T4): what the server answered a moment about the
+     * first rostered player and one with every open end of the shape. `null`
+     * when the run told none.
+     */
+    moment: result.moment ?? null,
     /**
      * **`--walk`: what a radar would have drawn** (PRD-03 T12). The same
      * bodies in the same match, once as the engine moves them and once on a

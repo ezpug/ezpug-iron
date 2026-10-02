@@ -2348,7 +2348,7 @@
       "additionalProperties": false
     },
     "MatchBranding": {
-      "description": "Hostname and event name (decision 22).",
+      "description": "What the server shows about where a player is: hostname, event name, tagline, banner key (decisions 22, 34).",
       "type": "object",
       "properties": {
         "hostname": {
@@ -2360,8 +2360,48 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 64
+        },
+        "tagline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "banner": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
         }
       },
+      "additionalProperties": false
+    },
+    "MomentTier": {
+      "description": "How much a moment matters, least to most (PRD-07 T4).",
+      "type": "string",
+      "enum": [
+        "common",
+        "uncommon",
+        "rare",
+        "legendary"
+      ]
+    },
+    "MomentWords": {
+      "description": "A moment’s words in one language: the line everybody reads and the person’s own (PRD-07 T4).",
+      "type": "object",
+      "properties": {
+        "everyone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "you": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "everyone"
+      ],
       "additionalProperties": false
     },
     "GamemodeTier": {
@@ -2970,6 +3010,70 @@
             "correlationId",
             "type",
             "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "correlationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "const": "moment"
+            },
+            "kind": {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "steamId64": {
+              "type": "string",
+              "pattern": "^\\d{17}$"
+            },
+            "tier": {
+              "default": "common",
+              "$ref": "#/$defs/MomentTier"
+            },
+            "art": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "text": {
+              "type": "object",
+              "properties": {
+                "de": {
+                  "$ref": "#/$defs/MomentWords"
+                },
+                "en": {
+                  "$ref": "#/$defs/MomentWords"
+                }
+              },
+              "required": [
+                "de",
+                "en"
+              ],
+              "additionalProperties": false
+            },
+            "inMs": {
+              "default": 0,
+              "description": "how long after the server receives it the moment is due; relative, never a time",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 60000
+            }
+          },
+          "required": [
+            "correlationId",
+            "type",
+            "kind",
+            "tier",
+            "text",
+            "inMs"
           ],
           "additionalProperties": false
         },

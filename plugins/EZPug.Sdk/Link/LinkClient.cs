@@ -502,6 +502,7 @@ public sealed class LinkClient : IPlatformLink, IAsyncDisposable
             ForceEndCommand c => c.CorrelationId,
             KickCommand c => c.CorrelationId,
             AnnounceCommand c => c.CorrelationId,
+            MomentCommand c => c.CorrelationId,
             RconCommand c => c.CorrelationId,
             RestoreCommand c => c.CorrelationId,
             RerollCommand c => c.CorrelationId,

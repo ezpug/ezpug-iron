@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE, localeSchema } from '../vocabulary/locale'
 import { kebabNameSchema } from '../vocabulary/naming'
 import { steamId64Schema } from '../vocabulary/steam-id'
 import { clientMatchIdSchema } from './common'
+import { hudKeySchema } from './hud'
 import { loadoutSchema } from './loadout'
 import { simChaosSchema, simKnifePerkSchema, simModeSchema, simTimeScaleSchema } from './sim'
 
@@ -264,12 +265,46 @@ export function hasDemoUploadUrl(
   return callbacks.demoUploadUrl !== undefined || (callbacks.demoUploadUrls?.length ?? 0) > 0
 }
 
-/** Branding this round: hostname and chat (decision 22). */
+/** The longest tagline a welcome carries — the platform's own limit on an event's. */
+export const BRANDING_TAGLINE_MAX = 140
+
+/**
+ * **How the server presents itself** (decisions 22 and 34): the words it says
+ * about where a player is, and — since PRD-07 T4 — whether it may draw them.
+ *
+ * `hostname` and `eventName` are chat and the server browser, on every
+ * server. `tagline` and `banner` are what a welcome needs on top: one line
+ * under the event's name, and the picture beside it. `hud` is **the client's
+ * switch for the HUD**, and it is off unless a request says otherwise.
+ *
+ * A HUD is decoration, never structure: a server that can draw one (it was
+ * started with the client addon's id) hands the addon to the players of a
+ * match that says `hud: true` and shows them a welcome card and its moments;
+ * any other server, and any match that leaves the switch off, says the same
+ * things in chat. Nothing in a `Match`, a webhook or a command result says
+ * which of the two happened, and nothing a client does depends on it — so a
+ * request with `hud: true` is safe to send to an orchestrator whose servers
+ * cannot draw.
+ */
 export const matchBrandingSchema = z.object({
   /** The server's `hostname`, shown in the browser and the scoreboard. */
   hostname: z.string().min(1).max(63).optional(),
   /** The event's name, for the connect card and the chat prefix. */
   eventName: z.string().min(1).max(64).optional(),
+  /** One line under the event's name on the welcome, as the client wrote it. The house line when unsaid. */
+  tagline: z.string().min(1).max(BRANDING_TAGLINE_MAX).optional(),
+  /**
+   * The welcome's banner, by key: one of {@link HUD_BANNER_KEYS} for a
+   * picture the addon ships. A key it does not hold, and no key at all, is
+   * the house banner ({@link HUD_DEFAULT_BANNER_KEY}) — never a refusal.
+   */
+  banner: hudKeySchema.optional(),
+  /**
+   * Draw the HUD for this match, on a server that can. Off by default, and
+   * off is the match every request before this field asked for: no addon is
+   * handed to anybody and the welcome is the centre card it always was.
+   */
+  hud: z.boolean().default(false).describe('draw the HUD for this match, on a server that can'),
 })
 export type MatchBranding = z.infer<typeof matchBrandingSchema>
 

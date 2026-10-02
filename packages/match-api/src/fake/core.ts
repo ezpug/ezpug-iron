@@ -1607,6 +1607,19 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
         const said = await server.announce(body.text)
         return said ? applied() : rejected('invalid_state', 'the server is not playing')
       }
+      case 'moment': {
+        // A simulated server has no screen: it holds the moment until it is
+        // due and says the line, as every server without a HUD does.
+        const { type: _type, correlationId: _correlationId, ...moment } = body
+        let held: boolean
+        try {
+          held = await server.moment(moment)
+        } catch {
+          // The chat sanitizer left nothing of a line: a real plugin's answer.
+          return rejected('validation_failed', 'nothing of that line survives being said in chat')
+        }
+        return held ? applied() : rejected('invalid_state', 'the server is not playing')
+      }
       case 'sim.step': {
         if (server.mode() !== 'step') return rejected('invalid_state', 'sim.step needs step mode')
         const event = await server.step()

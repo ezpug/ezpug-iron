@@ -27,6 +27,17 @@
  */
 export const SIM_CHAT_EVENT = 'chat_announced'
 
+/**
+ * **What a simulated server says when it is told a moment** (PRD-07 T4) — the
+ * `plugin_event` it deals for a client's `moment`, at the instant the moment
+ * is due: `data: { kind, tier, steamId64?, art?, text }`, the lines as the
+ * server would print them. A simulated server has no screen, so it does what
+ * every server without a HUD does: it says the line. A real plugin prints (or
+ * draws) and says nothing back; the simulator publishes it in order with the
+ * match, so a test can prove a moment landed in the freeze it was meant for.
+ */
+export const SIM_MOMENT_EVENT = 'moment_shown'
+
 /** One chat line's budget, in characters — CS2's own, and what a test can pin. */
 export const CHAT_LINE_MAX_LENGTH = 127
 

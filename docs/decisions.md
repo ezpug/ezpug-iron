@@ -551,7 +551,18 @@ it here.
       is told to download anything. With the id, the `hello` lists `hud`, which is
       information for an operator and decides nothing.
     - **The platform says what happened, the server decides how it looks.** Nothing in
-      the Match API names a layout, a panel or a class.
+      the Match API names a layout, a panel or a class. The contract's whole knowledge of
+      the HUD (T4, `@ezpug/match-api` 0.31.0) is a switch (`branding.hud`, which becomes
+      the assignment's `hud`), two things a welcome shows (`tagline`, `banner`) and one
+      command, `moment`: a kind, the person it is about, a tier, a picture key, the words
+      in both languages, and how far off it is due (`inMs`, relative because the two
+      clocks are not one). **Every server answers a `moment`, and one that cannot draw
+      prints the line**, so a client never asks what a server can do. A picture key is
+      open in the schema and closed in a list: the lists are generated from the addon's
+      own folders for a picker, and a key the addon does not hold is the default
+      picture, never a refusal, because a client a release ahead of a server should lose
+      a picture and nothing else. `kind` is open for the same reason; `tier` is closed,
+      because a tier is a tint the stylesheet has.
 
     The seam is six verbs on `IGameWorld` (create a layout, remove ours, a class and a
     string for everybody or for one player) and one hook (`FreezeEnded`). The lifetime

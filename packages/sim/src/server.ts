@@ -25,6 +25,7 @@ import type {
   Game,
   GameserverEvent,
   MapRadar,
+  MatchCommandOf,
   SimChaos,
   SimKnifePerk,
   SimMode,
@@ -32,7 +33,7 @@ import type {
 } from '@ezpug/match-api'
 import { gameserverEventSchema } from '@ezpug/match-api'
 import type { MatchAssignment } from './assignment'
-import { SIM_CHAT_EVENT, sanitizeChatLine } from './chat'
+import { SIM_CHAT_EVENT, SIM_MOMENT_EVENT, sanitizeChatLine } from './chat'
 import {
   createSimCommandTable,
   type SimCommandTable,
@@ -59,6 +60,15 @@ export const SIM_PROVIDER_ID = 'sim'
  * without CS2.
  */
 export const SIM_PLAYER_COMMAND_EVENT = 'player_command'
+
+/**
+ * A moment as a simulated server is told one: the Match API's `moment`
+ * command without the envelope a channel strips (`type`, `correlationId`).
+ */
+export type SimMoment = Omit<MatchCommandOf<'moment'>, 'type' | 'correlationId'>
+
+/** A moment as the server showed it: what it was told, the lines as they were said. */
+export type SimShownMoment = Omit<SimMoment, 'inMs'>
 
 /** What the server answered a tap with, and the `plugin_event` it dealt when the tap was applied. */
 export interface SimPlayerCommandAnswer {
@@ -184,6 +194,18 @@ export interface SimulatedServer {
   /** Every line this server was told to say, in the order it said them. */
   announced: () => readonly string[]
   /**
+   * Show one moment (the Match API's `moment`): the lines sanitized like any
+   * chat line, then — `inMs` later on the injected clock, at once when it is
+   * `0` — delivered as a {@link SIM_MOMENT_EVENT} `plugin_event` in order
+   * with the match. `inMs` is not divided by the time scale: it is the
+   * client's own delay, and the story's clock is not the client's. `false`
+   * when there is no server to show it on, as for {@link announce}; a server
+   * that died before the moment was due shows nothing, and says nothing.
+   */
+  moment: (moment: SimMoment) => Promise<boolean>
+  /** Every moment this server showed, in the order it showed them. */
+  moments: () => readonly SimShownMoment[]
+  /**
    * A widget's tap (decision 17), as the orchestrator relays it. The stand-in
    * mode enforces the manifest's cooldowns and charges (`commands.ts`, the
    * SDK's table in TypeScript), answers the way a plugin's
@@ -277,6 +299,7 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
   let beatTimer: Timer | undefined
   let heartbeatTimer: Timer | undefined
   const announced: string[] = []
+  const moments: SimShownMoment[] = []
   let commands: SimCommandTable | null = null
   const backups: SimBackup[] = []
   const dealtDemos = new Set<number>()
@@ -583,6 +606,39 @@ export function createSimulatedServer(options: SimulatedServerOptions): Simulate
       }).then(() => true)
     },
     announced: () => [...announced],
+
+    moment({ inMs, ...told }) {
+      if (!assigned || crashed || !playing) return Promise.resolve(false)
+      const { matchId } = assigned.assignment
+      const words = (said: SimMoment['text']['de']): SimMoment['text']['de'] => ({
+        everyone: sanitizeChatLine(said.everyone),
+        ...(said.you !== undefined && { you: sanitizeChatLine(said.you) }),
+      })
+      const shown: SimShownMoment = {
+        ...told,
+        text: { de: words(told.text.de), en: words(told.text.en) },
+      }
+      const show = (): Promise<void> => {
+        moments.push(shown)
+        return deliver({
+          type: 'plugin_event',
+          matchId,
+          source,
+          seq: ++seq,
+          name: SIM_MOMENT_EVENT,
+          data: { ...shown },
+        })
+      }
+      if (inMs <= 0) return show().then(() => true)
+      clock.after(inMs, () => {
+        // Due on a box that has since died, or been handed another match:
+        // nobody is there to read it.
+        if (crashed || assigned?.assignment.matchId !== matchId) return
+        void show()
+      })
+      return Promise.resolve(true)
+    },
+    moments: () => [...moments],
 
     async playerCommand(tap) {
       const refused = (): SimPlayerCommandAnswer => ({

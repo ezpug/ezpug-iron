@@ -8,6 +8,7 @@
  *   pnpm hud:verify             is hud/dist/ honest? (no compiler, no network)
  *   pnpm hud:publish            upload hud/dist/'s pack to the Workshop item, then fetch it anonymously
  *   pnpm hud:publish --dry-run  everything but Steam: the clean tree, the honest dist, the item VDF
+ *   pnpm hud:keys               write the banner and art keys into @ezpug/match-api (hud/src/keys.ts)
  *
  * `docs/hud.md` is the page for people: the volumes, the session, what Wine
  * needed, how to delete it all.
@@ -24,6 +25,7 @@ import {
   serializeManifest,
   verifyDist,
 } from './dist.ts'
+import { hudKeys, KEYS_MODULE, renderKeysModule } from './keys.ts'
 import { readBack } from './readback.ts'
 import { writeVpk } from './vpk.ts'
 import { itemVdf, parseWorkshopItem, publishedIdFromVdf, uploadVerdict } from './workshop.ts'
@@ -295,6 +297,13 @@ async function check(id: string) {
   log(`an anonymous SteamCMD fetched ${id} by id, byte for byte hud/dist/${VPK_NAME}`)
 }
 
+/** The contract's two key lists, from the pictures in `hud/banners/` and `hud/art/`. */
+function keys() {
+  const found = hudKeys(HUD)
+  writeFileSync(join(REPO, KEYS_MODULE), renderKeysModule(found))
+  log(`${KEYS_MODULE}: ${found.banners.length} banner(s), ${found.art.length} picture(s)`)
+}
+
 const [command, ...args] = process.argv.slice(2)
 switch (command) {
   case 'build':
@@ -306,11 +315,16 @@ switch (command) {
   case 'publish':
     await publish(args)
     break
+  case 'keys':
+    keys()
+    break
   case 'check':
     if (!args[0]) die('usage: hud check <workshop id>')
     buildImage()
     await check(args[0])
     break
   default:
-    die('usage: node hud/src/cli.ts build [--tools] | verify | publish [--dry-run] | check <id>')
+    die(
+      'usage: node hud/src/cli.ts build [--tools] | verify | publish [--dry-run] | keys | check <id>',
+    )
 }

@@ -33,7 +33,7 @@ Five entry points:
   `createDeliveryDeduper`, the retry policy as constants.
 - `@ezpug/match-api/fixtures` — one valid event and one valid fact per type, plus the
   conformance suite: `runMatchApiConformance({ target })` drives any implementation of the
-  Match API through the eleven flows a client actually performs and hands back a report,
+  Match API through the flows a client actually performs and hands back a report,
   and `fixtures/recorded/<flow>.json` holds what the fake produced for each of them
   (`@ezpug/match-api/fixtures/recorded/happy-bo1.json`).
 - `@ezpug/match-api/fake` — `createFakeOrchestrator({ clock, ... })`: every route in-process

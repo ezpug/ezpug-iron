@@ -469,6 +469,38 @@
       }
     },
     {
+      "from": "orchestrator",
+      "frame": {
+        "type": "command",
+        "command": {
+          "correlationId": "cmd-0004",
+          "type": "moment",
+          "kind": "drop",
+          "steamId64": "76561198279375307",
+          "tier": "rare",
+          "art": "big-jersey",
+          "text": {
+            "de": {
+              "everyone": "maex zieht: BIG Trikot!",
+              "you": "Du ziehst: BIG Trikot!"
+            },
+            "en": {
+              "everyone": "maex wins: BIG jersey!"
+            }
+          },
+          "inMs": 3000
+        }
+      }
+    },
+    {
+      "from": "server",
+      "frame": {
+        "type": "command_result",
+        "correlationId": "cmd-0004",
+        "status": "applied"
+      }
+    },
+    {
       "from": "server",
       "frame": {
         "type": "events",

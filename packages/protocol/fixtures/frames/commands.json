@@ -36,6 +36,25 @@
       "text": "GLHF — viel Erfolg!"
     },
     {
+      "correlationId": "cmd-0013",
+      "type": "moment",
+      "kind": "drop",
+      "steamId64": "76561198279375307",
+      "tier": "rare",
+      "art": "big-jersey",
+      "text": {
+        "de": {
+          "everyone": "maex zieht: BIG Trikot!",
+          "you": "Du ziehst: BIG Trikot!"
+        },
+        "en": {
+          "everyone": "maex wins: BIG jersey!",
+          "you": "You win: BIG jersey!"
+        }
+      },
+      "inMs": 3000
+    },
+    {
       "correlationId": "cmd-0009",
       "type": "rcon",
       "command": "status"

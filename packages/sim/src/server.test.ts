@@ -5,7 +5,7 @@ import type { GameserverEvent } from '@ezpug/match-api'
 import { gameserverEventSchema } from '@ezpug/match-api'
 import { describe, expect, it } from 'vitest'
 import type { MatchAssignment } from './assignment'
-import { SIM_CHAT_EVENT } from './chat'
+import { SIM_CHAT_EVENT, SIM_MOMENT_EVENT } from './chat'
 import { decodeSimulatedMatchRecord } from './record'
 import type { SimPlan, SimulatedServerOptions } from './server'
 import { createSimulatedServer, SIM_PROVIDER_ID } from './server'
@@ -389,6 +389,59 @@ describe('createSimulatedServer', () => {
     // where an unsayable line looks fine.
     await server.announce('DROP"; quit')
     expect(server.announced()[1]).not.toMatch(/[;"]/)
+  })
+
+  it('shows a moment when it is due, in order with the match, and records it', async () => {
+    const { clock, server, delivered } = createHarness()
+    provision(server)
+    await clock.advance(30_000)
+    const shownEvents = () =>
+      delivered.filter(event => event.type === 'plugin_event' && event.name === SIM_MOMENT_EVENT)
+    const moment = {
+      kind: 'drop',
+      steamId64: '76561198279375307',
+      tier: 'rare',
+      art: 'big-jersey',
+      text: {
+        de: { everyone: 'maex zieht: BIG Trikot!', you: 'Du ziehst: BIG Trikot!' },
+        en: { everyone: 'maex wins: BIG jersey!"; quit' },
+      },
+    } as const
+
+    expect(await server.moment({ ...moment, inMs: 0 })).toBe(true)
+    const [now] = shownEvents()
+    if (now?.type !== 'plugin_event') throw new Error('unreachable')
+    expect(now.data).toEqual({
+      ...moment,
+      // Sanitized like any line a server is told to say.
+      text: { de: moment.text.de, en: { everyone: 'maex wins: BIG jersey! quit' } },
+    })
+    expect(server.moments()).toHaveLength(1)
+
+    // A moment for later is held, not said: the event lands when it is due.
+    expect(await server.moment({ ...moment, kind: 'raffle', inMs: 4_000 })).toBe(true)
+    await clock.advance(3_999)
+    expect(shownEvents()).toHaveLength(1)
+    await clock.advance(1)
+    expect(shownEvents()).toHaveLength(2)
+    expect(server.moments().map(shown => shown.kind)).toEqual(['drop', 'raffle'])
+  })
+
+  it('shows no moment on a server that is gone, or that died before it was due', async () => {
+    const { clock, server } = createHarness()
+    const moment = {
+      kind: 'perk',
+      tier: 'common',
+      text: { de: { everyone: 'Perk!' }, en: { everyone: 'Perk!' } },
+    } as const
+    expect(await server.moment({ ...moment, inMs: 0 })).toBe(false)
+    provision(server)
+    await clock.advance(30_000)
+    expect(await server.moment({ ...moment, inMs: 5_000 })).toBe(true)
+    server.kill()
+    await clock.advance(5_000)
+    expect(server.moments()).toEqual([])
+    expect(await server.moment({ ...moment, inMs: 0 })).toBe(false)
   })
 
   it('has nowhere to say a line once the server is gone, and says so with false', async () => {

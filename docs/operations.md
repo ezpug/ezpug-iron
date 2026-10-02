@@ -1630,6 +1630,15 @@ about.
 the facts are the **core plugin's** `match_paused` / `match_unpaused` (MatchZy's own pause
 events are dropped at the door because the plugin already says it).
 
+**`--moment`** asks for a HUD the way the platform will (PRD-07 T4): the request carries
+`branding.hud: true`, a tagline and a banner key, and five seconds after the match goes
+live it is told two `moment`s through the Match API. The first is about the first rostered
+player (a `drop`, `rare`, a picture key, both languages, due two seconds on); the second is
+every open end of the shape (a kind and a picture no server has heard of, nobody it is
+about). Any server owes both `applied`, whether it can draw or not, and the summary's
+`moment` holds the two answers. A puppet reads no chat, so on a room of puppets the answer
+is the whole proof: the plugin read the frame and holds the moment.
+
 **`--drop-puppet`** takes one puppet off the server while it is still in warmup and waits
 for a body to be put back — the only thing that ever holds a loaded match at the gate,
 because the fork wants every rostered SteamID connected and on its side before it goes

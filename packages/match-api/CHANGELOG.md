@@ -6,6 +6,46 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.31.0 — 2026-10-02
+
+**The HUD, from a client's side** (PRD-07 T4, for the platform's PRD-18 T5). Additive: three
+optional fields on the request's `branding`, one command, two key lists. A request and a
+command written against 0.30.0 parse and behave exactly as they did.
+
+- **`branding.hud`** is the client's switch for a server's HUD, `false` unless a request says
+  otherwise. A server that can draw hands its client addon to the players of a match that
+  says `true`; every other server, and every match that leaves it off, says the same things
+  in chat. No `Match`, webhook or command result says which happened, and a request with
+  `hud: true` is accepted by an orchestrator none of whose servers can draw.
+- **`branding.tagline`** (≤140, `BRANDING_TAGLINE_MAX`) and **`branding.banner`** (a key) are
+  what a welcome shows beside `eventName`.
+- **`moment`** is a new command beside `announce` (`momentCommandSchema`, `MomentCommand`):
+  `kind` (`MOMENT_KINDS`: `drop`, `perk`, `raffle`; any kebab name is accepted), `steamId64?`
+  (the person it is about), `tier` (`MOMENT_TIERS`: `common`, `uncommon`, `rare`,
+  `legendary`; `common` when unsaid), `art?` (a key), `text` (`{ de, en }`, each
+  `{ everyone, you? }`: the line everybody reads and the line the person reads) and `inMs`
+  (0…`MOMENT_IN_MS_MAX`, how long after the server receives it the moment is due; relative,
+  because the two clocks are not one). The client says what happened and the server decides
+  how and when to show it. **A server without a HUD prints the line when it is due**, to each
+  player in their language, exactly as `announce` does, so a caller needs no knowledge of
+  what a server can draw. A server whose plugin predates the command does not answer it:
+  `rejected` with `provider_unavailable` after fifteen seconds, and the `announce` is the
+  fallback.
+- **`HUD_BANNER_KEYS`** and **`HUD_ART_KEYS`** are every picture key the server's addon ships,
+  for a picker: one banner (`default`) and the platform's 26 house drop pictures under their
+  own keys. They are generated from the addon's folders, so the lists and the files cannot
+  disagree. The schemas take any kebab-case key (`hudKeySchema`, ≤64): one the addon does not
+  hold shows the default picture (`HUD_DEFAULT_BANNER_KEY`, `HUD_DEFAULT_ART_KEY`;
+  `hudBannerKey()`, `hudArtKey()`), never a refusal.
+- **The fake and the `sim` provider** take a `moment`, hold it for `inMs` on their clock and
+  then say it as a `plugin_event` named `moment_shown` with
+  `{ kind, tier, steamId64?, art?, text }`, the lines sanitized like any chat line.
+  `invalid_state` when the server is not playing.
+- **Conformance flow `moment`** and its recording (`fixtures/recorded/moment.json`): a request
+  with the switch, a tagline and a banner key nobody drew goes live like any other; a moment
+  about a player and one with an unknown kind, an unknown picture and a time of its own are
+  both taken.
+
 ## 0.30.0 — 2026-09-27
 
 **The fake plays Rush** (PRD-06 T2, for the platform's PRD-13 T19 and T20). Additive: one

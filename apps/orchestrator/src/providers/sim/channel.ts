@@ -36,6 +36,9 @@ export interface SimChannelOptions {
   currentMap: () => number
 }
 
+/** What a real plugin answers a line the chat sanitizer left nothing of. */
+const UNSAYABLE = 'nothing of that line survives being said in chat'
+
 export function createSimChannel(options: SimChannelOptions): ServerChannel {
   const { engine, matchId, sink, presence } = options
   const source = { provider: SIM_PROVIDER_ID, serverId: options.server.serverId }
@@ -92,6 +95,19 @@ export function createSimChannel(options: SimChannelOptions): ServerChannel {
           return (await engine.announce(command.text))
             ? applied
             : rejected('invalid_state', 'the server is not playing')
+        case 'moment': {
+          // No screen to draw on: the engine holds the moment until it is
+          // due and says the line, as every server without a HUD does.
+          const { type: _type, correlationId: _correlationId, ...moment } = command
+          let held: boolean
+          try {
+            held = await engine.moment(moment)
+          } catch {
+            // The chat sanitizer left nothing of a line: a real plugin's answer.
+            return rejected('validation_failed', UNSAYABLE)
+          }
+          return held ? applied : rejected('invalid_state', 'the server is not playing')
+        }
         case 'kick': {
           const player = presence.get(command.steamId64)
           if (!player)

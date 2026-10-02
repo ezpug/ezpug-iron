@@ -474,6 +474,55 @@ describe('cancel and commands', () => {
     )
   })
 
+  it('takes a moment: held until it is due, said once, refused when it cannot be said', async () => {
+    const h = setup()
+    const client = h.fake.client(h.platform.secret)
+    const match = await client.matches.create({
+      body: pugRequest({ branding: { tagline: 'Zwei Tage, ein Keller.', hud: true } }),
+    })
+    const params = { matchId: match.id }
+    const text = {
+      de: { everyone: 'maex zieht: BIG Trikot!', you: 'Du ziehst: BIG Trikot!' },
+      en: { everyone: 'maex wins: BIG jersey!' },
+    }
+    const moment = { type: 'moment', kind: 'drop', tier: 'rare', art: 'big-jersey', text } as const
+
+    const early = await client.matches.command({
+      params,
+      body: { ...moment, correlationId: 'm0' },
+    })
+    expect([early.status, early.code]).toEqual(['rejected', 'invalid_state'])
+
+    await h.clock.advance(120_000)
+    const shown = () => h.fake.server(match.id)?.moments() ?? []
+    const told = await client.matches.command({
+      params,
+      body: { ...moment, correlationId: 'm1', inMs: 4_000 },
+    })
+    // Applied means the server holds it; the answer does not wait for the moment.
+    expect(told.status).toBe('applied')
+    expect(shown()).toEqual([])
+    await h.clock.advance(4_000)
+    expect(shown()).toEqual([{ kind: 'drop', tier: 'rare', art: 'big-jersey', text }])
+    const events = await client.matches.events({ params, query: { cursor: '0', limit: 200 } })
+    expect(
+      events.items.filter(
+        e => e.payload.type === 'plugin_event' && e.payload.name === 'moment_shown',
+      ),
+    ).toHaveLength(1)
+
+    const unsayable = await client.matches.command({
+      params,
+      body: {
+        ...moment,
+        correlationId: 'm2',
+        text: { de: { everyone: ';;"' }, en: { everyone: 'fine' } },
+      },
+    })
+    expect([unsayable.status, unsayable.code]).toEqual(['rejected', 'validation_failed'])
+    expect(shown()).toHaveLength(1)
+  })
+
   it('applies announce, pause, unpause and force_end; replays a correlationId; gates rcon', async () => {
     const h = setup()
     const client = h.fake.client(h.platform.secret)

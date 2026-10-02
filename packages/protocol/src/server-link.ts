@@ -194,6 +194,16 @@ export const assignedGamemodeSchema = z
   .omit({ maps: true, widget: true, formats: true })
 export type AssignedGamemode = z.infer<typeof assignedGamemodeSchema>
 
+/**
+ * The request's `branding` as a server is handed it: everything the server
+ * shows, minus the client's HUD switch. The switch travels once, as the
+ * assignment's own `hud`, so a server reads one word for it — and an
+ * assignment for a match that says nothing about a HUD is, byte for byte, the
+ * assignment it was before there was one.
+ */
+export const assignedBrandingSchema = matchBrandingSchema.omit({ hud: true })
+export type AssignedBranding = z.infer<typeof assignedBrandingSchema>
+
 // ---------------------------------------------------------------------------
 // Commands over the link
 // ---------------------------------------------------------------------------
@@ -254,6 +264,7 @@ export const LINK_COMMAND_TYPES = [
   'force_end',
   'kick',
   'announce',
+  'moment',
   'rcon',
   'restore',
   'reroll',
@@ -551,7 +562,7 @@ export const assignOrchestratorFrameSchema = z.object({
   teams: matchTeamsSchema,
   /** Printed one every few seconds during warmup, in order. */
   warmupLines: z.array(z.string().min(1).max(SERVER_CHAT_TEXT_MAX)).max(20).default([]),
-  branding: matchBrandingSchema.default({}),
+  branding: assignedBrandingSchema.default({}),
   /** The presigned PUT the plugin uploads the demo to (decision 10). Absent = no upload, `demo.skipped`. */
   demoUploadUrl: z.url().optional(),
   /**
@@ -592,8 +603,8 @@ export const assignOrchestratorFrameSchema = z.object({
    * that has the addon's id hands the addon to the players who connect and
    * shows them the layouts; absent, or on a server without the id, the SDK's
    * `Hud` makes no call at all and the match is what it was before the HUD
-   * existed. The request cannot say it yet (T4 adds the switch to its
-   * `branding`), so until then nothing sets this.
+   * existed. It is the request's `branding.hud`, present only when that is
+   * `true`.
    */
   hud: z.boolean().optional(),
 })

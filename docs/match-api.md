@@ -186,7 +186,7 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `requirements` | `{ region?, lan?, preferLan?, simulated?, provider? }` | every field narrows except `preferLan`, which only ranks; default `{}`. `lan` and `preferLan` together are `validation_failed` |
 | `callbacks`    | `{ webhookUrl, webhookSecretId, demoUploadUrl?, demoUploadUrls?, streamAllowedOrigins? }` | `webhookSecretId` names a secret registered on the key; `demoUploadUrl` is a presigned PUT, `demoUploadUrls` is one per map (`{ mapNumber, url }[]`, ≤16) |
 | `warmupLines?` | string[] ≤20                                           | printed in warmup, one every eight seconds, in order and cycling; rendered by the client (one line everybody reads cannot be four languages), relayed unbranded, sanitized to one chat line |
-| `branding?`    | `{ hostname?, eventName? }`                            | decision 22 |
+| `branding?`    | `{ hostname?, eventName?, tagline?, banner?, hud }`    | how the server presents itself (decisions 22, 34). `tagline` ≤140 and `banner` (a key) are for the welcome; `hud` is the client's switch for the HUD, `false` unless said. See [The HUD, from a client's side](#the-hud-from-a-clients-side) |
 | `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos?, knifePerk? }` | honoured on the `sim` provider only. `knifePerk: { round, killer? }` deals a knife kill and the killer's `get ezpug` (see below) |
 | `simulation?`  | `{ scenario?, timeScale? }`                            | **puppets**: every rostered player is played by a simulated one. Needs the `simulation` scope (else `forbidden`) and `capabilities.simulation` on the mode (else `validation_failed` on `simulation`); `scenario` is a name from `GET /v1/sim/scenarios`, `timeScale` the engine's `host_timescale`, 0.1…10. Absent is a real match |
 | `ttlMinutes`   | int, 1…1440                                            | the reaper's deadline; never above the key's ceiling |
@@ -437,6 +437,7 @@ id; a retried command with the same id is not applied twice):
 | `force_end`     | `reason?` | the match ends `force_ended` |
 | `kick`          | `steamId64, reason?` | |
 | `announce`      | `text` ≤512 | the plugin prints it, as the client wrote it and behind no prefix of ours; a sim echoes it as a `plugin_event`. Sanitized into one chat line first — control characters, `;`, `"` and `\` out, 127 code points — and `validation_failed` when nothing is left |
+| `moment`        | `kind, steamId64?, tier, art?, text, inMs` | this happened to this player; the server decides how and when to show it. **A server without a HUD prints the line**, as `announce` does. See [The HUD, from a client's side](#the-hud-from-a-clients-side) |
 | `rcon`          | `command` | needs `admin`; `command_unsupported` on a sim |
 | `restore`       | `roundNumber?` | **`live`**: the match is rewound on its own server to the start of that round of the map being played, the latest backup's round when unsaid — `applied` once the round has started again, `invalid_state` with the reason word first when the match software refused ([A restore on a live match](#a-restore-on-a-live-match)). **`recovering`**: the backup the replacement resumes from. `no_backup` when there is none; `invalid_state` in any other state |
 | `reroll`        | | the match over on the same server, rosters kept |
@@ -461,6 +462,52 @@ client may read `applied` as the new truth and needs no confirming fact to belie
 The fact is always there too — the server emits it before it answers — but it travels the
 link, the durable log and the replay route while the answer comes straight back down the
 call, so it lands on the stream moments after, not before.
+
+#### The HUD, from a client's side
+
+A server can draw on a player's screen: a welcome when they join, a toast and a card when
+something happens to somebody (decision 34, `docs/hud.md`). A client never has to know
+whether a given server can. It says three things, and every server takes all three.
+
+**The switch** is `branding.hud` on the request, `false` by default. A server that was
+started with the client addon's id hands the addon to the players of a match that says
+`true` and draws for them. Every other server, and every match that leaves it off, says
+the same things in chat. No `Match`, webhook or command result tells the two apart, and a
+request with `hud: true` is accepted by an orchestrator none of whose servers can draw.
+
+**The welcome** reads `branding.eventName`, `branding.tagline` and `branding.banner`.
+
+**A `moment`** says what happened, and never how it should look:
+
+| Field        | Type | Notes |
+| ------------ | ---- | ----- |
+| `kind`       | kebab name ≤32 | `drop`, `perk` and `raffle` are the ones a server dresses (`MOMENT_KINDS`). The set is open: a kind a server does not know is shown plainly, never refused |
+| `steamId64?` | SteamID64 | the person it is about, when there is one. They need not be on the server or on the roster: everybody else still reads the line, and nothing waits for anybody |
+| `tier`       | `common \| uncommon \| rare \| legendary` | how much it matters (`MOMENT_TIERS`, the platform's drop rarities). `common` when unsaid. A tier changes how a moment looks, never whether or when it is shown |
+| `art?`       | key | the picture, by key |
+| `text`       | `{ de: { everyone, you? }, en: { everyone, you? } }` | both languages, always; each line ≤512 and sanitized into one chat line like an `announce`. `everyone` is what the server reads, `you` what the person reads in its place. A player reads the language of their roster entry |
+| `inMs`       | int, 0…60000 | how long after the server receives the command the moment is due. `0` when unsaid. **Relative on purpose**: the server's clock is not the client's, so a client that reveals the same win elsewhere at a time of its own says how far off that time is |
+
+The answer does not wait for `inMs`. `applied` means the server holds the moment; a server
+released before it is due shows nothing. `validation_failed` when nothing of a line
+survives the chat sanitizer. `invalid_state` when the match has no server.
+
+**A server without a HUD prints the line** when the moment is due, to each player in their
+language and to the person in their own words, exactly as an `announce` would. A client
+therefore sends a `moment` wherever it would have sent that `announce`, and falls back to
+the `announce` only when the command itself is refused. One such case is worth knowing: a
+server whose plugin predates `moment` cannot read the frame and does not answer, so the
+call resolves `rejected` with `provider_unavailable` after fifteen seconds.
+
+**Keys.** A picture in a HUD was compiled into the addon before the match, so a client
+names one by key. `HUD_BANNER_KEYS` and `HUD_ART_KEYS` are every key the addon ships,
+generated from the addon's own folders (`pnpm hud:keys`), for a picker. They are not what
+the schema accepts: a key is any kebab-case name ≤64, and one the addon does not hold
+shows the default picture (`HUD_DEFAULT_BANNER_KEY`, the house banner;
+`HUD_DEFAULT_ART_KEY`, the empty card sleeve), never a refusal. `hudBannerKey(key)` and
+`hudArtKey(key)` are that rule as functions. The art keys are the platform's house drop
+pictures under their own names, the four `category-*` among them, so an item with a
+picture of its own shows it and any other shows its category's.
 
 #### A pause that says no
 
@@ -1266,7 +1313,10 @@ seed and options: same envelopes, same deliveries — the recorded fixtures rely
 
 **Commands on a simulated server.** `announce` is echoed as a `plugin_event`
 `chat_announced` — as are the request's `warmupLines`, one every eight seconds between
-`server_ready` and `going_live`, which is what a real plugin prints in the same window; `pause` parks the story (and the loss detector) and emits `match_paused`,
+`server_ready` and `going_live`, which is what a real plugin prints in the same window;
+`moment` is held for its `inMs` on the fake's clock (not divided by the time scale) and
+then said as a `plugin_event` `moment_shown` with `{ kind, tier, steamId64?, art?, text }`,
+the lines sanitized, so a test can prove a moment landed where it was meant to; `pause` parks the story (and the loss detector) and emits `match_paused`,
 `unpause` resumes with `match_unpaused`; `force_end` ends `force_ended`; `kick` removes a
 present player (`player_disconnected`, `player.left`); `profile` teaches the server a
 player; `restore` works while `recovering`, and on a `live` match resolves its point
@@ -1348,7 +1398,10 @@ refuses a request with `rules`, `validation_failed` on `rules`), `wingman-format
 `simulation-switch` (a puppets request is `forbidden` by scope name on the suite's own key,
 `validation_failed` on a mode the catalog says cannot seat them and on a scenario nobody defined, and
 on the scoped key plays a Bo1 whose `Match.simulated` and every `source.simulated` are
-`true`), `budget-refused`, `webhook-replay` (the cursor walked to the end equals the tail)
+`true`), `budget-refused`, `moment` (a request with `branding.hud`, a tagline and a banner
+key nobody drew goes live like any other; a moment about a player and one with an unknown
+kind, an unknown picture and a time of its own are both taken; a simulated server says
+each once, as told), `webhook-replay` (the cursor walked to the end equals the tail)
 and `stream-hello` (the `hello.seq` agrees with the events route, and every `event` frame is
 an envelope the route also has).
 

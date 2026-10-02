@@ -2141,7 +2141,7 @@ public sealed record PuppetScript
     public bool Idle { get; init; } = false;
 }
 
-/// <summary>Hostname and event name (decision 22).</summary>
+/// <summary>What the server shows about where a player is: hostname, event name, tagline, banner key (decisions 22, 34).</summary>
 public sealed record MatchBranding
 {
     [JsonPropertyName("hostname")]
@@ -2153,6 +2153,42 @@ public sealed record MatchBranding
     [JsonPropertyOrder(1)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? EventName { get; init; }
+
+    [JsonPropertyName("tagline")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Tagline { get; init; }
+
+    [JsonPropertyName("banner")]
+    [JsonPropertyOrder(3)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Banner { get; init; }
+}
+
+/// <summary>How much a moment matters, least to most (PRD-07 T4).</summary>
+public enum MomentTier
+{
+    [JsonStringEnumMemberName("common")]
+    Common,
+    [JsonStringEnumMemberName("uncommon")]
+    Uncommon,
+    [JsonStringEnumMemberName("rare")]
+    Rare,
+    [JsonStringEnumMemberName("legendary")]
+    Legendary,
+}
+
+/// <summary>A moment’s words in one language: the line everybody reads and the person’s own (PRD-07 T4).</summary>
+public sealed record MomentWords
+{
+    [JsonPropertyName("everyone")]
+    [JsonPropertyOrder(0)]
+    public required string Everyone { get; init; }
+
+    [JsonPropertyName("you")]
+    [JsonPropertyOrder(1)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? You { get; init; }
 }
 
 /// <summary>The three tiers (decision 15).</summary>
@@ -2669,6 +2705,62 @@ public sealed record AnnounceCommand : LinkCommand
     [JsonPropertyName("text")]
     [JsonPropertyOrder(2)]
     public required string Text { get; init; }
+}
+
+/// <summary><c>moment</c> — one branch of <see cref="LinkCommand"/>.</summary>
+public sealed record MomentCommand : LinkCommand
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "moment";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("correlationId")]
+    [JsonPropertyOrder(0)]
+    public required string CorrelationId { get; init; }
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(1)]
+    public string Type => TypeName;
+
+    [JsonPropertyName("kind")]
+    [JsonPropertyOrder(2)]
+    public required string Kind { get; init; }
+
+    [JsonPropertyName("steamId64")]
+    [JsonPropertyOrder(3)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SteamId64 { get; init; }
+
+    [JsonPropertyName("tier")]
+    [JsonPropertyOrder(4)]
+    public MomentTier Tier { get; init; } = MomentTier.Common;
+
+    [JsonPropertyName("art")]
+    [JsonPropertyOrder(5)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Art { get; init; }
+
+    [JsonPropertyName("text")]
+    [JsonPropertyOrder(6)]
+    public required MomentCommandText Text { get; init; }
+
+    [JsonPropertyName("inMs")]
+    [JsonPropertyOrder(7)]
+    public long InMs { get; init; } = 0;
+}
+
+/// <summary>The <c>text</c> block of <see cref="MomentCommand"/>.</summary>
+public sealed record MomentCommandText
+{
+    [JsonPropertyName("de")]
+    [JsonPropertyOrder(0)]
+    public required MomentWords De { get; init; }
+
+    [JsonPropertyName("en")]
+    [JsonPropertyOrder(1)]
+    public required MomentWords En { get; init; }
 }
 
 /// <summary><c>rcon</c> — one branch of <see cref="LinkCommand"/>.</summary>
@@ -3632,6 +3724,7 @@ internal sealed class LinkCommandConverter : DiscriminatedUnionConverter<LinkCom
             "force_end" => typeof(ForceEndCommand),
             "kick" => typeof(KickCommand),
             "announce" => typeof(AnnounceCommand),
+            "moment" => typeof(MomentCommand),
             "rcon" => typeof(RconCommand),
             "restore" => typeof(RestoreCommand),
             "reroll" => typeof(RerollCommand),

@@ -227,7 +227,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > `branding.hud` onto it in `composeAssign`. `hud` in the hello is the protocol's own
   > word too (`HELLO_CAPABILITIES`), not a manifest capability. No layout is registered
   > yet (`Runtime.Hud.Register`), so a server with the id draws nothing until T5.
-- [ ] **T4 (fable): the contract.** Additive, in `@ezpug/match-api` and the link protocol.
+- [x] **T4 (fable): the contract.** Additive, in `@ezpug/match-api` and the link protocol.
   (a) The request's `branding` (`resources/match-request.ts:267-273`) gains what a welcome
   needs: a tagline, an optional banner key, and `hud` (a boolean, default false: this is the
   platform's switch). (b) A `moment` command beside `announce`
@@ -241,6 +241,20 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   fixtures for each shape. **A server with no HUD answers `moment` by printing the line**,
   exactly as `announce` does today, so a caller needs no knowledge of what the server can
   draw. Release **0.31.0** to Verdaccio, changelog line "PRD-18 T5".
+  > note (T4, 2026-10-02): the budget is one release, so the key lists in 0.31.0 had to be
+  > the final ones. The pictures that define them are therefore in the tree already:
+  > `hud/art/<key>.png` (the platform's 26 drop pictures, 1x, converted to PNG) and
+  > `hud/banners/default.png` (the cast's hello picture, a stand-in). **Neither folder is in
+  > the addon yet**: `sources()` does not map them and `hud/dist/` is unchanged. T5 maps
+  > `banners/` and puts the house banner at the right size under the same key; T7 maps `art/`.
+  > A key added after this (`pnpm hud:banner`, then `pnpm hud:keys`) changes the package and
+  > needs a release of its own.
+  > The plugin answers `moment` with the least a server owes: the line in chat when `inMs` has
+  > passed, each player in their language, the person in their own words, as the client wrote
+  > it (`GamemodeRuntime.OnMoment`). T6 replaces that with the service: the brand's prefix,
+  > the timing rule, the toast, the card. `kind` is an open kebab name (`MOMENT_KINDS` lists
+  > the three a server dresses), `tier` is closed, and the assignment's branding never carries
+  > `hud` (it is the frame's own word, set only when the request says `true`).
 - [ ] **T5: the welcome.** One layout, shown to a person who joins while nobody is
   playing: a mascot, the event's name and tagline (or EZPug's own), the team they play for,
   the one thing to do (`Branding.WhatToDo`, `Branding.cs:224-231`), `ezpug.com`. In the

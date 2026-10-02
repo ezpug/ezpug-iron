@@ -4,13 +4,27 @@ import {
   isSimCommand,
   MATCH_COMMAND_TYPES,
   MATCH_COMMANDS_REQUIRING_ADMIN,
+  MOMENT_IN_MS_MAX,
+  MOMENT_KINDS,
+  MOMENT_TIERS,
   matchCommandResultSchema,
   matchCommandSchema,
+  momentCommandSchema,
   ORCHESTRATOR_COMMAND_TYPES,
   SIM_COMMAND_TYPES,
 } from './commands'
 import { pageQuerySchema } from './common'
 import { fleetServerSchema, nodeEnrolRequestSchema } from './fleet'
+import {
+  HUD_ART_KEYS,
+  HUD_BANNER_KEYS,
+  HUD_DEFAULT_ART_KEY,
+  HUD_DEFAULT_BANNER_KEY,
+  HUD_KEY_MAX,
+  hudArtKey,
+  hudBannerKey,
+  hudKeySchema,
+} from './hud'
 import {
   apiKeyCreateRequestSchema,
   applyScopesPatch,
@@ -20,11 +34,13 @@ import {
 import { LOADOUT_SIDE_TEAM_NUMBER, loadoutSchema, STICKER_SLOTS } from './loadout'
 import { isTerminalMatchState, MATCH_STATES, matchSchema, TERMINAL_MATCH_STATES } from './match'
 import {
+  BRANDING_TAGLINE_MAX,
   DEMO_UPLOAD_URLS_MAX,
   demoUploadUrlFor,
   hasDemoUploadUrl,
   MATCH_TTL_MINUTES_MAX,
   type MatchRequestInput,
+  matchBrandingSchema,
   matchHumans,
   matchPuppets,
   matchRequestSchema,
@@ -408,7 +424,7 @@ describe('Match', () => {
 
 describe('MatchCommand', () => {
   it('is a closed set with the sim family at the end', () => {
-    expect(MATCH_COMMAND_TYPES).toHaveLength(16)
+    expect(MATCH_COMMAND_TYPES).toHaveLength(17)
     expect(SIM_COMMAND_TYPES.every(isSimCommand)).toBe(true)
     expect(isSimCommand('pause')).toBe(false)
     expect(ORCHESTRATOR_COMMAND_TYPES.every(isOrchestratorCommand)).toBe(true)
@@ -427,6 +443,49 @@ describe('MatchCommand', () => {
     expect(() => matchCommandSchema.parse({ type: 'sim.reboot', correlationId: 'c1' })).toThrow()
   })
 
+  it('takes a moment: a kind, a person, a tier, a picture key, the words twice, and when', () => {
+    const text = {
+      de: { everyone: 'maex zieht: BIG Trikot!', you: 'Du ziehst: BIG Trikot!' },
+      en: { everyone: 'maex wins: BIG jersey!' },
+    }
+    const moment = { type: 'moment', correlationId: 'c1', kind: 'drop', text }
+    // The least a client can say: what happened, in both languages. Now, to
+    // nobody in particular, at the lowest tier.
+    expect(matchCommandSchema.parse(moment)).toEqual({ ...moment, tier: 'common', inMs: 0 })
+    expect(
+      matchCommandSchema.parse({
+        ...moment,
+        steamId64: '76561198279375307',
+        tier: 'legendary',
+        art: 'big-jersey',
+        inMs: 4000,
+      }),
+    ).toMatchObject({ tier: 'legendary', art: 'big-jersey', inMs: 4000 })
+    expect(MOMENT_TIERS).toEqual(['common', 'uncommon', 'rare', 'legendary'])
+
+    // Open where a server can shrug: a kind it never heard of, a picture nobody drew.
+    expect(MOMENT_KINDS).toEqual(['drop', 'perk', 'raffle'])
+    expect(matchCommandSchema.safeParse({ ...moment, kind: 'happy-hour' }).success).toBe(true)
+    expect(matchCommandSchema.safeParse({ ...moment, art: 'not-in-the-addon' }).success).toBe(true)
+
+    // Closed where it cannot: a tier is a tint a server has, both languages
+    // are always there, a line fits in chat, and a time is relative and near.
+    expect(matchCommandSchema.safeParse({ ...moment, tier: 'mythic' }).success).toBe(false)
+    expect(matchCommandSchema.safeParse({ ...moment, kind: 'Happy Hour' }).success).toBe(false)
+    expect(matchCommandSchema.safeParse({ ...moment, text: { de: text.de } }).success).toBe(false)
+    expect(
+      matchCommandSchema.safeParse({ ...moment, text: { ...text, en: { everyone: '' } } }).success,
+    ).toBe(false)
+    expect(matchCommandSchema.safeParse({ ...moment, inMs: -1 }).success).toBe(false)
+    expect(matchCommandSchema.safeParse({ ...moment, inMs: MOMENT_IN_MS_MAX + 1 }).success).toBe(
+      false,
+    )
+    // Never a layout, a panel or a class: the platform does not know what a HUD is.
+    expect(Object.keys(momentCommandSchema.shape).sort()).toEqual(
+      ['art', 'correlationId', 'inMs', 'kind', 'steamId64', 'text', 'tier', 'type'].sort(),
+    )
+  })
+
   it('answers with the vocabulary’s codes when rejected', () => {
     const result = matchCommandResultSchema.parse({
       correlationId: 'c1',
@@ -437,6 +496,51 @@ describe('MatchCommand', () => {
     })
     expect(result.code).toBe('command_unsupported')
     expect(() => matchCommandResultSchema.parse({ ...result, code: 'because' })).toThrow()
+  })
+})
+
+describe('branding and the HUD’s keys', () => {
+  it('leaves the HUD off unless a request says otherwise', () => {
+    expect(matchBrandingSchema.parse({})).toEqual({ hud: false })
+    expect(
+      matchBrandingSchema.parse({
+        eventName: 'SaarLAN 2026',
+        tagline: 'Zwei Tage, ein Keller.',
+        banner: 'default',
+        hud: true,
+      }),
+    ).toEqual({
+      eventName: 'SaarLAN 2026',
+      tagline: 'Zwei Tage, ein Keller.',
+      banner: 'default',
+      hud: true,
+    })
+    expect(
+      matchBrandingSchema.safeParse({ tagline: 'x'.repeat(BRANDING_TAGLINE_MAX + 1) }).success,
+    ).toBe(false)
+    // A request written before the field existed has no branding at all, and still has none.
+    expect(matchRequestSchema.parse(pugRequest()).branding).toBeUndefined()
+  })
+
+  it('takes any key and shows the default picture for one the addon does not ship', () => {
+    expect(matchBrandingSchema.safeParse({ banner: 'saarlan-2031' }).success).toBe(true)
+    expect(matchBrandingSchema.safeParse({ banner: 'Not A Key' }).success).toBe(false)
+    expect(matchBrandingSchema.safeParse({ banner: 'x'.repeat(HUD_KEY_MAX + 1) }).success).toBe(
+      false,
+    )
+
+    expect(HUD_BANNER_KEYS).toContain(HUD_DEFAULT_BANNER_KEY)
+    expect(hudBannerKey('default')).toBe('default')
+    expect(hudBannerKey('saarlan-2031')).toBe(HUD_DEFAULT_BANNER_KEY)
+    expect(hudBannerKey(undefined)).toBe(HUD_DEFAULT_BANNER_KEY)
+
+    expect(HUD_ART_KEYS).toContain(HUD_DEFAULT_ART_KEY)
+    expect(hudArtKey('big-jersey')).toBe('big-jersey')
+    expect(hudArtKey('category-merch')).toBe('category-merch')
+    expect(hudArtKey('nobody-drew-this')).toBe(HUD_DEFAULT_ART_KEY)
+    expect(hudArtKey(undefined)).toBe(HUD_DEFAULT_ART_KEY)
+    for (const key of [...HUD_BANNER_KEYS, ...HUD_ART_KEYS])
+      expect(hudKeySchema.safeParse(key).success, key).toBe(true)
   })
 })
 

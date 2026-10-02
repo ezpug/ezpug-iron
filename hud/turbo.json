@@ -3,5 +3,13 @@
   "extends": ["//"],
   // Authored data, like the gamemode manifests: the addon's sources and its
   // committed compiled output. The CLI beside them runs from source.
-  "tags": ["data"]
+  "tags": ["data"],
+  "tasks": {
+    "test": {
+      // The key lists the contract exports are generated from this folder
+      // (`pnpm hud:keys`), and the test that keeps them honest reads the
+      // generated file where it lives.
+      "inputs": ["$TURBO_DEFAULT$", "../packages/match-api/src/resources/hud-keys.ts"]
+    }
+  }
 }

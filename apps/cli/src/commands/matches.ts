@@ -63,6 +63,8 @@ Commands and the fields they take:
   pause [--kind <kind>]            unpause                  restart_round
   reroll                           reprovision              force_end [--reason <t>]
   kick --steam-id <id> [--reason <t>]                       announce --text <t>
+  moment --kind <k> --text <json> [--steam-id <id>] [--tier <t>] [--art <key>] [--in-ms <n>]
+                                   (text: {"de":{"everyone":…,"you":…},"en":{…}})
   rcon --command <line>            (needs the admin scope; refused on a sim)
   restore [--round <n>]            profile --file <path|->   (one roster entry)
   sim.step  sim.kill  sim.mode --mode <m>  sim.speed --time-scale <x>
@@ -332,6 +334,14 @@ const COMMAND_FIELDS: Readonly<
     { flag: 'reason', key: 'reason', kind: 'string' },
   ],
   announce: [{ flag: 'text', key: 'text', kind: 'string' }],
+  moment: [
+    { flag: 'kind', key: 'kind', kind: 'string' },
+    { flag: 'steam-id', key: 'steamId64', kind: 'string' },
+    { flag: 'tier', key: 'tier', kind: 'string' },
+    { flag: 'art', key: 'art', kind: 'string' },
+    { flag: 'text', key: 'text', kind: 'json' },
+    { flag: 'in-ms', key: 'inMs', kind: 'number' },
+  ],
   rcon: [{ flag: 'command', key: 'command', kind: 'string' }],
   restore: [{ flag: 'round', key: 'roundNumber', kind: 'number' }],
   profile: [{ flag: 'file', key: 'player', kind: 'file' }],

@@ -21,13 +21,14 @@ import {
   mapPlanSidesSchema,
   mapTowerSchema,
   matchApiErrorCodeSchema,
-  matchBrandingSchema,
   matchEndReasonSchema,
   matchFormatSchema,
   matchRulesSchema,
   matchSimulationSchema,
   matchTeamSchema,
   matchTeamsSchema,
+  momentTierSchema,
+  momentWordsSchema,
   pauseKindSchema,
   pauseSourceSchema,
   playerCommandChargePeriodSchema,
@@ -63,6 +64,7 @@ import {
   orchestratorNodeFrameSchema,
 } from './node-link'
 import {
+  assignedBrandingSchema,
   assignedGamemodeSchema,
   consoleLineSchema,
   helloCapabilitySchema,
@@ -269,9 +271,21 @@ const SHARED_NAMES: readonly Named[] = [
       'What the puppets do beyond playing the match out — a scenario resolved into knobs (PRD-03 T11).',
   },
   {
-    schema: matchBrandingSchema,
+    schema: assignedBrandingSchema,
     id: 'MatchBranding',
-    description: 'Hostname and event name (decision 22).',
+    description:
+      'What the server shows about where a player is: hostname, event name, tagline, banner key (decisions 22, 34).',
+  },
+  {
+    schema: momentTierSchema,
+    id: 'MomentTier',
+    description: 'How much a moment matters, least to most (PRD-07 T4).',
+  },
+  {
+    schema: momentWordsSchema,
+    id: 'MomentWords',
+    description:
+      'A moment’s words in one language: the line everybody reads and the person’s own (PRD-07 T4).',
   },
   { schema: gamemodeTierSchema, id: 'GamemodeTier', description: 'The three tiers (decision 15).' },
   {

@@ -181,8 +181,9 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   and every plugin config it wrote removed — so a server started by hand between matches
   never runs a vendored plugin on the last match's settings — the server goes back to the
   lobby map, state `idle`.
-- **Commands over the link.** `announce`, `kick`, `rcon` and `profile` are answered by the
-  runtime; for a `matchzy` flow `pause` and `unpause` are MatchZy's `css_forcepause` /
+- **Commands over the link.** `announce`, `moment`, `kick`, `rcon` and `profile` are answered
+  by the runtime (a `moment` is its line in chat when it is due, each player in their
+  language; nothing is drawn for one yet); for a `matchzy` flow `pause` and `unpause` are MatchZy's `css_forcepause` /
   `css_forceunpause`, answered from the gamerules a beat later rather than from the fact
   that the verb ran (`MatchZyFlow.Ask`, PRD-04 T4); `restore` on a live match is MatchZy's
   `matchzy_loadbackup` of its own file for the round the orchestrator named, answered

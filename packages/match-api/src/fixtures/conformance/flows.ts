@@ -1666,6 +1666,109 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
   },
 
   {
+    id: 'moment',
+    title: 'a moment is taken by a server that cannot draw, and a HUD asked for costs nothing',
+    needs: [],
+    async run(ctx) {
+      // The whole of what a client says about a HUD, sent to a target whose
+      // servers have none: the switch, a tagline and a banner key on the
+      // request. Decoration, never structure — the match is the match.
+      const body = ctx.request({
+        branding: {
+          eventName: 'SaarLAN 2026',
+          tagline: 'Zwei Tage, ein Keller, kein Schlaf.',
+          banner: 'a-banner-nobody-drew',
+          hud: true,
+        },
+      })
+      const created = await ctx.api.matches.create({ body })
+      const params = { matchId: created.id }
+      const live = await ctx.waitFor('the match to go live', async () => {
+        const match = await ctx.raw.matches.get({ params })
+        if (isTerminalMatchState(match.state))
+          throw new Error(`the match ended before it went live — ${terminal(match)}`)
+        return match.state === 'live' ? match : null
+      })
+      ctx.check('a request that asks for a HUD goes live like any other', live.state === 'live')
+
+      const drop = {
+        type: 'moment',
+        correlationId: 'conformance-moment-drop',
+        kind: 'drop',
+        steamId64: body.teams.teamA.players[0]?.steamId64 ?? '76561198000000001',
+        tier: 'rare',
+        art: 'big-jersey',
+        text: {
+          de: { everyone: 'hunzR zieht: BIG Trikot!', you: 'Du ziehst: BIG Trikot!' },
+          en: { everyone: 'hunzR wins: BIG jersey!', you: 'You win: BIG jersey!' },
+        },
+      } as const
+      const told = await ctx.api.matches.command({ params, body: drop })
+      ctx.check(
+        'a moment about a player is taken on a live match',
+        told.status === 'applied' || told.status === 'accepted',
+        `${told.status} ${told.code ?? ''}`,
+      )
+      const replayed = await ctx.api.matches.command({
+        params,
+        body: { ...drop, kind: 'perk', tier: 'common' },
+      })
+      ctx.check('a repeated correlationId replays the first answer', deepEqual(replayed, told))
+
+      // The open ends of the shape: a kind no server has heard of, a picture
+      // nobody drew, nobody it is about, no tier, and a time of its own.
+      const later = await ctx.api.matches.command({
+        params,
+        body: {
+          type: 'moment',
+          correlationId: 'conformance-moment-open',
+          kind: 'happy-hour',
+          art: 'a-picture-nobody-drew',
+          text: {
+            de: { everyone: 'Happy Hour an der Theke.' },
+            en: { everyone: 'Happy hour at the bar.' },
+          },
+          inMs: 250,
+        },
+      })
+      ctx.check(
+        'an unknown kind and an unknown picture are shown plainly, never refused',
+        later.status === 'applied' || later.status === 'accepted',
+        `${later.status} ${later.code ?? ''}`,
+      )
+
+      const { final, envelopes } = await playToEnd(ctx, created.id)
+      ctx.require('the match ends', final.state === 'ended', terminal(final))
+      checkEnvelopeStream(ctx, created.id, body.clientMatchId, envelopes, final.seq)
+
+      // A simulated server has no screen and says what it showed; a real one
+      // prints or draws and says nothing back, so there is nothing to read.
+      if (final.provider !== 'sim') return
+      const shown = envelopes.flatMap(envelope =>
+        envelope.payload.type === 'plugin_event' && envelope.payload.name === 'moment_shown'
+          ? [envelope.payload.data]
+          : [],
+      )
+      ctx.check(
+        'a simulated server says each moment once',
+        shown.length === 2,
+        String(shown.length),
+      )
+      const { type: _type, correlationId: _correlationId, ...words } = drop
+      ctx.check(
+        'the first as it was told: the kind, the person, the tier, the key, both languages',
+        deepEqual(shown[0], words),
+        JSON.stringify(shown[0]),
+      )
+      ctx.check(
+        'the second with the tier a moment has when none is said',
+        shown[1]?.kind === 'happy-hour' && shown[1]?.tier === 'common',
+        JSON.stringify(shown[1]),
+      )
+    },
+  },
+
+  {
     id: 'webhook-replay',
     title: 'the events route replays the same envelopes from any cursor',
     needs: [],

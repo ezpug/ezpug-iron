@@ -478,6 +478,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
                 World.Say(said);
                 return CommandAnswer.Applied;
+            case MomentCommand moment:
+                return OnMoment(moment);
             case KickCommand kick:
                 if (!ulong.TryParse(kick.SteamId64, out var steamId64) || World.Find(steamId64) is not { } player)
                 {
@@ -494,6 +496,67 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
                 return CommandAnswer.Applied;
             default:
                 return Active?.OnCommand(command) ?? CommandAnswer.Rejected(MatchApiErrorCode.CommandUnsupported, "no gamemode is attached for this assignment");
+        }
+    }
+
+    /// <summary>
+    /// <b>A moment, the way a server without a HUD shows one</b> (PRD-07 T4): its line, in
+    /// chat, when it is due — to each person in the language their roster entry reads,
+    /// and to the person it is about in the words written for them. The client's words,
+    /// relayed as they were written and through <see cref="SaidLine"/>, exactly as an
+    /// <c>announce</c> is; a caller never has to know what this server can draw. The
+    /// answer does not wait for the line: <c>applied</c> means the server holds the
+    /// moment, and a release before it is due takes it along with every other timer.
+    /// </summary>
+    private CommandAnswer OnMoment(MomentCommand moment)
+    {
+        if (Lines(moment.Text.De) is not { } german || Lines(moment.Text.En) is not { } english)
+        {
+            return CommandAnswer.Rejected(MatchApiErrorCode.ValidationFailed, "nothing of that line survives being said in chat");
+        }
+
+        var about = ulong.TryParse(moment.SteamId64, out var steamId64) ? steamId64 : (ulong?)null;
+        void Show()
+        {
+            foreach (var player in World.Players)
+            {
+                if (player.IsBot)
+                {
+                    continue;
+                }
+
+                var locale = Assignment?.LocaleOf(player.SteamId64) ?? Localizer.DefaultLocale;
+                var (everyone, you) = locale == Locale.En ? english : german;
+                World.Say(player, player.SteamId64 == about ? you : everyone);
+            }
+        }
+
+        if (moment.InMs <= 0)
+        {
+            Show();
+        }
+        else
+        {
+            Track(World.Clock.After(moment.InMs, Show));
+        }
+
+        return CommandAnswer.Applied;
+
+        // One language's two lines as they may be said; the person reads everybody's
+        // line where none was written for them.
+        static (string Everyone, string You)? Lines(MomentWords words)
+        {
+            if (SaidLine.Sanitize(words.Everyone) is not { } everyone)
+            {
+                return null;
+            }
+
+            if (words.You is null)
+            {
+                return (everyone, everyone);
+            }
+
+            return SaidLine.Sanitize(words.You) is { } you ? (everyone, you) : null;
         }
     }
 

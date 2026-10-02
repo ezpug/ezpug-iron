@@ -42,6 +42,18 @@ is deployed to `gs.ezpug.com` yet, and no tag has been cut.
     containers get the id as `EZPUG_HUD_ADDON`. A Dathost clone gets MultiAddonManager's
     loader file and `hudAddon` in `ezpug.json` at `configure`. Unset, nothing a server
     receives changes, and a value that is not a Workshop id stops the orchestrator at boot.
+  - A request's `branding.hud` becomes the assignment's `hud`, present only when it is
+    `true` (T4). The branding a server is handed gains `tagline` and `banner` and never
+    carries the switch, so an assignment for a match that did not ask is unchanged.
+  - The `sim` provider takes a `moment`, holds it until it is due and says it as a
+    `moment_shown` `plugin_event` (T4).
+- **The plugins**: the runtime answers a `moment` by printing its line when it is due, to
+  each player in their language and to the person it is about in their own words (T4).
+  Nothing is drawn for one yet.
+- **The contract** went out as `@ezpug/match-api` **0.31.0** (T4): `branding.hud`,
+  `tagline` and `banner`, the `moment` command and the addon's picture keys. The package's
+  own changelog has every line.
+- **`ezpug-iron`**: `matches command <id> moment` (T4).
 
 **Rush** (`ralph/PRD-06-rush.md`; decision 33). Valve's Rush 3v3 on `rush_001`, as the
 fifth gamemode. The dev node runs this work from local builds. It is not deployed to

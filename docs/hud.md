@@ -41,6 +41,33 @@ of them silently, so a test is the only place anyone will see it fail:
 Biome skips `hud/styles/`, because Panorama CSS is Valve's dialect and the compiler is
 the authority on it.
 
+### The pictures a client asks for by key
+
+Nothing can put a picture on a HUD at runtime, so a client names one by **key**, and a key
+is a file in one of two folders:
+
+| In `hud/` | A key for | The key every unknown one falls back to |
+| --------- | --------- | --------------------------------------- |
+| `banners/<key>.png` | the welcome's banner (`branding.banner` on a request) | `default`, the house banner |
+| `art/<key>.png` | a moment's picture (`art` on a `moment`) | `empty`, the platform's empty card sleeve |
+
+`pnpm hud:keys` writes the two lists into the contract
+(`packages/match-api/src/resources/hud-keys.ts`, exported as `HUD_BANNER_KEYS` and
+`HUD_ART_KEYS`), and `hud/test/keys.test.ts` fails when that file and the folders
+disagree. A key is kebab-case, because it travels in the contract's grammar. Adding a
+picture is therefore a change to `@ezpug/match-api` and needs a release
+(`docs/match-api.md`, "Versioning and releases").
+
+`art/` holds the platform's 26 house drop pictures under the platform's own keys
+(`/root/ezpug/packages/ui/public/drops/<key>.webp`, the 1× files, converted to PNG with
+`convert <key>.webp -strip png32:<key>.png` and not otherwise touched): 21 items, the four
+`category-*` and `empty`. `banners/default.png` is the cast's hello picture for now.
+
+Both folders are in the tree so that the lists could be released with the contract. They
+are **not in the addon yet**: `hud/src/addon.ts` does not map them, so `hud/dist/` and the
+published pack are what they were. The welcome and the card map and compile them when
+they are built.
+
 ## Building: `pnpm hud:build`
 
 ```
@@ -327,9 +354,18 @@ and a server that cannot.
 | has no id | what it was before the HUD existed | plays as any other: no console line, no entity, nothing read | the same |
 | has the id and the loader file | lists `hud` after the manifest capabilities | `mm_add_client_addon <id>` at the assignment, the layouts at the first `round_start` of each map, everything removed and `mm_remove_client_addon <id>` at the release | no console line, no entity |
 
-`hud` on the assignment is the link protocol's word for the client's switch. No request
-can set it yet: the Match API gets the switch with the round's contract task, and until
-then no assignment carries it.
+`hud` on the assignment is the link protocol's word for the client's switch, which is
+`branding.hud` on the request (`false` unless a request says otherwise). The orchestrator
+moves it out of the branding and onto the assignment only when it is `true`, so an
+assignment for a match that never asked is byte for byte what it was before the HUD
+existed (`apps/orchestrator/src/link/assign.ts`, and the recorded link conversation in
+`packages/protocol/fixtures/link/match.json`, which gained a command and lost nothing).
+
+A `moment` reaches every server, whether it can draw or not. For now the plugin answers it
+the way a server without a HUD always will: the line in chat when the moment is due, to
+each player in their language and to the person it is about in their own words
+(`GamemodeRuntime.OnMoment`, `plugins/EZPug.Sdk.Tests/MomentTests.cs`). Nothing is drawn
+for one yet.
 
 The id goes on the client list at the assignment because a client is told what to mount
 while it connects, and players connect to a match after it is assigned. Somebody already

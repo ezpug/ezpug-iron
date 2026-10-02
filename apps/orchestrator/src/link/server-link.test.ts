@@ -454,7 +454,26 @@ describe('the link', () => {
       text: 'GLHF — viel Erfolg!',
     })
     expect(announced.status).toBe('applied')
-    expect(fake.received().filter(f => f.type === 'command')).toHaveLength(3)
+    // A moment reaches the server as the client wrote it, defaults filled:
+    // what to draw and when is the server's business (PRD-07 T4).
+    const moment = {
+      type: 'moment',
+      correlationId: 'cmd-0004',
+      kind: 'drop',
+      steamId64: '76561198279375307',
+      tier: 'rare',
+      art: 'big-jersey',
+      text: {
+        de: { everyone: 'maex zieht: BIG Trikot!', you: 'Du ziehst: BIG Trikot!' },
+        en: { everyone: 'maex wins: BIG jersey!' },
+      },
+    } as const
+    expect((await app.matches.command(key, matchId, { ...moment, inMs: 3000 })).status).toBe(
+      'applied',
+    )
+    const commands = fake.received().filter(f => f.type === 'command')
+    expect(commands).toHaveLength(4)
+    expect(commands.at(-1)).toEqual({ type: 'command', command: { ...moment, inMs: 3000 } })
 
     // The demo the plugin uploaded is relayed as a fact of the match (T21):
     // the orchestrator never saw a byte of it and can still say what landed.

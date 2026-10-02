@@ -2,8 +2,9 @@ import { z } from 'zod'
 import { assertClosedSet } from '../closed-set'
 import { matchApiErrorCodeSchema } from '../errors'
 import { pauseKindSchema, SERVER_CHAT_TEXT_MAX } from '../vocabulary/gameserver'
-import { gameserverEventTypeSchema } from '../vocabulary/naming'
+import { gameserverEventTypeSchema, kebabNameSchema } from '../vocabulary/naming'
 import { steamId64Schema } from '../vocabulary/steam-id'
+import { hudKeySchema } from './hud'
 import { rosterEntrySchema } from './match-request'
 import { simChaosSchema, simModeSchema, simStatusSchema, simTimeScaleSchema } from './sim'
 
@@ -24,6 +25,97 @@ export const correlationIdSchema = z.string().min(1).max(128)
 
 const commandBase = z.object({ correlationId: correlationIdSchema })
 
+/**
+ * The kinds of moment a server knows how to dress: somebody won a `drop`,
+ * used a `perk`, was drawn in a `raffle`. **The set is open** — `kind` is any
+ * kebab-case name ({@link momentKindSchema}), and a server shows one it does
+ * not know plainly rather than refusing it, so a new kind is a client's
+ * release and nobody else's.
+ */
+export const MOMENT_KINDS = ['drop', 'perk', 'raffle'] as const
+export type MomentKind = (typeof MOMENT_KINDS)[number]
+
+/** A moment's kind as a command carries it: one of {@link MOMENT_KINDS}, or a name of the client's own. */
+export const momentKindSchema = kebabNameSchema.max(32)
+
+/**
+ * How much a moment matters, least to most — the platform's drop rarities,
+ * word for word. A server tints by it and never does more: a tier changes
+ * how a moment looks and sounds, not whether or when it is shown.
+ */
+export const MOMENT_TIERS = ['common', 'uncommon', 'rare', 'legendary'] as const
+export const momentTierSchema = z.enum(MOMENT_TIERS)
+export type MomentTier = z.infer<typeof momentTierSchema>
+
+/** One line of a moment, in one language: a chat line's budget, never empty. */
+const momentLineSchema = z.string().min(1).max(SERVER_CHAT_TEXT_MAX)
+
+/**
+ * **A moment's words in one language**: the line everybody reads, and the
+ * line the person it is about reads in its place ("tk hat ein Trikot
+ * gezogen" for the server, "Du hast ein Trikot gezogen" for tk). Without
+ * `you`, the person reads what everybody reads.
+ */
+export const momentWordsSchema = z.object({
+  /** What everybody on the server reads. */
+  everyone: momentLineSchema,
+  /** What the person the moment is about reads instead. Read only when the moment names one. */
+  you: momentLineSchema.optional(),
+})
+export type MomentWords = z.infer<typeof momentWordsSchema>
+
+/** The furthest ahead a moment may be told: a server is not a calendar. */
+export const MOMENT_IN_MS_MAX = 60_000
+
+/**
+ * **This happened to this player** (PRD-07 T4, decision 34): the client says
+ * what, to whom and how much it matters, and the server decides how and when
+ * to show it.
+ *
+ * Every server answers it, and a client needs no knowledge of what a server
+ * can draw. **A server without a HUD prints the line**, exactly as `announce`
+ * does — to each player in their own language, the person's own line to the
+ * person. A server with one shows it too: a toast for everybody, and for the
+ * person a card, at a point in the round where nobody is playing. The
+ * command never names a layout, a panel or a class; `kind`, `tier` and `art`
+ * are all a server is told about how it should look.
+ *
+ * `inMs` is **when**: how long after the server receives the command the
+ * moment is due. Relative on purpose — the server's clock is not the
+ * client's, so "at 20:15:07" would mean two different instants. A client
+ * that reveals the same win elsewhere at a time of its own says how far off
+ * that time is; `0`, the default, is now. The answer does not wait for it:
+ * `applied` means the server holds the moment, and a server that is gone
+ * before it is due shows nothing.
+ *
+ * The person need not be on the server, or on the roster: everybody else
+ * still reads the line, and nothing waits for somebody to come back.
+ */
+export const momentCommandSchema = commandBase.extend({
+  type: z.literal('moment'),
+  kind: momentKindSchema,
+  /** The person it is about, when there is one. */
+  steamId64: steamId64Schema.optional(),
+  tier: momentTierSchema.default('common'),
+  /**
+   * The picture, by key: one of {@link HUD_ART_KEYS} for one the addon
+   * ships. A key it does not hold, and no key at all, is the default
+   * picture ({@link HUD_DEFAULT_ART_KEY}) — never a refusal.
+   */
+  art: hudKeySchema.optional(),
+  /** The words, in both languages; a player reads the roster locale's. */
+  text: z.object({ de: momentWordsSchema, en: momentWordsSchema }),
+  /** Milliseconds from the server receiving this until the moment is due. */
+  inMs: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(MOMENT_IN_MS_MAX)
+    .default(0)
+    .describe('how long after the server receives it the moment is due; relative, never a time'),
+})
+export type MomentCommand = z.infer<typeof momentCommandSchema>
+
 export const matchCommandSchema = z.discriminatedUnion('type', [
   /** Pause the match (the gamemode's own pause where it has one). */
   commandBase.extend({ type: z.literal('pause'), kind: pauseKindSchema.optional() }),
@@ -43,6 +135,8 @@ export const matchCommandSchema = z.discriminatedUnion('type', [
     type: z.literal('announce'),
     text: z.string().min(1).max(SERVER_CHAT_TEXT_MAX),
   }),
+  /** Something happened to somebody: the server shows it its own way ({@link momentCommandSchema}). */
+  momentCommandSchema,
   /**
    * The operator fallback (decision 5): an RCON command, verbatim, on a real
    * server. Needs the `admin` scope on top of the route's `matches`
@@ -99,6 +193,7 @@ export const MATCH_COMMAND_TYPES = [
   'force_end',
   'kick',
   'announce',
+  'moment',
   'rcon',
   'restore',
   'reroll',

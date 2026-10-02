@@ -99,12 +99,35 @@ describe('the assignment of a match of puppets', () => {
 })
 
 describe('the assignment and the HUD', () => {
-  it('asks no server for a HUD, because no request can ask yet (PRD-07 T3)', () => {
-    // The frame has the word (`hud`) and the plugin acts on it; the Match API
-    // gets its switch in T4. Until then every frame is what it was.
+  it('asks no server for a HUD unless the request’s branding says so (PRD-07 T4)', () => {
     for (const id of ['pug', 'powerup-dm', 'flying-scoutsman', 'retakes'] as const) {
       expect('hud' in compose(id), id).toBe(false)
       expect('hud' in compose(id, { branding: { eventName: 'SaarLAN 2026' } }), id).toBe(false)
+      expect('hud' in compose(id, { branding: { hud: false } }), id).toBe(false)
+      expect(compose(id, { branding: { hud: true } }).hud, id).toBe(true)
     }
+  })
+
+  it('hands the server the switch once, and the branding without it', () => {
+    // Off is today: a request that never heard of a HUD composes the branding
+    // it always did, so the frame's bytes are what they were before T4.
+    expect(compose('pug').branding).toEqual({})
+    expect(compose('pug', { branding: { eventName: 'SaarLAN 2026' } }).branding).toEqual({
+      eventName: 'SaarLAN 2026',
+    })
+    const frame = compose('pug', {
+      branding: {
+        eventName: 'SaarLAN 2026',
+        tagline: 'Zwei Tage, ein Keller.',
+        banner: 'default',
+        hud: true,
+      },
+    })
+    expect(frame.branding).toEqual({
+      eventName: 'SaarLAN 2026',
+      tagline: 'Zwei Tage, ein Keller.',
+      banner: 'default',
+    })
+    expect(frame.hud).toBe(true)
   })
 })

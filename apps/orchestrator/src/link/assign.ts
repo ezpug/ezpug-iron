@@ -107,6 +107,10 @@ function puppets(request: MatchRequest): PuppetScript | undefined {
 
 export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'> {
   const { matchId, request, manifest, installed, restore } = input
+  // The client's HUD switch leaves the branding and travels as the frame's
+  // own `hud`, present only when it is on (PRD-07 T4): a request that says
+  // nothing about a HUD composes the frame it always did.
+  const { hud, ...branding } = request.branding ?? {}
   const teams = withProfiles(request.teams, input.profiles)
   const plugins = pluginsFor(manifest, teams, installed)
   const pluginConfigs = pluginConfigsFor(manifest, plugins)
@@ -127,11 +131,12 @@ export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'>
     ...(request.rules && { rules: request.rules }),
     teams,
     warmupLines: request.warmupLines ?? [],
-    branding: request.branding ?? {},
+    branding,
     ...(request.callbacks.demoUploadUrl && { demoUploadUrl: request.callbacks.demoUploadUrl }),
     ...(request.callbacks.demoUploadUrls && { demoUploadUrls: request.callbacks.demoUploadUrls }),
     ...(restore && { restore }),
     ...(request.simulation && { simulation: request.simulation }),
     ...(script && { puppets: script }),
+    ...(hud === true && { hud: true }),
   })
 }
