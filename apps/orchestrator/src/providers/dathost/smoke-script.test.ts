@@ -62,6 +62,32 @@ const STATUS_OUTPUT = [
   'state: assigned, map de_dust2, 0 player(s)',
 ].join('\n')
 
+/** The Workshop id the rehearsal's orchestrator hands its servers (PRD-07 T10). */
+const HUD_ADDON = '3811574606'
+
+/**
+ * What `ezpug_status` adds on a server that has the addon and a match that
+ * asked for the HUD (`StatusReport.cs`), and Metamod's answer to `meta list`
+ * as a rented console holds it.
+ */
+const HUD_STATUS = [
+  `hud: addon ${HUD_ADDON}, on, 2 layout(s) in the world`,
+  `hud: clients who connect now are handed ${HUD_ADDON}`,
+]
+const META_LIST = [
+  'Listing 2 plugins:',
+  '[01] MultiAddonManager (v1.6.2-0-gd6b4f4b) by xen',
+  '[02] CounterStrikeSharp (v1.0.376 @ 653d651) by Roflmuffin',
+]
+/** …as Dathost's console keeps it (copied off the run of 2026-10-02): stamped, indented, and followed by whatever the game said next. */
+const META_LIST_CONSOLE = [
+  'Oct  2 17:22:01:  meta list',
+  'Oct  2 17:22:01:  Listing 2 plugins:',
+  'Oct  2 17:22:01:    [01] MultiAddonManager (v1.6.2-0-gd6b4f4b) by xen',
+  'Oct  2 17:22:01:    [02] CounterStrikeSharp (v1.0.376 @ 653d651) by Roflmuffin',
+  'Oct  2 17:22:02:  L 10/02/2026 - 17:22:02: World triggered "Round_Start"',
+]
+
 interface SmokeScript {
   main(options: {
     argv?: string[]
@@ -138,6 +164,15 @@ interface SmokeSummary {
   connect: { host: string; port: number; passwordSet: boolean } | null
   tv: { host: string; port: number; delaySeconds: number } | null
   status: { applied: boolean; lines: number; output: string } | null
+  hud: {
+    addon: string | null
+    on: boolean
+    spawned: boolean
+    handed: string | null
+    reads: number
+    lines: string[]
+    metaList: string[] | null
+  } | null
   puppets: {
     simulated: boolean
     readied: number
@@ -203,7 +238,14 @@ function puppetStory(
   ]
 }
 
-async function createRig(options: { link?: boolean; story?: boolean } = {}): Promise<Rig> {
+async function createRig(
+  options: {
+    link?: boolean
+    story?: boolean
+    /** The orchestrator was started with the HUD's addon id, and the server says what one that has it says. */
+    hud?: boolean
+  } = {},
+): Promise<Rig> {
   const app = createTestApp({ noProviders: true })
   const fake = createFakeDathost({ clock: app.clock, email: EMAIL, password: PASSWORD })
   const tree = writeTree()
@@ -251,6 +293,7 @@ async function createRig(options: { link?: boolean; story?: boolean } = {}): Pro
       fetch: providerFetch,
       baseUrl: VENDOR_URL,
       log: app.log,
+      ...(options.hud && { hudAddon: HUD_ADDON }),
     }),
   )
 
@@ -313,12 +356,15 @@ async function createRig(options: { link?: boolean; story?: boolean } = {}): Pro
       // console buffer the fleet's console route reads.
       onCommand: (command, server) => {
         if (command.type !== 'rcon' || command.command !== 'ezpug_status') return undefined
-        for (const line of STATUS_OUTPUT.split('\n'))
+        for (const line of [...STATUS_OUTPUT.split('\n'), ...(options.hud ? HUD_STATUS : [])])
           server.consoleLines.push({ uptimeMs: server.uptimeMs(), line: `[status] ${line}` })
         return { status: 'applied', output: '' }
       },
     })
     plugin = dialling
+    // The engine's console, which is the vendor's to keep: Metamod's list as
+    // a server that booted with the loader file prints it when asked.
+    if (options.hud) for (const line of META_LIST_CONSOLE) fake.say(clone.id, line)
     const welcome = await dialling.connect()
     const assign = await dialling.next('assign')
     const source = { provider: welcome.provider, serverId: welcome.serverId }
@@ -539,6 +585,71 @@ describe('with puppets (PRD-03 T14)', () => {
     expect(code).toBe(1)
     expect(summary.problems[0]).toContain('--puppets')
     expect(summary.matchId).toBeNull()
+  })
+})
+
+describe('with the HUD (PRD-07 T10)', () => {
+  it('asks for the HUD and reads back that the clone can draw it', async () => {
+    const rig = await createRig({ hud: true })
+    const { code, summary, stderr } = await rig.run(['--hud', HUD_ADDON])
+    expect(code, `${JSON.stringify(summary.problems)}\n${stderr}`).toBe(0)
+    expect(summary.steps).toContain('the server on its HUD')
+    expect(summary.hud).toMatchObject({
+      addon: HUD_ADDON,
+      on: true,
+      spawned: true,
+      handed: HUD_ADDON,
+      lines: HUD_STATUS,
+      metaList: META_LIST,
+    })
+    // The request carried the switch, and the clone what a server needs to act on it.
+    const request = (await rig.app.store.findMatch(summary.matchId as string))?.requestJson
+    expect(request?.branding?.hud).toBe(true)
+    expect(
+      rig
+        .plugin()
+        ?.received()
+        .find(frame => frame.type === 'assign'),
+    ).toMatchObject({ hud: true })
+    expect(rig.fake.servers().map(view => view.id)).toEqual([rig.templateId])
+  })
+
+  it('says why when the orchestrator hands its servers no addon', async () => {
+    // Production, until the owner has walked the look list: the request asks,
+    // the server has no id and says nothing about a HUD.
+    const rig = await createRig()
+    const { code, summary } = await rig.run(['--hud'])
+    expect(code).toBe(1)
+    expect(summary.hud).toMatchObject({ addon: null, on: false, handed: null })
+    expect(summary.problems.join(' ')).toContain('EZPUG_IRON_HUD_ADDON')
+    // The money is as safe as on any other run.
+    expect(summary.ledger).toMatchObject({ rows: 1, open: 0 })
+    expect(rig.fake.servers().map(view => view.id)).toEqual([rig.templateId])
+  })
+
+  it('holds the server to the id the run names', async () => {
+    const rig = await createRig({ hud: true })
+    const { code, summary } = await rig.run(['--hud', '1'])
+    expect(code).toBe(1)
+    expect(summary.problems.join(' ')).toContain(`names addon ${HUD_ADDON}`)
+  })
+
+  it('refuses an id that is not a Workshop id before anything is rented', async () => {
+    const rig = await createRig()
+    const { code, summary } = await rig.run(['--hud', 'ezpug'])
+    expect(code).toBe(1)
+    expect(summary.problems[0]).toContain('--hud')
+    expect(summary.matchId).toBeNull()
+  })
+
+  it('leaves a run that did not ask as it was', async () => {
+    const rig = await createRig({ hud: true })
+    const { code, summary } = await rig.run()
+    expect(code).toBe(0)
+    expect(summary.hud).toBeNull()
+    expect(summary.steps).not.toContain('the server on its HUD')
+    const request = (await rig.app.store.findMatch(summary.matchId as string))?.requestJson
+    expect(request?.branding?.hud).toBe(false)
   })
 })
 

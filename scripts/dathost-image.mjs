@@ -103,13 +103,37 @@ const DEFAULT_SLOTS = 12
 /**
  * The Metamod loader line and where it is anchored — the same edit
  * `docker/cs2/entrypoint.sh` makes on the volume at every boot. On Dathost
- * nothing re-applies it, so a game update on their side that rewrites
- * `gameinfo.gi` is a `--check` failure and a re-run of this script.
+ * nothing re-applies it, and the file this script uploads stands in front of
+ * the game's own from then on: a game update on their side changes the file
+ * underneath and every clone still boots with ours. So the template's file
+ * is held to **the game's own, as it is today, plus this line**, and the
+ * game's own is read off a server that has never been touched
+ * ({@link readStockGameinfo}). The update of 2026-09-30 took `csgo_imported`
+ * out of the game; a template still carrying the file from before it cloned
+ * servers that died at "unable to load gameinfo.gi" (PRD-07 T10).
  */
 const METAMOD_GAMEINFO_LINE = '\t\t\tGame\tcsgo/addons/metamod'
 const METAMOD_GAMEINFO_NEEDLE = 'csgo/addons/metamod'
 const GAMEINFO_PATH = 'gameinfo.gi'
 const GAMEINFO_ANCHOR = 'Game_LowViolence'
+
+/** What the scratch server is called for the seconds it exists. */
+export const SCRATCH_SERVER_NAME = 'EZPug scratch (gameinfo.gi)'
+
+/**
+ * `gameinfo.gi` with Metamod's loader line under the anchor, in the file's
+ * own line endings; the file itself when the line is already there, `null`
+ * when there is nothing to anchor it to.
+ */
+export function withMetamodLoader(gameinfo) {
+  const text = gameinfo.toString('utf8')
+  if (text.includes(METAMOD_GAMEINFO_NEEDLE)) return gameinfo
+  const lines = text.split('\n')
+  const anchor = lines.findIndex(line => line.includes(GAMEINFO_ANCHOR))
+  if (anchor === -1) return null
+  lines.splice(anchor + 1, 0, METAMOD_GAMEINFO_LINE + (lines[anchor].endsWith('\r') ? '\r' : ''))
+  return Buffer.from(lines.join('\n'), 'utf8')
+}
 
 /**
  * The loader file MultiAddonManager's release ships and the image drops
@@ -470,9 +494,46 @@ function createClient({ baseUrl, email, password, fetchImpl, sleep }) {
         idempotent: true,
       })
     },
+    async deleteServer(id) {
+      // Deleting what is already gone is the same outcome.
+      await call('DELETE', `/game-servers/${id}`, { idempotent: true, allowMissing: true })
+    },
     async syncFiles(id) {
       await call('POST', `/game-servers/${id}/sync-files`, { idempotent: true })
     },
+  }
+}
+
+/**
+ * **The game's own `gameinfo.gi`, as Dathost serves it today.** A file this
+ * script uploaded hides the game's on the template for good (and deleting
+ * ours deletes the game's with it: a `GET` is a 404 afterwards, seen live
+ * 2026-10-02), so the only place the current file can be read is a server
+ * nobody has touched. One is created, never started, read and deleted, which
+ * costs nothing: a server at Dathost is billed while it is on. It wears no
+ * tag, so no deployment's reaper claims it in the seconds it exists. A
+ * scratch server that could not be deleted is a problem with its id in it.
+ */
+async function readStockGameinfo(client, { location, problems }) {
+  const scratch = await client.createServer({
+    game: 'cs2',
+    name: SCRATCH_SERVER_NAME,
+    location,
+    'cs2_settings.game_mode': 'competitive',
+    'cs2_settings.rcon': randomBytes(24).toString('base64url'),
+    'cs2_settings.slots': 5,
+  })
+  try {
+    return await client.downloadFile(scratch.id, GAMEINFO_PATH)
+  } finally {
+    try {
+      await client.deleteServer(scratch.id)
+    } catch (error) {
+      problems.push(
+        `the scratch server ${scratch.id} ("${SCRATCH_SERVER_NAME}") could not be deleted — ` +
+          `delete it in the control panel (${error instanceof Error ? error.message : String(error)})`,
+      )
+    }
   }
 }
 
@@ -794,6 +855,28 @@ export async function main(options = {}) {
       : []
     const gameinfoNeedsLoader =
       gameinfo !== null && !gameinfo.toString('utf8').includes(METAMOD_GAMEINFO_NEEDLE)
+    // The game's own file. While the listing shows no `gameinfo.gi` of a
+    // user's, the template's *is* the game's; once ours stands in front, it
+    // is read off a scratch server. A dry run creates nothing, so it does
+    // not compare, and says so.
+    const gameinfoIsOurs = listingUsable && listed.has(GAMEINFO_PATH)
+    let stockGameinfo = gameinfoIsOurs ? null : gameinfo
+    if (gameinfoIsOurs && !dryRun)
+      stockGameinfo = await readStockGameinfo(client, {
+        location: server.location ?? location,
+        problems,
+      })
+    const wantedGameinfo = stockGameinfo === null ? null : withMetamodLoader(stockGameinfo)
+    /** The template's file is not the game's own plus the loader line. */
+    const gameinfoMoved =
+      gameinfo !== null && wantedGameinfo !== null && !gameinfo.equals(wantedGameinfo)
+    result.gameinfo = !gameinfoIsOurs
+      ? 'the game’s own'
+      : stockGameinfo === null
+        ? 'not compared'
+        : gameinfoMoved
+          ? 'stale'
+          : 'current'
     const drift = settingsDrift(server, { slots })
 
     result.uploads = uploads.length
@@ -845,6 +928,12 @@ export async function main(options = {}) {
       for (const line of drift) problems.push(`settings: ${line}`)
       if (gameinfoNeedsLoader)
         problems.push(`${GAMEINFO_PATH} has no Metamod loader line — no plugin would load`)
+      else if (gameinfoMoved)
+        problems.push(
+          `${GAMEINFO_PATH} on the template is not the game's own file with Metamod's loader ` +
+            'line: a CS2 update at Dathost changed the file underneath, and a clone may not ' +
+            'boot — re-run `pnpm dathost:image`',
+        )
       if (listed.has(ASLEEP_PLUGIN_LOADER))
         problems.push(
           `${ASLEEP_PLUGIN_LOADER} is on the template, so every clone loads MultiAddonManager ` +
@@ -865,6 +954,11 @@ export async function main(options = {}) {
       if (uploads.length > 10) say(`  … and ${uploads.length - 10} more`)
       for (const line of drift) say(`  ~ settings: ${line}`)
       if (gameinfoNeedsLoader) say(`  ~ ${GAMEINFO_PATH}: add Metamod's loader line`)
+      else if (gameinfoIsOurs)
+        say(
+          `  ? ${GAMEINFO_PATH}: not compared with the game's own (that takes a scratch ` +
+            'server, and a dry run creates nothing); `--check` does',
+        )
       say(
         uploads.length + drift.length > 0 || gameinfoNeedsLoader
           ? 'would then sync-files, so the next duplicate clones this'
@@ -906,14 +1000,21 @@ export async function main(options = {}) {
       )
     }
 
-    if (gameinfoNeedsLoader) {
-      const lines = gameinfo.toString('utf8').split('\n')
-      const anchor = lines.findIndex(line => line.includes(GAMEINFO_ANCHOR))
-      if (anchor === -1) {
+    if (gameinfoMoved) {
+      await client.uploadFile(server.id, GAMEINFO_PATH, wantedGameinfo)
+      say(
+        gameinfoNeedsLoader
+          ? `${GAMEINFO_PATH}: Metamod's loader line added`
+          : `${GAMEINFO_PATH}: replaced with the game's own file of today, with Metamod's loader line`,
+      )
+      result.gameinfoPatched = true
+    } else if (gameinfoNeedsLoader) {
+      // No stock file to start from, or nothing in it to anchor the line to.
+      const patched = withMetamodLoader(gameinfo)
+      if (patched === null) {
         warn(`${GAMEINFO_PATH} has no ${GAMEINFO_ANCHOR} line to anchor Metamod to — left alone`)
       } else {
-        lines.splice(anchor + 1, 0, METAMOD_GAMEINFO_LINE)
-        await client.uploadFile(server.id, GAMEINFO_PATH, Buffer.from(lines.join('\n'), 'utf8'))
+        await client.uploadFile(server.id, GAMEINFO_PATH, patched)
         say(`${GAMEINFO_PATH}: Metamod's loader line added`)
         result.gameinfoPatched = true
       }

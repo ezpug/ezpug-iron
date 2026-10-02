@@ -391,10 +391,36 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   rows read `meta list` and the client list through the front door instead of the
   console. It matters to T11: the third switch (`mm_remove_client_addon` on a live
   server) is an RCON preset, and an operator who types it should see an answer.
-- [ ] **T10 (effort: medium): Dathost.** Refresh the template, `--check` green, and one
+- [x] **T10 (effort: medium): Dathost.** Refresh the template, `--check` green, and one
   short server with the id set: it boots, the plugin loads, a clone of the template carries
   it. One server-hour at most. If the template cannot carry a second Metamod plugin, say
   why and leave the HUD a node-only feature for now.
+  > note (T10, 2026-10-02): **the template carries it.** One rented clone with the id booted
+  > on the game Dathost runs today, loaded MultiAddonManager 1.6.2 beside CounterStrikeSharp
+  > 1.0.376 (`meta list`), said `hud: … on, 2 layout(s) in the world` and `clients who
+  > connect now are handed 3811574606`, and played a 2v2 of puppets to its end
+  > (`docs/hud.md`, "On Dathost"). Nobody connected: the client's side is the look list's.
+  > **It took more than the budget's wording.** The first clone died in its first second
+  > and not because of the HUD: the template still carried the `gameinfo.gi` from before
+  > the CS2 update of 2026-09-30 (which removed `csgo_imported`), with `--check` green.
+  > Production's rented half could not boot either: its ledger holds three `failed` Dathost
+  > rows from 2026-10-01 and today. So this task fixed `dathost-image` (the template's file
+  > is the game's own of today plus the loader line, read off a never-started scratch
+  > server; `--check` is red when it moves), refreshed the template **a second time** (that
+  > one file), and rented **a second server**. In all: two refreshes, two servers of about
+  > three minutes each (4 cents, six server-minutes of the hour), five scratch servers that
+  > were never started (one by hand to learn how Dathost's files behave, four by the
+  > script's checks and its refresh). The template production clones from is now this tree's plugin (`4e37240`)
+  > on today's game; production's orchestrator is still `40ef8f6` and the link's changes
+  > since are additive. No deploy was made.
+  > The run went through the dev orchestrator behind a throwaway tunnel, inside a lane
+  > hold, because production must not have the id (`pnpm dathost:smoke --hud`, new).
+  > **For T11's drill after a CS2 update:** `pnpm dathost:image --check` before anything
+  > else on the rented side, then `pnpm dathost:image` if it is red; the dev node's game
+  > trails Dathost's (build 11026673 against 11064488), so the lane does not prove the
+  > plugins on the game a rented server runs; and nothing in the orchestrator notices a
+  > template whose clones cannot boot (the provider's health stays green, each match
+  > fails after three minutes).
 - [ ] **T11 (effort: medium): the books and the look list.** `docs/hud.md`: what each of
   the three switches stops and how fast (the request's `hud`, `EZPUG_HUD_ADDON`, and
   `mm_remove_client_addon` on a live server as an RCON preset the platform can offer), the

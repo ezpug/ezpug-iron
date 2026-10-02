@@ -31,6 +31,13 @@ Dathost server and a LAN node behave identically and our plugin runs on both. Th
   image change and before cloning, or the clone runs yesterday's plugin. Optional
   `location`; optional destination id wipes an existing server instead of creating one.
   Returns the new server object. This is `allocate`.
+- **Files**: a server shows the game's own files with the user's in front
+  (`GET …/files?hide_default_files=true` lists only the user's). An upload over a game file
+  hides the game's for good, game updates included. `DELETE …/files/{path}` is not in the
+  OpenAPI and answers 200; it removes the user's file **and** the game's under it (a `GET`
+  is a 404 afterwards, the listing shows it only under `include_deleted_files=true`).
+  Measured 2026-10-02 on a never-started server, which already shows the current game's
+  files. This is why the template's `gameinfo.gi` is rebuilt from a scratch server.
 - **Start** (`POST …/start`) reboots a server that is already on. **Stop**, **Delete**
   (refused while `deletion_protection` is set — clones never set it). `deallocate` = stop +
   delete, idempotent on 404.

@@ -369,6 +369,50 @@ is replaced, at the latest when its seven-day ceiling runs out (`WARM_TTL_MS`).
 `pnpm cs2:up` reads `EZPUG_HUD_ADDON` itself, because the dev container is started
 by hand, not by the orchestrator.
 
+### On Dathost
+
+Proven once, on 2026-10-02 (PRD-07 T10), on one rented server in Düsseldorf: **the
+template carries a second Metamod plugin, and a clone with the id draws.** The template
+was refreshed from the tree (`pnpm dathost:image`: Metamod git1469, CounterStrikeSharp
+1.0.376, MultiAddonManager 1.6.2 asleep; it had been at git1411 and 1.0.373) and
+`--check` is green. Then `pnpm dathost:smoke --puppets 4 --hud 3811574606` against an
+orchestrator started with `EZPUG_IRON_HUD_ADDON`:
+
+- The clone booted on the game Dathost runs today (build 11064488, the update of
+  2026-09-30; the dev node is still on 11026673), with no missing signature in its
+  console.
+- `[MultiAddonManager] Plugin loaded successfully!`, and `meta list` named
+  MultiAddonManager 1.6.2 and CounterStrikeSharp 1.0.376. So the `.vdf` the provider
+  uploads at `configure` is read at the clone's first boot.
+- `ezpug_status`, asked over the link: `hud: addon 3811574606, on, 2 layout(s) in the
+  world`, `hud: clients who connect now are handed 3811574606`, both layouts as entities
+  (the moment's observable), the welcome's strings set, 64 of 64 slots empty.
+- A 2v2 of puppets readied, went live and ended (4 rounds, `series_end`, every fact
+  `source.simulated`). The ledger row closed at 2 cents and the account was left as it
+  was found.
+
+**Not proven**: a client. Nobody connected, so the download, the reconnect and the picture
+are the look list's on Dathost as they are on a node. The server also had no GSLT (the dev
+orchestrator has no Steam key), so it would have taken LAN connections only.
+
+**How it was run.** Production must not have the id, and a clone in a datacentre has to
+reach the orchestrator that started it. So the run used the **dev** orchestrator, inside a
+hold of the CS2 lane: restarted with `EZPUG_IRON_PROVIDERS=sim,nodes,dathost`,
+`EZPUG_IRON_HUD_ADDON=<id>` and `EZPUG_IRON_PUBLIC_URL` set to a throwaway HTTPS tunnel to
+port 3430 (a Cloudflare quick tunnel in a container, removed afterwards), the smoke pointed
+at `http://localhost:3430`, then the orchestrator restarted without the three values before
+the lane was released. The dev deployment's tag is not production's, so production's reaper
+never saw the clone. `docs/operations.md`, "The live smoke", has the flag.
+
+**What the first attempt found.** The first clone died in its first second, and not because
+of the HUD: the template still carried the `gameinfo.gi` from before the CS2 update of
+2026-09-30, which no longer fits the game (`docs/operations.md`, "The template server").
+Any clone made since that update died the same way, production's included: its ledger
+holds three `failed` Dathost rows from 2026-10-01 and 2026-10-02, each the three minutes
+of a boot deadline, where every row before the update was `released`.
+`dathost-image` now rebuilds the file from the game's own, and `--check` is red when it
+moves. **This belongs in the drill after a CS2 update.**
+
 ### When the download cannot finish
 
 This is why the switch exists. It is read from `src/multiaddonmanager.cpp` at 1.6.2 and

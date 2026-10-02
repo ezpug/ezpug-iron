@@ -1278,14 +1278,34 @@ that is currently *on* is refused unless `--force`. The account's password is re
 the environment only, never from a flag.
 
 **`gameinfo.gi`.** Metamod loads because that file says so, and a game update rewrites it.
-In the container the entrypoint re-checks it every boot; on Dathost nothing does, so the
-script adds the loader line when it is missing and `--check` goes red when it has gone —
-if a whole fleet suddenly boots with no plugins, that is the first thing to look at.
+In the container the entrypoint re-checks it every boot. On Dathost nothing does, and it is
+worse than that: the file this script uploads stands in front of the game's own from then
+on, so an update changes the file underneath and every clone still boots with ours. The
+CS2 update of 2026-09-30 took `csgo_imported` out of the game. The template carried the
+file from before it, with the loader line in place and `--check` green, and every clone
+died in its first second (`FATAL ERROR: Application unable to load gameinfo.gi file`,
+`Can't read 'csgo_imported/gameinfo.gi'`): the rented half of the fleet could not boot
+(production's ledger: three `failed` rows of three minutes each) until PRD-07 T10 rented a
+server two days later and read its console.
+
+So the template's file is held to **the game's own, as Dathost serves it today, plus the
+loader line**. The game's own cannot be read off the template (ours hides it, and deleting
+ours deletes the game's with it: a `GET` is a 404 afterwards). It is read off a **scratch
+server**: `EZPug scratch (gameinfo.gi)`, created, never started, read and deleted within
+seconds, untagged so no deployment's reaper claims it. A server at Dathost costs money
+only while it is on. A refresh and a `--check` both do this; a `--dry-run` creates nothing
+and says the file was not compared. `--check` is red when the file has moved and when the
+loader line is gone, and `pnpm dathost:image` puts either right. **After a CS2 update,
+run `pnpm dathost:image --check` before the evening**: if a whole fleet's clones fail with
+"the server never said hello over the link", this is the first thing to look at, and the
+clone's console at Dathost says it in its last ten lines.
 
 **The tests.** `providers/dathost/image-script.test.ts` runs the script against the fake
 Dathost (T15) with a hand-written artifact tree: the dry run, the create, idempotence, the
-refusals, `--check` red on a drifted file, pin, setting or `gameinfo.gi`, and — the one
-that matters — a `duplicate` after the build whose clone carries the plugin.
+refusals, `--check` red on a drifted file, pin, setting or `gameinfo.gi`, a game update
+under the template (the fake keeps the game's own files apart from a user's, as the vendor
+does), and — the one that matters — a `duplicate` after the build whose clone carries the
+plugin.
 
 ### The live smoke (`pnpm dathost:smoke`)
 
@@ -1333,6 +1353,17 @@ A match still running then is force-ended by the release. Nothing is typed at th
 along the way. This is what the `EZPUG_DATHOST_TESTS` lane runs: `--puppets 4` inside a
 45-minute wall. It proves the refreshed template, the fork and simulation under a GSLT on
 the same one server.
+
+**With the HUD** (`--hud [id]`, PRD-07 T10). The request asks for the HUD (`branding.hud`),
+and after step 7 the run holds the server to what `ezpug_status` says about it: the addon
+is named (the one the flag names, when it names one), the HUD is on for this match, and a
+client who connects now is handed the id. Only a loaded MultiAddonManager can answer that
+last one. `meta list` is asked through the fleet's RCON and read off the vendor's console
+a beat later, as evidence in the summary. With puppets the status is asked again while the
+match is live, until the layouts are in the world. It needs an orchestrator started with
+`EZPUG_IRON_HUD_ADDON`. Production is not, so against `gs.ezpug.com` this flag is a red
+run that says so, and the lane never passes it. `docs/hud.md`, "On Dathost", is how it
+was run.
 
 **The money.** Exactly one server is ever allocated; the release is a `finally`; the run is
 bounded by `--budget-minutes` (default 60, the PRD's one server-hour) and the run's own key

@@ -4,6 +4,7 @@
 //
 //   pnpm dathost:smoke                  the whole smoke against dathost.net
 //   pnpm dathost:smoke --puppets 4      …and a 2v2 of puppets plays it out (PRD-03 T14)
+//   pnpm dathost:smoke --hud            …on an orchestrator that hands servers the HUD's addon (PRD-07 T10)
 //   pnpm dathost:smoke --json           the summary and nothing else
 //   node scripts/dathost-smoke.mjs --help
 //
@@ -41,6 +42,15 @@
 // match on the way — `ezpug_status` is a read, not a nudge. It is what proves
 // the refreshed template, the fork and simulation under a GSLT together, on
 // the same one server-hour.
+//
+// **With `--hud`** (PRD-07 T10) the request asks for the HUD (`branding.hud`)
+// and the run holds the server to what `docs/hud.md` says a clone with the
+// addon's id does: `ezpug_status` names the addon, says the HUD is on for
+// this match and that a client who connects now is handed the id, which only
+// a loaded MultiAddonManager can answer. `meta list` is asked through the
+// fleet's RCON and read off the vendor's console, as evidence beside it. It
+// needs an orchestrator started with `EZPUG_IRON_HUD_ADDON`, which
+// production is not, so this is never the lane's own run.
 //
 // **The money.** A rented server is the only thing in this repo that costs
 // real euros by the minute, so: exactly one is ever allocated, the release is
@@ -98,6 +108,10 @@ const HELP = `dathost-smoke — rent one real Dathost server and give it back (P
   --puppets <n>          roster n puppets (alternate sides; 4 is a 2v2) and
                          ask for simulation; the match is played to its end
   --timescale <n>        simulation.timeScale for the puppets; default 2
+  --hud [id]             ask for the HUD and hold the server to it: the addon
+                         named, on for this match, the id handed to clients
+                         (the orchestrator needs EZPUG_IRON_HUD_ADDON; with
+                         an id, the server has to name that one)
   --budget-minutes <n>   the wall this run may never cross; default 60
   --budget-cents <n>     the run key's monthly ceiling in euro cents; default 500
   --boot-minutes <n>     how long the clone gets to boot and dial in; default 12
@@ -225,6 +239,7 @@ export async function main(options = {}) {
     matchId: null,
     finalState: null,
     puppets: null,
+    hud: null,
     connect: null,
     tv: null,
     status: null,
@@ -338,6 +353,16 @@ export async function main(options = {}) {
   }
   if (flags.has('timescale') && puppets === 0) {
     problems.push('--timescale is the puppets’: pass --puppets')
+    return finish()
+  }
+  /**
+   * The HUD (PRD-07 T10). `--hud` asks for it on the request; `--hud <id>`
+   * also says which Workshop item the server has to name.
+   */
+  const wantHud = flags.has('hud')
+  const hudId = wantHud && flags.get('hud') !== 'true' ? flags.get('hud') : null
+  if (hudId !== null && !/^\d+$/.test(hudId)) {
+    problems.push('--hud takes a Workshop id (digits only), or nothing')
     return finish()
   }
   const deadline = startedAt + budgetMs
@@ -510,7 +535,11 @@ export async function main(options = {}) {
         webhookSecretId: WEBHOOK_SECRET_ID,
       },
       warmupLines: ['Willkommen bei EZPug.', 'Welcome to EZPug.'],
-      branding: { hostname: `EZPug · smoke · ${map}`, eventName: 'dathost-smoke' },
+      branding: {
+        hostname: `EZPug · smoke · ${map}`,
+        eventName: 'dathost-smoke',
+        ...(wantHud && { hud: true }),
+      },
       // The row's own lifetime ceiling: whatever happens to this process, the
       // reaper takes the server back within the hour the PRD allows.
       ttlMinutes: 60,
@@ -569,22 +598,29 @@ export async function main(options = {}) {
     // report into its console buffer as `[status] …` lines, and the fleet's
     // console route asks the plugin for that buffer over the same link. The
     // engine runs the command on its next frame, so the read waits a beat.
-    const status = await api('POST', `/v1/matches/${match.id}/commands`, {
-      correlationId: `${runId}-status`,
-      type: 'rcon',
-      command: 'ezpug_status',
-    })
-    let report = []
-    if (status.status === 'applied') {
+    /** The server's fleet row, for the two operator doors. */
+    const fleetRow = async () =>
+      (await api('GET', '/v1/fleet/servers')).servers.find(server => server.matchId === match.id)
+    /** One `ezpug_status`: the command's answer and the newest report in the plugin's tail. */
+    const askStatus = async name => {
+      const answer = await api('POST', `/v1/matches/${match.id}/commands`, {
+        correlationId: `${runId}-${name}`,
+        type: 'rcon',
+        command: 'ezpug_status',
+      })
+      if (answer.status !== 'applied') return { answer, report: [] }
       await sleep(2_000)
-      const rows = await api('GET', '/v1/fleet/servers')
-      const row = rows.servers.find(server => server.matchId === match.id)
+      const row = await fleetRow()
       const tail = row ? await api('GET', `/v1/fleet/servers/${row.id}/console`) : { lines: [] }
-      report = tail.lines
+      const lines = tail.lines
         .map(entry => entry.line)
         .filter(line => line.startsWith('[status] '))
         .map(line => line.slice('[status] '.length))
+      // The tail keeps every earlier report; the newest starts at its header.
+      const from = lines.findLastIndex(line => line.startsWith('EZPug.Core '))
+      return { answer, report: from < 0 ? lines : lines.slice(from) }
     }
+    const { answer: status, report } = await askStatus('status')
     const output = scrub(report.join('\n'))
     result.status = {
       applied: status.status === 'applied',
@@ -596,6 +632,44 @@ export async function main(options = {}) {
     else if (!output.includes('link:'))
       problems.push('ezpug_status answered, but not with the core plugin’s report')
     step('ezpug_status through the link', `${result.status.lines} line(s)`)
+
+    // ── 7b. The HUD, in the server's own words (PRD-07 T10) ────────────────
+    if (wantHud) {
+      result.hud = { ...hudOf(report), reads: 1, metaList: null }
+      // `meta list` through the fleet's RCON, whose door on Dathost is the
+      // vendor's console: a log, so the answer is read off the backlog a beat
+      // later and not trusted to be in the route's reply. Evidence, not a
+      // gate: what the run holds the server to is the report above.
+      try {
+        const row = await fleetRow()
+        if (row?.serverId) {
+          await api('POST', `/v1/fleet/servers/${row.id}/rcon`, { command: 'meta list' })
+          // The vendor's log trails the game by a few seconds (the first live
+          // run read it after three and found nothing; the line was there
+          // at four).
+          for (let attempt = 0; attempt < 5 && result.hud.metaList === null; attempt++) {
+            await sleep(3_000)
+            const backlog = await vendor(
+              'GET',
+              `/game-servers/${row.serverId}/console?max_lines=500`,
+            )
+            result.hud.metaList = metaListOf(backlog?.lines ?? [])?.map(scrub) ?? null
+          }
+        }
+      } catch (error) {
+        warn(
+          `meta list was not read: ${scrub(error instanceof Error ? error.message : String(error))}`,
+        )
+      }
+      if (result.hud.metaList === null) warn('the console held no answer to `meta list`')
+      problems.push(...hudProblems(result.hud, hudId))
+      step(
+        'the server on its HUD',
+        result.hud.addon
+          ? `addon ${result.hud.addon}, ${result.hud.on ? 'on' : 'off'}, clients handed ${result.hud.handed || 'nothing'}`
+          : 'it says nothing about one',
+      )
+    }
 
     // ── 8. The connect facts and the GOTV relay ────────────────────────────
     // Never the password itself: a summary is a thing people paste.
@@ -627,8 +701,18 @@ export async function main(options = {}) {
           say(`   ${state} → ${latest.state}`)
           state = latest.state
         }
+        // The layouts are made at a map's first round start, which a server
+        // that was only `ready` had not seen: ask again while it plays.
+        if (result.hud?.on && !result.hud.spawned && latest.state === 'live') {
+          const again = await askStatus(`status-${result.hud.reads + 1}`)
+          const seen = hudOf(again.report)
+          if (seen.addon) result.hud = { ...result.hud, ...seen, lines: seen.lines.map(scrub) }
+          result.hud.reads += 1
+        }
       }
       result.finalState = latest.state
+      if (result.hud?.on && result.hud.reads > 1 && !result.hud.spawned)
+        problems.push('the match went live and the HUD’s layouts never reached the world')
       const envelopes = await readLog(api, match.id)
       result.puppets = playedBy(envelopes, { puppets, roster, match: latest })
       if (latest.state !== 'ended')
@@ -779,6 +863,70 @@ function puppetProblems(played, puppets) {
   if (played.unmarked > 0)
     problems.push(`${played.unmarked} fact(s) of a simulated match without \`source.simulated\``)
   return problems
+}
+
+/**
+ * What `ezpug_status` says about the HUD (`StatusReport.cs`): the addon the
+ * server has, whether this match switched it on, whether the layouts are
+ * entities yet, and what MultiAddonManager says a client is handed. A server
+ * with no id prints no `hud:` line at all, and that is `addon: null`.
+ */
+function hudOf(report) {
+  const lines = report.filter(line => line.startsWith('hud:'))
+  const head = /^hud: addon (\d+), (on|off)\b/.exec(
+    lines.find(line => line.startsWith('hud: addon ')) ?? '',
+  )
+  const handed = lines
+    .map(line => /^hud: clients who connect now are handed (.+)$/.exec(line)?.[1])
+    .find(value => value !== undefined)
+  return {
+    addon: head?.[1] ?? null,
+    on: head?.[2] === 'on',
+    spawned: lines.some(line => /^hud: addon \d+, on, \d+ layout\(s\) in the world/.test(line)),
+    handed: handed === undefined ? null : handed === 'no addon' ? '' : handed,
+    lines,
+  }
+}
+
+/** What a server asked for the HUD has to say, as problems. */
+function hudProblems(hud, hudId) {
+  if (!hud.addon)
+    return [
+      'the server says nothing about a HUD: the orchestrator was started without ' +
+        'EZPUG_IRON_HUD_ADDON, or the clone has the id and not MultiAddonManager’s loader file',
+    ]
+  const problems = []
+  if (hudId !== null && hud.addon !== hudId)
+    problems.push(`the server names addon ${hud.addon}, the run asked for ${hudId}`)
+  if (!hud.on) problems.push('the server has the addon and the HUD is off for this match')
+  if (hud.handed === null)
+    problems.push('MultiAddonManager does not answer for its client list: it is not loaded')
+  else if (hud.handed !== hud.addon)
+    problems.push(`clients are handed ${hud.handed || 'no addon'}, not ${hud.addon}`)
+  if (hud.metaList && !hud.metaList.some(line => line.includes('MultiAddonManager')))
+    problems.push('`meta list` answered without MultiAddonManager')
+  return problems
+}
+
+/**
+ * Metamod's newest answer to `meta list` in a console backlog: its
+ * "Listing N plugin(s):" line and the numbered rows under it, or `null`.
+ */
+function metaListOf(lines) {
+  // Dathost stamps every line ("Oct  2 17:22:01:    [01] MultiAddonManager …").
+  const clean = lines.map(line =>
+    String(line)
+      .replace(/^[A-Z][a-z]{2} +\d+ \d\d:\d\d:\d\d: /, '')
+      .trim(),
+  )
+  const from = clean.findLastIndex(line => /Listing \d+ plugins?:/.test(line))
+  if (from < 0) return null
+  const listed = [clean[from]]
+  for (const line of clean.slice(from + 1)) {
+    if (!/^\[\d+\]/.test(line)) break
+    listed.push(line)
+  }
+  return listed
 }
 
 /**

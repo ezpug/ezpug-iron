@@ -67,6 +67,7 @@ interface ImageScript {
   TEMPLATE_ROLE: string
   IMAGE_MANIFEST_PATH: string
   ASLEEP_PLUGIN_LOADER: string
+  SCRATCH_SERVER_NAME: string
   remotePathFor(relativePath: string): string | null
   planFiles(treeDir: string): PlannedFile[]
   templateUserData(): string
@@ -407,6 +408,90 @@ describe('building the template', () => {
     await run(['--tree', tree, '--template', id, '--json'])
     expect(summary().gameinfoPatched).toBeUndefined()
     expect(patched.match(/addons\/metamod/g)).toHaveLength(1)
+  })
+
+  describe('when the game moves under the template (PRD-07 T10)', () => {
+    // The update of 2026-09-30 in miniature: the old file layers the game on
+    // a mod folder the new game no longer ships.
+    const BEFORE =
+      'GameInfo\r\n{\r\n\tLayeredOnMod\tcsgo_imported\r\n\tFileSystem\r\n\t{\r\n\t\tGame_LowViolence\tcsgo_lv\r\n\t\tGame\tcsgo\r\n\t\tGame\tcsgo_imported\r\n\t}\r\n}\r\n'
+    const AFTER =
+      'GameInfo\r\n{\r\n\tFileSystem\r\n\t{\r\n\t\tGame_LowViolence\tcsgo_lv\r\n\t\tGame\tcsgo\r\n\t}\r\n}\r\n'
+    const loaded = (stock: string) =>
+      stock.replace(
+        'Game_LowViolence\tcsgo_lv\r\n',
+        'Game_LowViolence\tcsgo_lv\r\n\t\t\tGame\tcsgo/addons/metamod\r\n',
+      )
+    const scratches = () =>
+      fake.servers().filter(server => server.name === script.SCRATCH_SERVER_NAME)
+
+    it('puts the loader line into the game’s own file, in the file’s own line endings', async () => {
+      fake.setGameFiles({ 'gameinfo.gi': BEFORE })
+      const id = await build()
+      expect(fake.server(id)?.files.get('gameinfo.gi')).toBe(loaded(BEFORE))
+      expect(await run(['--tree', tree, '--template', id, '--check', '--json'])).toBe(0)
+      expect(summary().gameinfo).toBe('current')
+      // The scratch server the check read the game's file off is gone again.
+      expect(scratches()).toEqual([])
+    })
+
+    it('is red once a game update changed the file underneath, and says what to run', async () => {
+      fake.setGameFiles({ 'gameinfo.gi': BEFORE })
+      const id = await build()
+      fake.setGameFiles({ 'gameinfo.gi': AFTER })
+
+      expect(await run(['--tree', tree, '--template', id, '--check', '--json'])).toBe(1)
+      expect(summary().gameinfo).toBe('stale')
+      expect(JSON.stringify(summary().problems)).toContain('pnpm dathost:image')
+      // A check writes nothing to the template: it still carries the old file.
+      expect(fake.server(id)?.files.get('gameinfo.gi')).toBe(loaded(BEFORE))
+      expect(scratches()).toEqual([])
+    })
+
+    it('replaces the file on a refresh, and the next clone boots on today’s game', async () => {
+      fake.setGameFiles({ 'gameinfo.gi': BEFORE })
+      const id = await build()
+      fake.setGameFiles({ 'gameinfo.gi': AFTER })
+
+      expect(await run(['--tree', tree, '--template', id, '--json'])).toBe(0)
+      expect(summary()).toMatchObject({ gameinfoPatched: true, uploads: 0, synced: true })
+      expect(fake.server(id)?.files.get('gameinfo.gi')).toBe(loaded(AFTER))
+      expect(scratches()).toEqual([])
+
+      const clone = (await (await vendor('POST', `/game-servers/${id}/duplicate`)).json()) as {
+        id: string
+      }
+      expect(fake.server(clone.id)?.files.get('gameinfo.gi')).toBe(loaded(AFTER))
+
+      // …and a second refresh has nothing left to do.
+      expect(await run(['--tree', tree, '--template', id, '--json'])).toBe(0)
+      expect(summary().gameinfoPatched).toBeUndefined()
+      expect(await run(['--tree', tree, '--template', id, '--check', '--json'])).toBe(0)
+    })
+
+    it('creates nothing in a dry run, and says the file was not compared', async () => {
+      fake.setGameFiles({ 'gameinfo.gi': BEFORE })
+      const id = await build()
+      fake.setGameFiles({ 'gameinfo.gi': AFTER })
+      const before = fake.calls.length
+
+      expect(await run(['--tree', tree, '--template', id, '--dry-run', '--json'])).toBe(0)
+      expect(summary().gameinfo).toBe('not compared')
+      expect(fake.calls.slice(before).every(call => call.startsWith('GET '))).toBe(true)
+    })
+
+    it('creates the scratch server, reads it and deletes it, and never starts it', async () => {
+      fake.setGameFiles({ 'gameinfo.gi': BEFORE })
+      const id = await build()
+      const before = fake.calls.length
+      await run(['--tree', tree, '--template', id, '--check', '--json'])
+      const calls = fake.calls.slice(before)
+      // Created, read, deleted, and never started.
+      expect(calls).toContain('POST /api/0.1/game-servers')
+      expect(calls.some(call => call.startsWith('DELETE /api/0.1/game-servers/'))).toBe(true)
+      expect(calls.some(call => call.endsWith('/start'))).toBe(false)
+      expect(fake.servers().map(server => server.id)).toEqual([id])
+    })
   })
 
   it('backs off a 429 and finishes the upload', async () => {

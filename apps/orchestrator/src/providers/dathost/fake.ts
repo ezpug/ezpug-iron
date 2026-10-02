@@ -85,8 +85,10 @@ interface FakeFile {
 interface FakeServerRecord {
   /** The JSON body every server route hands out, mutated in place. */
   server: Record<string, unknown>
-  /** What is on the box. */
+  /** What is on the box: the files a user put there, over the game's own. */
   files: Map<string, FakeFile>
+  /** Paths the user deleted. A deleted game file stays gone: the game's own does not come back (seen live 2026-10-02). */
+  deleted: Set<string>
   /** What the API cached — what `duplicate` copies (`sync-files` refreshes it). */
   cache: Map<string, FakeFile>
   /** The console backlog, oldest first. */
@@ -127,6 +129,14 @@ export interface FakeDathost {
   server: (id: string) => FakeDathostServerView | undefined
   /** Write a line into a server's console backlog, as the game would. */
   say: (id: string, line: string) => void
+  /**
+   * **The game's own files**, the same on every server and replaced by a game
+   * update on the vendor's side (`gameinfo.gi`). A server shows them wherever
+   * a user's file of the same path does not stand in front, a listing hides
+   * them under `hide_default_files`, and `duplicate` never copies them: a
+   * clone gets the game as it is that day. Empty until a test calls this.
+   */
+  setGameFiles: (files: Record<string, string>) => void
 }
 
 export interface FakeDathostListener {
@@ -299,6 +309,9 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     }
   }
 
+  /** The game's own files (`setGameFiles`): every server's, under whatever a user uploaded. */
+  let gameFiles = new Map<string, FakeFile>()
+
   const copyFiles = (from: Map<string, FakeFile>): Map<string, FakeFile> =>
     new Map(Array.from(from, ([path, file]) => [path, { content: file.content.slice() }]))
 
@@ -381,7 +394,13 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     const server = blank(id, name, game, form.get('location') ?? defaultLocation)
     applyForm(server, form)
     server.id = id
-    servers.set(id, { server, files: new Map(), cache: new Map(), console: [] })
+    servers.set(id, {
+      server,
+      files: new Map(),
+      deleted: new Set(),
+      cache: new Map(),
+      console: [],
+    })
     return c.json(server)
   })
 
@@ -441,7 +460,13 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     // The caveat, modelled: a clone gets the API's **cached** files, not
     // whatever is on the source box right now.
     const files = copyFiles(source.cache)
-    servers.set(cloneId, { server, files, cache: copyFiles(files), console: [] })
+    servers.set(cloneId, {
+      server,
+      files,
+      deleted: new Set(source.deleted),
+      cache: copyFiles(files),
+      console: [],
+    })
     return c.json(server)
   })
 
@@ -499,8 +524,13 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     const record = find(id)
     if (!record) return bare(404)
     const root = c.req.query('path') ?? ''
+    // "If true, only files added by the user will be shown, default is all files."
+    const visible = new Map(record.files)
+    if (c.req.query('hide_default_files') !== 'true')
+      for (const [path, file] of gameFiles)
+        if (!visible.has(path) && !record.deleted.has(path)) visible.set(path, file)
     return c.json(
-      Array.from(record.files, ([path, file]) => ({ path, size: file.content.byteLength })).filter(
+      Array.from(visible, ([path, file]) => ({ path, size: file.content.byteLength })).filter(
         entry => entry.path.startsWith(root),
       ),
     )
@@ -511,7 +541,8 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     const record = find(id)
     if (!record) return bare(404)
     const path = c.req.param('path')
-    const file = record.files.get(path)
+    const file =
+      record.files.get(path) ?? (record.deleted.has(path) ? undefined : gameFiles.get(path))
     if (!file) return bare(404)
     return new Response(file.content.slice(), {
       status: 200,
@@ -536,6 +567,21 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
         : encoder.encode(typeof file === 'string' ? file : '')
     if (content.byteLength > UPLOAD_LIMIT_BYTES) return bare(507)
     record.files.set(path, { content })
+    record.deleted.delete(path)
+    return bare(200)
+  })
+
+  // Not in the vendor's OpenAPI and answered all the same (seen live
+  // 2026-10-02): the file goes, and so does the game's own under it. A
+  // `GET` of a deleted `gameinfo.gi` is a 404, not the stock file.
+  app.delete('/game-servers/:id/files/:path{.+}', c => {
+    const id = c.req.param('id')
+    const record = find(id)
+    if (!record) return bare(404)
+    const path = c.req.param('path')
+    if (!record.files.has(path) && !gameFiles.has(path)) return bare(404)
+    record.files.delete(path)
+    record.deleted.add(path)
     return bare(200)
   })
 
@@ -593,6 +639,14 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     },
     say(id, line) {
       servers.get(id)?.console.push(line)
+    },
+    setGameFiles(files) {
+      gameFiles = new Map(
+        Object.entries(files).map(([path, content]) => [
+          path,
+          { content: encoder.encode(content) },
+        ]),
+      )
     },
     async listen(listenOptions = {}) {
       const { serve } = await import('@hono/node-server')
