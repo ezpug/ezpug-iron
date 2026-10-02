@@ -21,6 +21,10 @@ gamemodes, the node agent and the server image.
 - `apps/node` — `ezpug-node`, turns a docker host into capacity.
 - `apps/cli` — `ezpug-iron`, an operator's terminal over the Match API and nothing else.
 - `plugins/` — `EZPug.Sdk`, the core plugin, gamemodes and pinned vendored plugins.
+- `hud/` — `@ezpug/hud`, the in-game HUD's client half: the Panorama layouts, styles and
+  pictures of a Workshop addon, compiled under Wine on this box into the committed
+  `hud/dist/`, and published to Steam (`docs/hud.md`, which also holds the switches that
+  turn it off and the look list).
 - `gamemode-kit/` — the toolchain for a gamemode's phone widget: the runtime a widget is written on, the Vite preset that builds `gamemodes/<id>/widget/` into one bundle, and a dev harness against the fake (`pnpm --filter @ezpug/gamemodes exec ezpug-widget dev powerup-dm`; `docs/gamemodes.md` "Building a widget").
 - `docs/decisions.md` — why things are the way they are. Start there.
 - `docs/match-api.md` — the contract, written to be read instead of the code.

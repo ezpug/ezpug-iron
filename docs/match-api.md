@@ -503,6 +503,15 @@ the `announce` only when the command itself is refused. One such case is worth k
 server whose plugin predates `moment` cannot read the frame and does not answer, so the
 call resolves `rejected` with `provider_unavailable` after fifteen seconds.
 
+**Turning it off.** For the next match, leave `branding.hud` out. For one match that is
+running, an admin's `rcon` command `mm_client_extra_addons ""` stops the server handing the
+addon to anybody who connects from then on, which is the way in for a player stuck in a
+loading screen while the addon will not download. It needs no Workshop id, answers
+`output: ""`, and is harmless to repeat; `mm_client_extra_addons` read after it answers
+`mm_client_extra_addons = ` with nothing after the sign. A server that never had the addon
+answers `Unknown command`. Players who already have the addon go on seeing the HUD until
+the match is released. `docs/hud.md`, "The three switches", has the other two.
+
 **Keys.** A picture in a HUD was compiled into the addon before the match, so a client
 names one by key. `HUD_BANNER_KEYS` and `HUD_ART_KEYS` are every key the addon ships,
 generated from the addon's own folders (`pnpm hud:keys`), for a picker. They are not what

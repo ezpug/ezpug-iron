@@ -33,6 +33,7 @@ Ports and every setting are decided in `.env.example` and nowhere else. Every na
 | `EZPUG_IRON_PUBLIC_URL` | — | the same value under the name the dev contract below uses; it wins over `EZPUG_IRON_BASE_URL` when both are set |
 | `EZPUG_IRON_HOST` / `EZPUG_IRON_PORT` | `127.0.0.1` / `3430` | where the process binds; the container sets `0.0.0.0` and compose publishes |
 | `EZPUG_IRON_PROVIDERS` | `sim` | the providers to register, comma-separated (`sim`, `dathost`, `nodes`; T3/T4/T12/T16) |
+| `EZPUG_IRON_HUD_ADDON` | — | the HUD's Workshop id, handed to every server started afterwards (`docs/hud.md`, "The three switches"). **Unset in production** until the owner has walked the HUD's look list; anything but digits stops the boot |
 | `EZPUG_IRON_DEPLOYMENT` | `ezpug` | which deployment this process is: the stamp on every ledger row and the Dathost `user_data` tag (below) |
 | `EZPUG_IRON_DATABASE_URL` | — | `postgres://…`; `EZPUG_IRON_TEST_DATABASE_URL` is the Vitest database beside it |
 | `EZPUG_IRON_DATABASE_POOL_MAX`, `…_IDLE_TIMEOUT`, `…_CONNECT_TIMEOUT`, `…_STATEMENT_TIMEOUT`, `…_LOG` | `10`, `30`, `10`, `15000`, `false` | pool tuning; the statement timeout is what keeps a runaway query from wedging the pool. Against the **test** database the pool and connect defaults are `5` and `5` instead — a dozen Vitest workers share one `max_connections` (T37c, T39a) — and either target takes an explicit setting |
@@ -176,7 +177,8 @@ has shipped from either of two signs: a Dathost server boots a newer version tha
 node, or the orchestrator logs MatchZy's `cs2_update_required` as a warn. `pnpm cs2:status`
 names the installed build (`steam.inf`'s `PatchVersion`). Steam's `public` branch is what
 a Dathost server updates to, and an up-to-date `pnpm cs2:install` lands on the same build.
-The gap matters: on 2026-09-23 the volume was on 1.41.7.8 and production on a build that
+A server with the HUD's addon has a drill of its own after an update, in order
+(`docs/hud.md`, "The drill after a CS2 update"). The gap matters: on 2026-09-23 the volume was on 1.41.7.8 and production on a build that
 writes demos somewhere else (below, "Where the file lands"). After T11a brought it to
 1.41.8.2, the dev node wrote them where Dathost does.
 
@@ -1082,6 +1084,11 @@ go down the **link** instead: a plugin can run a command but cannot capture the 
 answer, so it applies the line and answers with nothing. A simulated server refuses with
 `command_unsupported`, which is what the route's contract promises. An unreachable door is
 `provider_unavailable`; a row the ledger has closed is `invalid_state`.
+
+One preset an operator should know: on a server with the HUD's addon,
+`mm_client_extra_addons ""` stops handing the addon to anybody who connects from then on,
+which is how a player stuck in a loading screen gets in. It answers nothing; read
+`mm_client_extra_addons` after it (`docs/hud.md`, "The three switches").
 
 The whole point of RCON here is that it is the *fallback* (decision 5). A server's real
 relationship with this process is its link; RCON is for a human and for the moment before

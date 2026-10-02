@@ -421,7 +421,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > plugins on the game a rented server runs; and nothing in the orchestrator notices a
   > template whose clones cannot boot (the provider's health stays green, each match
   > fails after three minutes).
-- [ ] **T11 (effort: medium): the books and the look list.** `docs/hud.md`: what each of
+- [x] **T11 (effort: medium): the books and the look list.** `docs/hud.md`: what each of
   the three switches stops and how fast (the request's `hud`, `EZPUG_HUD_ADDON`, and
   `mm_remove_client_addon` on a live server as an RCON preset the platform can offer), the
   drill after a CS2 update (what to check before an evening, in what order), how to rebuild,
@@ -432,6 +432,32 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   after the cache). `docs/pins.md`, `docs/operations.md`, `docs/match-api.md`, the README's
   map of the repo. `/root/ezpug/references/cs2-custom-hud.md` is the platform's file; send
   corrections to it in the closing note rather than editing it.
+  > note (T11, 2026-10-02): **the third switch needs no id.** `mm_client_extra_addons ""`
+  > empties MultiAddonManager's client list through the cvar's own callback (measured on
+  > the dev container: a later `mm_add_client_addon` raises no "already in the list"), so
+  > the platform's preset can be one fixed line. On a live puppeted match with the HUD on,
+  > through the fleet's RCON route: the line answers `""`, the list reads back empty in the
+  > same second, `ezpug_status` says "handed no addon" with the layouts still in the world,
+  > a repeat is harmless, and the match went on to `completed`. It stops the handing out,
+  > not the drawing: nothing typed into a live server takes a layout off a screen.
+  > The second switch leaves a node's **warm** containers with the id they booted with;
+  > `docs/hud.md` says to kill those rows by hand (a deallocation tops the pool up).
+  > The look list's setup is one Dathost match from production's orchestrator with the id
+  > set for its length, because a client needs a GSLT and the dev orchestrator has none:
+  > the owner's call, written as steps, not taken.
+  > **For the closing note, corrections to `/root/ezpug/references/cs2-custom-hud.md`:**
+  > the iron pins CounterStrikeSharp 1.0.376 (not 1.0.375) and has both halves now
+  > (MultiAddonManager 1.6.2 asleep, Workshop item 3811574606); the addon is 8.4 MB, not
+  > "a megabyte or two", because a picture in a custom HUD has to be uncompressed; Wine
+  > *does* run the compiler headless, with the seven changes in `docs/hud.md`, "What Wine
+  > needed"; "animation is CSS `@keyframes` started by a class" contradicts its own gotcha
+  > (transitions on a class, keyframes on opacity only); Valve's compiler validates no
+  > CSS; `mm_block_disconnect_messages` suppresses the `player_disconnect` event, not just
+  > the chat line; MultiAddonManager loaded late with `meta load` crashed 5 boots in 6;
+  > CounterStrikeSharp's `NetworkedVector` cannot read the entity's string tables; an
+  > unlisted item is fetchable anonymously by id, and Steam serves a new revision about
+  > 47 minutes late; "a changed layout means rejoining" (the note) and "needs the client
+  > restarted" (this PRD) disagree, and only the look list can settle it.
 - [ ] **T12 (effort: medium): PRD-06 T5.** The manifests in the platform's voice, as
   `ralph/PRD-06-rush.md:164` describes it; tick it there too.
 

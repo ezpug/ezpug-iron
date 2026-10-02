@@ -6,12 +6,131 @@ server sets. The layout reaches a client as a **Workshop addon**, so the HUD has
 client half, and this repo builds and publishes it. `ralph/PRD-07-hud.md` is the round
 that made it; its Findings are the reading list.
 
-This page covers the client half (where the sources are, how they become the addon, and
-how the addon reaches Steam) and the server half: MultiAddonManager, which hands the
-addon to a client, and the SDK's `Hud`, which draws. What the HUD is for and what it may
-never do is decision 34 in `docs/decisions.md`. The two layouts, the welcome and the
-moment, are at the end of the server half; the three switches written out for an operator
-and the look list come with the round's last tasks.
+This page starts with what an operator needs on an evening: the three switches that turn
+the HUD off, and the drill after a CS2 update. Then it covers the client half (where the
+sources are, how they become the addon, and how the addon reaches Steam) and the server
+half: MultiAddonManager, which hands the addon to a client, and the SDK's `Hud`, which
+draws. What the HUD is for and what it may never do is decision 34 in
+`docs/decisions.md`. The two layouts, the welcome and the moment, are at the end of the
+server half. **The look list**, at the end, is what no test has seen: the steps for one
+person with a real client.
+
+**Today it is off everywhere.** Production's orchestrator has no `EZPUG_IRON_HUD_ADDON`, so
+no server it starts loads MultiAddonManager, and the platform sends no `branding.hud`. It
+stays that way until the owner has walked the look list.
+
+## The three switches
+
+Any one of them is enough to keep the HUD off. Each is a different person's hand:
+
+| Switch | Whose | What it stops | How fast | What it leaves |
+| ------ | ----- | ------------- | -------- | -------------- |
+| `branding.hud` on the request (`false` unless said) | the platform | the HUD for that match: no `mm_add_client_addon`, no layout, no card, no toast | the next match created without it | a match already running keeps what its request said until it is released. Its moments are still said in chat |
+| `EZPUG_IRON_HUD_ADDON` on the orchestrator (unset in production) | an operator | MultiAddonManager on every server started afterwards: not loaded, nothing handed to anybody, the `hello` as before the HUD | the orchestrator's restart (`./scripts/deploy.sh up`, seconds), then each new server | servers already running keep the id they booted with until they are released. That includes **warm containers on a node**, which a later match would claim with the id still set (below) |
+| `mm_client_extra_addons ""` on one live server | an admin, from the platform's RCON panel | handing the addon to anybody who connects to that server from now on | at once: the list is empty in the same RCON call | everybody who already has the addon keeps drawing it until the match is released. The plugin still draws for them |
+
+**The first switch** is the platform's own (`docs/match-api.md`, "The HUD, from a client's
+side"). It is the normal way to turn the HUD off for an evening, because it needs nobody on
+this box.
+
+**The second switch.** To turn it off in production, remove `EZPUG_IRON_HUD_ADDON` from
+`.env.production` and run `./scripts/deploy.sh up`. That restarts the orchestrator, and
+every server it starts from then on is a server without the HUD. Two kinds of server stay
+as they were:
+
+- A match that is running keeps its server and its HUD to the end.
+- A node's warm container booted with the orchestrator's value at the time and keeps it
+  until it is claimed or reaches its seven-day ceiling (`WARM_TTL_MS`). To be sure, close
+  each warm row by hand: `pnpm iron servers list` shows them (provider `nodes`, no
+  match), and `pnpm iron servers kill <serverId> --reason 'HUD off'` stops the container.
+  The pool then warms a new one with the orchestrator's value of now.
+
+A Dathost clone is made per match, so the next one has no `.vdf` and no `hudAddon`.
+
+**The third switch** is for one server, while a match is on it. The usual reason is somebody
+stuck in their loading screen because the addon will not download ("When the download
+cannot finish", below). It is one console line, and it needs no Workshop id:
+
+```
+mm_client_extra_addons ""
+```
+
+It empties MultiAddonManager's client list, so the next connection attempt of anybody,
+including the stuck player's retry, is told to mount nothing and gets in. The platform can
+offer it as a preset on its RCON shelf (`packages/contracts/src/rcon-presets.ts` in the
+platform): it goes through the match's `rcon` command (`docs/match-api.md`), and from this
+box it is `pnpm iron matches command <matchId> rcon --command 'mm_client_extra_addons ""'`.
+
+Measured on 2026-10-02 on the dev node (CS2 1.41.8.2, MultiAddonManager 1.6.2), through
+`POST /v1/fleet/servers/:id/rcon` on a puppeted match with the HUD on, and on the dev
+container with the id set:
+
+| Line | Answer |
+| ---- | ------ |
+| `mm_client_extra_addons` | `mm_client_extra_addons = 3811574606` |
+| `mm_client_extra_addons ""` | nothing (`""`) |
+| `mm_client_extra_addons` | `mm_client_extra_addons = ` (empty) |
+| `ezpug_status` | `hud: clients who connect now are handed no addon`, and still `hud: addon 3811574606, on, 2 layout(s) in the world` |
+| `mm_add_client_addon 3811574606` | nothing; the list holds the id again, so the switch can be undone |
+| `mm_add_client_addon 3811574606`, again | `[MultiAddonManager] Addon 3811574606 is already in the list!` |
+
+So **the line itself answers nothing**: a preset should read `mm_client_extra_addons` back
+after it and show that answer. `mm_remove_client_addon 3811574606` does the same, but
+needs the id. Both are harmless to repeat. On a server without MultiAddonManager either
+answers `Unknown command`, which is also harmless. At the release, the plugin's own
+`mm_remove_client_addon` finds nothing to remove, and the puppeted match above went on to
+`completed` with its ledger row closed.
+
+What the third switch does **not** do: take a layout off a screen that already draws it.
+Nothing typed into a live server does that. The match's release does, and the next match's
+request decides again. That is acceptable because everything on the HUD is also said in
+chat, and a card only ever plays while nobody is playing.
+
+## The drill after a CS2 update
+
+Valve ships, Dathost updates its servers within hours, and the dev node does not move
+until somebody runs `pnpm cs2:install`. MultiAddonManager has broken on a CS2 update
+before (client addons stopped arriving after 1.41.8.x until its 1.6.1), and so has the
+template's `gameinfo.gi` (2026-09-30, `docs/operations.md`, "The template server"). Before
+an evening that uses the HUD, in this order:
+
+1. **The rented side boots at all.** `pnpm dathost:image --check`. If it is red, run
+   `pnpm dathost:image` before anything else: a template whose clones cannot boot fails
+   every Dathost match after a three-minute deadline, with or without the HUD, and nothing
+   in the orchestrator's health notices.
+2. **The dev node is on the same game.** `pnpm cs2:status` names the installed build. If it
+   trails what Dathost boots, run `pnpm cs2:install` with the lane free. Until then the lane
+   proves the plugins on a game production no longer runs.
+3. **The plugins load.** The lane's `retakes` row first: it is the canary for a CS2 update
+   that outran CounterStrikeSharp (exit 139 is a segfault). Then `hud-off` from the matrix,
+   then `hud-on` inside a hold of the lane ("The lane, both ways", below). `hud-on` is the
+   one that says MultiAddonManager loaded and holds the id.
+4. **MultiAddonManager upstream.** Read its releases and open issues for the build. A new
+   release is a pin bump (`docs/pins.md`: version and sha-256 in `docker/cs2/Dockerfile`,
+   `node scripts/check-pins.mjs`, part of `pnpm lint`), a rebuilt image, and step 1 again.
+5. **The addon on a client.** Whether a client still downloads and draws the addon is a
+   person's to see: the look list's first two steps, on one server, before the evening.
+6. **If anything above is red or nobody could look:** leave the HUD off for the evening
+   (the platform's switch, or the second switch). A match without it loses nothing it needs.
+
+The addon itself does not have to be rebuilt after an update unless step 5 shows it broken.
+Then: `pnpm hud:build --tools` (new depots), `pnpm hud:build`, commit, `pnpm hud:publish`,
+and wait for the check ("Changing it", below).
+
+## Changing it
+
+| To | Do |
+| -- | -- |
+| change a layout, a stylesheet or a picture | edit `hud/`, then `pnpm hud:build` (about a minute and a half), commit `hud/` with `hud/dist/`, then `pnpm hud:publish` from the clean tree |
+| add a banner | `pnpm hud:banner <key> <file>` ("The pictures a client asks for by key"), then the same build, commit and publish, **and** a release of `@ezpug/match-api` for the new key in `HUD_BANNER_KEYS` |
+| republish without a change | `pnpm hud:publish` refuses nothing for that, but Steam serves the revision before for most of an hour |
+| know the republish is live | `node hud/src/cli.ts check 3811574606` until it prints the "byte for byte" line ("What happened on 2026-10-02") |
+| fetch new compiler depots | `pnpm hud:build --tools` |
+| delete what the compiler needs | "Deleting it", at the end |
+
+**A changed layout needs every player's client restarted.** A client that mounted the
+revision before keeps it until the game restarts, and a server driving the new layout's
+names draws nothing there. Publish before an evening, not during one.
 
 ## The sources
 
@@ -441,10 +560,11 @@ attempt. So:
   Each retry after the first 30 s is kicked with the line above, and the one after that
   starts over with the same download. **No retry gets in while the id is on the client
   list.**
-- `mm_addon_connection_timeout 0` removes the kick but not the loop. Taking the id off
-  the list (`mm_remove_client_addon <id>`, effective from the player's next attempt,
-  because the list is rebuilt for every attempt) or starting the server without
-  `EZPUG_HUD_ADDON` are the ways out. A player who retries never gets in on their own.
+- `mm_addon_connection_timeout 0` removes the kick but not the loop. Emptying the list
+  (the third switch, `mm_client_extra_addons ""`, or `mm_remove_client_addon <id>`,
+  effective from the player's next attempt, because the list is rebuilt for every
+  attempt) or starting the server without `EZPUG_HUD_ADDON` are the ways out. A player
+  who retries never gets in on their own.
 
 ## Drawing it: the plugin's half
 
@@ -766,11 +886,117 @@ the account is retired: deleting it means a human logs in again. Never
 `docker volume prune`: it would take the node's game install and the databases' volumes
 with it.
 
-## Open on purpose
+## The look list
 
-These are questions only a real client can answer:
+Everything above that a machine could check has been checked: the compile, the pack, the
+anonymous download, the entities and their state, the timing on a fake clock, the switches.
+**Nobody has seen any of it on a screen or heard it.** These steps are for one person with
+a real CS2 client, about an hour, and the HUD stays off in production until they are done.
+Write down what you saw at each step, with a screenshot where it says so, and change the
+code or the stylesheet for anything that is wrong before turning the HUD on.
 
-- whether a retail client mounts Panorama from a **packed** Workshop VPK.
-  `PanoramaLayout`'s retest notes report a "hard stop" for packed VPKs on 2026-08-26, and
-  cs2-ui-kit ships its addon that way on 2026-09-23;
-- whether a client wants a signature section in an addon VPK.
+### Setting it up
+
+The look needs a server a client can reach from the internet with a GSLT, which the dev
+node and the dev orchestrator do not have (a server without one takes LAN connections
+only). So it is one Dathost match from production's orchestrator, which is the owner's
+call to make:
+
+1. Check `node hud/src/cli.ts check 3811574606` prints the "byte for byte" line, so the
+   item serves what `hud/dist/` holds.
+2. Put `EZPUG_IRON_HUD_ADDON=3811574606` in `.env.production` and run
+   `./scripts/deploy.sh up`. The platform still sends no `branding.hud`, so its own
+   matches stay without a HUD; their servers load MultiAddonManager and hand out nothing.
+3. Create one match with an admin key (`pnpm iron matches create --file look.json
+   --simulate`, "A puppet match, to show somebody" in `docs/operations.md`), a `pug` 2v2
+   on `{ "provider": "dathost" }` with:
+   - `branding: { "hud": true, "eventName": "…", "tagline": "…" }`;
+   - your own SteamID on the roster with `"locale": "de"`, three made-up entries beside
+     you, and `simulation.puppets` naming those three, so you are the one human;
+   - `rules.warmup.autoReady: false`, so the warmup waits for your `.ready` and you have
+     time to look around.
+4. Join from the address `matches get` prints. Send the moments below with
+   `pnpm iron matches command <matchId> moment --kind drop --tier rare --steam-id <yours>
+   --art <key> --text '{"de":{"everyone":"…","you":"…"},"en":{"everyone":"…","you":"…"}}'`
+   (leave out `--steam-id` and `you` for a moment about nobody).
+5. When done: `force_end` the match, take `EZPUG_IRON_HUD_ADDON` out of `.env.production`,
+   `./scripts/deploy.sh up` again, and check `pnpm iron servers list` holds nothing of it.
+
+Restart your game before step 4 if it was running when the addon was last published.
+
+### What to look at
+
+1. **The first join.** Time it from "connect" to standing in the map, and do the same on a
+   server without the HUD. Expected: a longer loading screen, a download of about 8 MB,
+   and one reconnect, which everybody else sees as you leaving and joining ("left the
+   game", because `mm_block_disconnect_messages` is `0`). Write down the seconds it adds
+   and whether you were kicked with "Required Workshop addon download was not accepted in
+   time" (30 s). This step also answers two questions no document settles: whether a
+   retail client mounts Panorama from a **packed** Workshop VPK (`PanoramaLayout`'s retest
+   notes report a "hard stop" for packed VPKs on 2026-08-26, cs2-ui-kit ships its addon
+   packed on 2026-09-23), and whether it wants a signature section in the VPK. If nothing
+   is drawn in the next step, these are the first suspects.
+2. **The welcome, at 16:9.** Expected, two seconds after you are in: a card sliding in at
+   the right edge below the kill feed, with the house banner (the two mascots and the
+   chicken), "Willkommen bei" and the event's name, the tagline, your team line, what to do
+   next and `ezpug.com`, in German. After eight seconds it shrinks into a small mark. No
+   centre card at the same time. Screenshot both. If it appears **without sliding**, the
+   `transition:` shorthand is the first thing to change to the longhands the moment uses.
+3. **The welcome, at 4:3**, and in English: change the resolution, set the roster entry's
+   `locale` to `en` on a second match (or reconnect after a `profile` command). Screenshot.
+4. **The welcome steps aside.** Open the buy menu and the scoreboard while the card or the
+   mark is up: the whole layout fades. Watch the team intro and the end of warmup: the mark
+   is gone at the first live round start.
+5. **The toasts.** Send four moments at once with `inMs` 0, one per tier (`common`,
+   `uncommon`, `rare`, `legendary`), one with a line near 120 characters. Expected: three
+   strips at the right edge under the kill feed, the fourth after the first goes (six
+   seconds each), a tier bar in muted bone, ivory, cobalt and magenta. Screenshot. Then
+   one during a round with kills: the strips must not cover the kill feed.
+6. **A toast over the welcome.** Reconnect and send a moment within eight seconds of
+   joining: a strip lies over the welcome's card until it shrinks. Decide whether that is
+   acceptable.
+7. **The card.** Send a moment about yourself (`steamId64` yours, `art: "category-skin"`
+   or another key in `HUD_ART_KEYS`) during warmup. Expected: at the left edge between the
+   radar and the chat, face down with the cast's picture, turning over after one second
+   (two scale transitions) to the picture and your own line, gone after six seconds. Do it
+   at 16:9 and 4:3, with a long `you` line (cut with an ellipsis after about five lines),
+   and with an art key the addon does not have (the empty sleeve). Screenshot each.
+8. **The sound.** At the turn you should hear the game's own item-reveal sound
+   (`EndMatch.ItemRevealSingleLocalPlayer`), louder with the tier (0.4 to 1.0). Write down
+   whether the four tiers sound different at all: whether the volume argument scales the
+   event or replaces its own 0.2 is unknown.
+9. **The card waits for a quiet stretch.** Send a moment about yourself with a round
+   being played: you should get the strip now and the card at the round's end or the next
+   freeze. Send one during a freeze with a few seconds left: the card must vanish the
+   instant the freeze ends (a 0.12 s fade). Open the buy menu during a card: it fades.
+10. **The card at the end of the match.** Send one due as the last round ends: the game's
+    own end screen covers it, which is expected. Note whether anything of it shows.
+11. **A spectator.** Die, and watch a team-mate while a moment about them plays: you
+    should see their card (the moment's layout is `observable`). Then have a moment about
+    *you* play while you are dead and watching somebody: write down whose version you see.
+12. **The map change.** In a `pug`, MatchZy loads the match's map after the lobby. After
+    the change the welcome's strings and a new moment must still draw (the layouts are
+    made again on the new map, `Hud.OnMapStarted`).
+13. **A second join, after the cache.** Disconnect and reconnect to the same server:
+    expected, no download and no extra reconnect (`mm_cache_clients_with_addons 1`).
+    Then join the next match's server with the addon already on disk: write down whether
+    there is still a reconnect.
+14. **The third switch.** With the match running, have somebody type
+    `mm_client_extra_addons ""` from the platform's RCON panel (or
+    `pnpm iron matches command <matchId> rcon --command 'mm_client_extra_addons ""'`), then
+    reconnect: expected, no download handshake, and the HUD you already have keeps
+    drawing.
+15. **A demo and GOTV.** Watch the match on its GOTV relay and play its demo back: write
+    down whether a toast or a card shows there, and whose.
+16. **A mode's own toast.** No shipped mode calls `Gamemode.Toast` yet, so this waits for
+    the first mode that does. It uses the moment's three rows, untinted.
+
+### Not for a client, but open
+
+- **The Workshop item's page**, in a browser logged in as the account: set the preview to
+  `hud/images/cast/hello.png` (SteamCMD cannot) and check visibility says *Unlisted*.
+- **After every republish**, `node hud/src/cli.ts check 3811574606` until it prints the
+  "byte for byte" line; Steam served the revision before for 47 minutes the last time.
+- **The `hud-on` row is the drill after a CS2 update** ("The drill after a CS2 update").
+- **The dev trace** (`.cache/trace/dev.ndjson`, about 1.5 GB) grows with every lane run
+  and nothing rotates it.
