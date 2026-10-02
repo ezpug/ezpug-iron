@@ -255,7 +255,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > the timing rule, the toast, the card. `kind` is an open kebab name (`MOMENT_KINDS` lists
   > the three a server dresses), `tier` is closed, and the assignment's branding never carries
   > `hud` (it is the frame's own word, set only when the request says `true`).
-- [ ] **T5: the welcome.** One layout, shown to a person who joins while nobody is
+- [x] **T5: the welcome.** One layout, shown to a person who joins while nobody is
   playing: a mascot, the event's name and tagline (or EZPug's own), the team they play for,
   the one thing to do (`Branding.WhatToDo`, `Branding.cs:224-231`), `ezpug.com`. In the
   player's language, from the roster's locale, with the words in the SDK's resx pair. It
@@ -266,6 +266,14 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   `packages/ui/src/cast.ts` names the keys): the same two characters and the chicken, never
   a new design. A banner is a picture with a key (`hud/banners/<key>.png`, a `default` that
   is the house one), and `pnpm hud:banner <key> <file>` adds one at the right size.
+  > note (T5, 2026-10-02): the welcome replaces T1's hello panel in the addon
+  > (`ezpug_welcome.xml` + `ezpug_welcome.css` + the generated `ezpug_banners.css`; the
+  > cast's `hello.png` stays as the mark's mascot). **Valve's compiler validates no CSS**: a
+  > stylesheet with `bogus-property`, `box-shadow: none` and a comma selector compiled `OK`,
+  > so `hud/test/addon.test.ts` holds every property to a hand-checked list and forbids comma
+  > selectors. T7 adds its properties there after looking them up. A banner is a class on
+  > `#welcome` (`banner-<key>`), and a key the addon lacks has no rule, so the client draws
+  > the house banner without the plugin knowing the list.
 - [ ] **T6 (fable): the moment.** `moment` handled in the runtime. The chat line always,
   through the brand's prefix, so a player without the addon loses nothing. Then, when the
   HUD is on: a slim toast for everybody (who, what, tinted by tier), and for the person it

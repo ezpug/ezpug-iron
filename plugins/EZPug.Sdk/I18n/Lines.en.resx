@@ -61,6 +61,12 @@
   <data name="branding.card.enjoy" xml:space="preserve">
     <value>Have fun.</value>
   </data>
+  <data name="hud.welcome.eyebrow" xml:space="preserve">
+    <value>Welcome to</value>
+  </data>
+  <data name="hud.welcome.tagline" xml:space="preserve">
+    <value>PUGs for the SaarLAN community</value>
+  </data>
   <data name="length.ended.time_limit" xml:space="preserve">
     <value>Time is up – the match is over.</value>
   </data>

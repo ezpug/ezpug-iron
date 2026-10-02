@@ -12,23 +12,30 @@ const styles = readdirSync(join(HUD, 'styles')).map(f => `styles/${f}`)
 describe('the addon mapping', () => {
   it('puts every source where the game and the server look for it', () => {
     const byPath = Object.fromEntries(sources(HUD).map(s => [s.source, s]))
-    expect(byPath['layout/ezpug_hello.xml']?.addonPath).toBe(
-      'panorama/layout/custom_game/ezpug_hello.xml',
+    expect(byPath['layout/ezpug_welcome.xml']?.addonPath).toBe(
+      'panorama/layout/custom_game/ezpug_welcome.xml',
     )
-    expect(byPath['styles/ezpug_hello.css']?.addonPath).toBe(
-      'panorama/styles/custom_game/ezpug_hello.css',
+    expect(byPath['styles/ezpug_welcome.css']?.addonPath).toBe(
+      'panorama/styles/custom_game/ezpug_welcome.css',
     )
     expect(byPath['images/cast/hello.png']).toEqual({
       source: 'images/cast/hello.png',
       addonPath: 'panorama/images/custom_game/ezpug/cast/hello.png',
       vtex: 'panorama/images/custom_game/ezpug/cast/hello.vtex',
     })
+    expect(byPath['banners/default.png']).toEqual({
+      source: 'banners/default.png',
+      addonPath: 'panorama/images/custom_game/ezpug/banners/default.png',
+      vtex: 'panorama/images/custom_game/ezpug/banners/default.vtex',
+    })
+    // The moment's pictures join the addon with the card (T7).
+    expect(sources(HUD).some(s => s.source.startsWith('art/'))).toBe(false)
   })
 
   it('names the compiled file of each source', () => {
     const compiled = sources(HUD).map(compiledPath)
-    expect(compiled).toContain('panorama/layout/custom_game/ezpug_hello.vxml_c')
-    expect(compiled).toContain('panorama/styles/custom_game/ezpug_hello.vcss_c')
+    expect(compiled).toContain('panorama/layout/custom_game/ezpug_welcome.vxml_c')
+    expect(compiled).toContain('panorama/styles/custom_game/ezpug_welcome.vcss_c')
     expect(compiled).toContain('panorama/images/custom_game/ezpug/cast/hello.vtex_c')
   })
 
@@ -64,6 +71,40 @@ describe('every layout', () => {
   )
 })
 
+/** Every Panorama property a stylesheet here uses, each looked up in the client's list. Add one after looking it up. */
+const PROPERTIES = [
+  'background-color',
+  'background-image',
+  'background-position',
+  'background-repeat',
+  'background-size',
+  'border',
+  'border-radius',
+  'color',
+  'flow-children',
+  'font-size',
+  'font-weight',
+  'height',
+  'horizontal-align',
+  'letter-spacing',
+  'margin',
+  'margin-left',
+  'margin-right',
+  'margin-top',
+  'max-width',
+  'opacity',
+  'padding',
+  'text-overflow',
+  'text-transform',
+  'transform',
+  'transform-origin',
+  'transition',
+  'vertical-align',
+  'visibility',
+  'white-space',
+  'width',
+]
+
 describe('every stylesheet', () => {
   it.each(styles)('%s: keyframes quoted and never on transform; pictures from the addon', file => {
     const css = read(file).replace(/\/\*[\s\S]*?\*\//g, '')
@@ -71,9 +112,31 @@ describe('every stylesheet', () => {
       expect(frames[1]).toMatch(/^'[^']+'$/)
       expect(frames[2]).not.toMatch(/transform/)
     }
+    // Valve's compiler takes any property and any value without a word (PRD-07 T5 tried
+    // `bogus-property`, `box-shadow: none` and a comma selector), and a client drops
+    // the rule or the whole layout. So every property here is one checked by hand against
+    // the client's own list (`dump_panorama_css_properties`, panorama-hud's reference).
+    for (const declaration of css.matchAll(/[{;]\s*([a-z-]+)\s*:/g))
+      expect(PROPERTIES).toContain(declaration[1])
+    // A comma selector is a layout that silently fails to load (cs2-ui-kit's GOTCHAS).
+    for (const rule of css.matchAll(/(?:^|\})\s*([^{}@]+?)\s*\{/g))
+      expect(rule[1]).not.toContain(',')
     for (const url of css.matchAll(/url\(\s*"([^"]+)"\s*\)/g))
       expect(url[1]).toMatch(
-        /^s2r:\/\/panorama\/images\/(custom_game\/ezpug\/[a-z0-9_/]+\.vtex|.+_png\.vtex)$/,
+        /^s2r:\/\/panorama\/images\/(custom_game\/ezpug\/[a-z0-9_/-]+\.vtex|.+_png\.vtex)$/,
       )
+  })
+})
+
+describe('what a layout or a stylesheet names', () => {
+  const compiled = new Set(sources(HUD).map(compiledPath))
+  it.each([...layouts, ...styles])('%s: is in the addon', file => {
+    const text = read(file)
+    for (const include of text.matchAll(/<include src="s2r:\/\/([^"]+)"/g))
+      expect(compiled).toContain(include[1])
+    for (const url of text.matchAll(
+      /url\(\s*"s2r:\/\/(panorama\/images\/custom_game\/[^"]+)"\s*\)/g,
+    ))
+      expect(compiled).toContain(`${url[1]}_c`)
   })
 })

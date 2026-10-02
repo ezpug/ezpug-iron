@@ -63,7 +63,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Flow = new GenericFlow(world, this, _log);
         Length = new MatchLength(world, this, _log);
         Hud = new Hud(world, hudAddon, _log);
-        Brand = new Branding(world, () => Localizer, Match);
+        Welcome = new Welcome(world, Hud, () => Localizer);
+        Brand = new Branding(world, () => Localizer, Match, Welcome);
         Ratings = new RatingBoard(world, () => Localizer, Brand);
         Warmup = new WarmupChat(world, Match);
         link.Handler = this;
@@ -107,6 +108,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>The layouts on a player's screen, when the server has the addon and the match asks for them (decision 34, PRD-07 T3). Inert otherwise, to the last call.</summary>
     public Hud Hud { get; }
+
+    /// <summary>The connect card drawn by the HUD, for somebody who joins while nobody is playing (PRD-07 T5). Asked by <see cref="Brand"/> before the centre card.</summary>
+    public Welcome Welcome { get; }
 
     /// <summary>The hostname, the chat prefix, the team colours and the connect card (decision 22, PRD-02 T29). Every line the SDK says goes through it.</summary>
     public Branding Brand { get; }
@@ -351,6 +355,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         // Before the loader asks for the map: a client is told which addons to mount
         // while it connects, and nobody connects before the map the match is played on.
         Hud.OnAssigned(assignment);
+        Welcome.OnAssigned(assignment);
         // The voice before anything speaks with it: the rating greeting a connect fires
         // carries this match's prefix, not the last one's.
         Brand.OnAssigned(assignment);
@@ -426,6 +431,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Warmup.OnReleased();
             Puppets.OnReleased();
             Brand.OnReleased();
+            Welcome.OnReleased();
             Hud.OnReleased();
             Assignment = null;
             Match.Clear();
@@ -736,6 +742,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Length.OnPlayerDisconnected(player);
         Ratings.OnPlayerDisconnected(player);
         Brand.OnPlayerDisconnected(player);
+        Welcome.OnPlayerDisconnected(player);
         Hud.OnPlayerDisconnected(player);
         Active?.OnPlayerLeft(player);
         Commands?.Forget(player.SteamId64);
@@ -780,6 +787,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         // The first round start of a map is the first moment an entity may be touched,
         // so it is where the HUD's layouts are made.
         Hud.OnRoundStarted();
+        Welcome.OnRoundStarted();
         // `going_live` and a `side_swap` belong before round 1 exists, and emitting
         // `going_live` resets the counter — so the generic flow speaks on either side of
         // the numbering, never in the middle of it.
@@ -813,6 +821,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         if (Assignment is not null)
         {
             Hud.OnFreezeEnded();
+            Welcome.OnFreezeEnded();
         }
     }
 
@@ -924,6 +933,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         CancelSettle();
         Warmup.Stop();
         Puppets.OnReleased();
+        Welcome.OnReleased();
         // The layouts outlive the plugin that made them; an unload takes them along.
         Hud.Stop();
         _positionTicker?.Cancel();

@@ -10,8 +10,9 @@ namespace EZPug.Sdk;
 /// assignment — the request's <c>branding</c> and the manifest — so a match branded for
 /// an event is branded everywhere at once and nothing here is a per-server setting.
 ///
-/// This round's branding is chat and the hostname; in-world banners need a Workshop
-/// addon players download and are a later round (decision 22).
+/// This round's branding is chat and the hostname. On a server that can draw the HUD,
+/// for a match that asks for it, the card is drawn by the HUD instead (<see cref="Welcome"/>,
+/// decision 34).
 ///
 /// <list type="bullet">
 /// <item><b>The hostname</b> is <c>branding.hostname</c> when the request named one, and
@@ -32,7 +33,9 @@ namespace EZPug.Sdk;
 /// platform lives. HTML, because that is what the engine's centre panel reads, and
 /// <see cref="CardDelayMs"/> after the connect, because the connect is
 /// <c>player_connect_full</c> and a card in the same instant is a card behind the
-/// client's own loading chatter.</item>
+/// client's own loading chatter. When the HUD is on for the match, <see cref="Welcome"/>
+/// is asked first, and the centre card is printed only when it says it cannot show its
+/// own card now: never both.</item>
 /// </list>
 /// </summary>
 public sealed class Branding
@@ -58,14 +61,17 @@ public sealed class Branding
     private readonly IGameWorld _world;
     private readonly Func<Localizer> _localizer;
     private readonly MatchContext _match;
+    private readonly Welcome? _welcome;
     private readonly Dictionary<ulong, IClockTimer> _cards = [];
     private Assignment? _assignment;
 
-    public Branding(IGameWorld world, Func<Localizer> localizer, MatchContext match)
+    /// <param name="welcome">The HUD's welcome, asked before the centre card is printed to somebody who arrives; <c>null</c> is the centre card always.</param>
+    public Branding(IGameWorld world, Func<Localizer> localizer, MatchContext match, Welcome? welcome = null)
     {
         _world = world;
         _localizer = localizer;
         _match = match;
+        _welcome = welcome;
     }
 
     /// <summary>The match being branded, or <c>null</c> between matches (when the prefix is still EZPug's own).</summary>
@@ -225,7 +231,7 @@ public sealed class Branding
     /// match, the phone when the mode has verbs to tap, and otherwise nothing to do but
     /// play.
     /// </summary>
-    private static string WhatToDo(Assignment assignment, LocalizedLines lines) =>
+    internal static string WhatToDo(Assignment assignment, LocalizedLines lines) =>
         assignment.Gamemode.Flow == GamemodeFlow.Matchzy ? lines["branding.card.ready"]
         : assignment.Gamemode.Capabilities.PlayerCommands || assignment.Gamemode.Capabilities.Widget ? lines["branding.card.widget", PlatformUrl]
         : lines["branding.card.enjoy"];
@@ -236,14 +242,18 @@ public sealed class Branding
 
     // ------------------------------------------------------------------ the runtime's hooks
 
-    /// <summary>A match is assigned: everybody already standing here is told what they walked into.</summary>
+    /// <summary>
+    /// A match is assigned: everybody already standing here is told what they walked into,
+    /// on the centre card. They connected before the HUD's addon was handed out, so the
+    /// HUD has nothing on their screen to draw with.
+    /// </summary>
     public void OnAssigned(Assignment assignment)
     {
         CancelCards();
         _assignment = assignment;
         foreach (var player in _world.Players)
         {
-            Welcome(player);
+            Welcome(player, arriving: false);
         }
     }
 
@@ -259,14 +269,14 @@ public sealed class Branding
     {
         if (_assignment is not null)
         {
-            Welcome(player);
+            Welcome(player, arriving: true);
         }
     }
 
     /// <summary>A player left before their card was drawn: it is not drawn.</summary>
     public void OnPlayerDisconnected(IGamePlayer player) => Cancel(player.SteamId64);
 
-    private void Welcome(IGamePlayer player)
+    private void Welcome(IGamePlayer player, bool arriving)
     {
         if (player.IsBot || _assignment is not { } assignment)
         {
@@ -288,6 +298,11 @@ public sealed class Branding
         {
             _cards.Remove(steamId64);
             if (_assignment is null || _world.Find(steamId64) is not { } still)
+            {
+                return;
+            }
+
+            if (arriving && _welcome?.Show(still) == true)
             {
                 return;
             }

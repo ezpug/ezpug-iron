@@ -9,6 +9,8 @@
  *   pnpm hud:publish            upload hud/dist/'s pack to the Workshop item, then fetch it anonymously
  *   pnpm hud:publish --dry-run  everything but Steam: the clean tree, the honest dist, the item VDF
  *   pnpm hud:keys               write the banner and art keys into @ezpug/match-api (hud/src/keys.ts)
+ *                               and the welcome's banner stylesheet (hud/src/banners.ts)
+ *   pnpm hud:banner <key> <file>  add or replace a banner, at the banner's size, then hud:keys
  *
  * `docs/hud.md` is the page for people: the volumes, the session, what Wine
  * needed, how to delete it all.
@@ -18,6 +20,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { listFiles, sha256, sourceHashes, sources, VPK_NAME, vtexFor } from './addon.ts'
+import { BANNER_STYLES, bannerPath, fitBanner, renderBannerStyles } from './banners.ts'
 import {
   type DistManifest,
   MANIFEST,
@@ -25,7 +28,7 @@ import {
   serializeManifest,
   verifyDist,
 } from './dist.ts'
-import { hudKeys, KEYS_MODULE, renderKeysModule } from './keys.ts'
+import { DEFAULT_BANNER, hudKeys, KEYS_MODULE, renderKeysModule } from './keys.ts'
 import { readBack } from './readback.ts'
 import { writeVpk } from './vpk.ts'
 import { itemVdf, parseWorkshopItem, publishedIdFromVdf, uploadVerdict } from './workshop.ts'
@@ -297,11 +300,37 @@ async function check(id: string) {
   log(`an anonymous SteamCMD fetched ${id} by id, byte for byte hud/dist/${VPK_NAME}`)
 }
 
-/** The contract's two key lists, from the pictures in `hud/banners/` and `hud/art/`. */
+/** The contract's two key lists and the welcome's banner stylesheet, from the pictures in `hud/banners/` and `hud/art/`. */
 function keys() {
   const found = hudKeys(HUD)
   writeFileSync(join(REPO, KEYS_MODULE), renderKeysModule(found))
+  writeFileSync(join(HUD, BANNER_STYLES), renderBannerStyles(found.banners, DEFAULT_BANNER))
   log(`${KEYS_MODULE}: ${found.banners.length} banner(s), ${found.art.length} picture(s)`)
+  log(`hud/${BANNER_STYLES}: ${found.banners.length} banner(s)`)
+}
+
+/**
+ * A banner from any picture: fitted to the banner's size under its key, then
+ * the lists and the stylesheet written again. A new key changes the contract
+ * (a release of `@ezpug/match-api`) and the addon (`pnpm hud:build`, then
+ * `pnpm hud:publish`).
+ */
+function banner(key: string, file: string) {
+  if (!existsSync(file)) die(`${file}: no such picture`)
+  const out = bannerPath(HUD, key)
+  const known = existsSync(out)
+  mkdirSync(dirname(out), { recursive: true })
+  try {
+    fitBanner(file, out)
+    // Refuses a key the contract's grammar cannot carry, after the fact: the picture goes again.
+    hudKeys(HUD)
+  } catch (error) {
+    if (!known) rm(out)
+    die((error as Error).message)
+  }
+  log(`hud/banners/${key}.png from ${file}`)
+  keys()
+  log('next: pnpm hud:build, a release of @ezpug/match-api if the key is new, pnpm hud:publish')
 }
 
 const [command, ...args] = process.argv.slice(2)
@@ -318,6 +347,10 @@ switch (command) {
   case 'keys':
     keys()
     break
+  case 'banner':
+    if (!args[0] || !args[1]) die('usage: pnpm hud:banner <key> <file>')
+    banner(args[0], resolve(process.env.INIT_CWD ?? process.cwd(), args[1]))
+    break
   case 'check':
     if (!args[0]) die('usage: hud check <workshop id>')
     buildImage()
@@ -325,6 +358,6 @@ switch (command) {
     break
   default:
     die(
-      'usage: node hud/src/cli.ts build [--tools] | verify | publish [--dry-run] | keys | check <id>',
+      'usage: node hud/src/cli.ts build [--tools] | verify | publish [--dry-run] | keys | banner <key> <file> | check <id>',
     )
 }

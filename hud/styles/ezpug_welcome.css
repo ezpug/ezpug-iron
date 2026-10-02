@@ -1,0 +1,232 @@
+/*
+  The welcome (PRD-07 T5). Panorama, not the web: no flex, no calc, no var, hex colours.
+  Everything moves by a transition a class starts; keyframes on transform never play in
+  custom_hud_layout. The cast's palette: charcoal #171512, ivory #f0ece3, EZPug's green
+  #57d364.
+
+  Where it sits: the right edge, below the kill feed and above the weapon list, which is
+  the one stretch of a CS2 HUD nothing of the game's own holds. It never takes the mouse
+  and steps aside for every screen of the game's that matters more.
+
+  The states, each a class the plugin sets per player:
+    #welcome_card            off the right edge, invisible
+    #welcome_card.shown      in place
+    #welcome_card.shrunk     shrunk into the corner the mark sits in, invisible
+    #welcome_card.teamless   no team line (a free-for-all, somebody not rostered)
+    #welcome_mark.shown      the small mark, for the rest of warmup
+*/
+
+.ezpug-screen
+{
+	width: 100%;
+	height: 100%;
+}
+
+.ezpug-welcome
+{
+	width: 100%;
+	height: 100%;
+	opacity: 1;
+	transition: opacity 0.15s ease-out 0s;
+}
+
+/* The game's own screens win. One rule each: a comma selector is a layout that fails to load. */
+.HUD_BUYMENU_VISIBLE .ezpug-welcome
+{
+	opacity: 0;
+}
+
+.HUD_SCOREBOARD_VISIBLE .ezpug-welcome
+{
+	opacity: 0;
+}
+
+.HUD_TEAMINTRO_VISIBLE .ezpug-welcome
+{
+	opacity: 0;
+}
+
+.HUD_WINPANEL_VISIBLE .ezpug-welcome
+{
+	opacity: 0;
+}
+
+.HUD_ENDOFMATCH_VISIBLE .ezpug-welcome
+{
+	opacity: 0;
+}
+
+/* ------------------------------------------------------------------ the card */
+
+.ezpug-welcome-card
+{
+	width: 400px;
+	height: fit-children;
+	flow-children: down;
+	horizontal-align: right;
+	vertical-align: top;
+	margin-top: 260px;
+	margin-right: 24px;
+	background-color: #171512eb;
+	border: 1px solid #f0ece326;
+	border-radius: 10px;
+	opacity: 0;
+	transform-origin: 100% 0%;
+	transform: translate3d( 440px, 0px, 0px ) scale3d( 1, 1, 1 );
+	transition: opacity 0.3s ease-out 0s, transform 0.45s ease-in-out 0s;
+}
+
+.ezpug-welcome-card.shown
+{
+	opacity: 1;
+	transform: translate3d( 0px, 0px, 0px ) scale3d( 1, 1, 1 );
+}
+
+.ezpug-welcome-card.shrunk
+{
+	opacity: 0;
+	transform: translate3d( 0px, 0px, 0px ) scale3d( 0.3, 0.3, 1 );
+}
+
+/* The picture's own box; which picture is ezpug_banners.css. */
+.ezpug-welcome-banner
+{
+	width: 400px;
+	height: 225px;
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+.ezpug-welcome-body
+{
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+	padding: 4px 20px 18px 20px;
+}
+
+.ezpug-welcome-eyebrow
+{
+	width: 100%;
+	font-size: 15px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #57d364;
+}
+
+.ezpug-welcome-title
+{
+	width: 100%;
+	margin-top: 2px;
+	font-size: 30px;
+	font-weight: bold;
+	color: #f0ece3;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.ezpug-welcome-tagline
+{
+	width: 100%;
+	margin-top: 2px;
+	font-size: 17px;
+	color: #c9c3b6;
+}
+
+.ezpug-welcome-team
+{
+	width: 100%;
+	margin-top: 14px;
+	font-size: 18px;
+	font-weight: bold;
+	color: #f0ece3;
+}
+
+.ezpug-welcome-card.teamless .ezpug-welcome-team
+{
+	visibility: collapse;
+}
+
+.ezpug-welcome-todo
+{
+	width: 100%;
+	margin-top: 4px;
+	font-size: 18px;
+	color: #f0ece3;
+}
+
+.ezpug-welcome-url
+{
+	width: 100%;
+	margin-top: 12px;
+	font-size: 15px;
+	font-weight: bold;
+	color: #57d364;
+}
+
+/* ------------------------------------------------------------------ the mark */
+
+.ezpug-welcome-mark
+{
+	width: fit-children;
+	height: 64px;
+	flow-children: right;
+	horizontal-align: right;
+	vertical-align: top;
+	margin-top: 260px;
+	margin-right: 24px;
+	padding: 4px 18px 4px 6px;
+	background-color: #171512d9;
+	border: 1px solid #f0ece326;
+	border-radius: 32px;
+	opacity: 0;
+	transform-origin: 100% 0%;
+	transform: translate3d( 0px, 0px, 0px ) scale3d( 0.6, 0.6, 1 );
+	transition: opacity 0.3s ease-out 0.3s, transform 0.3s ease-out 0.3s;
+}
+
+.ezpug-welcome-mark.shown
+{
+	opacity: 1;
+	transform: translate3d( 0px, 0px, 0px ) scale3d( 1, 1, 1 );
+}
+
+/* The cast's hello picture, the same two and the chicken. */
+.ezpug-welcome-mascot
+{
+	width: 90px;
+	height: 55px;
+	vertical-align: center;
+	background-image: url( "s2r://panorama/images/custom_game/ezpug/cast/hello.vtex" );
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+.ezpug-welcome-mark-words
+{
+	width: fit-children;
+	height: fit-children;
+	flow-children: down;
+	vertical-align: center;
+	margin-left: 8px;
+}
+
+.ezpug-welcome-mark-title
+{
+	max-width: 200px;
+	font-size: 17px;
+	font-weight: bold;
+	color: #f0ece3;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.ezpug-welcome-mark-url
+{
+	font-size: 13px;
+	font-weight: bold;
+	color: #57d364;
+}

@@ -1,0 +1,46 @@
+<!--
+  The welcome (PRD-07 T5): what somebody who joins while nobody is playing reads. A card
+  slides in at the right edge (the banner, the event or EZPug, the tagline, the team they
+  play for, the one thing to do, ezpug.com), stays a few seconds, shrinks into a small mark
+  for the rest of warmup and is gone when the match goes live. The plugin's `Welcome`
+  (plugins/EZPug.Sdk/Hud/Welcome.cs) drives it and names every id and class below.
+
+  Every label binds `{s:text}` and the server sets it on the label's own id. A banner is a
+  class on #welcome (`banner-<key>`, ezpug_banners.css); no class, or a key this addon does
+  not hold, is the house banner.
+
+  Rules every layout in hud/layout/ keeps (docs/hud.md, the Findings of ralph/PRD-07-hud.md):
+  - the root panel carries no id; the server addresses the panels inside it;
+  - only Panel, Label, Image and Button; pictures are backgrounds, never <Image>;
+  - no inline style; nothing takes the mouse (hittest="false" everywhere).
+-->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/custom_game/ezpug_welcome.vcss_c" />
+		<include src="s2r://panorama/styles/custom_game/ezpug_banners.vcss_c" />
+	</styles>
+
+	<Panel class="ezpug-screen" hittest="false">
+		<Panel id="welcome" class="ezpug-welcome" hittest="false">
+			<Panel id="welcome_card" class="ezpug-welcome-card" hittest="false">
+				<Panel class="ezpug-welcome-banner" hittest="false" />
+				<Panel class="ezpug-welcome-body" hittest="false">
+					<Label id="welcome_eyebrow" class="ezpug-welcome-eyebrow" hittest="false" text="{s:text}" />
+					<Label id="welcome_title" class="ezpug-welcome-title" hittest="false" text="{s:text}" />
+					<Label id="welcome_tagline" class="ezpug-welcome-tagline" hittest="false" text="{s:text}" />
+					<Label id="welcome_team" class="ezpug-welcome-team" hittest="false" text="{s:text}" />
+					<Label id="welcome_todo" class="ezpug-welcome-todo" hittest="false" text="{s:text}" />
+					<Label id="welcome_url" class="ezpug-welcome-url" hittest="false" text="{s:text}" />
+				</Panel>
+			</Panel>
+
+			<Panel id="welcome_mark" class="ezpug-welcome-mark" hittest="false">
+				<Panel class="ezpug-welcome-mascot" hittest="false" />
+				<Panel class="ezpug-welcome-mark-words" hittest="false">
+					<Label id="welcome_mark_title" class="ezpug-welcome-mark-title" hittest="false" text="{s:text}" />
+					<Label id="welcome_mark_url" class="ezpug-welcome-mark-url" hittest="false" text="{s:text}" />
+				</Panel>
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

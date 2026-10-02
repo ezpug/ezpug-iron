@@ -45,6 +45,7 @@
     "hud:build": "node --env-file-if-exists=.env hud/src/cli.ts build",
     "hud:verify": "node hud/src/cli.ts verify",
     "hud:keys": "node hud/src/cli.ts keys",
+    "hud:banner": "node hud/src/cli.ts banner",
     "hud:publish": "node --env-file-if-exists=.env hud/src/cli.ts publish",
     "db:generate": "pnpm --filter @ezpug/orchestrator db:generate",
     "db:migrate": "pnpm --filter @ezpug/orchestrator db:migrate"

@@ -23,11 +23,12 @@ onto the addon:
 | `layout/ezpug_<name>.xml` | `panorama/layout/custom_game/ezpug_<name>.xml` |
 | `styles/ezpug_<name>.css` | `panorama/styles/custom_game/ezpug_<name>.css` |
 | `images/<path>.png` | `panorama/images/custom_game/ezpug/<path>.png`, plus a generated `.vtex` (BGRA8888) beside it |
+| `banners/<key>.png` | `panorama/images/custom_game/ezpug/banners/<key>.png`, the same way |
 
 The server names a layout by its **source** path with the extension
-(`panorama/layout/custom_game/ezpug_hello.xml`). A layout includes its stylesheet by the
-**compiled** name (`s2r://…/ezpug_hello.vcss_c`), and a stylesheet references a picture
-the same way (`s2r://…/hello.vtex`). Every name is `ezpug_`-prefixed or under `ezpug/`,
+(`panorama/layout/custom_game/ezpug_welcome.xml`). A layout includes its stylesheet by the
+**compiled** name (`s2r://…/ezpug_welcome.vcss_c`), and a stylesheet references a picture
+the same way (`s2r://…/cast/hello.vtex`). Every name is `ezpug_`-prefixed or under `ezpug/`,
 because a client mounts other servers' addons into the same `custom_game` folders.
 
 `hud/test/addon.test.ts` turns the authoring rules into tests. A client breaks every one
@@ -36,7 +37,15 @@ of them silently, so a test is the only place anyone will see it fail:
 - the root panel has no `id`;
 - there is no inline `style`, no `<Image>` (pictures are backgrounds), no script, and
   nothing with `hittest="true"`;
-- `@keyframes` names are quoted, and no keyframes animate `transform`.
+- `@keyframes` names are quoted, and no keyframes animate `transform`;
+- no selector has a comma in it, and every property is on a list in the test, each one
+  looked up in the client's own (`dump_panorama_css_properties`, panorama-hud's reference);
+- every stylesheet a layout includes and every picture a stylesheet names is in the addon.
+
+**A clean compile proves nothing about the CSS.** Valve's compiler took a stylesheet with
+`bogus-property: 3px`, `box-shadow: none` and a comma selector and said
+`OK: 1 compiled, 0 failed` (tried on 2026-10-02). The client is what refuses them, by
+dropping the rule or the whole layout without a word, which is why the list exists.
 
 Biome skips `hud/styles/`, because Panorama CSS is Valve's dialect and the compiler is
 the authority on it.
@@ -61,12 +70,27 @@ picture is therefore a change to `@ezpug/match-api` and needs a release
 `art/` holds the platform's 26 house drop pictures under the platform's own keys
 (`/root/ezpug/packages/ui/public/drops/<key>.webp`, the 1× files, converted to PNG with
 `convert <key>.webp -strip png32:<key>.png` and not otherwise touched): 21 items, the four
-`category-*` and `empty`. `banners/default.png` is the cast's hello picture for now.
+`category-*` and `empty`. It is in the tree for the contract's list and is **not in the
+addon yet**; the moment's card maps it (PRD-07 T7).
 
-Both folders are in the tree so that the lists could be released with the contract. They
-are **not in the addon yet**: `hud/src/addon.ts` does not map them, so `hud/dist/` and the
-published pack are what they were. The welcome and the card map and compile them when
-they are built.
+`banners/` is in the addon. Every banner is 800 × 450, the welcome's banner box (400 × 225)
+at twice its size, and a test holds every file to it. `banners/default.png` is the house
+banner: the cast's hello picture (`/root/ezpug/packages/ui/public/cast/hello@full.webp`,
+the two mascots and the chicken), fitted whole and centred on a transparent canvas by the
+same command anybody uses to add one:
+
+```
+pnpm hud:banner <key> <file>    fit <file> to 800 × 450 as hud/banners/<key>.png, then hud:keys
+```
+
+It uses ImageMagick's `convert` from the box, writes no metadata (the same picture is the
+same bytes), and then runs `pnpm hud:keys`, which writes the contract's list **and**
+`hud/styles/ezpug_banners.css`: one rule per key that puts the picture on the banner's box
+when the welcome carries the class `banner-<key>`. A new key is a release of
+`@ezpug/match-api` (the list) and of the addon (`pnpm hud:build`, `pnpm hud:publish`).
+Until the addon a client holds has the picture, the class names no rule there and the
+client draws the house banner, which is what "an unknown key is the default picture"
+means on a screen.
 
 ## Building: `pnpm hud:build`
 
@@ -79,7 +103,7 @@ pnpm hud:verify           is hud/dist/ honest? (no compiler, no network)
 Valve's `resourcecompiler.exe` exists only for Windows. It runs here under Wine 10.0,
 headless under Xvfb, inside a build image of its own (`docker/hud/Dockerfile`,
 `ezpug-iron/hud-build:dev`, Debian trixie). The box itself gains no packages. A compile
-of the hello panel (a layout, a stylesheet and a texture) takes about ten seconds.
+of the welcome (a layout, two stylesheets and two textures) takes about fifteen seconds.
 
 `hud/dist/` is **committed**: building it needs Wine, 10 GB of depots and a Steam session,
 and using it needs none of them. It holds:
@@ -365,13 +389,13 @@ A `moment` reaches every server, whether it can draw or not. For now the plugin 
 the way a server without a HUD always will: the line in chat when the moment is due, to
 each player in their language and to the person it is about in their own words
 (`GamemodeRuntime.OnMoment`, `plugins/EZPug.Sdk.Tests/MomentTests.cs`). Nothing is drawn
-for one yet.
+for one yet; the welcome below is the only layout so far.
 
 The id goes on the client list at the assignment because a client is told what to mount
 while it connects, and players connect to a match after it is assigned. Somebody already
 on the server at that moment keeps playing without the addon and sees nothing, which is
 what the HUD being decoration means. `ezpug_status` on a server that can draw says where
-it stands (`hud: addon <id>, on, 2 layout(s) in the world`); on one that cannot, the
+it stands (`hud: addon <id>, on, 1 layout(s) in the world`); on one that cannot, the
 report has no such line.
 
 The rules the plugin keeps (no entity before a round has started, orphans removed by
@@ -394,6 +418,33 @@ a throwaway console command calling the world's verbs on a server booted with th
 - a map change takes whatever was standing, and nothing crashed.
 
 No client was connected, so nothing here says a layout was *drawn*. That is the look list.
+
+### The welcome
+
+The first layout (`hud/layout/ezpug_welcome.xml`, driven by `EZPug.Sdk.Welcome`) is the
+connect card, drawn. Somebody who joins while nobody is playing sees a card slide in at the
+right edge, below the kill feed: the banner, "Willkommen bei" / "Welcome to" and the
+event's name (or EZPug), the request's tagline (or the house line, "PUGs für die
+SaarLAN-Community"), the team they play for, the one thing to do, and `ezpug.com`, each in
+the language of their roster profile. After eight seconds (`Welcome.CardMs`) it shrinks
+into a small mark (the cast's hello picture, the event's name, `ezpug.com`) for the rest of
+warmup. The marks go at the first round start that is not warmup, and everything goes the
+instant somebody is playing. The whole layout steps aside, in CSS, for the buy menu, the
+scoreboard, the team intro, the win panel and the end of the match.
+
+**One card, never two.** The welcome is asked at the moment the centre card would be
+printed, two seconds after the connect, and the centre card is printed only when it says
+no:
+
+| The player | What they get |
+| ---------- | ------------- |
+| joins a match with the HUD on, in warmup, before any round, or in a stretch of nobody playing at least eight seconds long | the welcome, and no centre card |
+| joins a match with the HUD on while a round is played, or in a freeze with less than eight seconds left | the centre card, as before the HUD |
+| was already on the server when the match was assigned | the centre card: they connected before the addon was handed out |
+| any match with the HUD off | the centre card, unchanged |
+
+The welcome says nothing that is not also in chat or on the centre card's lines: the team
+line and the rating greeting go out as before, and the event's name is the chat prefix.
 
 ## Deleting it
 

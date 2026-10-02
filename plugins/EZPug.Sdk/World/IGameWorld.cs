@@ -278,7 +278,7 @@ public interface IGameWorld
     /// <summary>
     /// Put a layout on every client's screen: one <c>custom_hud_layout</c> entity for
     /// <paramref name="layout"/>, which is the layout's <b>source</b> path with its
-    /// extension (<c>panorama/layout/custom_game/ezpug_hello.xml</c>) — a client that
+    /// extension (<c>panorama/layout/custom_game/ezpug_welcome.xml</c>) — a client that
     /// does not have that file draws nothing and says nothing. The entity dies with the
     /// map and outlives everything else, a plugin reload included, so it is created
     /// under a name <see cref="RemoveHudLayouts"/> can find again.

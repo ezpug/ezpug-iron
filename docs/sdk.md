@@ -220,6 +220,14 @@ is the instant a freeze ends, which is when a card is put away. A mode with no f
 time and endless respawns is being played from its first round start to the end of its
 map.
 
+The runtime draws one layout of its own, **the welcome** (`Runtime.Welcome`,
+`docs/hud.md`, "The welcome"): the connect card as a HUD card, for somebody who arrives
+while nobody is playing. `Branding` asks `Welcome.Show(player)` at the moment it would
+print the centre card and prints that card only when the answer is no, so a player never
+gets both and a match with the HUD off gets the centre card it always did. The welcome's
+words are the SDK's (`hud.welcome.*` beside `branding.card.*` in `Lines.*.resx`), and a
+mode adds nothing to it.
+
 On the harness, `new GamemodeTestHost(hudAddon: "…")` is a server that can draw and
 `AssignmentFor(…, hud: true)` a match that asks. `World.HudLayouts` holds each layout as
 the engine would, per slot and surviving a disconnect, `layout.Has(slot, panel, class)`

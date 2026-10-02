@@ -17,7 +17,7 @@ afterEach(() => {
 function copy(): string {
   const dir = mkdtempSync(join(tmpdir(), 'ezpug-hud-'))
   copies.push(dir)
-  for (const part of ['addoninfo.txt', 'layout', 'styles', 'images', 'dist'])
+  for (const part of ['addoninfo.txt', 'layout', 'styles', 'images', 'banners', 'dist'])
     cpSync(join(HUD, part), join(dir, part), { recursive: true })
   return dir
 }
@@ -29,8 +29,8 @@ describe('hud/dist/', () => {
 
   it('is stale the moment a source changes', () => {
     const dir = copy()
-    appendFileSync(join(dir, 'styles/ezpug_hello.css'), '\n.x { width: 1px; }\n')
-    expect(verifyDist(dir)).toEqual([expect.stringMatching(/styles\/ezpug_hello\.css changed/)])
+    appendFileSync(join(dir, 'styles/ezpug_welcome.css'), '\n.x { width: 1px; }\n')
+    expect(verifyDist(dir)).toEqual([expect.stringMatching(/styles\/ezpug_welcome\.css changed/)])
   })
 
   it('is stale when a source is added', () => {
@@ -41,10 +41,10 @@ describe('hud/dist/', () => {
 
   it('refuses a compiled file edited by hand, and one nobody compiled', () => {
     const dir = copy()
-    appendFileSync(join(dir, 'dist/panorama/layout/custom_game/ezpug_hello.vxml_c'), 'x')
+    appendFileSync(join(dir, 'dist/panorama/layout/custom_game/ezpug_welcome.vxml_c'), 'x')
     writeFileSync(join(dir, 'dist/panorama/layout/custom_game/stray.vxml_c'), 'x')
     const problems = verifyDist(dir).join('\n')
-    expect(problems).toMatch(/ezpug_hello\.vxml_c does not match its hash/)
+    expect(problems).toMatch(/ezpug_welcome\.vxml_c does not match its hash/)
     expect(problems).toMatch(/stray\.vxml_c is not in the manifest/)
   })
 

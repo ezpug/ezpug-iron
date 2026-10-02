@@ -9,9 +9,13 @@
  * | `layout/<n>.xml`      | `panorama/layout/custom_game/<n>.xml`              |
  * | `styles/<n>.css`      | `panorama/styles/custom_game/<n>.css`              |
  * | `images/<p>.png`      | `panorama/images/custom_game/ezpug/<p>.png` + a `.vtex` beside it |
+ * | `banners/<key>.png`   | `panorama/images/custom_game/ezpug/banners/<key>.png` + a `.vtex` |
+ *
+ * `art/` is in the tree for the contract's key list (`keys.ts`) and joins the
+ * addon with the card that shows it (PRD-07 T7).
  *
  * A layout's name on the server is its **source** path with the extension
- * (`panorama/layout/custom_game/ezpug_hello.xml`); a stylesheet is included and
+ * (`panorama/layout/custom_game/ezpug_welcome.xml`); a stylesheet is included and
  * a picture referenced by the **compiled** one (`….vcss_c`, `s2r://….vtex`).
  * Everything is `ezpug_`-prefixed or under `ezpug/`, because a client mounts
  * other servers' addons into the same `custom_game` folders.
@@ -52,10 +56,18 @@ export function sources(hudDir: string): Source[] {
     mapped.push({ source: `layout/${f}`, addonPath: `panorama/layout/custom_game/${f}` })
   for (const f of files(join(hudDir, 'styles'), '.css'))
     mapped.push({ source: `styles/${f}`, addonPath: `panorama/styles/custom_game/${f}` })
-  for (const f of files(join(hudDir, 'images'), '.png')) {
-    const addonPath = `${IMAGE_ROOT}/${f}`
-    mapped.push({ source: `images/${f}`, addonPath, vtex: addonPath.replace(/\.png$/, '.vtex') })
+  const pictures = (folder: string, under: string) => {
+    for (const f of files(join(hudDir, folder), '.png')) {
+      const addonPath = `${IMAGE_ROOT}/${under}${f}`
+      mapped.push({
+        source: `${folder}/${f}`,
+        addonPath,
+        vtex: addonPath.replace(/\.png$/, '.vtex'),
+      })
+    }
   }
+  pictures('images', '')
+  pictures('banners', 'banners/')
   for (const s of mapped)
     if (s.addonPath !== s.addonPath.toLowerCase())
       throw new Error(`hud/${s.source}: names in the addon are lower case`)
