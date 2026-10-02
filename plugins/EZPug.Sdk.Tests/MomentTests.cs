@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using EZPug.Sdk.Protocol;
 using EZPug.Sdk.Testing;
 using Xunit;
@@ -795,5 +797,150 @@ public class MomentTests
         Assert.Equal(3, Moments.ToastRows);
         Assert.Equal("moment_toast_1", Moments.Toast(1));
         Assert.Equal("moment_toast_1_text", Moments.ToastText(1));
+    }
+
+    [Fact]
+    public void ASpectatorIsShownTheMomentOfThePlayerTheyWatch_AndNotTheirWelcome()
+    {
+        // A moment happens to a player, so whoever watches them sees their card and their
+        // toasts. The welcome speaks to one person ("you play for…") and stays theirs.
+        using var host = Assigned();
+        Warmup(host);
+        Assert.True(Layout(host).Observable);
+        Assert.False(host.World.HudLayout(Welcome.Layout).Observable);
+    }
+
+    // ------------------------------------------------------------------ the layout agrees
+
+    private static string Xml => File.ReadAllText(Repo.Path("hud", "layout", "ezpug_moment.xml"));
+
+    /// <summary>The moment's own stylesheet, comments gone.</summary>
+    private static string Css => Regex.Replace(File.ReadAllText(Repo.Path("hud", "styles", "ezpug_moment.css")), @"/\*[\s\S]*?\*/", "");
+
+    [Fact]
+    public void EveryPanelAndClassTheMomentNamesIsInTheLayout()
+    {
+        // The client ignores a name it does not know without a word, so the layout is read
+        // here: an id renamed on one side and not the other is a red test, not a blank card.
+        var xml = Xml;
+        var css = Css;
+        Assert.EndsWith(Path.GetFileName(Repo.Path("hud", "layout", "ezpug_moment.xml")), Moments.Layout, StringComparison.Ordinal);
+        Assert.Matches(new Regex($"<Panel id=\"{Moments.Card}\" class=\"ezpug-moment-card\""), xml);
+        foreach (var label in new[] { Moments.CardKind, Moments.CardText })
+        {
+            Assert.Matches(new Regex($"<Label id=\"{label}\"[^>]* text=\"\\{{s:{Moments.Text}\\}}\""), xml);
+        }
+
+        for (var row = 1; row <= Moments.ToastRows; row++)
+        {
+            Assert.Matches(new Regex($"<Panel id=\"{Moments.Toast(row)}\" class=\"ezpug-moment-toast\""), xml);
+            Assert.Matches(new Regex($"<Label id=\"{Moments.ToastText(row)}\"[^>]* text=\"\\{{s:{Moments.Text}\\}}\""), xml);
+        }
+
+        // Exactly the rows the service fills, and one card.
+        Assert.Equal(Moments.ToastRows, Regex.Matches(xml, "<Panel id=\"moment_toast_\\d+\"").Count);
+        Assert.Single(Regex.Matches(xml, "class=\"ezpug-moment-card\""));
+
+        Assert.Contains($".ezpug-moment-toast.{Moments.Shown}\n", css, StringComparison.Ordinal);
+        Assert.Contains($".ezpug-moment-card.{Moments.Shown}\n", css, StringComparison.Ordinal);
+        Assert.Contains($".ezpug-moment-card.{Moments.Shown} ", css, StringComparison.Ordinal);
+        Assert.Contains($".ezpug-moment-card.{Moments.Turned} .ezpug-moment-back", css, StringComparison.Ordinal);
+        Assert.Contains($".ezpug-moment-card.{Moments.Turned} .ezpug-moment-front", css, StringComparison.Ordinal);
+        foreach (var tier in Enum.GetValues<MomentTier>())
+        {
+            Assert.Contains($".ezpug-moment-toast.{Moments.TierClassOf(tier)} ", css, StringComparison.Ordinal);
+            Assert.Contains($".ezpug-moment-card.{Moments.TierClassOf(tier)} ", css, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void EveryPictureTheAddonHoldsIsTheClassTheServiceSets_AndTheDefaultIsNoClass()
+    {
+        // hud/src/art.ts writes the stylesheet from hud/art/, one rule per key under the
+        // class this service puts on the card. The default picture is the box's own rule.
+        var css = File.ReadAllText(Repo.Path("hud", "styles", "ezpug_art.css"));
+        var keys = Directory.GetFiles(Repo.Path("hud", "art"), "*.png").Select(Path.GetFileNameWithoutExtension).ToList();
+        Assert.Contains(Moments.DefaultArt, keys);
+        Assert.Contains("class=\"ezpug-moment-art\"", Xml, StringComparison.Ordinal);
+        Assert.Contains("ezpug_art.vcss_c", Xml, StringComparison.Ordinal);
+        foreach (var key in keys)
+        {
+            if (key == Moments.DefaultArt)
+            {
+                Assert.Null(Moments.ArtClassOf(key));
+                Assert.Matches(new Regex($"^\\.ezpug-moment-art\n\\{{\n\tbackground-image: url\\( \"[^\"]*/art/{key}\\.vtex\" \\);", RegexOptions.Multiline), css);
+            }
+            else
+            {
+                Assert.Contains($".ezpug-moment-card.{Moments.ArtClassOf(key)} .ezpug-moment-art\n{{\n\tbackground-image: url( \"s2r://panorama/images/custom_game/ezpug/art/{key}.vtex\" );", css, StringComparison.Ordinal);
+            }
+        }
+
+        Assert.DoesNotContain($".{Moments.ArtClassPrefix}{Moments.DefaultArt} ", css, StringComparison.Ordinal);
+    }
+
+    /// <summary>One rule's transition, in milliseconds: how long it runs and how long it waits first.</summary>
+    private static (long DurationMs, long DelayMs) TransitionOf(string css, string selector)
+    {
+        var rule = Regex.Match(css, $@"(?:^|\}})\s*{Regex.Escape(selector)}\s*\{{([^}}]*)\}}", RegexOptions.Multiline);
+        Assert.True(rule.Success, $"no rule for {selector}");
+        long Ms(string property)
+        {
+            var value = Regex.Match(rule.Groups[1].Value, $@"{property}\s*:\s*([0-9.]+)s\s*;");
+            Assert.True(value.Success, $"{selector} has no single {property}");
+            return (long)Math.Round(double.Parse(value.Groups[1].Value, CultureInfo.InvariantCulture) * 1_000);
+        }
+
+        return (Ms("transition-duration"), Ms("transition-delay"));
+    }
+
+    [Fact]
+    public void ACardIsPutAwayAtOnce_AndEveryWayBackIsOverBeforeTheNextOneComes()
+    {
+        // All the server does to put a card away is take two classes off, in the frame the
+        // freeze ends. "At once" is therefore the stylesheet's to keep: the card's body
+        // fades in an eighth of a second whatever the slide and the faces are doing.
+        var css = Css;
+        var fade = TransitionOf(css, ".ezpug-moment-card-body");
+        Assert.InRange(fade.DurationMs + fade.DelayMs, 1, 150);
+
+        // The slide is done before the card turns, and the turn long before it leaves.
+        var slide = TransitionOf(css, ".ezpug-moment-card");
+        var back = TransitionOf(css, ".ezpug-moment-back");
+        var front = TransitionOf(css, ".ezpug-moment-front");
+        Assert.True(slide.DurationMs + slide.DelayMs <= Moments.TurnMs);
+        Assert.Equal(back.DurationMs + back.DelayMs, front.DelayMs);
+        Assert.True(Moments.TurnMs + front.DelayMs + front.DurationMs < Moments.CardMs);
+
+        // The next card on the panel, and the next toast on a row, come half a second
+        // after the last one left: every transition has run back by then, so the next one
+        // starts from the state the stylesheet calls hidden.
+        foreach (var way in new[] { slide, back, front, fade })
+        {
+            Assert.True(way.DurationMs + way.DelayMs <= Moments.CardRestMs);
+        }
+
+        var toast = TransitionOf(css, ".ezpug-moment-toast");
+        Assert.True(toast.DurationMs + toast.DelayMs <= Moments.ToastRestMs);
+
+        // Every transition in the file is one of those, or the whole layout stepping aside.
+        Assert.Equal(6, Regex.Matches(css, @"transition-property\s*:").Count);
+        // Keyframes on a transform never play in a custom HUD (PRD-07, Findings); the turn is a transition.
+        Assert.DoesNotContain("@keyframes", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheLayoutStepsAsideForTheBuyMenuAndTheScoreboard_AndStaysForTheWinPanel()
+    {
+        // A decided round is where most cards play, and the win panel is up for most of
+        // it: the card is placed clear of that panel instead of hiding behind it.
+        var css = Css;
+        foreach (var screen in new[] { "HUD_BUYMENU_VISIBLE", "HUD_SCOREBOARD_VISIBLE", "HUD_TEAMINTRO_VISIBLE", "HUD_ENDOFMATCH_VISIBLE" })
+        {
+            Assert.Matches(new Regex($@"\.{screen} \.ezpug-moment\s*\{{\s*opacity: 0;\s*\}}"), css);
+        }
+
+        Assert.DoesNotContain("HUD_WINPANEL_VISIBLE", css, StringComparison.Ordinal);
+        Assert.Contains("<Panel class=\"ezpug-moment\" hittest=\"false\">", Xml, StringComparison.Ordinal);
     }
 }

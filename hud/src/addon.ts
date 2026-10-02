@@ -10,9 +10,7 @@
  * | `styles/<n>.css`      | `panorama/styles/custom_game/<n>.css`              |
  * | `images/<p>.png`      | `panorama/images/custom_game/ezpug/<p>.png` + a `.vtex` beside it |
  * | `banners/<key>.png`   | `panorama/images/custom_game/ezpug/banners/<key>.png` + a `.vtex` |
- *
- * `art/` is in the tree for the contract's key list (`keys.ts`) and joins the
- * addon with the card that shows it (PRD-07 T7).
+ * | `art/<key>.png`       | `panorama/images/custom_game/ezpug/art/<key>.png` + a `.vtex`     |
  *
  * A layout's name on the server is its **source** path with the extension
  * (`panorama/layout/custom_game/ezpug_welcome.xml`); a stylesheet is included and
@@ -68,6 +66,7 @@ export function sources(hudDir: string): Source[] {
   }
   pictures('images', '')
   pictures('banners', 'banners/')
+  pictures('art', 'art/')
   for (const s of mapped)
     if (s.addonPath !== s.addonPath.toLowerCase())
       throw new Error(`hud/${s.source}: names in the addon are lower case`)

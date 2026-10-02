@@ -9,8 +9,9 @@ that made it; its Findings are the reading list.
 This page covers the client half (where the sources are, how they become the addon, and
 how the addon reaches Steam) and the server half: MultiAddonManager, which hands the
 addon to a client, and the SDK's `Hud`, which draws. What the HUD is for and what it may
-never do is decision 34 in `docs/decisions.md`. The layouts themselves and the three
-switches written out for an operator come with the round's later tasks.
+never do is decision 34 in `docs/decisions.md`. The two layouts, the welcome and the
+moment, are at the end of the server half; the three switches written out for an operator
+and the look list come with the round's last tasks.
 
 ## The sources
 
@@ -24,6 +25,7 @@ onto the addon:
 | `styles/ezpug_<name>.css` | `panorama/styles/custom_game/ezpug_<name>.css` |
 | `images/<path>.png` | `panorama/images/custom_game/ezpug/<path>.png`, plus a generated `.vtex` (BGRA8888) beside it |
 | `banners/<key>.png` | `panorama/images/custom_game/ezpug/banners/<key>.png`, the same way |
+| `art/<key>.png` | `panorama/images/custom_game/ezpug/art/<key>.png`, the same way |
 
 The server names a layout by its **source** path with the extension
 (`panorama/layout/custom_game/ezpug_welcome.xml`). A layout includes its stylesheet by the
@@ -40,7 +42,9 @@ of them silently, so a test is the only place anyone will see it fail:
 - `@keyframes` names are quoted, and no keyframes animate `transform`;
 - no selector has a comma in it, and every property is on a list in the test, each one
   looked up in the client's own (`dump_panorama_css_properties`, panorama-hud's reference);
-- every stylesheet a layout includes and every picture a stylesheet names is in the addon.
+- every stylesheet a layout includes and every picture a stylesheet names is in the addon;
+- a layout and the stylesheets it includes name the same `ezpug-` classes: one the layout
+  carries and no rule styles, or a rule for one no panel carries, is a typo.
 
 **A clean compile proves nothing about the CSS.** Valve's compiler took a stylesheet with
 `bogus-property: 3px`, `box-shadow: none` and a comma selector and said
@@ -70,8 +74,14 @@ picture is therefore a change to `@ezpug/match-api` and needs a release
 `art/` holds the platform's 26 house drop pictures under the platform's own keys
 (`/root/ezpug/packages/ui/public/drops/<key>.webp`, the 1× files, converted to PNG with
 `convert <key>.webp -strip png32:<key>.png` and not otherwise touched): 21 items, the four
-`category-*` and `empty`. It is in the tree for the contract's list and is **not in the
-addon yet**; the moment's card maps it (PRD-07 T7).
+`category-*` and `empty`. So a drop pressed from a template shows its own picture, and the
+platform names the category's for anything else. Each is at most 384 pixels a side, which
+is the card's picture box (150 × 150) on a 4K screen with room to spare, and they are
+what makes the pack 8.4 MB: a picture in a custom HUD has to be uncompressed (BGRA8888).
+`pnpm hud:keys` writes `hud/styles/ezpug_art.css` from the folder, one rule per key that
+puts the picture on the card's picture box when the card carries the class `art-<key>`,
+the way a banner's class works on the welcome. `hud/test/art.test.ts` fails when the file
+and the folder disagree.
 
 `banners/` is in the addon. Every banner is 800 × 450, the welcome's banner box (400 × 225)
 at twice its size, and a test holds every file to it. `banners/default.png` is the house
@@ -84,8 +94,8 @@ pnpm hud:banner <key> <file>    fit <file> to 800 × 450 as hud/banners/<key>.pn
 ```
 
 It uses ImageMagick's `convert` from the box, writes no metadata (the same picture is the
-same bytes), and then runs `pnpm hud:keys`, which writes the contract's list **and**
-`hud/styles/ezpug_banners.css`: one rule per key that puts the picture on the banner's box
+same bytes), and then runs `pnpm hud:keys`, which writes the contract's list, the art's
+stylesheet above **and** `hud/styles/ezpug_banners.css`: one rule per key that puts the picture on the banner's box
 when the welcome carries the class `banner-<key>`. A new key is a release of
 `@ezpug/match-api` (the list) and of the addon (`pnpm hud:build`, `pnpm hud:publish`).
 Until the addon a client holds has the picture, the class names no rule there and the
@@ -103,7 +113,8 @@ pnpm hud:verify           is hud/dist/ honest? (no compiler, no network)
 Valve's `resourcecompiler.exe` exists only for Windows. It runs here under Wine 10.0,
 headless under Xvfb, inside a build image of its own (`docker/hud/Dockerfile`,
 `ezpug-iron/hud-build:dev`, Debian trixie). The box itself gains no packages. A compile
-of the welcome (a layout, two stylesheets and two textures) takes about fifteen seconds.
+of everything (two layouts, four stylesheets and 28 textures) takes about a minute and a
+half, most of it Wine starting once per file.
 
 `hud/dist/` is **committed**: building it needs Wine, 10 GB of depots and a Steam session,
 and using it needs none of them. It holds:
@@ -130,7 +141,7 @@ The CLI's `--vpk_verify` also accepts the pack's hashes and CRCs.
 
 | Volume | Mounted at | Holds | Size |
 | ------ | ---------- | ----- | ---- |
-| `ezpug-iron-hud-build` | `/build` | depot 2347771 (the Windows binaries, 7.3 GB) and 2347779 (the Workshop Tools, 2.0 GB) of app 730, and the compiler's scratch tree | 9.2 GB |
+| `ezpug-iron-hud-build` | `/build` | depot 2347771 (the Windows binaries, 7.3 GB) and 2347779 (the Workshop Tools, 2.0 GB) of app 730, the compiler's scratch tree, and `reference/`, the game's own Panorama stylesheets decompiled for reading (2 MB) | 9.2 GB |
 | `ezpug-iron-hud-steam` | `/serverdata/Steam` | the Steam session (see below) | 1.5 MB |
 | `ezpug-iron-cs2_cs2-data` | `/cs2`, **read-only** | the dev node's install. Its common content (depot 2347770, 65 GB) is what the compiler reads instead of a second copy | (the node's) |
 
@@ -428,7 +439,10 @@ the language of their roster profile. After eight seconds (`Welcome.CardMs`) it 
 into a small mark (the cast's hello picture, the event's name, `ezpug.com`) for the rest of
 warmup. The marks go at the first round start that is not warmup, and everything goes the
 instant somebody is playing. The whole layout steps aside, in CSS, for the buy menu, the
-scoreboard, the team intro, the win panel and the end of the match.
+scoreboard, the team intro, the win panel and the end of the match. Its transitions are
+written as the `transition:` shorthand, which the client registers and the game's own
+stylesheets never use (the moment's are the longhands): if the welcome appears without
+sliding, that is the first thing to change.
 
 **One card, never two.** The welcome is asked at the moment the centre card would be
 printed, two seconds after the connect, and the centre card is printed only when it says
@@ -492,8 +506,8 @@ the end of a match when the item that dropped is yours, at 0.4, 0.6, 0.8 and 1.0
 volume for the four tiers, to the person alone and at the card's turn. Nothing is
 shipped for it. Decision 34 names the other events that were looked at.
 
-**The names** the service sets, which the layout has to carry (`hud/layout/ezpug_moment.xml`
-is PRD-07 T7's; until it is in the addon the entity exists and draws nothing):
+**The names** the service sets and the layout carries (`hud/layout/ezpug_moment.xml`,
+`hud/styles/ezpug_moment.css`):
 
 | Panel or label | What is set on it |
 | -------------- | ----------------- |
@@ -505,9 +519,79 @@ is PRD-07 T7's; until it is in the addon the entity exists and draws nothing):
 
 `shown` goes off and on again half a second apart, never in one frame, so a transition
 started by the class always has something to start from.
+`MomentTests.EveryPanelAndClassTheMomentNamesIsInTheLayout` reads every one of those
+names out of the XML and the stylesheets, and another test holds each picture's class to
+the generated `ezpug_art.css`.
+
+**Where it sits.** Against the game's own HUD, read out of the game's stylesheets
+(`hudradar.css`, `huddeathnotice.css`, `hudchat.css`, `hudwinpanel.css`) at 1080 lines:
+
+| | Where | Clear of |
+| - | ----- | -------- |
+| the toasts | the right edge, three rows of 40 from 340 down, at most 480 wide | the kill feed (the right edge from 72 down), the welcome's mark (260 to 324), and on a 4:3 screen the win panel (400 wide, centred) |
+| the card | the left edge, 460 × 180, from 400 to 580 | the radar (40 to 340), the chat (from about 610 down), the win panel |
+
+Those stylesheets are the game's and stay out of the repo: they were decompiled with the
+pinned ValveResourceFormat CLI out of the dev node's `pak01_dir.vpk` (read-only) into the
+build volume, under `reference/`
+(`Source2Viewer-CLI -i …/game/csgo/pak01_dir.vpk --vpk_filepath panorama/styles -d -o <the build volume>/reference`),
+and go with it when it is deleted.
+
+The toasts and the welcome's **card** (not its mark) share the right edge: somebody who
+joined in the last eight seconds and is told a moment sees one on the other until the
+welcome shrinks.
+
+**What steps aside, and what does not.** The whole layout fades for the buy menu, the
+scoreboard, the team intro and the end of the match, in CSS, without the server knowing.
+It does **not** fade for the win panel: a decided round is where most cards play and the
+win panel is up for most of it, so the card is placed clear of that panel instead. At the
+end of the match the game moves its chat up into the card's place and brings its own
+screen, so a card that is due then plays under it, unseen: the line was said.
+
+**The card.** Face down it is charcoal with the cast's hello picture; face up it has the
+picture on the left (150 × 150, the whole picture fitted in) and on the right the heading
+and the person's line, cut with an ellipsis after about five lines. The four tiers are a
+tint, on the edge of both faces and on the heading, and on a toast a bar at the row's
+leading edge, in the platform's own colours for its drop card's materials:
+
+| Tier | Tint |
+| ---- | ---- |
+| `common` | muted bone, `#8a8378` |
+| `uncommon` | ivory, `#f0ece3` |
+| `rare` | cobalt, `#86a6ff` |
+| `legendary` | magenta, `#ff5ad0` |
+
+**The turn is two transitions**, because `@keyframes` on a transform never play in a
+custom HUD: the back narrows to an edge about the card's upright axis in 0.18 s and fades,
+and the front widens from one in 0.22 s, delayed by those 0.18 s. Both faces are the same
+size and lie on each other. They are written with the four `transition-*` longhands, the
+only form the game's own stylesheets use (239 files, not one `transition:` shorthand).
+
+**A spectator sees the watched player's moment.** The moment's entity is spawned with
+the engine's `observable` key (the game's `csgo.fgd`: "Show each player's own version of
+this UI to whoever is spectating them"); the welcome's is not, because "you play for…" is
+said to one person. Measured on the dev node on 2026-10-02 (CS2 1.41.8.2,
+CounterStrikeSharp 1.0.376, a throwaway console command on a server booted with the id):
+the moment's entity read back `m_bObservable` true and the welcome's false, both with
+their names, layout paths and 64 slot states. No client was connected, so what a spectator
+is shown is the look list's. One thing to look for there: somebody who is dead and watching
+a team-mate when their own card plays is presumably shown the team-mate's version (the
+toast), not their card. CounterStrikeSharp cannot read the entity's panel, class and
+variable names back (`NetworkedVector` only takes handles: "Networked vectors currently
+only support CHandle<T>"), so a check of what a slot was told has to go through the slot
+states or the service's own record.
+
+**Put away at once** is the stylesheet's to keep, since all the server does is take
+`shown` and `turned` off in the frame the freeze ends: the card's body fades in 0.12 s
+whatever the slide and the faces are doing, and every transition has run back within the
+half second before the next card or toast can come. `MomentTests` reads those durations
+out of the stylesheet and holds them against `Moments.TurnMs`, `CardRestMs` and
+`ToastRestMs`.
 
 Nobody has seen a toast or a card, or heard the sound. The tests read the state the
-entity would hold and the fake clock; what it looks and sounds like is the look list's.
+entity would hold, the fake clock and the files; what it looks and sounds like, and
+whether those places are as empty on a real screen as the game's stylesheets say, is the
+look list's.
 
 ## Deleting it
 

@@ -282,8 +282,12 @@ public interface IGameWorld
     /// does not have that file draws nothing and says nothing. The entity dies with the
     /// map and outlives everything else, a plugin reload included, so it is created
     /// under a name <see cref="RemoveHudLayouts"/> can find again.
+    /// <paramref name="observable"/> is the entity's own switch: somebody spectating a
+    /// player is shown that player's version of the layout, so what one slot is told is
+    /// also what its spectators see. Right for something that happens to a player, wrong
+    /// for something said to one.
     /// </summary>
-    void CreateHudLayout(string layout);
+    void CreateHudLayout(string layout, bool observable = false);
     /// <summary>Remove every layout this seam ever created that is still in the world, found by name and not by memory: the ones a previous load of the plugin left behind too.</summary>
     void RemoveHudLayouts();
     /// <summary>Set or clear a class on one panel of a layout, for everybody.</summary>

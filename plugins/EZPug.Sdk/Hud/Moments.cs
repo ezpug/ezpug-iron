@@ -210,7 +210,8 @@ public sealed partial class Moments
         _brand = brand;
         _localizer = localizer;
         _log = log ?? NullLinkLog.Instance;
-        hud.Register(Layout);
+        // A spectator is shown the moment as the player they watch sees it.
+        hud.Register(Layout, observable: true);
     }
 
     /// <summary>How many cards are waiting for a stretch of nobody playing, over everybody.</summary>

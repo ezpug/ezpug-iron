@@ -1,0 +1,57 @@
+<!--
+  The moment (PRD-07 T6 and T7): the platform says "this happened to this player" and the
+  server shows it. A slim toast for everybody on one of three rows at the right edge, and
+  for the person a card at the left edge that slides in face down and turns over. The
+  plugin's `Moments` (plugins/EZPug.Sdk/Hud/Moments.cs) drives it and names every id and
+  class below; docs/hud.md, "The moment", is the table.
+
+  Every label binds `{s:text}` and the server sets it on the label's own id. The card's
+  picture is a class on #moment_card (`art-<key>`, ezpug_art.css); no class, or a key this
+  addon does not hold, is the empty sleeve. A tier is a class too (`tier-<name>`), on the
+  card for the person and on a toast's row for everybody.
+
+  Rules every layout in hud/layout/ keeps (docs/hud.md, the Findings of ralph/PRD-07-hud.md):
+  - the root panel carries no id; the server addresses the panels inside it;
+  - only Panel, Label, Image and Button; pictures are backgrounds, never <Image>;
+  - no inline style; nothing takes the mouse (hittest="false" everywhere).
+-->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/custom_game/ezpug_moment.vcss_c" />
+		<include src="s2r://panorama/styles/custom_game/ezpug_art.vcss_c" />
+	</styles>
+
+	<Panel class="ezpug-screen" hittest="false">
+		<Panel class="ezpug-moment" hittest="false">
+			<Panel class="ezpug-moment-toasts" hittest="false">
+				<Panel id="moment_toast_1" class="ezpug-moment-toast" hittest="false">
+					<Panel class="ezpug-moment-toast-tier" hittest="false" />
+					<Label id="moment_toast_1_text" class="ezpug-moment-toast-text" hittest="false" text="{s:text}" />
+				</Panel>
+				<Panel id="moment_toast_2" class="ezpug-moment-toast" hittest="false">
+					<Panel class="ezpug-moment-toast-tier" hittest="false" />
+					<Label id="moment_toast_2_text" class="ezpug-moment-toast-text" hittest="false" text="{s:text}" />
+				</Panel>
+				<Panel id="moment_toast_3" class="ezpug-moment-toast" hittest="false">
+					<Panel class="ezpug-moment-toast-tier" hittest="false" />
+					<Label id="moment_toast_3_text" class="ezpug-moment-toast-text" hittest="false" text="{s:text}" />
+				</Panel>
+			</Panel>
+
+			<Panel id="moment_card" class="ezpug-moment-card" hittest="false">
+				<Panel class="ezpug-moment-card-body" hittest="false">
+					<Panel class="ezpug-moment-face ezpug-moment-back" hittest="false">
+						<Panel class="ezpug-moment-mascot" hittest="false" />
+					</Panel>
+					<Panel class="ezpug-moment-face ezpug-moment-front" hittest="false">
+						<Panel class="ezpug-moment-art" hittest="false" />
+						<Panel class="ezpug-moment-words" hittest="false">
+							<Label id="moment_card_kind" class="ezpug-moment-kind" hittest="false" text="{s:text}" />
+							<Label id="moment_card_text" class="ezpug-moment-text" hittest="false" text="{s:text}" />
+						</Panel>
+					</Panel>
+				</Panel>
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

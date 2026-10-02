@@ -157,6 +157,27 @@ public class HudTests
         Assert.Equal([Welcome, Card, Toast], host.World.HudLayouts.Select(layout => layout.Layout));
     }
 
+    [Fact]
+    public void ALayoutASpectatorSharesIsMadeThatWayEveryTimeItIsMade()
+    {
+        // Observable is the entity's own key and can only be given at its spawn, so it is
+        // part of what a layout is: at the first round, declared late, and on the next map.
+        using var host = Assigned();
+        host.Runtime.Hud.Register(Toast, observable: true);
+        host.World.StartRound();
+        host.Runtime.Hud.Register("panorama/layout/custom_game/ezpug_late.xml", observable: true);
+        Assert.False(host.World.HudLayout(Welcome).Observable);
+        Assert.True(host.World.HudLayout(Toast).Observable);
+        Assert.True(host.World.HudLayout("panorama/layout/custom_game/ezpug_late.xml").Observable);
+
+        host.Clock.Advance(60_000);
+        host.World.StartMap("de_inferno");
+        host.World.StartRound();
+        Assert.False(host.World.HudLayout(Welcome).Observable);
+        Assert.True(host.World.HudLayout(Toast).Observable);
+        Assert.True(host.World.HudLayout("panorama/layout/custom_game/ezpug_late.xml").Observable);
+    }
+
     // ------------------------------------------------------------------ orphans
 
     [Fact]

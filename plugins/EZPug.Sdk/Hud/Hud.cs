@@ -111,6 +111,8 @@ public sealed class Hud
     private readonly IGameWorld _world;
     private readonly ILinkLog _log;
     private readonly List<string> _layouts = [];
+    /// <summary>The layouts a spectator sees the watched player's version of.</summary>
+    private readonly HashSet<string> _observable = [];
     private readonly Dictionary<ClassKey, bool> _classes = [];
     private readonly Dictionary<VariableKey, string> _variables = [];
     private readonly Dictionary<ulong, Screen> _screens = [];
@@ -149,9 +151,11 @@ public sealed class Hud
     /// A layout the HUD shows: its <b>source</b> path with the extension, as the addon
     /// ships it (<c>panorama/layout/custom_game/ezpug_welcome.xml</c>). Declared once by
     /// whoever drives it, for the life of the runtime; it exists in the world while the
-    /// HUD is on and a round has started.
+    /// HUD is on and a round has started. <paramref name="observable"/> shows somebody
+    /// who is spectating a player that player's version of it: for a layout about what
+    /// happens to a player (a moment), not for one that speaks to them (the welcome).
     /// </summary>
-    public void Register(string layout)
+    public void Register(string layout, bool observable = false)
     {
         if (_layouts.Contains(layout))
         {
@@ -159,9 +163,14 @@ public sealed class Hud
         }
 
         _layouts.Add(layout);
+        if (observable)
+        {
+            _observable.Add(layout);
+        }
+
         if (Spawned)
         {
-            _world.CreateHudLayout(layout);
+            _world.CreateHudLayout(layout, observable);
         }
     }
 
@@ -482,7 +491,7 @@ public sealed class Hud
         _world.RemoveHudLayouts();
         foreach (var layout in _layouts)
         {
-            _world.CreateHudLayout(layout);
+            _world.CreateHudLayout(layout, _observable.Contains(layout));
         }
 
         _spawned = true;

@@ -1,0 +1,330 @@
+/*
+  The moment (PRD-07 T6 and T7). Panorama, not the web: no flex, no calc, no var, hex
+  colours. Everything moves by a transition a class starts; keyframes on transform never
+  play in custom_hud_layout. Transitions are written as the four longhands, the form the
+  game's own stylesheets use. The platform's palette: charcoal #171512, ivory #f0ece3, and
+  for the tiers the materials its drop card wears (muted bone, ivory, cobalt, magenta).
+
+  Where it sits, against the game's own HUD at 1080 lines (hudradar.css, huddeathnotice.css,
+  hudchat.css and hudwinpanel.css in the game's files):
+    the toasts   the right edge from 340 down, under the kill feed (from 72) and under
+                 the welcome's mark (260 to 324), at most 480 wide so that on a 4:3
+                 screen they end right of the win panel;
+    the card     the left edge from 400 to 580, under the radar (40 to 340) and above
+                 the chat (from about 610), left of the win panel (400 wide, centred).
+
+  The layout steps aside for the buy menu, the scoreboard, the team intro and the end of
+  the match. It does not for the win panel: a decided round is the longest stretch of
+  nobody playing a live match has, and neither the card nor a toast is where that panel is.
+
+  The states, each a class the plugin sets:
+    #moment_toast_<n>.shown        the row is on screen (per player)
+    #moment_toast_<n>.tier-<name>  the row's tint (for everybody)
+    #moment_card.shown             on screen, face down
+    #moment_card.turned            face up
+    #moment_card.tier-<name>       the card's tint
+    #moment_card.art-<key>         the card's picture (ezpug_art.css)
+
+  The plugin puts a card away by taking `shown` and `turned` off in one frame, and the
+  next thing on the same panel comes half a second later at the earliest
+  (Moments.CardRestMs, Moments.ToastRestMs). So the body fades in 0.12 s whatever the
+  faces are doing, and every way back is done within that half second.
+*/
+
+.ezpug-screen
+{
+	width: 100%;
+	height: 100%;
+}
+
+.ezpug-moment
+{
+	width: 100%;
+	height: 100%;
+	opacity: 1;
+	transition-property: opacity;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+/* The game's own screens win. One rule each: a comma selector is a layout that fails to load. */
+.HUD_BUYMENU_VISIBLE .ezpug-moment
+{
+	opacity: 0;
+}
+
+.HUD_SCOREBOARD_VISIBLE .ezpug-moment
+{
+	opacity: 0;
+}
+
+.HUD_TEAMINTRO_VISIBLE .ezpug-moment
+{
+	opacity: 0;
+}
+
+.HUD_ENDOFMATCH_VISIBLE .ezpug-moment
+{
+	opacity: 0;
+}
+
+/* ------------------------------------------------------------------ the toasts */
+
+/* Three rows that keep their place: a row that is not shown still holds its line. */
+.ezpug-moment-toasts
+{
+	width: 480px;
+	height: fit-children;
+	flow-children: down;
+	horizontal-align: right;
+	vertical-align: top;
+	margin-top: 340px;
+	margin-right: 24px;
+}
+
+.ezpug-moment-toast
+{
+	width: fit-children;
+	height: 40px;
+	flow-children: right;
+	horizontal-align: right;
+	margin-bottom: 6px;
+	background-color: #171512d9;
+	border: 1px solid #f0ece326;
+	border-radius: 6px;
+	opacity: 0;
+	transform: translate3d( 60px, 0px, 0px );
+	transition-property: opacity, transform;
+	transition-duration: 0.2s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-moment-toast.shown
+{
+	opacity: 1;
+	transform: translate3d( 0px, 0px, 0px );
+}
+
+/* The tint: a bar at the row's leading edge. */
+.ezpug-moment-toast-tier
+{
+	width: 5px;
+	height: 100%;
+	background-color: #8a8378;
+}
+
+.ezpug-moment-toast.tier-common .ezpug-moment-toast-tier
+{
+	background-color: #8a8378;
+}
+
+.ezpug-moment-toast.tier-uncommon .ezpug-moment-toast-tier
+{
+	background-color: #f0ece3;
+}
+
+.ezpug-moment-toast.tier-rare .ezpug-moment-toast-tier
+{
+	background-color: #86a6ff;
+}
+
+.ezpug-moment-toast.tier-legendary .ezpug-moment-toast-tier
+{
+	background-color: #ff5ad0;
+}
+
+.ezpug-moment-toast-text
+{
+	max-width: 440px;
+	vertical-align: center;
+	margin: 0px 14px 0px 10px;
+	font-size: 18px;
+	font-weight: bold;
+	color: #f0ece3;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ the card */
+
+/* The slide is the card's own; the fade is its body's, so leaving is quick whatever the slide does. */
+.ezpug-moment-card
+{
+	width: 460px;
+	height: 180px;
+	horizontal-align: left;
+	vertical-align: top;
+	margin-top: 400px;
+	margin-left: 24px;
+	transform: translate3d( -500px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-moment-card.shown
+{
+	transform: translate3d( 0px, 0px, 0px );
+}
+
+.ezpug-moment-card-body
+{
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.12s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-moment-card.shown .ezpug-moment-card-body
+{
+	opacity: 1;
+}
+
+/* Both faces fill the card and lie on each other; the turn decides which one is seen. */
+.ezpug-moment-face
+{
+	width: 100%;
+	height: 100%;
+	background-color: #171512f2;
+	border: 2px solid #8a8378;
+	border-radius: 12px;
+}
+
+/*
+  The turn: the back narrows to an edge about the card's upright axis, then the front
+  widens from one. Two transitions, the second delayed by the length of the first.
+*/
+.ezpug-moment-back
+{
+	opacity: 1;
+	transform: scale3d( 1, 1, 1 );
+	transition-property: opacity, transform;
+	transition-duration: 0.18s;
+	transition-timing-function: ease-in;
+	transition-delay: 0s;
+}
+
+.ezpug-moment-card.turned .ezpug-moment-back
+{
+	opacity: 0;
+	transform: scale3d( 0.02, 1, 1 );
+}
+
+.ezpug-moment-front
+{
+	flow-children: right;
+	opacity: 0;
+	transform: scale3d( 0.02, 1, 1 );
+	transition-property: opacity, transform;
+	transition-duration: 0.22s;
+	transition-timing-function: ease-out;
+	transition-delay: 0.18s;
+}
+
+.ezpug-moment-card.turned .ezpug-moment-front
+{
+	opacity: 1;
+	transform: scale3d( 1, 1, 1 );
+}
+
+/* Face down: the cast's hello picture, the same two and the chicken. */
+.ezpug-moment-mascot
+{
+	width: 200px;
+	height: 122px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-image: url( "s2r://panorama/images/custom_game/ezpug/cast/hello.vtex" );
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+/* The picture's own box; which picture is ezpug_art.css. */
+.ezpug-moment-art
+{
+	width: 150px;
+	height: 150px;
+	vertical-align: center;
+	margin-left: 14px;
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+.ezpug-moment-words
+{
+	width: 260px;
+	height: fit-children;
+	flow-children: down;
+	vertical-align: center;
+	margin-left: 14px;
+}
+
+.ezpug-moment-kind
+{
+	width: 100%;
+	font-size: 15px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #c9c3b6;
+}
+
+.ezpug-moment-text
+{
+	width: 100%;
+	max-height: 120px;
+	margin-top: 4px;
+	font-size: 20px;
+	font-weight: bold;
+	color: #f0ece3;
+	text-overflow: ellipsis;
+}
+
+/* The four tiers, as the edge of both faces and the colour of the heading. */
+.ezpug-moment-card.tier-common .ezpug-moment-face
+{
+	border: 2px solid #8a8378;
+}
+
+.ezpug-moment-card.tier-common .ezpug-moment-kind
+{
+	color: #c9c3b6;
+}
+
+.ezpug-moment-card.tier-uncommon .ezpug-moment-face
+{
+	border: 2px solid #f0ece3;
+}
+
+.ezpug-moment-card.tier-uncommon .ezpug-moment-kind
+{
+	color: #f0ece3;
+}
+
+.ezpug-moment-card.tier-rare .ezpug-moment-face
+{
+	border: 2px solid #86a6ff;
+}
+
+.ezpug-moment-card.tier-rare .ezpug-moment-kind
+{
+	color: #86a6ff;
+}
+
+.ezpug-moment-card.tier-legendary .ezpug-moment-face
+{
+	border: 2px solid #ff5ad0;
+}
+
+.ezpug-moment-card.tier-legendary .ezpug-moment-kind
+{
+	color: #ff5ad0;
+}

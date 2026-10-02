@@ -179,13 +179,16 @@ this repo builds, and the server sets only a class on a panel and a string a lab
 
 | Verb | What it does |
 | ---- | ------------ |
-| `CreateHudLayout(layout)` | one entity for a layout, named by its **source** path with the extension (`panorama/layout/custom_game/ezpug_welcome.xml`) |
+| `CreateHudLayout(layout, observable)` | one entity for a layout, named by its **source** path with the extension (`panorama/layout/custom_game/ezpug_welcome.xml`). `observable` is the entity's own key: somebody spectating a player is shown that player's version of the layout |
 | `RemoveHudLayouts()` | every layout of ours in the world, found by the entity's name, so the ones a previous load of the plugin left behind go too |
 | `SetHudClass(layout, panel, class, has)` and `SetHudClass(player, …)` | a class on a panel, for everybody or over that for one player |
 | `SetHudVariable(layout, panel, variable, value)` and `SetHudVariable(player, …)` | the string behind `{s:variable}`, the same two ways |
 
 Nothing calls those but the runtime's `Hud` (`Runtime.Hud`), which is the thing to talk
 to: `Register(layout)` once, then `SetClass` and `SetVariable` with the same arguments.
+`Register(layout, observable: true)` is for a layout about what happens to a player (the
+moment's): whoever watches them sees it as they do. A layout that speaks to one person
+(the welcome's "you play for…") stays theirs.
 It keeps what should be on whose screen and owns the rules a layout breaks silently
 without:
 

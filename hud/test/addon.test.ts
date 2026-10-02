@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { compiledPath, sources, vtexFor } from '../src/addon.ts'
+import { hudKeys } from '../src/keys.ts'
 
 const HUD = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (path: string) => readFileSync(join(HUD, path), 'utf8')
@@ -28,8 +29,20 @@ describe('the addon mapping', () => {
       addonPath: 'panorama/images/custom_game/ezpug/banners/default.png',
       vtex: 'panorama/images/custom_game/ezpug/banners/default.vtex',
     })
-    // The moment's pictures join the addon with the card (T7).
-    expect(sources(HUD).some(s => s.source.startsWith('art/'))).toBe(false)
+    expect(byPath['layout/ezpug_moment.xml']?.addonPath).toBe(
+      'panorama/layout/custom_game/ezpug_moment.xml',
+    )
+    expect(byPath['art/empty.png']).toEqual({
+      source: 'art/empty.png',
+      addonPath: 'panorama/images/custom_game/ezpug/art/empty.png',
+      vtex: 'panorama/images/custom_game/ezpug/art/empty.vtex',
+    })
+    // Every picture the contract lists is in the addon under its own key.
+    expect(
+      sources(HUD)
+        .filter(s => s.source.startsWith('art/'))
+        .map(s => s.source.slice('art/'.length, -'.png'.length)),
+    ).toEqual(hudKeys(HUD).art)
   })
 
   it('names the compiled file of each source', () => {
@@ -88,9 +101,11 @@ const PROPERTIES = [
   'horizontal-align',
   'letter-spacing',
   'margin',
+  'margin-bottom',
   'margin-left',
   'margin-right',
   'margin-top',
+  'max-height',
   'max-width',
   'opacity',
   'padding',
@@ -99,6 +114,10 @@ const PROPERTIES = [
   'transform',
   'transform-origin',
   'transition',
+  'transition-delay',
+  'transition-duration',
+  'transition-property',
+  'transition-timing-function',
   'vertical-align',
   'visibility',
   'white-space',
@@ -125,6 +144,29 @@ describe('every stylesheet', () => {
       expect(url[1]).toMatch(
         /^s2r:\/\/panorama\/images\/(custom_game\/ezpug\/[a-z0-9_/-]+\.vtex|.+_png\.vtex)$/,
       )
+  })
+})
+
+/** Our own class names in a text: everything `ezpug-`, which is every class a layout carries from the start. */
+const ownClasses = (text: string, pattern: RegExp) =>
+  new Set([...text.matchAll(pattern)].flatMap(match => match[1]!.split(/\s+/)).filter(Boolean))
+
+// A class the layout carries and no rule styles, or a rule for a class no panel carries,
+// is a typo the client draws as nothing. State classes the plugin sets (`shown`,
+// `tier-rare`, `art-<key>`) are not `ezpug-` names and are held by the plugin's own tests.
+describe('a layout and the stylesheets it includes', () => {
+  it.each(layouts)('%s: name the same classes', file => {
+    const xml = read(file).replace(/<!--[\s\S]*?-->/g, '')
+    const carried = ownClasses(xml, /class="([^"]*)"/g)
+    const styled = new Set<string>()
+    for (const include of xml.matchAll(
+      /<include src="s2r:\/\/panorama\/styles\/custom_game\/([a-z0-9_]+)\.vcss_c"/g,
+    )) {
+      const css = read(`styles/${include[1]}.css`).replace(/\/\*[\s\S]*?\*\//g, '')
+      for (const selector of css.matchAll(/(?:^|\})\s*([^{}@]+?)\s*\{/g))
+        for (const name of selector[1]!.matchAll(/\.(ezpug-[a-z0-9-]+)/g)) styled.add(name[1]!)
+    }
+    expect([...carried].sort()).toEqual([...styled].sort())
   })
 })
 

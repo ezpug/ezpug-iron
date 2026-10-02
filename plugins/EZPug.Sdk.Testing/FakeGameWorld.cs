@@ -42,13 +42,17 @@ public sealed class FakePlayer : IGamePlayer
 /// </summary>
 public sealed class FakeHudLayout
 {
-    internal FakeHudLayout(string layout)
+    internal FakeHudLayout(string layout, bool observable = false)
     {
         Layout = layout;
+        Observable = observable;
     }
 
     /// <summary>The layout's source path, as it was created.</summary>
     public string Layout { get; }
+
+    /// <summary>Whether somebody spectating a player is shown that player's version of the layout.</summary>
+    public bool Observable { get; }
     public Dictionary<(string Panel, string Class), bool> Classes { get; } = [];
     public Dictionary<(string Panel, string Variable), string> Variables { get; } = [];
     public Dictionary<int, Dictionary<(string Panel, string Class), bool>> SlotClasses { get; } = [];
@@ -229,9 +233,9 @@ public sealed class FakeGameWorld : IGameWorld
 
     // ------------------------------------------------------------------ the HUD
 
-    public void CreateHudLayout(string layout)
+    public void CreateHudLayout(string layout, bool observable = false)
     {
-        HudLayouts.Add(new FakeHudLayout(layout));
+        HudLayouts.Add(new FakeHudLayout(layout, observable));
         Record(new WorldAction("hud_create", null, layout));
     }
 

@@ -303,7 +303,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > "exactly as `announce` does"; since T6 the line is behind the server's prefix.
   > `docs/match-api.md` says so, and the comment is for the package's next release, not
   > worth one of its own.
-- [ ] **T7: the card and its pictures.** The layout and styles for T6. The turn is a
+- [x] **T7: the card and its pictures.** The layout and styles for T6. The turn is a
   `transition` (Findings). The card yields to the buy menu and the scoreboard in CSS
   (`HUD_BUYMENU_VISIBLE`, `HUD_SCOREBOARD_VISIBLE`), and never sits on the radar, the kill
   feed, the win panel or the chat. Art: the platform's house drop pictures
@@ -312,6 +312,27 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   anything else shows its category's. Four tiers (`common`, `uncommon`, `rare`,
   `legendary`) as tints. `observable` set so a spectator sees what the watched player sees,
   if a check on the dev node shows it does what the entity's description says.
+  > note (T7, 2026-10-02): the toasts are at the right edge under the kill feed and the
+  > card at the left edge between the radar and the chat (460 × 180, picture and words side
+  > by side), both placed from the game's own HUD stylesheets and never seen. The layout
+  > fades for the buy menu, the scoreboard, the team intro and the end of the match and
+  > **not** for the win panel: a decided round is where most cards play, so the card is
+  > placed clear of that panel instead. `observable` is set on the moment's entity only
+  > (the welcome speaks to one person); the dev node reads it back as `m_bObservable`, and
+  > that is all a server without a client can say. `hud/dist/` is now 34 files and an
+  > 8.4 MB pack (the 26 pictures, uncompressed as a custom HUD needs them), still ahead of
+  > the Workshop item until T9 publishes.
+  > **For T9:** CounterStrikeSharp cannot enumerate the entity's panel, class and variable
+  > names (`NetworkedVector` throws "only support CHandle<T>" on a string), so "read the
+  > networked vectors back" has to go through the slot states or a route of its own.
+  > **For T11's look list**, besides what the task names: the card against the radar and
+  > the chat at 16:9 and 4:3, a long line on the card and on a toast, the turn (two scale
+  > transitions) and the fade when a freeze ends, the four tints, a toast over the
+  > welcome's card in the eight seconds after a join, a card due at the end of the match
+  > (hidden under the game's own screen), what somebody dead and spectating sees when
+  > their own card plays, and the welcome's `transition:` shorthand (registered in the
+  > client, used nowhere in the game's own 239 stylesheets; the moment uses the
+  > longhands).
 - [ ] **T8 (effort: medium): the mode's own words.** `Gamemode` gains the helpers a mode
   author would reach for (a toast to one player or all, localized like `Say`), on top of T3
   and nothing else; `powerup-dm`'s peek countdown stays on the centre panel. `docs/sdk.md`

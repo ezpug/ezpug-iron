@@ -17,7 +17,7 @@ afterEach(() => {
 function copy(): string {
   const dir = mkdtempSync(join(tmpdir(), 'ezpug-hud-'))
   copies.push(dir)
-  for (const part of ['addoninfo.txt', 'layout', 'styles', 'images', 'banners', 'dist'])
+  for (const part of ['addoninfo.txt', 'layout', 'styles', 'images', 'banners', 'art', 'dist'])
     cpSync(join(HUD, part), join(dir, part), { recursive: true })
   return dir
 }

@@ -631,9 +631,11 @@ public sealed class CounterStrikeWorld : IGameWorld
     /// layout written to <c>m_strLayout</c> after the spawn networks and reads back and
     /// is still never loaded by a client. The raw factory rather than
     /// <c>Utilities.CreateEntityByName</c>, which wraps a null pointer in an entity that
-    /// faults when asked whether it is valid.
+    /// faults when asked whether it is valid. <c>observable</c> is the entity's third
+    /// key (the game's <c>csgo.fgd</c>: "Show each player's own version of this UI to
+    /// whoever is spectating them") and reads back as <c>m_bObservable</c>.
     /// </summary>
-    public void CreateHudLayout(string layout) =>
+    public void CreateHudLayout(string layout, bool observable = false) =>
         TouchHud($"creating {layout}", () =>
         {
             var pointer = VirtualFunctions.UTIL_CreateEntityByName(HudEntityClass, -1);
@@ -647,6 +649,11 @@ public sealed class CounterStrikeWorld : IGameWorld
             {
                 keys.SetString("targetname", HudEntityName);
                 keys.SetString("layout", layout);
+                if (observable)
+                {
+                    keys.SetBool("observable", true);
+                }
+
                 entity.DispatchSpawn(keys);
             }
 

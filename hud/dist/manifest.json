@@ -8,13 +8,146 @@
   },
   "sources": {
     "addoninfo.txt": "9d98fed61a289196f6b887705240846a41dda0833363bf5cfcc32a61d66ace58",
+    "layout/ezpug_moment.xml": "7bc599c93cea7181fcc4c64a126e2e1b9d249e8943b60bbb93ddb1636f22df86",
     "layout/ezpug_welcome.xml": "76637d9e04885b997da3c2f42196335022c425c5195d0663ea56fafe740f4e0a",
+    "styles/ezpug_art.css": "c2ac8471a9c20913780cff66f5e6f5a1a54f78eb67265dc0b50bb35c39f82270",
     "styles/ezpug_banners.css": "2e7898eef86c52953eec3e92dde22664220f19df7aa69dc97c65c5a1d19fde8a",
+    "styles/ezpug_moment.css": "60935610a7950d8996421d609ad9998d4eab046b7f5d810bd38ba7fcf2934ef6",
     "styles/ezpug_welcome.css": "6d05847e94fde985bc2b25769284f30f233a067ffb6fb10daf976187e8bcfbee",
     "images/cast/hello.png": "7074ee2c698f334e6438387b1c828d0d1bc9d9efa0788aa1ca465a1c047df6f1",
-    "banners/default.png": "6c0a2425f910be597764d4383627f8eca9e48264a90d8685964b2e1a65a94649"
+    "banners/default.png": "6c0a2425f910be597764d4383627f8eca9e48264a90d8685964b2e1a65a94649",
+    "art/big-bag.png": "3d677a55876f71df81e64855dc574a4d0f900ce75cd1d84cd57796afa9967352",
+    "art/big-crewneck.png": "e65211e6f1781fe6709e6781a43691df5e99b4958298f5141211deb5a546ca2d",
+    "art/big-flag.png": "1385acae613a26b1b59603b650300cc125d42c3cc660607e495e182c2d0e8e45",
+    "art/big-gobig-tee.png": "f2a05f336a09e1d08367850b5181463ab0fbe8a6fdfbaef5935eae4c08223b8c",
+    "art/big-home-jersey.png": "8d602899f00eb685142ab7f71f7f822d97f5af0aedd25da5364694d0fd44f1fe",
+    "art/big-jersey.png": "de67eb4165a83ecc4712001eb472b6a168cf8e4bfa55e55748eb9e1aea23e3a9",
+    "art/big-keyring.png": "a08256a4f040a7023e6395272e7aea5ad0f25e36e695ea90e21b13e406a998b2",
+    "art/big-lanyard.png": "3b49906fc9bda6165991f73314944655929a311122d6136e94fa38bb038582f7",
+    "art/big-lollipop.png": "ba958074353cc2d48de8a9d19dda72422e707677b4f46bed158c3af180885c8f",
+    "art/big-mousepad.png": "18e3ca86e4909a9a31c8921041405b9f34f94db5b049a0dc8a809e3022b37a5f",
+    "art/big-origins-tee.png": "59ae4b404fd864ffd78270948513574c78ec7e8f65d2e01ecf59b20557bd9d85",
+    "art/big-pin.png": "c0a4e65a188d6535e06b81c0968a34fc056387afa8aaa8c6cd06b675775eede1",
+    "art/big-roar-tee.png": "2546c003704623dd604e5f058a58f7e66110d8057339551da4da76b4ba14b500",
+    "art/big-sticker.png": "1771dccb33996bad9b58efc99803d049e846a5a4d4c712a40e6df04962b60567",
+    "art/category-catering.png": "211403f3f53d2247e836ccc4db262c49fca20573f891df6550c959e895304f01",
+    "art/category-gift-card.png": "b5ac05c2c17e84413b7a056fd211fac8dca68f9ab2715a913bf9ff95fbd5e3e9",
+    "art/category-merch.png": "6eec87559568f85e6d8ab041ef4f95c557fa0837d9edc5a5dce63f1c4f9fb561",
+    "art/category-prize.png": "560f697216b2f15bde3f835c66b13545bf638df0fadf83e85919350a798fd4a6",
+    "art/double-sandwich.png": "bf68f4788d9c7b4ee4a7c67f94ff81cc7ead65f19b0240f76f0b25ab317b52d5",
+    "art/double-waffel.png": "2ab6c2f75bfe160692b348d423e97bb0b7d47b1114ede705b487ea1dc70378f2",
+    "art/empty.png": "26f4353d45faa8f6ccdb8157cccad132dedb0cee35ffb233fee5efe6ab532806",
+    "art/karlsberg.png": "5ed300aeb4c5d65fe1fd5c8e7399bf372a5e67a6ef18120b5e53cf76f5c67e40",
+    "art/kuscheln-am-infopoint.png": "15955a72a795fc3bf66005bfb8d5b13356ccf0c99c93da4e13f214366bab7ece",
+    "art/saarlan-becher.png": "367b992a3695e1f4a11a6ab2110c8dab16ff2bc3acae9fc584256c6824e027e2",
+    "art/saarlan-cup.png": "93cc632501f233ebd3283da7440ec85aa1356ca67ba0604ce73fe9d86220ecc2",
+    "art/shot.png": "f7a96b5f120ff42b58566489873ceae0b8655fdc8d142e7dd2eae1467849f54d"
   },
   "files": {
+    "panorama/images/custom_game/ezpug/art/big-bag.vtex_c": {
+      "sha256": "2bde56155bb6ceb21ed1e6302c2ffaef5e72df028d16325ea69733347240d412",
+      "bytes": 162300
+    },
+    "panorama/images/custom_game/ezpug/art/big-crewneck.vtex_c": {
+      "sha256": "afa3bbd401ffffbed698d29258d3fa0598157832daede683cd33a299f4b2a877",
+      "bytes": 290927
+    },
+    "panorama/images/custom_game/ezpug/art/big-flag.vtex_c": {
+      "sha256": "acb5ca91cb8e5914b24844b0aa039d471f37b6c89b6b416e7a31b67360a0dc01",
+      "bytes": 226606
+    },
+    "panorama/images/custom_game/ezpug/art/big-gobig-tee.vtex_c": {
+      "sha256": "dcc32c6d56bd74c5cba82426decfedf41d72023cd6f15fdcb1efe174124173f8",
+      "bytes": 210253
+    },
+    "panorama/images/custom_game/ezpug/art/big-home-jersey.vtex_c": {
+      "sha256": "50b4ce813fb34289b1e006b11b4626860a28522fdb886efc6833e9fc580d8fcf",
+      "bytes": 284884
+    },
+    "panorama/images/custom_game/ezpug/art/big-jersey.vtex_c": {
+      "sha256": "ebec81d171176572550769eca0e826fefce6d28f52cc40ae6056df8a83676596",
+      "bytes": 346230
+    },
+    "panorama/images/custom_game/ezpug/art/big-keyring.vtex_c": {
+      "sha256": "ac8c62eaf7b57f71021b6222aa82b1e5132099419f70fdf2dee4bedefbcb9843",
+      "bytes": 256516
+    },
+    "panorama/images/custom_game/ezpug/art/big-lanyard.vtex_c": {
+      "sha256": "722e37bc4e2440e14830807632132cbf52b2610fe9c9d3e7becdd6de64b46bf5",
+      "bytes": 324045
+    },
+    "panorama/images/custom_game/ezpug/art/big-lollipop.vtex_c": {
+      "sha256": "3f33a25362991dc5973d3d279626e538e1a7810e2af590b12834f53ee2c9ae71",
+      "bytes": 223652
+    },
+    "panorama/images/custom_game/ezpug/art/big-mousepad.vtex_c": {
+      "sha256": "94cc55bb622bb2d8734cc6cdab502cf2e1babf7774421d5dec09b1255c608ca9",
+      "bytes": 195130
+    },
+    "panorama/images/custom_game/ezpug/art/big-origins-tee.vtex_c": {
+      "sha256": "eb67fdf3d7c1aa397c09aebeb363a05d712a0a393e223596757f2daebf3ad570",
+      "bytes": 235921
+    },
+    "panorama/images/custom_game/ezpug/art/big-pin.vtex_c": {
+      "sha256": "010f9018a48d87170f663e614cf0241a600bbf72ab171e2a4439ba9cf8bfa94b",
+      "bytes": 285755
+    },
+    "panorama/images/custom_game/ezpug/art/big-roar-tee.vtex_c": {
+      "sha256": "692807b12adccb07f1f17049bce72ca95b5e6eb5c5e51a2330b3bb745ba498fd",
+      "bytes": 276122
+    },
+    "panorama/images/custom_game/ezpug/art/big-sticker.vtex_c": {
+      "sha256": "f85e7818766a830ce2837b7e3eed408e50db5de5c1ee04e2732226d8a17a3d15",
+      "bytes": 246448
+    },
+    "panorama/images/custom_game/ezpug/art/category-catering.vtex_c": {
+      "sha256": "b1d0d64db006e208fbc46b14527687b6a9f04cc5ed0dc35b8c0c1604e4f18e21",
+      "bytes": 316553
+    },
+    "panorama/images/custom_game/ezpug/art/category-gift-card.vtex_c": {
+      "sha256": "de0a4241cffbca873331915b26899bc40ece6ca58d53a7af09e19b1c09f94cba",
+      "bytes": 280938
+    },
+    "panorama/images/custom_game/ezpug/art/category-merch.vtex_c": {
+      "sha256": "55405a4e7f01f8d6ad0208c095fa3c80dc3f34cf9373abe2fc7f97b174309644",
+      "bytes": 214168
+    },
+    "panorama/images/custom_game/ezpug/art/category-prize.vtex_c": {
+      "sha256": "f284c087d5935bb48dc94ec037a1fba85371ae9c0326aa40ba2ce7723596adf3",
+      "bytes": 279937
+    },
+    "panorama/images/custom_game/ezpug/art/double-sandwich.vtex_c": {
+      "sha256": "7e5ff9d868a280c98b9bea68366dffee09ed33dcfc798d41af4747cd450ac2c3",
+      "bytes": 466190
+    },
+    "panorama/images/custom_game/ezpug/art/double-waffel.vtex_c": {
+      "sha256": "31ab5daa8418201bcd4d5d337887008f0201eb177e811ecfd68cac4829e763ff",
+      "bytes": 434458
+    },
+    "panorama/images/custom_game/ezpug/art/empty.vtex_c": {
+      "sha256": "bfa4cb76a2d1cb214c6d5b4875910bf70a732ecd50b62f3383a0959475ca56b9",
+      "bytes": 202868
+    },
+    "panorama/images/custom_game/ezpug/art/karlsberg.vtex_c": {
+      "sha256": "ad06b7aaf2521243684121df1eb109b35ae8397028c2ed8e84f75b785a6ac104",
+      "bytes": 227226
+    },
+    "panorama/images/custom_game/ezpug/art/kuscheln-am-infopoint.vtex_c": {
+      "sha256": "72d2ee8baefcf7c0334663dcd763e1efaea8ad67aacbf4d167fc2862fcd43f8c",
+      "bytes": 305198
+    },
+    "panorama/images/custom_game/ezpug/art/saarlan-becher.vtex_c": {
+      "sha256": "8db4dec7af177213b8246ccfd0b8cf3ba047d2936b1b7371afc545dcaa53955e",
+      "bytes": 241305
+    },
+    "panorama/images/custom_game/ezpug/art/saarlan-cup.vtex_c": {
+      "sha256": "5ebff68649af8c9e8e14b38e8df2b94ef4cbe35f0b35771ce6be1c5c71bdbfff",
+      "bytes": 271615
+    },
+    "panorama/images/custom_game/ezpug/art/shot.vtex_c": {
+      "sha256": "20572067b23717f6778fa5a57fb8e52c44554a7bb95b2cbd6cd344ae68882d80",
+      "bytes": 346200
+    },
     "panorama/images/custom_game/ezpug/banners/default.vtex_c": {
       "sha256": "3506701f0e326148dbb977358ae6af13e0daa1c9591fc73012da32950a96ce02",
       "bytes": 834646
@@ -23,13 +156,25 @@
       "sha256": "b0b95cce3b9ca49916fbdd7c8d59be9476634071e902d8b6cad065ccd4971d80",
       "bytes": 405251
     },
+    "panorama/layout/custom_game/ezpug_moment.vxml_c": {
+      "sha256": "8206070702d76bfc46a7effe76d9dcdaeb0069e3392c055600b2f6b870a59fd9",
+      "bytes": 1974
+    },
     "panorama/layout/custom_game/ezpug_welcome.vxml_c": {
       "sha256": "5245edde2bde75169b9c67fc15b6b9faa770a75192d385d29797fedad1dd28f2",
       "bytes": 1953
     },
+    "panorama/styles/custom_game/ezpug_art.vcss_c": {
+      "sha256": "cc29a727967fb8d12176ecbc730b22f82a74679b270967a7b2fb5bb34ce10d86",
+      "bytes": 6433
+    },
     "panorama/styles/custom_game/ezpug_banners.vcss_c": {
       "sha256": "5d21d55bdd4da7ad10aa9152eb3b9ec1d8689eb1634b368523737fc0d3c73d01",
       "bytes": 1287
+    },
+    "panorama/styles/custom_game/ezpug_moment.vcss_c": {
+      "sha256": "9e21e1ab736e5ba9212628ec181c33d756db7b83c9ef8827b992fcd007a9cb14",
+      "bytes": 10087
     },
     "panorama/styles/custom_game/ezpug_welcome.vcss_c": {
       "sha256": "6b78c67487035ba3050e72204d23a3b193b40d1988c63e22400c6c4887002e2b",
@@ -38,7 +183,7 @@
   },
   "pack": {
     "file": "ezpug_hud.vpk",
-    "sha256": "14c8d2441d9161037ece180f0113aec65c03495d584506082c67c5bf0c8b5aab",
-    "bytes": 1251866
+    "sha256": "f4e428dcfe4c6a26973a5ed3a112177f07502d1644d6d984047cac7f341f86a3",
+    "bytes": 8422739
   }
 }

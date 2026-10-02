@@ -613,6 +613,35 @@ it here.
     begins with an event the world already raises). Nobody has heard the sound or seen
     the card: both are on the look list.
 
+    **What the card and the toast look like** (T7, 2026-10-02; `hud/layout/ezpug_moment.xml`).
+    The toasts are three slim rows at the right edge under the kill feed; the card is at
+    the left edge between the radar and the chat, a picture and the person's line, 460 by
+    180. Both places were read out of the game's own HUD stylesheets and not off a screen.
+    **The card is placed clear of the win panel and does not hide for it**: a decided
+    round is where most cards play, and hiding behind the win panel would hide most
+    cards. It does hide for the buy menu, the scoreboard, the team intro and the end of
+    the match. **A tier is a tint** (the edge of the card, the heading, a bar on the
+    toast) in the colours the platform's drop card uses for its materials: muted bone,
+    ivory, cobalt, magenta. **A picture is a class**, `art-<key>`, with one rule per file
+    in `hud/art/` generated beside the contract's list, so a key the addon does not hold
+    is the empty sleeve on the client and the server needs no list. The 26 pictures are
+    the platform's at 1×, uncompressed as a custom HUD needs them, and they make the
+    pack 8.4 MB. **The turn is a transition** between two faces that lie on each other
+    (the back narrows to an edge, then the front widens from one), because keyframes on
+    a transform do not play in a custom HUD. **The moment's layout is observable and the
+    welcome's is not.** `observable` is the entity's own key ("show each player's own
+    version of this UI to whoever is spectating them"): a moment happens to a player, so
+    whoever watches them sees it as they do, and the welcome speaks to one person. On
+    the dev node the key reads back as `m_bObservable` on the one entity and not the
+    other; what a spectator sees is the look list's, and so is its cost: somebody dead
+    and watching a team-mate when their own card plays is presumably shown the
+    team-mate's screen (the toast) and not their card. Not chosen: a card in the middle
+    of the screen (it is shown in warmup too, where people are shooting); a portrait
+    card (nothing between the radar and the chat is that tall); a rotation in depth for
+    the turn (one more thing no machine here can see; scaling is what the welcome
+    already moves by); a glow per tier (the same); the pictures at half size (a 4K
+    screen draws the box at twice its pixels).
+
 ## How the rounds run
 
 24. **Spine first, then two loops in parallel.** `ralph/PRD-01-spine.md` (this repo, ~10

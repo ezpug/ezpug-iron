@@ -8,8 +8,9 @@
  *   pnpm hud:verify             is hud/dist/ honest? (no compiler, no network)
  *   pnpm hud:publish            upload hud/dist/'s pack to the Workshop item, then fetch it anonymously
  *   pnpm hud:publish --dry-run  everything but Steam: the clean tree, the honest dist, the item VDF
- *   pnpm hud:keys               write the banner and art keys into @ezpug/match-api (hud/src/keys.ts)
- *                               and the welcome's banner stylesheet (hud/src/banners.ts)
+ *   pnpm hud:keys               write the banner and art keys into @ezpug/match-api (hud/src/keys.ts),
+ *                               the welcome's banner stylesheet (hud/src/banners.ts) and the
+ *                               moment's picture stylesheet (hud/src/art.ts)
  *   pnpm hud:banner <key> <file>  add or replace a banner, at the banner's size, then hud:keys
  *
  * `docs/hud.md` is the page for people: the volumes, the session, what Wine
@@ -20,6 +21,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { listFiles, sha256, sourceHashes, sources, VPK_NAME, vtexFor } from './addon.ts'
+import { ART_STYLES, renderArtStyles } from './art.ts'
 import { BANNER_STYLES, bannerPath, fitBanner, renderBannerStyles } from './banners.ts'
 import {
   type DistManifest,
@@ -28,7 +30,7 @@ import {
   serializeManifest,
   verifyDist,
 } from './dist.ts'
-import { DEFAULT_BANNER, hudKeys, KEYS_MODULE, renderKeysModule } from './keys.ts'
+import { DEFAULT_ART, DEFAULT_BANNER, hudKeys, KEYS_MODULE, renderKeysModule } from './keys.ts'
 import { readBack } from './readback.ts'
 import { writeVpk } from './vpk.ts'
 import { itemVdf, parseWorkshopItem, publishedIdFromVdf, uploadVerdict } from './workshop.ts'
@@ -300,13 +302,23 @@ async function check(id: string) {
   log(`an anonymous SteamCMD fetched ${id} by id, byte for byte hud/dist/${VPK_NAME}`)
 }
 
-/** The contract's two key lists and the welcome's banner stylesheet, from the pictures in `hud/banners/` and `hud/art/`. */
+/**
+ * The contract's two key lists, the welcome's banner stylesheet and the
+ * moment's picture stylesheet, from the pictures in `hud/banners/` and
+ * `hud/art/`. A file that already says what it should is left alone: the dev
+ * orchestrator watches the contract's sources and restarts on a write.
+ */
 function keys() {
   const found = hudKeys(HUD)
-  writeFileSync(join(REPO, KEYS_MODULE), renderKeysModule(found))
-  writeFileSync(join(HUD, BANNER_STYLES), renderBannerStyles(found.banners, DEFAULT_BANNER))
+  const write = (path: string, content: string) => {
+    if (!existsSync(path) || readFileSync(path, 'utf8') !== content) writeFileSync(path, content)
+  }
+  write(join(REPO, KEYS_MODULE), renderKeysModule(found))
+  write(join(HUD, BANNER_STYLES), renderBannerStyles(found.banners, DEFAULT_BANNER))
+  write(join(HUD, ART_STYLES), renderArtStyles(found.art, DEFAULT_ART))
   log(`${KEYS_MODULE}: ${found.banners.length} banner(s), ${found.art.length} picture(s)`)
   log(`hud/${BANNER_STYLES}: ${found.banners.length} banner(s)`)
+  log(`hud/${ART_STYLES}: ${found.art.length} picture(s)`)
 }
 
 /**
