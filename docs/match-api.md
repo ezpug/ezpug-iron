@@ -437,7 +437,7 @@ id; a retried command with the same id is not applied twice):
 | `force_end`     | `reason?` | the match ends `force_ended` |
 | `kick`          | `steamId64, reason?` | |
 | `announce`      | `text` ≤512 | the plugin prints it, as the client wrote it and behind no prefix of ours; a sim echoes it as a `plugin_event`. Sanitized into one chat line first — control characters, `;`, `"` and `\` out, 127 code points — and `validation_failed` when nothing is left |
-| `moment`        | `kind, steamId64?, tier, art?, text, inMs` | this happened to this player; the server decides how and when to show it. **A server without a HUD prints the line**, as `announce` does. See [The HUD, from a client's side](#the-hud-from-a-clients-side) |
+| `moment`        | `kind, steamId64?, tier, art?, text, inMs` | this happened to this player; the server decides how and when to show it. **A server without a HUD prints the line**, behind its own chat prefix. See [The HUD, from a client's side](#the-hud-from-a-clients-side) |
 | `rcon`          | `command` | needs `admin`; `command_unsupported` on a sim |
 | `restore`       | `roundNumber?` | **`live`**: the match is rewound on its own server to the start of that round of the map being played, the latest backup's round when unsaid — `applied` once the round has started again, `invalid_state` with the reason word first when the match software refused ([A restore on a live match](#a-restore-on-a-live-match)). **`recovering`**: the backup the replacement resumes from. `no_backup` when there is none; `invalid_state` in any other state |
 | `reroll`        | | the match over on the same server, rosters kept |
@@ -493,7 +493,11 @@ released before it is due shows nothing. `validation_failed` when nothing of a l
 survives the chat sanitizer. `invalid_state` when the match has no server.
 
 **A server without a HUD prints the line** when the moment is due, to each player in their
-language and to the person in their own words, exactly as an `announce` would. A client
+language and to the person in their own words. Unlike an `announce`, the line is the
+server's to say: it goes out behind the match's chat prefix (`[EZPug]`, or the event's
+name), so the words should carry no brand of their own, and prefix and line together are
+cut to one chat line of 127 code points. A server with a HUD says the same line and draws
+on top of it. A client
 therefore sends a `moment` wherever it would have sent that `announce`, and falls back to
 the `announce` only when the command itself is refused. One such case is worth knowing: a
 server whose plugin predates `moment` cannot read the frame and does not answer, so the

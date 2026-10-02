@@ -15,7 +15,7 @@ write:
 
 | Seam | What it is | Production | Test |
 | ---- | ---------- | ---------- | ---- |
-| `IGameWorld` | players (SteamID64, slot, team, alive, position, scoreboard rating), say/print/center/HUD, the six verbs of a Panorama layout (below), give/strip, respawn, health/armor/speed, the scoreboard's rating, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, freeze end, bomb, chat, map started, map ended on the win panel, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
+| `IGameWorld` | players (SteamID64, slot, team, alive, position, scoreboard rating), say/print/center/HUD, the six verbs of a Panorama layout (below), one of the game's own sound events for one player, give/strip, respawn, health/armor/speed, the scoreboard's rating, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, freeze end, bomb, chat, map started, map ended on the win panel, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
 | `IPlatformLink` | emit an event, report state, send a backup or a console tail; receive assignment, commands, player commands, profiles through `IPlatformLinkHandler` | `LinkClient` — one outbound WebSocket to `/link` | `FakePlatformLink` |
 | `IClock` | monotonic milliseconds and timers; the only time a mode may read | `SystemClock` for the link's threads; `GameThreadClock` for a mode — the core plugin fires its timers from the engine's tick | `FakeClock` |
 | `GamemodeRuntime` | the link's handler and the world's listener, routing both to the attached mode; stamps the per-match `seq`; emits the plumbing and gameplay events once | owned by the core plugin | owned by `GamemodeTestHost` |
@@ -227,6 +227,15 @@ print the centre card and prints that card only when the answer is no, so a play
 gets both and a match with the HUD off gets the centre card it always did. The welcome's
 words are the SDK's (`hud.welcome.*` beside `branding.card.*` in `Lines.*.resx`), and a
 mode adds nothing to it.
+
+The second layout is **the moment's** (`Runtime.Moments`, `docs/hud.md`, "The moment"):
+what the Match API's `moment` command becomes. Its line goes out in chat behind the
+match's prefix whatever the server can draw. With the HUD on, everybody also gets a toast
+and the person a card, and the card is shown only in a stretch `Hud.Quiet` says is long
+enough for it. A mode has nothing to do for any of it. The sound at the card's turn is
+`IGameWorld.PlaySound(player, soundEvent, volume)`: one of the game's own sound events
+(a name from its `soundevents/*.vsndevts`), to one player; `World.Sounds` on the harness
+is what was played to whom.
 
 On the harness, `new GamemodeTestHost(hudAddon: "…")` is a server that can draw and
 `AssignmentFor(…, hud: true)` a match that asks. `World.HudLayouts` holds each layout as

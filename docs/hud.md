@@ -385,17 +385,15 @@ assignment for a match that never asked is byte for byte what it was before the 
 existed (`apps/orchestrator/src/link/assign.ts`, and the recorded link conversation in
 `packages/protocol/fixtures/link/match.json`, which gained a command and lost nothing).
 
-A `moment` reaches every server, whether it can draw or not. For now the plugin answers it
-the way a server without a HUD always will: the line in chat when the moment is due, to
-each player in their language and to the person it is about in their own words
-(`GamemodeRuntime.OnMoment`, `plugins/EZPug.Sdk.Tests/MomentTests.cs`). Nothing is drawn
-for one yet; the welcome below is the only layout so far.
+A `moment` reaches every server, whether it can draw or not, and every server says its
+line in chat when it is due. What a server that can draw does on top of that is "The
+moment", below.
 
 The id goes on the client list at the assignment because a client is told what to mount
 while it connects, and players connect to a match after it is assigned. Somebody already
 on the server at that moment keeps playing without the addon and sees nothing, which is
 what the HUD being decoration means. `ezpug_status` on a server that can draw says where
-it stands (`hud: addon <id>, on, 1 layout(s) in the world`); on one that cannot, the
+it stands (`hud: addon <id>, on, 2 layout(s) in the world`); on one that cannot, the
 report has no such line.
 
 The rules the plugin keeps (no entity before a round has started, orphans removed by
@@ -445,6 +443,71 @@ no:
 
 The welcome says nothing that is not also in chat or on the centre card's lines: the team
 line and the rating greeting go out as before, and the event's name is the chat prefix.
+
+### The moment
+
+A `moment` (`docs/match-api.md`, "The HUD, from a client's side") is handled by
+`EZPug.Sdk.Moments` (`Runtime.Moments`), and `plugins/EZPug.Sdk.Tests/MomentTests.cs`
+holds every sentence of this section.
+
+**The line, always.** When the moment is due, `inMs` after the command arrived, everybody
+on the server reads its line in chat behind the match's prefix (`[EZPug]`, or the event's
+name): each in the language of their roster entry, and the person it is about in the
+words written for them. The prefix is the server's, so the client's words carry no brand
+of their own. Prefix and line together are cut to one chat line of 127 code points. With
+the HUD off that is all a moment is: no layout is touched and no sound plays.
+
+**The toast**, with the HUD on: the same line as a slim strip for everybody, at the same
+instant, tinted by tier. Three rows (`moment_toast_1` to `moment_toast_3`), six seconds
+each. A fourth toast waits for the first row to come free, at most six wait, and one
+beyond that is not drawn: its line was said.
+
+**The card**, for the person: it slides in face down, turns over one second later with
+the sound, and is gone six seconds after it came. It is only ever shown while nobody is
+playing:
+
+| When the moment is due | The person gets |
+| ---------------------- | --------------- |
+| warmup, a pause standing in a freeze, halftime, the map over | the card, now |
+| a freeze with at least six seconds left | the card, now |
+| a decided round whose restart delay and next freeze add up to six seconds | the card, now |
+| a round being played, a freeze with less than six seconds left, a mode whose freeze is too short | the toast now, and the card at the next stretch that fits: a round start, a round end, the map's end |
+| before any round has started on the map | the card at the first round start |
+| they are not on the server | nothing, and nothing waits for them |
+
+A waiting card is dropped after three minutes (`Moments.CardWaitMs`, longer than a round
+can run) and at a map change. A card on screen when the freeze ends is put away in that
+instant; if it had not turned over yet it showed nothing and waits for the next stretch.
+Two cards for one person queue, half a second apart, four at most. Somebody who leaves
+takes their waiting cards with them. A person whose card plays at once gets no toast,
+because the card says it.
+
+Under Rush's 13 seconds of freeze a card has to start in the first seven; under
+flying-scoutsman's five it always waits for the round to be decided; in `powerup-dm`,
+which has no freeze and no round end, it waits for the map's end and is dropped long
+before that. In those modes a moment is its line and its toast.
+
+**The sound** is the game's own: `EndMatch.ItemRevealSingleLocalPlayer`, what CS2 plays at
+the end of a match when the item that dropped is yours, at 0.4, 0.6, 0.8 and 1.0 of its
+volume for the four tiers, to the person alone and at the card's turn. Nothing is
+shipped for it. Decision 34 names the other events that were looked at.
+
+**The names** the service sets, which the layout has to carry (`hud/layout/ezpug_moment.xml`
+is PRD-07 T7's; until it is in the addon the entity exists and draws nothing):
+
+| Panel or label | What is set on it |
+| -------------- | ----------------- |
+| `moment_toast_<n>` (1 to 3) | `shown`, per player; `tier-common`, `tier-uncommon`, `tier-rare`, `tier-legendary`, for everybody |
+| `moment_toast_<n>_text` | `{s:text}`: the line, per player |
+| `moment_card` | per player: `shown`, `turned`, one `tier-*`, and `art-<key>` for the picture (no class is the default picture, `empty`, and so is a key the addon has no rule for) |
+| `moment_card_kind` | `{s:text}`: "Drop", "Perk", "Verlosung" / "Raffle", or the event's name for a kind the server has no word for |
+| `moment_card_text` | `{s:text}`: the person's own line |
+
+`shown` goes off and on again half a second apart, never in one frame, so a transition
+started by the class always has something to start from.
+
+Nobody has seen a toast or a card, or heard the sound. The tests read the state the
+entity would hold and the fake clock; what it looks and sounds like is the look list's.
 
 ## Deleting it
 

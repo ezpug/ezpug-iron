@@ -295,6 +295,17 @@ public interface IGameWorld
     /// <summary>The same for one player, over the value everybody has. Per slot, like the class.</summary>
     void SetHudVariable(IGamePlayer player, string layout, string panel, string variable, string value);
 
+    // Sound
+    /// <summary>
+    /// Play one of the <b>game's own</b> sound events to one player and nobody else
+    /// (PRD-07 T6): <paramref name="soundEvent"/> is a name out of the game's
+    /// <c>soundevents/*.vsndevts</c> (<c>EndMatch.ItemRevealSingleLocalPlayer</c>), never a
+    /// file of ours, so there is nothing for a client to download.
+    /// <paramref name="volume"/> is 0…1 of what the event plays at. A bot hears nothing,
+    /// and a name the client does not know is silence, not an error.
+    /// </summary>
+    void PlaySound(IGamePlayer player, string soundEvent, float volume);
+
     // Player verbs
     /// <summary>Give an item by its engine name (<c>weapon_ak47</c>, <c>item_assaultsuit</c>).</summary>
     void Give(IGamePlayer player, string item);

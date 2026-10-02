@@ -274,7 +274,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > selectors. T7 adds its properties there after looking them up. A banner is a class on
   > `#welcome` (`banner-<key>`), and a key the addon lacks has no rule, so the client draws
   > the house banner without the plugin knowing the list.
-- [ ] **T6 (fable): the moment.** `moment` handled in the runtime. The chat line always,
+- [x] **T6 (fable): the moment.** `moment` handled in the runtime. The chat line always,
   through the brand's prefix, so a player without the addon loses nothing. Then, when the
   HUD is on: a slim toast for everybody (who, what, tinted by tier), and for the person it
   is about a card that turns over. **The timing rule**, with a table test on the fake clock:
@@ -287,6 +287,22 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   person who has left gets nothing and nothing waits for them. One stock sound for the
   person, louder with the tier (find the game's own item-reveal sound events in the node's
   files and name them in the decision; no sound file ships in the addon).
+  > note (T6, 2026-10-02): the service is `EZPug.Sdk.Moments`, and it already declares
+  > the layout T7 writes (`panorama/layout/custom_game/ezpug_moment.xml`): until T7 the
+  > entity exists on a server with the HUD on and draws nothing. The ids and classes the
+  > layout has to carry are the table in `docs/hud.md`, "The moment" (three toast rows, one
+  > card, `shown`, `turned`, `tier-*`, `art-<key>` with no class for the default picture).
+  > **T7 owes the test that reads them out of the XML**, the way
+  > `WelcomeTests.EveryPanelAndClassTheWelcomeNamesIsInTheLayout` does, and a leave
+  > transition short enough for "put away at once" (a class removed is all the server does).
+  > A person whose card plays at once gets no toast; one whose card has to wait gets the
+  > toast with everybody. A card put away before it turned over waits again. The sound is
+  > one event at four volumes (decision 34) and has never been heard: whether the volume
+  > argument scales the event or replaces its own 0.2 is the look list's.
+  > The package's comment on `moment` still says a server without a HUD prints the line
+  > "exactly as `announce` does"; since T6 the line is behind the server's prefix.
+  > `docs/match-api.md` says so, and the comment is for the package's next release, not
+  > worth one of its own.
 - [ ] **T7: the card and its pictures.** The layout and styles for T6. The turn is a
   `transition` (Findings). The card yields to the buy menu and the scoreboard in CSS
   (`HUD_BUYMENU_VISIBLE`, `HUD_SCOREBOARD_VISIBLE`), and never sits on the radar, the kill

@@ -112,6 +112,8 @@ public sealed class FakeGameWorld : IGameWorld
     public Dictionary<ulong, List<string>> Centered { get; } = new();
     /// <summary>Every centre-panel card printed to a player, as the markup the engine would read.</summary>
     public Dictionary<ulong, List<string>> Hudded { get; } = new();
+    /// <summary>Every sound event played to a player, with the volume it was asked at.</summary>
+    public Dictionary<ulong, List<(string Event, float Volume)>> Sounds { get; } = new();
 
     /// <summary>
     /// Every HUD layout in the world right now, in the order they were created (PRD-07
@@ -277,6 +279,12 @@ public sealed class FakeGameWorld : IGameWorld
         }
 
         Record(new WorldAction("hud_variable", player.SteamId64, $"{layout} {panel} {variable}={value}"));
+    }
+
+    public void PlaySound(IGamePlayer player, string soundEvent, float volume)
+    {
+        Sounds.GetOrAdd(player.SteamId64).Add((soundEvent, volume));
+        Record(new WorldAction("sound", player.SteamId64, string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{soundEvent} {volume:0.##}")));
     }
 
     /// <summary>
@@ -555,7 +563,7 @@ internal static class DictionaryExtensions
         return own;
     }
 
-    public static List<string> GetOrAdd(this Dictionary<ulong, List<string>> lists, ulong key)
+    public static List<T> GetOrAdd<T>(this Dictionary<ulong, List<T>> lists, ulong key)
     {
         if (!lists.TryGetValue(key, out var list))
         {

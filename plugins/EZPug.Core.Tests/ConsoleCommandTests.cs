@@ -91,7 +91,6 @@ public class ConsoleCommandTests
         using var runtime = new GamemodeRuntime(world, link, hudAddon: "3811574606");
         var loader = new GamemodeLoader(world, image.Catalog(), image.CsgoDirectory, "de_dust2");
         loader.Bind(runtime);
-        runtime.Hud.Register("panorama/layout/custom_game/ezpug_welcome.xml");
         link.Welcome();
         string Status() => StatusReport.Render(new StatusReport.Input(runtime, link, null, null, image.Catalog(), loader));
 
@@ -99,9 +98,9 @@ public class ConsoleCommandTests
 
         link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), hud: true));
         world.StartMap();
-        Assert.Contains("hud: addon 3811574606, on, 1 layout(s) waiting for a round start", Status());
+        Assert.Contains("hud: addon 3811574606, on, 2 layout(s) waiting for a round start", Status());
         world.StartRound();
-        Assert.Contains("hud: addon 3811574606, on, 1 layout(s) in the world", Status());
+        Assert.Contains("hud: addon 3811574606, on, 2 layout(s) in the world", Status());
 
         // And a server without the addon says nothing at all about one.
         using var plain = new GamemodeRuntime(world, new FakePlatformLink());

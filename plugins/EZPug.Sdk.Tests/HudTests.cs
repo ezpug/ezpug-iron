@@ -15,6 +15,8 @@ public class HudTests
     private const string Addon = "3811574606";
     private const string Welcome = "panorama/layout/custom_game/ezpug_welcome.xml";
     private const string Toast = "panorama/layout/custom_game/ezpug_toast.xml";
+    /// <summary>The runtime's own second layout (T6), declared by its <c>Moments</c> before any test declares one.</summary>
+    private const string Card = EZPug.Sdk.Moments.Layout;
     private const ulong Ada = 76561198000000001;
     private const ulong Ben = 76561198000000002;
 
@@ -140,8 +142,8 @@ public class HudTests
 
         // The entity survives a round restart; making it again every round would blink
         // whatever is on screen.
-        Assert.Equal([Welcome, Toast], host.World.HudLayouts.Select(layout => layout.Layout));
-        Assert.Equal(2, host.World.HudActions.Count(action => action.Verb == "hud_create"));
+        Assert.Equal([Welcome, Card, Toast], host.World.HudLayouts.Select(layout => layout.Layout));
+        Assert.Equal(3, host.World.HudActions.Count(action => action.Verb == "hud_create"));
         Assert.Single(host.World.HudActions, action => action.Verb == "hud_remove");
     }
 
@@ -152,7 +154,7 @@ public class HudTests
         host.World.StartRound();
         host.Runtime.Hud.Register(Toast);
         host.Runtime.Hud.Register(Toast);
-        Assert.Equal([Welcome, Toast], host.World.HudLayouts.Select(layout => layout.Layout));
+        Assert.Equal([Welcome, Card, Toast], host.World.HudLayouts.Select(layout => layout.Layout));
     }
 
     // ------------------------------------------------------------------ orphans
@@ -217,7 +219,7 @@ public class HudTests
         // level came up and are still there. What is asserted is what the service believes.
         host.World.StartMap(startedAtMs: engineStartedAt);
         Assert.True(host.Runtime.Hud.Spawned);
-        Assert.Single(host.World.HudActions, action => action.Verb == "hud_create");
+        Assert.Equal([Welcome, Card], host.World.HudActions.Where(action => action.Verb == "hud_create").Select(action => action.Detail));
     }
 
     // ------------------------------------------------------------------ slots
@@ -438,7 +440,7 @@ public class HudTests
     {
         var host = Assigned();
         host.World.StartRound();
-        Assert.Single(host.World.HudLayouts);
+        Assert.Equal([Welcome, Card], host.World.HudLayouts.Select(layout => layout.Layout));
 
         // `Unload` disposes the runtime with the match still assigned.
         host.Dispose();

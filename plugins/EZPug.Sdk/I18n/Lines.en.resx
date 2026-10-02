@@ -61,6 +61,15 @@
   <data name="branding.card.enjoy" xml:space="preserve">
     <value>Have fun.</value>
   </data>
+  <data name="hud.moment.drop" xml:space="preserve">
+    <value>Drop</value>
+  </data>
+  <data name="hud.moment.perk" xml:space="preserve">
+    <value>Perk</value>
+  </data>
+  <data name="hud.moment.raffle" xml:space="preserve">
+    <value>Raffle</value>
+  </data>
   <data name="hud.welcome.eyebrow" xml:space="preserve">
     <value>Welcome to</value>
   </data>

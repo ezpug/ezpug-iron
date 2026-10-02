@@ -751,6 +751,34 @@ public sealed class CounterStrikeWorld : IGameWorld
         }
     }
 
+    /// <summary>
+    /// The sound is emitted from the player's own controller to a filter that holds
+    /// nobody else. The events this is used for are the game's UI ones, whose volume
+    /// does not fall off with distance, so where the controller "is" does not matter and
+    /// a dead player or a spectator hears it too. Decoration, like the layouts: a failure
+    /// is one line in the log.
+    /// </summary>
+    public void PlaySound(IGamePlayer player, string soundEvent, float volume)
+    {
+        var real = Real(player);
+        if (!real.Valid || real.IsBot)
+        {
+            return;
+        }
+
+        try
+        {
+            real.Controller.EmitSound(soundEvent, new RecipientFilter(real.Controller), volume);
+        }
+        catch (Exception error)
+        {
+            if (_hudSaid.Add($"sound: {error.Message}"))
+            {
+                _log.Warn($"hud: playing {soundEvent} failed and is skipped: {error.Message}");
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ player verbs
 
     public void Give(IGamePlayer player, string item) => WithController(player, controller => controller.GiveNamedItem(item));

@@ -77,4 +77,28 @@ public static class SaidLine
         var said = cleaned.ToString().TrimEnd();
         return said.Length == 0 ? null : said;
     }
+
+    /// <summary>
+    /// A line that was already made safe, cut to <paramref name="codePoints"/>: what is
+    /// left of the budget when the server puts its own prefix in front of words from
+    /// outside (a <c>moment</c>'s line). Cut here for the reason the budget is kept here:
+    /// the game would cut it somewhere else.
+    /// </summary>
+    public static string Fit(string said, int codePoints)
+    {
+        var kept = 0;
+        var end = 0;
+        foreach (var rune in said.EnumerateRunes())
+        {
+            if (kept == codePoints)
+            {
+                return said[..end].TrimEnd();
+            }
+
+            kept++;
+            end += rune.Utf16SequenceLength;
+        }
+
+        return said;
+    }
 }

@@ -580,6 +580,39 @@ it here.
     CS2 updates, so a server that does not need it does not load it, T2); `<Button>` and
     click handling (there is nothing to click without a cursor).
 
+    **What a `moment` becomes** (T6, 2026-10-02; the SDK's `Moments`). The line first:
+    when the moment is due (`inMs` after the command arrived) everybody reads it in chat
+    behind the match's prefix, each in their roster's language and the person in the words
+    written for them. That is all of it on a server that draws nothing, and it is what a
+    player without the addon gets on one that does. With the HUD on there is also a toast
+    for everybody at the same instant, tinted by tier, three at a time and the next ones
+    waiting for a row. The person gets a card that slides in face down and turns over a
+    second later. **The card never covers a fight**: it needs a stretch of nobody playing
+    long enough to finish (six seconds, asked of `Hud.Quiet`). Due inside one, it plays at
+    once. Due outside one (a round is live, the freeze is nearly over, the mode's freeze
+    is too short) the line and the toast still go out on time and the card waits for the
+    next stretch: a round start, a round end, the map's end. It is dropped after three
+    minutes of waiting (longer than a round can run) and at a map change, and it is put
+    away the instant a freeze ends. A card put away before it turned over showed nothing,
+    so it waits again. Two cards for one person queue, half a second apart. Somebody who
+    is not on the server when the moment is due gets nothing and nothing waits for them.
+    **The sound is the game's own.** At the turn the person hears
+    `EndMatch.ItemRevealSingleLocalPlayer` (`sounds/ui/item_drop_personal.vsnd`), which
+    is what CS2 plays at the end of a match when the item that dropped is yours. One
+    sound for every tier, louder the more it matters (0.4, 0.6, 0.8, 1.0 of the event's
+    own volume), played to that player alone through the seam's one new verb
+    (`IGameWorld.PlaySound`). No sound file ships in the addon. The
+    event was read out of `soundevents/game_sounds_ui.vsndevts` in the dev node's game
+    files (CS2 1.41.8.2), where its neighbours are `EndMatch.ItemRevealSingle` and
+    `EndMatch.ItemRevealRarity{Common,Uncommon,Rare,Mythical,Legendary,Ancient}`, and
+    the inventory's `UIPanorama.ItemDrop{Common,Uncommon,Rare,Mythical,Legendary,Ancient}`.
+    Not chosen: one of the rarity events per tier (Valve's six rarities are not our four,
+    and each is a different sound, where the task was one sound that grows); a toast held
+    back until the card can play (the news is the line and the toast, the card is the
+    flourish); a card replayed after it was read; a poll for a stretch (every stretch
+    begins with an event the world already raises). Nobody has heard the sound or seen
+    the card: both are on the look list.
+
 ## How the rounds run
 
 24. **Spine first, then two loops in parallel.** `ralph/PRD-01-spine.md` (this repo, ~10
