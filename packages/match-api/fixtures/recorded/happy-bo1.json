@@ -11,12 +11,12 @@
             "game": "cs2",
             "tier": "plugin",
             "title": {
-              "de": "5v5 Wettkampf",
-              "en": "5v5 competitive"
+              "de": "Wettkampf 5v5",
+              "en": "Competitive 5v5"
             },
             "description": {
-              "de": "Das Spiel der Warteschlange: fünf gegen fünf, Messerrunde, Overtime, Demo und Rundenbackups – MatchZy führt das Match.",
-              "en": "The queue's game: five against five, a knife round, overtime, a demo and round backups – MatchZy runs the match."
+              "de": "Das Spiel aus der Queue: fünf gegen fünf, mit Messerrunde, Overtime und Demo.",
+              "en": "The queue's game: five against five, with a knife round, overtime and a demo."
             },
             "slots": {
               "teamSize": 5,
@@ -68,8 +68,8 @@
               "en": "Flying Scoutsman"
             },
             "description": {
-              "de": "CS2s Modus mit Scout und wenig Schwerkraft auf den normalen Karten. Nur Konfiguration, kein Plugin: den Matchablauf – live, Runden, Seitenwechsel, Kartenende – erzählt das SDK aus den Ereignissen der Engine.",
-              "en": "CS2's low-gravity Scout mode on the normal maps. Configuration only, no plugin: the match flow – live, rounds, the side swap, the end of the map – is told by the SDK from the engine's own events."
+              "de": "Nur Scouts, kaum Schwerkraft, auf den normalen Maps.",
+              "en": "Scouts only, low gravity, on the normal maps."
             },
             "slots": {
               "teamSize": 5,
@@ -115,8 +115,8 @@
               "en": "Retakes"
             },
             "description": {
-              "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, eine Gruppe statt zweier Teams — die Seiten verteilt das Plugin jede Runde neu. Waffen verteilt der Allocator, den Spielablauf erzählt das SDK aus den Ereignissen der Engine. Ereignisse ohne Demo.",
-              "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, one group rather than two teams — the plugin splits the sides afresh every round. The allocator hands out the guns and the SDK tells the match flow from the engine's own events. Events, no demo."
+              "de": "Die Bombe ist gelegt, die CTs holen sich die Site zurück. Kurze Runden, jeder kann jederzeit einsteigen, und wir mischen die Seiten jede Runde neu. Waffen bekommst du gestellt.",
+              "en": "The bomb is planted and the CTs take the site back. Short rounds, anyone can join at any time, and we shuffle the sides every round. We hand you your guns."
             },
             "slots": {
               "teamSize": 10,
@@ -181,8 +181,8 @@
               "en": "Power-up deathmatch"
             },
             "description": {
-              "de": "Deathmatch mit einem Knopf auf dem Handy: einmal pro Leben ein Power-up. Jeder gegen jeden, offener Beitritt, Ereignisse ohne Demo.",
-              "en": "Deathmatch with a button on your phone: one power-up per life. Free for all, open join, events without a demo."
+              "de": "Deathmatch mit einem Knopf auf dem Handy: einmal pro Leben ein Power-up. Jeder gegen jeden, und du kannst jederzeit einsteigen.",
+              "en": "Deathmatch with a button on your phone: one power-up per life. Free for all, and you can join at any time."
             },
             "slots": {
               "teamSize": 12,
@@ -289,8 +289,8 @@
               "en": "Rush 3v3"
             },
             "description": {
-              "de": "Valves Rush, drei gegen drei auf rush_001. Jeder Raum hat einen Turm, und wem er beim Rundenende gehört, der gewinnt die Runde. Wer gewinnt, zieht einen Raum weiter Richtung gegnerische Burg; wer dort gewinnt, hat das Match. Sonst gelten 15 Runden, bei 7:7 entscheidet der Konvoi. Die Regeln stecken in der Karte selbst, wir erzählen nur mit, was passiert.",
-              "en": "Valve's Rush, three against three on rush_001. Every room has a tower, and whoever owns it when the round ends wins the round. The winner moves one room on towards the other team's castle; win in there and the match is yours. Otherwise it's 15 rounds, and at 7–7 the Convoy decides. The rules live in the map itself; we just tell you what happened."
+              "de": "Valves Rush, drei gegen drei auf rush_001. Jeder Raum hat einen Turm, und wem er beim Rundenende gehört, der gewinnt die Runde. Wer gewinnt, zieht einen Raum weiter Richtung gegnerische Burg; wer dort gewinnt, hat das Match. Sonst spielt ihr 15 Runden, und bei 7:7 entscheidet der Konvoi.",
+              "en": "Valve's Rush, three against three on rush_001. Every room has a tower, and whoever owns it when the round ends wins the round. The winner moves one room on toward the other team's castle; win in there and the match is yours. Otherwise you play 15 rounds, and at 7:7 the Convoy decides."
             },
             "slots": {
               "teamSize": 3,

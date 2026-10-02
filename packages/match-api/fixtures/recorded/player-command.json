@@ -18,8 +18,8 @@
           "en": "Power-up deathmatch"
         },
         "description": {
-          "de": "Deathmatch mit einem Knopf auf dem Handy: einmal pro Leben ein Power-up. Jeder gegen jeden, offener Beitritt, Ereignisse ohne Demo.",
-          "en": "Deathmatch with a button on your phone: one power-up per life. Free for all, open join, events without a demo."
+          "de": "Deathmatch mit einem Knopf auf dem Handy: einmal pro Leben ein Power-up. Jeder gegen jeden, und du kannst jederzeit einsteigen.",
+          "en": "Deathmatch with a button on your phone: one power-up per life. Free for all, and you can join at any time."
         },
         "slots": {
           "teamSize": 12,

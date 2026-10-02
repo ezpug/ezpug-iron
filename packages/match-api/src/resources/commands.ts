@@ -73,9 +73,9 @@ export const MOMENT_IN_MS_MAX = 60_000
  * to show it.
  *
  * Every server answers it, and a client needs no knowledge of what a server
- * can draw. **A server without a HUD prints the line**, exactly as `announce`
- * does — to each player in their own language, the person's own line to the
- * person. A server with one shows it too: a toast for everybody, and for the
+ * can draw. **A server without a HUD prints the line**, as `announce` does but
+ * behind the server's own chat prefix — to each player in their own language,
+ * the person's own line to the person. A server with one shows it too: a toast for everybody, and for the
  * person a card, at a point in the round where nobody is playing. The
  * command never names a layout, a panel or a class; `kind`, `tier` and `art`
  * are all a server is told about how it should look.

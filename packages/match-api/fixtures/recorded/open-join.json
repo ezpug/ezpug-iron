@@ -18,8 +18,8 @@
           "en": "Retakes"
         },
         "description": {
-          "de": "Die Bombe liegt, die CTs kommen zurück: kurze Runden mit Spawns pro Karte, offener Beitritt, eine Gruppe statt zweier Teams — die Seiten verteilt das Plugin jede Runde neu. Waffen verteilt der Allocator, den Spielablauf erzählt das SDK aus den Ereignissen der Engine. Ereignisse ohne Demo.",
-          "en": "The bomb is down and the CTs come back: short rounds with per-map spawns, open join, one group rather than two teams — the plugin splits the sides afresh every round. The allocator hands out the guns and the SDK tells the match flow from the engine's own events. Events, no demo."
+          "de": "Die Bombe ist gelegt, die CTs holen sich die Site zurück. Kurze Runden, jeder kann jederzeit einsteigen, und wir mischen die Seiten jede Runde neu. Waffen bekommst du gestellt.",
+          "en": "The bomb is planted and the CTs take the site back. Short rounds, anyone can join at any time, and we shuffle the sides every round. We hand you your guns."
         },
         "slots": {
           "teamSize": 10,

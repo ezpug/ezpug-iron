@@ -181,13 +181,13 @@ public class BrandingTests
         host.Clock.Advance(Branding.CardDelayMs);
         var card = Assert.Single(host.World.Hudded[Ada]);
         Assert.Contains("SaarLAN 2026", card);
-        Assert.Contains("5v5 Wettkampf", card);
+        Assert.Contains("Wettkampf 5v5", card);
         Assert.Contains("Schreib .ready in den Chat", card);
         Assert.Contains(Branding.PlatformUrl, card);
 
         // The other side of the roster reads the same card in English.
         var english = Assert.Single(host.World.Hudded[Ben]);
-        Assert.Contains("5v5 competitive", english);
+        Assert.Contains("Competitive 5v5", english);
         Assert.Contains("Type .ready in chat", english);
     }
 

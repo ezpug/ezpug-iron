@@ -126,6 +126,24 @@ describe('the shipped manifests', () => {
     }
   })
 
+  it('speak to players in the platform’s voice', () => {
+    // PRD-06 T5: a room's gamemode picker shows the title and the description to
+    // players, and the platform's copy guard (`scripts/lint/copy.mjs` in ezpug) does
+    // not reach a manifest. These are its mechanical rules, plus the words for how a
+    // server is built that a player never meets.
+    const dash = /—|–|(^|\s)-(\s|$)/
+    const opsWords = /\b(SDK|plugin|engine|allocator|MatchZy|Ereignisse)\b/i
+    for (const manifest of SHIPPED_GAMEMODES) {
+      for (const text of [manifest.title, manifest.description])
+        for (const line of [text.de, text.en]) {
+          expect(line, manifest.id).not.toMatch(dash)
+          expect(line, manifest.id).not.toMatch(opsWords)
+        }
+      for (const line of [manifest.title.de, manifest.title.en])
+        expect(line, manifest.id).not.toMatch(/[.!]$/)
+    }
+  })
+
   it('take the request’s rules, except Rush, whose map script owns its rounds', () => {
     // PRD-06 T1a: the manifest written before the field parses as `request`.
     expect(gamemodeManifestSchema.parse(sdkManifest()).rules).toBe('request')

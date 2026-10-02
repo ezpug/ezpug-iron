@@ -458,7 +458,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > unlisted item is fetchable anonymously by id, and Steam serves a new revision about
   > 47 minutes late; "a changed layout means rejoining" (the note) and "needs the client
   > restarted" (this PRD) disagree, and only the look list can settle it.
-- [ ] **T12 (effort: medium): PRD-06 T5.** The manifests in the platform's voice, as
+- [x] **T12 (effort: medium): PRD-06 T5.** The manifests in the platform's voice, as
   `ralph/PRD-06-rush.md:164` describes it; tick it there too.
 
 ## Working rules

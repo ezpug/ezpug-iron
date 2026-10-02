@@ -161,7 +161,7 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
   T19/T20's rows), and the platform's list of manifest titles that jar in German (PRD-13
   T11 sends it here; rewrite them in this task if the list has arrived, else leave the
   request in the note).
-- [ ] **T5 (effort: medium): the manifests in the platform's voice.** Sent by the platform's
+- [x] **T5 (effort: medium): the manifests in the platform's voice.** Sent by the platform's
   PRD-13 T11 (2026-09-28), the list the closing note asked for. The room's gamemode picker
   shows each manifest's `title` and `description` to players (`GamemodePicker.vue:183`),
   and the platform's copy rules (`apps/web/i18n/VOICE.md` in ezpug, `scripts/lint/copy.mjs`)
@@ -193,6 +193,13 @@ Traced 2026-09-27 against the tree at match-api `0.27.0` and the dev node's volu
     mit, was passiert" can go (how the server is built, again).
   Release additively (strings only) with a changelog line; the platform takes it with its
   next `chore(deps): match-api` bump.
+  > note (done as PRD-07 T12, 2026-10-02): `@ezpug/match-api` **0.31.1**, strings only. The
+  > suggestions were taken nearly word for word. Changes from them: retakes says "wir mischen
+  > die Seiten" (somebody does it, per VOICE.md) and "We hand you your guns". The pug's title
+  > is `Wettkampf 5v5` / `Competitive 5v5`. Rush says "Sonst spielt ihr 15 Runden" and
+  > "at 7:7". A test in `gamemodes.test.ts` now holds every shipped title and description to
+  > copy.mjs's dash rule and to the ops words above, since the platform's guard does not
+  > reach a manifest.
 
 ## Working rules
 

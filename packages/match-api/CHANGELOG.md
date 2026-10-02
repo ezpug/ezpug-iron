@@ -6,6 +6,21 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 _Nothing yet._
 
+## 0.31.1 — 2026-10-02
+
+**The manifests in the platform's voice** (PRD-06 T5, sent by the platform's PRD-13 T11; for
+its next `chore(deps): match-api` bump). Strings only: no schema, no field, no id changed.
+
+- **Every shipped manifest's `description`**, and the pug's `title` (`Wettkampf 5v5` /
+  `Competitive 5v5`), are rewritten for the player who reads them in a room's gamemode
+  picker: no dashes, and none of the words for how a server is built (`SDK`, `plugin`,
+  `engine`, the allocator, `MatchZy`, "events without a demo"). They say what the player
+  gets. A test in the package holds the shipped manifests to those rules, since the
+  platform's copy guard does not reach them.
+- The comment on `momentCommandSchema` now says what `docs/match-api.md` has said since
+  0.31.0: a server without a HUD prints the line behind its own chat prefix, unlike
+  `announce`.
+
 ## 0.31.0 — 2026-10-02
 
 **The HUD, from a client's side** (PRD-07 T4, for the platform's PRD-18 T5). Additive: three

@@ -18,8 +18,8 @@
           "en": "Rush 3v3"
         },
         "description": {
-          "de": "Valves Rush, drei gegen drei auf rush_001. Jeder Raum hat einen Turm, und wem er beim Rundenende gehört, der gewinnt die Runde. Wer gewinnt, zieht einen Raum weiter Richtung gegnerische Burg; wer dort gewinnt, hat das Match. Sonst gelten 15 Runden, bei 7:7 entscheidet der Konvoi. Die Regeln stecken in der Karte selbst, wir erzählen nur mit, was passiert.",
-          "en": "Valve's Rush, three against three on rush_001. Every room has a tower, and whoever owns it when the round ends wins the round. The winner moves one room on towards the other team's castle; win in there and the match is yours. Otherwise it's 15 rounds, and at 7–7 the Convoy decides. The rules live in the map itself; we just tell you what happened."
+          "de": "Valves Rush, drei gegen drei auf rush_001. Jeder Raum hat einen Turm, und wem er beim Rundenende gehört, der gewinnt die Runde. Wer gewinnt, zieht einen Raum weiter Richtung gegnerische Burg; wer dort gewinnt, hat das Match. Sonst spielt ihr 15 Runden, und bei 7:7 entscheidet der Konvoi.",
+          "en": "Valve's Rush, three against three on rush_001. Every room has a tower, and whoever owns it when the round ends wins the round. The winner moves one room on toward the other team's castle; win in there and the match is yours. Otherwise you play 15 rounds, and at 7:7 the Convoy decides."
         },
         "slots": {
           "teamSize": 3,

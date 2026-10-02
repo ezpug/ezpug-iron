@@ -2,10 +2,10 @@
   "id": "pug",
   "game": "cs2",
   "tier": "plugin",
-  "title": { "de": "5v5 Wettkampf", "en": "5v5 competitive" },
+  "title": { "de": "Wettkampf 5v5", "en": "Competitive 5v5" },
   "description": {
-    "de": "Das Spiel der Warteschlange: fünf gegen fünf, Messerrunde, Overtime, Demo und Rundenbackups – MatchZy führt das Match.",
-    "en": "The queue's game: five against five, a knife round, overtime, a demo and round backups – MatchZy runs the match."
+    "de": "Das Spiel aus der Queue: fünf gegen fünf, mit Messerrunde, Overtime und Demo.",
+    "en": "The queue's game: five against five, with a knife round, overtime and a demo."
   },
   "slots": { "teamSize": 5, "teams": 2, "openJoin": false },
   "formats": ["competitive", "wingman"],

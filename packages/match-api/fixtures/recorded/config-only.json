@@ -18,8 +18,8 @@
           "en": "Flying Scoutsman"
         },
         "description": {
-          "de": "CS2s Modus mit Scout und wenig Schwerkraft auf den normalen Karten. Nur Konfiguration, kein Plugin: den Matchablauf – live, Runden, Seitenwechsel, Kartenende – erzählt das SDK aus den Ereignissen der Engine.",
-          "en": "CS2's low-gravity Scout mode on the normal maps. Configuration only, no plugin: the match flow – live, rounds, the side swap, the end of the map – is told by the SDK from the engine's own events."
+          "de": "Nur Scouts, kaum Schwerkraft, auf den normalen Maps.",
+          "en": "Scouts only, low gravity, on the normal maps."
         },
         "slots": {
           "teamSize": 5,
