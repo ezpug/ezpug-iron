@@ -15,7 +15,7 @@ write:
 
 | Seam | What it is | Production | Test |
 | ---- | ---------- | ---------- | ---- |
-| `IGameWorld` | players (SteamID64, slot, team, alive, position, scoreboard rating), say/print/center/HUD, give/strip, respawn, health/armor/speed, the scoreboard's rating, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, bomb, chat, map started, map ended on the win panel, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
+| `IGameWorld` | players (SteamID64, slot, team, alive, position, scoreboard rating), say/print/center/HUD, the six verbs of a Panorama layout (below), give/strip, respawn, health/armor/speed, the scoreboard's rating, exec cfg, cvars, changelevel and workshop maps, and every hook the engine raises (connect, spawn, death, round, freeze end, bomb, chat, map started, map ended on the win panel, tick) | the core plugin's CounterStrikeSharp adapter (PRD-02 T8) | `FakeGameWorld` |
 | `IPlatformLink` | emit an event, report state, send a backup or a console tail; receive assignment, commands, player commands, profiles through `IPlatformLinkHandler` | `LinkClient` — one outbound WebSocket to `/link` | `FakePlatformLink` |
 | `IClock` | monotonic milliseconds and timers; the only time a mode may read | `SystemClock` for the link's threads; `GameThreadClock` for a mode — the core plugin fires its timers from the engine's tick | `FakeClock` |
 | `GamemodeRuntime` | the link's handler and the world's listener, routing both to the attached mode; stamps the per-match `seq`; emits the plumbing and gameplay events once | owned by the core plugin | owned by `GamemodeTestHost` |
@@ -169,6 +169,63 @@ Two things deliberately do **not** carry the prefix: a client's `announce` comma
 `ezpug_announce` on the console. Those are the platform's own words relayed to the server,
 and the platform brands them itself. The assignment's **warmup lines** are the third, for
 the same reason.
+
+### The HUD: layouts on a player's screen
+
+Decision 34, `docs/hud.md` for the client half. CS2 lets a server show a Panorama layout
+(`custom_hud_layout`): the layout's file is on the player's machine, in the Workshop addon
+this repo builds, and the server sets only a class on a panel and a string a label binds.
+`IGameWorld` has six verbs for that and **none that takes the mouse**:
+
+| Verb | What it does |
+| ---- | ------------ |
+| `CreateHudLayout(layout)` | one entity for a layout, named by its **source** path with the extension (`panorama/layout/custom_game/ezpug_welcome.xml`) |
+| `RemoveHudLayouts()` | every layout of ours in the world, found by the entity's name, so the ones a previous load of the plugin left behind go too |
+| `SetHudClass(layout, panel, class, has)` and `SetHudClass(player, …)` | a class on a panel, for everybody or over that for one player |
+| `SetHudVariable(layout, panel, variable, value)` and `SetHudVariable(player, …)` | the string behind `{s:variable}`, the same two ways |
+
+Nothing calls those but the runtime's `Hud` (`Runtime.Hud`), which is the thing to talk
+to: `Register(layout)` once, then `SetClass` and `SetVariable` with the same arguments.
+It keeps what should be on whose screen and owns the rules a layout breaks silently
+without:
+
+- **Off is untouched.** The HUD is on for a match when the server booted with the addon's
+  id (`HudAddon`: `EZPUG_HUD_ADDON` or `hudAddon` in `ezpug.json`, plus
+  MultiAddonManager's loader file) and the assignment says `hud`. Otherwise every call
+  returns before it reaches the world. On, `mm_add_client_addon <id>` goes out at the
+  assignment and `mm_remove_client_addon <id>` at the release.
+- **No entity before a round has started on the map.** CounterStrikeSharp caches a failed
+  look at the entity list for the life of the process. The layouts are made at the first
+  `round_start` of each map, after anything of ours still in the world has been removed,
+  and whatever was set before that is applied then.
+- **A slot is told everything again** when a person takes it, at every spawn, and two
+  seconds after each (`Hud.ResendDelayMs`). The engine keeps a player's state by slot and
+  slots are reused, and a client that is still loading drops what it is told.
+- **Nothing is remembered as already set.** Every call goes out.
+- **A bot and a puppet have no screen** and are skipped. So is a call that names
+  somebody who has left: their slot belongs to whoever took it since.
+- **Everything goes** at release and when the plugin unloads.
+
+A class or a string is either everybody's or one player's. A slot's own value wins over
+everybody's and cannot be taken back, so a name that was ever set for one player stays
+per player (the service warns when the two are mixed).
+
+`Hud.Quiet` answers **is anybody playing, and for how long not**: `null` while a round is
+being played, and otherwise a reason (`NoRound`, `Warmup`, `FreezeTime`, `RoundOver`,
+`Paused`, `Halftime`, `MatchOver`) with the milliseconds left where the engine's clock
+bounds it. The freeze time is `mp_freezetime` less what has passed since `round_start`,
+and a decided round is the rest of `mp_round_restart_delay` plus the freeze that follows.
+`Quiet?.Fits(ms)` is the question a card asks before it shows. `IGameWorld.FreezeEnded`
+is the instant a freeze ends, which is when a card is put away. A mode with no freeze
+time and endless respawns is being played from its first round start to the end of its
+map.
+
+On the harness, `new GamemodeTestHost(hudAddon: "…")` is a server that can draw and
+`AssignmentFor(…, hud: true)` a match that asks. `World.HudLayouts` holds each layout as
+the engine would, per slot and surviving a disconnect, `layout.Has(slot, panel, class)`
+and `layout.Variable(slot, panel, variable)` read a screen, `World.HudActions` is every
+HUD verb in order, `World.OrphanHudLayout` plants a leftover and `World.EndFreeze()` ends
+a freeze.
 
 ### Warmup lines: what the server says while it waits
 
@@ -619,7 +676,8 @@ grant spent that life's charge — the refill on spawn, measured rather than ass
 `packages/protocol/fixtures/link/*.json` — `EZPug.Sdk.Tests` replays every one of those
 files against it, frame for frame, byte for byte.
 
-- **Hello first.** The token from the sidecar, the versions, the capabilities, the plugin
+- **Hello first.** The token from the sidecar, the versions, the capabilities (and `hud`
+  on a server that booted with the HUD's addon, decision 34), the plugin
   folders in the image, hostname, map, state, the match held (a reconnect mid-match says
   so) and `lastSeq`. Nothing else is sent before `welcome`.
 - **Every event is buffered until acked.** `IEventBuffer` hands out the per-server link

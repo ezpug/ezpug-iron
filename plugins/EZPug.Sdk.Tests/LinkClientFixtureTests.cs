@@ -338,7 +338,7 @@ public class LinkClientFixtureTests
                 Token = hello["token"]!.GetValue<string>(),
                 Hello = new HelloFacts(
                     ProtocolJson.Deserialize<ServerVersions>(hello["versions"]!.ToJsonString()),
-                    hello["capabilities"]!.AsArray().Select(node => Enum.Parse<GamemodeCapability>(node!.GetValue<string>(), ignoreCase: true)).ToList(),
+                    hello["capabilities"]!.AsArray().Select(node => Enum.Parse<HelloCapability>(node!.GetValue<string>(), ignoreCase: true)).ToList(),
                     hello["plugins"]!.AsArray().Select(node => node!.GetValue<string>()).ToList(),
                     hello["hostname"]!.GetValue<string>()),
                 Status = () => handler.Status(),

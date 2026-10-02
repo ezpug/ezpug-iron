@@ -271,6 +271,30 @@ public interface IGameWorld
     void PrintHud(IGamePlayer player, string text);
     void PrintConsole(IGamePlayer player, string text);
 
+    // The HUD (decision 34). The runtime's <see cref="Hud"/> is the one caller: it owns
+    // when a layout may exist and what a slot is told, and a mode reaches these through it.
+    // There is no verb that takes a player's mouse, on purpose: the engine can freeze a
+    // player behind a cursor, and nothing EZPug shows is worth a round.
+    /// <summary>
+    /// Put a layout on every client's screen: one <c>custom_hud_layout</c> entity for
+    /// <paramref name="layout"/>, which is the layout's <b>source</b> path with its
+    /// extension (<c>panorama/layout/custom_game/ezpug_hello.xml</c>) — a client that
+    /// does not have that file draws nothing and says nothing. The entity dies with the
+    /// map and outlives everything else, a plugin reload included, so it is created
+    /// under a name <see cref="RemoveHudLayouts"/> can find again.
+    /// </summary>
+    void CreateHudLayout(string layout);
+    /// <summary>Remove every layout this seam ever created that is still in the world, found by name and not by memory: the ones a previous load of the plugin left behind too.</summary>
+    void RemoveHudLayouts();
+    /// <summary>Set or clear a class on one panel of a layout, for everybody.</summary>
+    void SetHudClass(string layout, string panel, string className, bool has);
+    /// <summary>The same for one player, over the value everybody has. Kept by the engine per <b>slot</b>, so it outlives the player who was told.</summary>
+    void SetHudClass(IGamePlayer player, string layout, string panel, string className, bool has);
+    /// <summary>Set a string a label of the layout binds as <c>{s:variable}</c>, for everybody.</summary>
+    void SetHudVariable(string layout, string panel, string variable, string value);
+    /// <summary>The same for one player, over the value everybody has. Per slot, like the class.</summary>
+    void SetHudVariable(IGamePlayer player, string layout, string panel, string variable, string value);
+
     // Player verbs
     /// <summary>Give an item by its engine name (<c>weapon_ak47</c>, <c>item_assaultsuit</c>).</summary>
     void Give(IGamePlayer player, string item);
@@ -323,6 +347,12 @@ public interface IGameWorld
     event Action<IGamePlayer>? PlayerSpawned;
     event Action<PlayerDeath>? PlayerDied;
     event Action? RoundStarted;
+    /// <summary>
+    /// The freeze time of the round that just started is over and people can move
+    /// (<c>round_freeze_end</c>). How long a freeze lasts is the mode's <c>mp_freezetime</c>;
+    /// this is the instant it ends, which is what the HUD puts a card away on (PRD-07 T3).
+    /// </summary>
+    event Action? FreezeEnded;
     event Action<RoundEnd>? RoundEnded;
     /// <summary>
     /// The map is over: the engine put the win panel up (<c>cs_win_panel_match</c>).

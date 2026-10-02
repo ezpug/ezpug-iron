@@ -1,4 +1,5 @@
 import {
+  GAMEMODE_CAPABILITIES,
   MATCH_COMMAND_TYPES,
   ORCHESTRATOR_COMMAND_TYPES,
   SIM_COMMAND_TYPES,
@@ -12,6 +13,7 @@ import {
   SERVER_FRAME_FIXTURES,
 } from './fixtures'
 import {
+  HELLO_CAPABILITIES,
   LINK_COMMAND_TYPES,
   linkCommandSchema,
   ORCHESTRATOR_FRAME_TYPES,
@@ -102,6 +104,36 @@ describe('the server link', () => {
     expect(parsed.gamemode).not.toHaveProperty('maps')
     expect(parsed.gamemode).not.toHaveProperty('widget')
     expect(parsed.gamemode.plugins).toEqual(['MatchZy'])
+  })
+
+  it('says nothing about a HUD unless a server or a match has one (PRD-07 T3)', () => {
+    // Off is the default at both ends, and off is what the wire was before:
+    // the fixtures every recorded exchange was made from carry neither word.
+    expect(SERVER_FRAME_FIXTURES.hello.capabilities).not.toContain('hud')
+    expect(ORCHESTRATOR_FRAME_FIXTURES.assign).not.toHaveProperty('hud')
+    const plain = orchestratorFrameSchema.parse(ORCHESTRATOR_FRAME_FIXTURES.assign)
+    expect(plain).not.toHaveProperty('hud')
+
+    // A server that can draw one says so beside the manifest capabilities…
+    expect(HELLO_CAPABILITIES).toEqual([...GAMEMODE_CAPABILITIES, 'hud'])
+    const hello = serverFrameSchema.parse({
+      ...SERVER_FRAME_FIXTURES.hello,
+      capabilities: [...SERVER_FRAME_FIXTURES.hello.capabilities, 'hud'],
+    })
+    if (hello.type !== 'hello') throw new Error('not a hello')
+    expect(hello.capabilities.at(-1)).toBe('hud')
+    expect(
+      serverFrameSchema.safeParse({ ...SERVER_FRAME_FIXTURES.hello, capabilities: ['banners'] })
+        .success,
+    ).toBe(false)
+
+    // …and a match that asks is one boolean on its assignment.
+    const asked = orchestratorFrameSchema.parse({
+      ...ORCHESTRATOR_FRAME_FIXTURES.assign,
+      hud: true,
+    })
+    if (asked.type !== 'assign') throw new Error('not an assign frame')
+    expect(asked.hud).toBe(true)
   })
 
   it('refuses an assignment naming a protected cvar', () => {

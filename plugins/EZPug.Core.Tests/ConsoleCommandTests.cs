@@ -61,11 +61,51 @@ public class ConsoleCommandTests
         Assert.Equal(SdkInfo.CounterStrikeSharpApiVersion, hello.Versions.CounterStrikeSharp);
         Assert.Equal(SdkInfo.Version, hello.Versions.Matchzy);
         Assert.Null(hello.Versions.Metamod);
-        Assert.Equal([GamemodeCapability.Positions, GamemodeCapability.Chat, GamemodeCapability.PlayerCommands, GamemodeCapability.Widget, GamemodeCapability.Backups, GamemodeCapability.ScoreboardRating], hello.Capabilities);
+        Assert.Equal([HelloCapability.Positions, HelloCapability.Chat, HelloCapability.PlayerCommands, HelloCapability.Widget, HelloCapability.Backups, HelloCapability.ScoreboardRating], hello.Capabilities);
         Assert.Equal(["EZPug.Core", "MatchZy", "RetakesPlugin"], hello.Plugins);
         Assert.Equal("EZPug · pug · Mirage", hello.Hostname);
         Assert.Equal("ezpug", HelloFactsBuilder.Build(image.Catalog(), " ").Hostname);
         Assert.Null(HelloFactsBuilder.Build(new FakeImage().Catalog(), "x").Versions.Matchzy);
+    }
+
+    [Fact]
+    public void TheHelloNamesTheHudOnlyOnAServerThatCanDrawOne()
+    {
+        // The list above is what a server without the addon says, to the byte: off means
+        // untouched (PRD-07 T3). With the addon's id and MultiAddonManager, one more word.
+        using var image = new FakeImage().With("EZPug.Core", disabled: false);
+        var without = HelloFactsBuilder.Build(image.Catalog(), "x", hud: false);
+        Assert.Equal(HelloFactsBuilder.Capabilities, without.Capabilities);
+        Assert.DoesNotContain(HelloCapability.Hud, without.Capabilities);
+
+        var with = HelloFactsBuilder.Build(image.Catalog(), "x", hud: true);
+        Assert.Equal([.. HelloFactsBuilder.Capabilities, HelloCapability.Hud], with.Capabilities);
+    }
+
+    [Fact]
+    public void TheStatusLineSaysWhereTheHudStandsOnAServerThatHasOne()
+    {
+        using var image = new FakeImage().With("EZPug.Core", disabled: false);
+        var world = new FakeGameWorld(map: "de_dust2");
+        var link = new FakePlatformLink();
+        using var runtime = new GamemodeRuntime(world, link, hudAddon: "3811574606");
+        var loader = new GamemodeLoader(world, image.Catalog(), image.CsgoDirectory, "de_dust2");
+        loader.Bind(runtime);
+        runtime.Hud.Register("panorama/layout/custom_game/ezpug_welcome.xml");
+        link.Welcome();
+        string Status() => StatusReport.Render(new StatusReport.Input(runtime, link, null, null, image.Catalog(), loader));
+
+        Assert.Contains("hud: addon 3811574606, off for this match", Status());
+
+        link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), hud: true));
+        world.StartMap();
+        Assert.Contains("hud: addon 3811574606, on, 1 layout(s) waiting for a round start", Status());
+        world.StartRound();
+        Assert.Contains("hud: addon 3811574606, on, 1 layout(s) in the world", Status());
+
+        // And a server without the addon says nothing at all about one.
+        using var plain = new GamemodeRuntime(world, new FakePlatformLink());
+        Assert.DoesNotContain("hud", StatusReport.Render(new StatusReport.Input(plain, link, null, null, image.Catalog(), loader)));
     }
 
     [Fact]

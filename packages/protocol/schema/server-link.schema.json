@@ -2573,8 +2573,8 @@
         "draining"
       ]
     },
-    "GamemodeCapability": {
-      "description": "One manifest capability, as a hello lists the ones a server can honour.",
+    "HelloCapability": {
+      "description": "What a hello may list: a manifest capability the server can honour, or `hud` when it can draw one.",
       "type": "string",
       "enum": [
         "positions",
@@ -2584,7 +2584,8 @@
         "backups",
         "scoreboardRating",
         "simulation",
-        "mixedRoster"
+        "mixedRoster",
+        "hud"
       ]
     },
     "ServerVersions": {
@@ -3122,7 +3123,7 @@
             "capabilities": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/GamemodeCapability"
+                "$ref": "#/$defs/HelloCapability"
               }
             },
             "plugins": {
@@ -3624,6 +3625,9 @@
             },
             "puppets": {
               "$ref": "#/$defs/PuppetScript"
+            },
+            "hud": {
+              "type": "boolean"
             }
           },
           "required": [

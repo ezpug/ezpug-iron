@@ -51,7 +51,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     /// <summary>How often positions are streamed while a match is assigned and the mode asks for them.</summary>
     public const long PositionTickIntervalMs = 100;
 
-    public GamemodeRuntime(IGameWorld world, IPlatformLink link, ILinkLog? log = null)
+    /// <param name="hudAddon">The Workshop id of the HUD's addon when this server can hand it to clients (<see cref="HudAddon"/>); <c>null</c>, the default, is a server that draws no HUD whatever a match asks.</param>
+    public GamemodeRuntime(IGameWorld world, IPlatformLink link, ILinkLog? log = null, string? hudAddon = null)
     {
         World = world;
         Link = link;
@@ -61,6 +62,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Puppets = new Puppeteer(world, Match, _log);
         Flow = new GenericFlow(world, this, _log);
         Length = new MatchLength(world, this, _log);
+        Hud = new Hud(world, hudAddon, _log);
         Brand = new Branding(world, () => Localizer, Match);
         Ratings = new RatingBoard(world, () => Localizer, Brand);
         Warmup = new WarmupChat(world, Match);
@@ -71,6 +73,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         world.PlayerSpawned += OnPlayerSpawned;
         world.PlayerDied += OnPlayerDied;
         world.RoundStarted += OnRoundStarted;
+        world.FreezeEnded += OnFreezeEnded;
         world.RoundEnded += OnRoundEnded;
         world.MapEnded += OnMapEnded;
         world.BombPlanted += OnBombPlanted;
@@ -101,6 +104,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>EZ Rating on the scoreboard and the line that greets a player with it, when the manifest asks for them (PRD-02 T27).</summary>
     public RatingBoard Ratings { get; }
+
+    /// <summary>The layouts on a player's screen, when the server has the addon and the match asks for them (decision 34, PRD-07 T3). Inert otherwise, to the last call.</summary>
+    public Hud Hud { get; }
 
     /// <summary>The hostname, the chat prefix, the team colours and the connect card (decision 22, PRD-02 T29). Every line the SDK says goes through it.</summary>
     public Branding Brand { get; }
@@ -342,6 +348,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         _mapAskedFor = null;
         Flow.OnAssigned(assignment);
         Length.OnAssigned(assignment);
+        // Before the loader asks for the map: a client is told which addons to mount
+        // while it connects, and nobody connects before the map the match is played on.
+        Hud.OnAssigned(assignment);
         // The voice before anything speaks with it: the rating greeting a connect fires
         // carries this match's prefix, not the last one's.
         Brand.OnAssigned(assignment);
@@ -417,6 +426,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Warmup.OnReleased();
             Puppets.OnReleased();
             Brand.OnReleased();
+            Hud.OnReleased();
             Assignment = null;
             Match.Clear();
             _mapReady = false;
@@ -535,6 +545,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
+        // Every map start, the stale ones too: the layouts die with a level whether or
+        // not that level is this match's.
+        Hud.OnMapStarted(start);
         if (_mapAskedAtMs is { } asked && start.StartedAtMs < asked)
         {
             // The map was already standing when the host asked for the change; the world
@@ -638,6 +651,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
         Length.OnPlayerConnected(player);
         Ratings.OnPlayerConnected(player);
+        // The slot is cleaned of its last occupant before anything greets the new one.
+        Hud.OnPlayerConnected(player);
         Brand.OnPlayerConnected(player);
         Active?.OnPlayerJoined(player);
     }
@@ -658,6 +673,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Length.OnPlayerDisconnected(player);
         Ratings.OnPlayerDisconnected(player);
         Brand.OnPlayerDisconnected(player);
+        Hud.OnPlayerDisconnected(player);
         Active?.OnPlayerLeft(player);
         Commands?.Forget(player.SteamId64);
         foreach (var leave in _playerLeavers)
@@ -674,6 +690,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         }
 
         Commands?.Reset(PlayerCommandChargePeriod.Life, player.SteamId64);
+        Hud.OnPlayerSpawned(player);
         Active?.OnPlayerSpawned(player);
     }
 
@@ -697,6 +714,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
+        // The first round start of a map is the first moment an entity may be touched,
+        // so it is where the HUD's layouts are made.
+        Hud.OnRoundStarted();
         // `going_live` and a `side_swap` belong before round 1 exists, and emitting
         // `going_live` resets the counter — so the generic flow speaks on either side of
         // the numbering, never in the middle of it.
@@ -720,14 +740,24 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             return;
         }
 
+        Hud.OnRoundEnded();
         Flow.OnRoundEnded(roundEnd);
         Active?.OnRoundEnd(roundEnd);
+    }
+
+    private void OnFreezeEnded()
+    {
+        if (Assignment is not null)
+        {
+            Hud.OnFreezeEnded();
+        }
     }
 
     private void OnMapEnded()
     {
         if (Assignment is not null)
         {
+            Hud.OnMapEnded();
             Flow.OnMapEnded();
         }
     }
@@ -831,6 +861,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         CancelSettle();
         Warmup.Stop();
         Puppets.OnReleased();
+        // The layouts outlive the plugin that made them; an unload takes them along.
+        Hud.Stop();
         _positionTicker?.Cancel();
         _positionTicker = null;
         _stateClearers.Clear();
@@ -841,6 +873,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         World.PlayerSpawned -= OnPlayerSpawned;
         World.PlayerDied -= OnPlayerDied;
         World.RoundStarted -= OnRoundStarted;
+        World.FreezeEnded -= OnFreezeEnded;
         World.RoundEnded -= OnRoundEnded;
         World.BombPlanted -= OnBombPlanted;
         World.BombDefused -= OnBombDefused;

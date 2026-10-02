@@ -3,6 +3,8 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Cvars;
+using CounterStrikeSharp.API.Modules.Extensions;
+using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Utils;
 using EZPug.Sdk;
 using EngineRoundEndReason = CounterStrikeSharp.API.Modules.Entities.Constants.RoundEndReason;
@@ -173,6 +175,12 @@ public sealed class CounterStrikeWorld : IGameWorld
     /// <summary>One warning is enough: a refused rating is refused for every player, every round.</summary>
     private bool _ratingRefused;
     private readonly UtilityTracker _utility;
+    /// <summary>The layout entities this load of the plugin created, by layout. Emptied with the map; never what <see cref="RemoveHudLayouts"/> trusts.</summary>
+    private readonly Dictionary<string, CCSCustomHudLayout> _hudLayouts = new(StringComparer.Ordinal);
+    /// <summary>A round has started on the map that is up, so its entities may be touched. See <see cref="HudReady"/>.</summary>
+    private bool _roundStartedOnMap;
+    /// <summary>What went wrong with the HUD once already, so a broken call is one line in the log and not one per player per round.</summary>
+    private readonly HashSet<string> _hudSaid = [];
 
     public CounterStrikeWorld(BasePlugin plugin, GameThreadClock clock, ILinkLog log, string initialMap)
     {
@@ -244,6 +252,7 @@ public sealed class CounterStrikeWorld : IGameWorld
     public event Action<IGamePlayer>? PlayerSpawned;
     public event Action<PlayerDeath>? PlayerDied;
     public event Action? RoundStarted;
+    public event Action? FreezeEnded;
     public event Action<RoundEnd>? RoundEnded;
     public event Action? MapEnded;
     public event Action<IGamePlayer, BombSiteName>? BombPlanted;
@@ -264,12 +273,17 @@ public sealed class CounterStrikeWorld : IGameWorld
         _plugin.RegisterListener<Listeners.OnMapStart>(map =>
         {
             Volatile.Write(ref _map, map);
+            ForgetHudLayouts();
             // The instant is stamped here, not in the callback: a listener that asked for
             // a level change during this second has to know the map it hears about was
             // already standing before it asked (PRD-02 T22c).
             var startedAt = _clock.NowMs;
             _clock.After(MapReadyDelayMs, () => MapStarted?.Invoke(new MapStart(map, startedAt)));
         });
+
+        // The level is going: every entity with it, and nothing may reach for one until
+        // a round has started on the next.
+        _plugin.RegisterListener<Listeners.OnMapEnd>(ForgetHudLayouts);
 
         _plugin.RegisterEventHandler<EventPlayerConnectFull>((gameEvent, _) =>
         {
@@ -349,7 +363,14 @@ public sealed class CounterStrikeWorld : IGameWorld
 
         _plugin.RegisterEventHandler<EventRoundStart>((_, _) =>
         {
+            _roundStartedOnMap = true;
             RoundStarted?.Invoke();
+            return HookResult.Continue;
+        });
+
+        _plugin.RegisterEventHandler<EventRoundFreezeEnd>((_, _) =>
+        {
+            FreezeEnded?.Invoke();
             return HookResult.Continue;
         });
 
@@ -575,6 +596,160 @@ public sealed class CounterStrikeWorld : IGameWorld
     public void PrintHud(IGamePlayer player, string text) => WithController(player, controller => controller.PrintToCenterHtml(text));
 
     public void PrintConsole(IGamePlayer player, string text) => WithController(player, controller => controller.PrintToConsole(text));
+
+    // ------------------------------------------------------------------ the HUD
+
+    /// <summary>The engine's class for a Panorama layout a server drives.</summary>
+    public const string HudEntityClass = "custom_hud_layout";
+
+    /// <summary>
+    /// The targetname every layout of ours is spawned under. The entity outlives the
+    /// plugin that made it, and a reload empties every dictionary, so this name in the
+    /// world is the only record that survives of what is ours to remove.
+    /// </summary>
+    public const string HudEntityName = "ezpug_hud";
+
+    /// <summary>
+    /// <b>No entity before a round has started on the map that is up.</b>
+    /// CounterStrikeSharp keeps the entity list behind a <c>Lazy</c> that caches a failed
+    /// look for the life of the process, and one HUD call while a level loads would blind
+    /// every plugin on the server until it restarts. The SDK's <see cref="Hud"/> keeps the
+    /// same rule and is the one caller; this is the same rule kept twice, because the
+    /// world hears a level end a second before the SDK does.
+    /// </summary>
+    private bool HudReady => _roundStartedOnMap;
+
+    private void ForgetHudLayouts()
+    {
+        _roundStartedOnMap = false;
+        _hudLayouts.Clear();
+    }
+
+    /// <summary>
+    /// The layout and the name go in as spawn keyvalues, and both read back off the
+    /// entity (measured on the dev node, <c>docs/hud.md</c>). Other plugins report that a
+    /// layout written to <c>m_strLayout</c> after the spawn networks and reads back and
+    /// is still never loaded by a client. The raw factory rather than
+    /// <c>Utilities.CreateEntityByName</c>, which wraps a null pointer in an entity that
+    /// faults when asked whether it is valid.
+    /// </summary>
+    public void CreateHudLayout(string layout) =>
+        TouchHud($"creating {layout}", () =>
+        {
+            var pointer = VirtualFunctions.UTIL_CreateEntityByName(HudEntityClass, -1);
+            if (pointer == IntPtr.Zero)
+            {
+                throw new InvalidOperationException($"the engine made no {HudEntityClass}");
+            }
+
+            var entity = new CCSCustomHudLayout(pointer);
+            using (var keys = new CEntityKeyValues())
+            {
+                keys.SetString("targetname", HudEntityName);
+                keys.SetString("layout", layout);
+                entity.DispatchSpawn(keys);
+            }
+
+            if (!entity.IsValid)
+            {
+                throw new InvalidOperationException("the entity did not survive its spawn");
+            }
+
+            _hudLayouts[layout] = entity;
+        });
+
+    /// <summary>
+    /// Every layout of ours in the world, whoever made it: the ones this load created,
+    /// and whatever else carries our name, found by walking the entities. Collected
+    /// before anything is removed, because the walk is lazy and a removal moves its
+    /// cursor.
+    /// </summary>
+    public void RemoveHudLayouts() =>
+        TouchHud("removing the layouts", () =>
+        {
+            var ours = _hudLayouts.Values.Where(entity => entity.IsValid).ToDictionary(entity => entity.Index);
+            _hudLayouts.Clear();
+            foreach (var entity in Utilities.FindAllEntitiesByDesignerName<CCSCustomHudLayout>(HudEntityClass))
+            {
+                if (entity.IsValid && entity.Entity?.Name == HudEntityName)
+                {
+                    ours[entity.Index] = entity;
+                }
+            }
+
+            foreach (var entity in ours.Values)
+            {
+                entity.Remove();
+            }
+        });
+
+    public void SetHudClass(string layout, string panel, string className, bool has) =>
+        WithHudLayout(layout, entity => entity.SetHasClass(panel, className, has));
+
+    public void SetHudClass(IGamePlayer player, string layout, string panel, string className, bool has) =>
+        WithHudLayout(layout, player, (entity, controller) => entity.SetHasClassForPlayer(controller, panel, className, has));
+
+    public void SetHudVariable(string layout, string panel, string variable, string value) =>
+        WithHudLayout(layout, entity => entity.SetDialogVariableString(panel, variable, value));
+
+    public void SetHudVariable(IGamePlayer player, string layout, string panel, string variable, string value) =>
+        WithHudLayout(layout, player, (entity, controller) => entity.SetDialogVariableStringForPlayer(controller, panel, variable, value));
+
+    private void WithHudLayout(string layout, Action<CCSCustomHudLayout> action) =>
+        TouchHud($"setting {layout}", () =>
+        {
+            if (_hudLayouts.TryGetValue(layout, out var entity) && entity.IsValid)
+            {
+                action(entity);
+            }
+        });
+
+    /// <summary>
+    /// One slot's state. The engine keeps one block per slot in a vector and the setter
+    /// indexes it without a bounds check, so a slot the vector does not reach is refused
+    /// here; a bot has no client to tell.
+    /// </summary>
+    private void WithHudLayout(string layout, IGamePlayer player, Action<CCSCustomHudLayout, CCSPlayerController> action) =>
+        TouchHud($"setting {layout} for a player", () =>
+        {
+            var real = Real(player);
+            if (!real.Valid || real.IsBot || !_hudLayouts.TryGetValue(layout, out var entity) || !entity.IsValid)
+            {
+                return;
+            }
+
+            if (real.Slot < 0 || real.Slot >= entity.PlayerLayoutStates.Count)
+            {
+                throw new InvalidOperationException($"slot {real.Slot} has no state on the layout");
+            }
+
+            action(entity, real.Controller);
+        });
+
+    /// <summary>
+    /// Every HUD verb goes through here: nothing before a round has started, and a
+    /// failure is a line in the log, once per kind, never an exception a match could
+    /// trip over. The HUD is decoration (decision 34).
+    /// </summary>
+    private void TouchHud(string what, Action action)
+    {
+        if (!HudReady)
+        {
+            return;
+        }
+
+        try
+        {
+            action();
+        }
+        catch (Exception error)
+        {
+            if (_hudSaid.Add($"{what}: {error.Message}"))
+            {
+                _log.Warn($"hud: {what} failed and is skipped: {error.Message}");
+            }
+        }
+    }
 
     // ------------------------------------------------------------------ player verbs
 

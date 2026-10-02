@@ -51,6 +51,9 @@ public sealed class Assignment
     public MatchBranding Branding => Frame.Branding;
     public string? DemoUploadUrl => Frame.DemoUploadUrl;
 
+    /// <summary>The match asks for the HUD (decision 34). What a server without the addon does with that is nothing at all: <see cref="EZPug.Sdk.Hud"/>.</summary>
+    public bool Hud => Frame.Hud == true;
+
     /// <summary>One presigned PUT per map of a series (PRD-02 T38a); <see cref="DemoUploadUrlFor"/> is how to read it.</summary>
     public IReadOnlyList<AssignOrchestratorFrameDemoUploadUrl>? DemoUploadUrls => Frame.DemoUploadUrls;
 

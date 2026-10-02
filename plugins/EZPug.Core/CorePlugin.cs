@@ -70,6 +70,10 @@ public sealed class CorePlugin : BasePlugin
         _catalog = PluginCatalog.Scan(_paths.PluginsDirectory);
 
         var sidecar = Sidecar.LoadFromProcess(_paths.SidecarDirectory);
+        // Decided before the server started and for as long as it runs (decision 34):
+        // without the addon's id and MultiAddonManager this is null, the hello says
+        // nothing about a HUD and the runtime's `Hud` never reaches the world.
+        var hudAddon = HudAddon.FindFromProcess(_paths.SidecarDirectory, _paths.CsgoDirectory, _log);
         if (sidecar is null)
         {
             _link = new UnlinkedPlatformLink(_log);
@@ -84,7 +88,7 @@ public sealed class CorePlugin : BasePlugin
             {
                 Url = sidecar.LinkUrl,
                 Token = sidecar.Token,
-                Hello = HelloFactsBuilder.Build(_catalog, ConVar.Find("hostname")?.StringValue ?? ""),
+                Hello = HelloFactsBuilder.Build(_catalog, ConVar.Find("hostname")?.StringValue ?? "", hud: hudAddon is not null),
                 Status = () => _runtime?.Status() ?? new LinkStatus(LinkServerState.Booting, _world.Map, 0, null),
                 Clock = new SystemClock(),
                 Buffer = _buffer,
@@ -93,7 +97,7 @@ public sealed class CorePlugin : BasePlugin
             _link = _client;
         }
 
-        _runtime = new GamemodeRuntime(_world, _link, _log);
+        _runtime = new GamemodeRuntime(_world, _link, _log, hudAddon);
         var lobby = Environment.GetEnvironmentVariable(LobbyMapVariable);
         _loader = new GamemodeLoader(
             _world,
@@ -141,6 +145,10 @@ public sealed class CorePlugin : BasePlugin
 
         Logger.LogInformation("EZPug.Core {Version} on EZPug.Sdk {Sdk}; {Paths}; installed plugins: {Plugins}; {Sidecar}",
             HelloFactsBuilder.PluginVersion, SdkInfo.Version, _paths, string.Join(", ", _catalog.Installed), sidecar?.ToString() ?? "unlinked");
+        if (hudAddon is not null)
+        {
+            Logger.LogInformation("hud: addon {Addon}; drawn for a match that asks for it", hudAddon);
+        }
 
         if (_client is not null)
         {

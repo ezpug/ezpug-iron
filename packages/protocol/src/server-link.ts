@@ -114,9 +114,18 @@ export const LINK_SERVER_STATES = [
 export const linkServerStateSchema = z.enum(LINK_SERVER_STATES)
 export type LinkServerState = z.infer<typeof linkServerStateSchema>
 
-/** One manifest capability, as a server's `hello` lists the ones it can honour. */
-export const gamemodeCapabilitySchema = z.enum(GAMEMODE_CAPABILITIES)
-export type GamemodeCapabilityName = z.infer<typeof gamemodeCapabilitySchema>
+/**
+ * What a server's `hello` may list: every manifest capability this build of
+ * the plugin can honour, and one thing no manifest claims. `hud` says the
+ * server can draw EZPug's HUD (PRD-07 T3, decision 34): it booted with the
+ * addon's Workshop id and with MultiAddonManager's loader file in place, so a
+ * client can be handed the layouts. A server without both never says it, and
+ * its `hello` is what it was before the HUD existed. Nothing is decided on
+ * it: a match plays the same on a server that cannot draw.
+ */
+export const HELLO_CAPABILITIES = [...GAMEMODE_CAPABILITIES, 'hud'] as const
+export const helloCapabilitySchema = z.enum(HELLO_CAPABILITIES)
+export type HelloCapability = z.infer<typeof helloCapabilitySchema>
 
 /** The versions a server runs — the pins `docs/pins.md` holds, as observed at runtime. */
 export const serverVersionsSchema = z.object({
@@ -312,8 +321,8 @@ export const helloServerFrameSchema = z.object({
   protocol: z.literal(PROTOCOL_VERSION),
   token: linkTokenSchema,
   versions: serverVersionsSchema,
-  /** The manifest capabilities this build of the plugin can honour. */
-  capabilities: z.array(gamemodeCapabilitySchema),
+  /** The manifest capabilities this build of the plugin can honour, and `hud` when the server can draw one. */
+  capabilities: z.array(helloCapabilitySchema),
   /** Plugin folders present in the image, whether or not enabled. */
   plugins: z.array(pluginFolderNameSchema).max(64),
   hostname: z.string().min(1).max(128),
@@ -577,6 +586,16 @@ export const assignOrchestratorFrameSchema = z.object({
    * door refuses it on `simulation.scenario`).
    */
   puppets: puppetScriptSchema.optional(),
+  /**
+   * **This match draws the HUD** (PRD-07 T3, decision 34): the client's own
+   * switch, as the orchestrator read it off the request. `true` and a server
+   * that has the addon's id hands the addon to the players who connect and
+   * shows them the layouts; absent, or on a server without the id, the SDK's
+   * `Hud` makes no call at all and the match is what it was before the HUD
+   * existed. The request cannot say it yet (T4 adds the switch to its
+   * `branding`), so until then nothing sets this.
+   */
+  hud: z.boolean().optional(),
 })
 
 /** A command for the server, answered by a `command_result` (or a `console` frame) with its `correlationId`. */

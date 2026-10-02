@@ -7,9 +7,10 @@ client half, and this repo builds and publishes it. `ralph/PRD-07-hud.md` is the
 that made it; its Findings are the reading list.
 
 This page covers the client half (where the sources are, how they become the addon, and
-how the addon reaches Steam) and the first piece of the server half, MultiAddonManager,
-which hands the addon to a client. The rest of the server half and the three switches
-come with the round's later tasks.
+how the addon reaches Steam) and the server half: MultiAddonManager, which hands the
+addon to a client, and the SDK's `Hud`, which draws. What the HUD is for and what it may
+never do is decision 34 in `docs/decisions.md`. The layouts themselves and the three
+switches written out for an operator come with the round's later tasks.
 
 ## The sources
 
@@ -229,7 +230,7 @@ With the id set, the plugin loads at boot and reads
 
 | Setting | Ours | Why |
 | ------- | ---- | --- |
-| `mm_client_extra_addons` | empty | the id reaches clients only when a match asks for the HUD: `mm_add_client_addon` at assign, `mm_remove_client_addon` at release (PRD-07 T3) |
+| `mm_client_extra_addons` | empty | the id reaches clients only when a match asks for the HUD: `mm_add_client_addon` at assign, `mm_remove_client_addon` at release (the SDK's `Hud`, below) |
 | `mm_cache_clients_with_addons` | `1` | a player who has the addon is not sent through the download handshake again on a map change or a rejoin |
 | `mm_cache_clients_duration` | `0` | for the life of the server, which is one match |
 | `mm_block_disconnect_messages` | `0` | blocking it suppresses the `player_disconnect` **event** for the reason "loop shutdown", not just the chat line, so MatchZy, every CounterStrikeSharp plugin and our own vocabulary would stop seeing it. Upstream believes only the addon's reconnect uses that reason, but nobody has proved it. The HUD is decoration and must not change what a server says happened. The cost is one "left the game" line per player on a first join |
@@ -312,6 +313,51 @@ attempt. So:
   the list (`mm_remove_client_addon <id>`, effective from the player's next attempt,
   because the list is rebuilt for every attempt) or starting the server without
   `EZPUG_HUD_ADDON` are the ways out. A player who retries never gets in on their own.
+
+## Drawing it: the plugin's half
+
+The core plugin decides once, at load, whether this server can draw a HUD
+(`EZPug.Sdk.HudAddon`): it needs the addon's id (`EZPUG_HUD_ADDON` in the environment, or
+`hudAddon` in `ezpug.json` on a Dathost clone) **and** MultiAddonManager's loader file at
+`addons/metamod/multiaddonmanager.vdf`. An id without the file is one warning in the log
+and a server that cannot.
+
+| The server | Its `hello` | A match whose assignment says `hud` | Any other match |
+| ---------- | ----------- | ----------------------------------- | --------------- |
+| has no id | what it was before the HUD existed | plays as any other: no console line, no entity, nothing read | the same |
+| has the id and the loader file | lists `hud` after the manifest capabilities | `mm_add_client_addon <id>` at the assignment, the layouts at the first `round_start` of each map, everything removed and `mm_remove_client_addon <id>` at the release | no console line, no entity |
+
+`hud` on the assignment is the link protocol's word for the client's switch. No request
+can set it yet: the Match API gets the switch with the round's contract task, and until
+then no assignment carries it.
+
+The id goes on the client list at the assignment because a client is told what to mount
+while it connects, and players connect to a match after it is assigned. Somebody already
+on the server at that moment keeps playing without the addon and sees nothing, which is
+what the HUD being decoration means. `ezpug_status` on a server that can draw says where
+it stands (`hud: addon <id>, on, 2 layout(s) in the world`); on one that cannot, the
+report has no such line.
+
+The rules the plugin keeps (no entity before a round has started, orphans removed by
+name, a slot told everything again at connect, at spawn and two seconds later, bots
+skipped, everything gone at release and unload) are in `docs/sdk.md`, "The HUD", and
+`plugins/EZPug.Sdk.Tests/HudTests.cs` has a test for each. Every entity of ours carries
+the targetname `ezpug_hud`, which is how a later load of the plugin finds what an earlier
+one left behind.
+
+Measured on the dev node on 2026-10-02 (CS2 1.41.8.2, CounterStrikeSharp 1.0.376), with
+a throwaway console command calling the world's verbs on a server booted with the id:
+
+- the entity spawns from its keyvalues and reads back its name, its layout path and 64
+  slot states;
+- a class and a string for everybody land in its global state, and a bot is told nothing;
+- it **survives `mp_restartgame`**, so the layouts are made once per map and not per
+  round;
+- removal by name takes entities the plugin had no record of (three of one layout, two of
+  them unremembered, all gone);
+- a map change takes whatever was standing, and nothing crashed.
+
+No client was connected, so nothing here says a layout was *drawn*. That is the look list.
 
 ## Deleting it
 

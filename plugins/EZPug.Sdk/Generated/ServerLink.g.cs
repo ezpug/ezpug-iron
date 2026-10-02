@@ -2340,8 +2340,8 @@ public enum LinkServerState
     Draining,
 }
 
-/// <summary>One manifest capability, as a hello lists the ones a server can honour.</summary>
-public enum GamemodeCapability
+/// <summary>What a hello may list: a manifest capability the server can honour, or `hud` when it can draw one.</summary>
+public enum HelloCapability
 {
     [JsonStringEnumMemberName("positions")]
     Positions,
@@ -2359,6 +2359,8 @@ public enum GamemodeCapability
     Simulation,
     [JsonStringEnumMemberName("mixedRoster")]
     MixedRoster,
+    [JsonStringEnumMemberName("hud")]
+    Hud,
 }
 
 /// <summary>The versions a server runs.</summary>
@@ -2830,7 +2832,7 @@ public sealed record HelloServerFrame : ServerFrame
 
     [JsonPropertyName("capabilities")]
     [JsonPropertyOrder(4)]
-    public required IReadOnlyList<GamemodeCapability> Capabilities { get; init; }
+    public required IReadOnlyList<HelloCapability> Capabilities { get; init; }
 
     [JsonPropertyName("plugins")]
     [JsonPropertyOrder(5)]
@@ -3251,6 +3253,11 @@ public sealed record AssignOrchestratorFrame : OrchestratorFrame
     [JsonPropertyOrder(18)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PuppetScript? Puppets { get; init; }
+
+    [JsonPropertyName("hud")]
+    [JsonPropertyOrder(19)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Hud { get; init; }
 }
 
 /// <summary>The <c>demoUploadUrl</c> block of <see cref="AssignOrchestratorFrame"/>.</summary>

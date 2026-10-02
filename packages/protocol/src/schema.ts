@@ -65,7 +65,7 @@ import {
 import {
   assignedGamemodeSchema,
   consoleLineSchema,
-  gamemodeCapabilitySchema,
+  helloCapabilitySchema,
   linkAckStatusSchema,
   linkCommandSchema,
   linkCommandStatusSchema,
@@ -324,9 +324,10 @@ const SERVER_LINK_NAMES: readonly Named[] = [
     description: 'Where a server is in its life, as it reports it.',
   },
   {
-    schema: gamemodeCapabilitySchema,
-    id: 'GamemodeCapability',
-    description: 'One manifest capability, as a hello lists the ones a server can honour.',
+    schema: helloCapabilitySchema,
+    id: 'HelloCapability',
+    description:
+      'What a hello may list: a manifest capability the server can honour, or `hud` when it can draw one.',
   },
   {
     schema: serverVersionsSchema,

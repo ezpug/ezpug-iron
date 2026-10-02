@@ -41,6 +41,13 @@ public static class StatusReport
         // Read back off the controllers, not off what was asked for: this line is how a
         // real server proves EZ Rating reached the scoreboard (PRD-02 T27).
         lines.AppendLine($"scoreboard: {Ratings(runtime)}");
+        // Only on a server that can draw one: without the addon this report is what it
+        // was before the HUD existed (decision 34).
+        if (runtime.Hud.Addon is { } addon)
+        {
+            lines.AppendLine($"hud: addon {addon}, {(runtime.Hud.On ? $"on, {runtime.Hud.Layouts.Count} layout(s) {(runtime.Hud.Spawned ? "in the world" : "waiting for a round start")}" : "off for this match")}");
+        }
+
         lines.AppendLine($"plugins enabled: {(input.Loader.Enabled.Count == 0 ? "none" : string.Join(", ", input.Loader.Enabled))}");
         lines.Append($"plugins installed: {string.Join(", ", input.Catalog.Installed)}");
         return lines.ToString();

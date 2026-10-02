@@ -9,7 +9,9 @@ namespace EZPug.Core;
 /// What this server says about itself in <c>hello</c>: the versions as observed (the
 /// plugin's own, the SDK's, CounterStrikeSharp's as its assembly declares it, MatchZy's
 /// from its dll when installed), the manifest capabilities this build honours, the
-/// plugin folders in the image, and the hostname the server booted with.
+/// plugin folders in the image, and the hostname the server booted with. A server that
+/// can draw the HUD says <c>hud</c> as well (PRD-07 T3); one that cannot says exactly
+/// what it said before there was one.
 /// </summary>
 public static class HelloFactsBuilder
 {
@@ -19,19 +21,20 @@ public static class HelloFactsBuilder
     /// since T27, where the SDK's <see cref="RatingBoard"/> made it true — claiming one
     /// before it exists would be a lie the fleet console repeats.
     /// </summary>
-    public static readonly IReadOnlyList<GamemodeCapability> Capabilities =
+    public static readonly IReadOnlyList<HelloCapability> Capabilities =
     [
-        GamemodeCapability.Positions,
-        GamemodeCapability.Chat,
-        GamemodeCapability.PlayerCommands,
-        GamemodeCapability.Widget,
-        GamemodeCapability.Backups,
-        GamemodeCapability.ScoreboardRating,
+        HelloCapability.Positions,
+        HelloCapability.Chat,
+        HelloCapability.PlayerCommands,
+        HelloCapability.Widget,
+        HelloCapability.Backups,
+        HelloCapability.ScoreboardRating,
     ];
 
     public const string MatchZyPlugin = "MatchZy";
 
-    public static HelloFacts Build(PluginCatalog catalog, string hostname) =>
+    /// <param name="hud">The server booted with the HUD's addon id and MultiAddonManager's loader file (<see cref="HudAddon"/>).</param>
+    public static HelloFacts Build(PluginCatalog catalog, string hostname, bool hud = false) =>
         new(
             new ServerVersions
             {
@@ -40,7 +43,7 @@ public static class HelloFactsBuilder
                 CounterStrikeSharp = CounterStrikeSharpVersion,
                 Matchzy = catalog.VersionOf(MatchZyPlugin),
             },
-            Capabilities,
+            hud ? [.. Capabilities, HelloCapability.Hud] : Capabilities,
             catalog.Installed.Take(64).ToList(),
             string.IsNullOrWhiteSpace(hostname) ? "ezpug" : hostname.Trim());
 

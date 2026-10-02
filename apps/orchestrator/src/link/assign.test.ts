@@ -97,3 +97,14 @@ describe('the assignment of a match of puppets', () => {
     expect(frame.simulation).toEqual({})
   })
 })
+
+describe('the assignment and the HUD', () => {
+  it('asks no server for a HUD, because no request can ask yet (PRD-07 T3)', () => {
+    // The frame has the word (`hud`) and the plugin acts on it; the Match API
+    // gets its switch in T4. Until then every frame is what it was.
+    for (const id of ['pug', 'powerup-dm', 'flying-scoutsman', 'retakes'] as const) {
+      expect('hud' in compose(id), id).toBe(false)
+      expect('hud' in compose(id, { branding: { eventName: 'SaarLAN 2026' } }), id).toBe(false)
+    }
+  })
+})

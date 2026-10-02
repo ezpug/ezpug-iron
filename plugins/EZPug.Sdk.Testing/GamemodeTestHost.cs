@@ -20,12 +20,13 @@ public sealed class GamemodeTestHost : IDisposable
     /// and a cfg with no class anywhere (PRD-02 T22), and the runtime — the vocabulary it
     /// emits, the SDK's generic flow — is exactly what such a match is made of.
     /// </summary>
-    public GamemodeTestHost(Gamemode? mode = null, FakeClock? clock = null, string map = "de_mirage")
+    /// <param name="hudAddon">The Workshop id of the HUD's addon, for a test of a server that can draw one (PRD-07 T3). <c>null</c>, the default, is a server without it, where an assignment's <c>hud</c> changes nothing.</param>
+    public GamemodeTestHost(Gamemode? mode = null, FakeClock? clock = null, string map = "de_mirage", string? hudAddon = null)
     {
         Clock = clock ?? new FakeClock();
         World = new FakeGameWorld(Clock, map);
         Link = new FakePlatformLink();
-        Runtime = new GamemodeRuntime(World, Link);
+        Runtime = new GamemodeRuntime(World, Link, hudAddon: hudAddon);
         Mode = mode;
         if (mode is not null)
         {
@@ -64,7 +65,8 @@ public sealed class GamemodeTestHost : IDisposable
         IReadOnlyList<RosterEntry>? teamB = null,
         IReadOnlyList<MapPlan>? maps = null,
         MatchBranding? branding = null,
-        IReadOnlyList<string>? warmupLines = null) =>
+        IReadOnlyList<string>? warmupLines = null,
+        bool hud = false) =>
         new()
         {
             MatchId = matchId,
@@ -81,6 +83,7 @@ public sealed class GamemodeTestHost : IDisposable
             },
             Branding = branding ?? new MatchBranding(),
             WarmupLines = warmupLines ?? [],
+            Hud = hud ? true : null,
         };
 
     /// <summary>Read a shipped <c>gamemodes/&lt;id&gt;/manifest.json</c> as the server would receive it (maps and widget dropped).</summary>

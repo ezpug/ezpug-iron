@@ -38,7 +38,7 @@ public class LinkClientTests
             {
                 Url = new Uri("ws://orchestrator.test/link"),
                 Token = "ezs_not-a-secret_server_token_0001",
-                Hello = new HelloFacts(new ServerVersions { Plugin = "0.1.0", Sdk = "0.1.0", CounterStrikeSharp = "1.0.373" }, [GamemodeCapability.Chat], ["EZPug.Core"], "rig"),
+                Hello = new HelloFacts(new ServerVersions { Plugin = "0.1.0", Sdk = "0.1.0", CounterStrikeSharp = "1.0.373" }, [HelloCapability.Chat], ["EZPug.Core"], "rig"),
                 Status = () => new LinkStatus(LinkServerState.Idle, "de_dust2", 0, null),
                 Clock = Clock,
                 Buffer = Buffer,

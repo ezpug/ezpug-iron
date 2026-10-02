@@ -32,6 +32,41 @@ public sealed class FakePlayer : IGamePlayer
     public List<string> Items { get; } = [];
 }
 
+/// <summary>
+/// One <c>custom_hud_layout</c> as the engine would hold it (PRD-07 T3): what everybody
+/// is told, and what each <b>slot</b> is told over that. A slot's state stays when its
+/// player leaves, because that is what the engine does and what the SDK's <c>Hud</c> has
+/// to clean up after; a test reads a player's screen with <see cref="Has"/> and
+/// <see cref="Variable"/>, which answer the way a client resolves it — the slot's own
+/// value where one was set, everybody's otherwise.
+/// </summary>
+public sealed class FakeHudLayout
+{
+    internal FakeHudLayout(string layout)
+    {
+        Layout = layout;
+    }
+
+    /// <summary>The layout's source path, as it was created.</summary>
+    public string Layout { get; }
+    public Dictionary<(string Panel, string Class), bool> Classes { get; } = [];
+    public Dictionary<(string Panel, string Variable), string> Variables { get; } = [];
+    public Dictionary<int, Dictionary<(string Panel, string Class), bool>> SlotClasses { get; } = [];
+    public Dictionary<int, Dictionary<(string Panel, string Variable), string>> SlotVariables { get; } = [];
+
+    /// <summary>Whether the client in <paramref name="slot"/> sees <paramref name="className"/> on <paramref name="panel"/>.</summary>
+    public bool Has(int slot, string panel, string className) =>
+        SlotClasses.TryGetValue(slot, out var own) && own.TryGetValue((panel, className), out var has)
+            ? has
+            : Classes.GetValueOrDefault((panel, className));
+
+    /// <summary>What the client in <paramref name="slot"/> reads for <c>{s:variable}</c> on <paramref name="panel"/>; empty when nobody said.</summary>
+    public string Variable(int slot, string panel, string variable) =>
+        SlotVariables.TryGetValue(slot, out var own) && own.TryGetValue((panel, variable), out var value)
+            ? value
+            : Variables.GetValueOrDefault((panel, variable), "");
+}
+
 /// <summary>One thing a mode did to the world, for a test's assertions.</summary>
 public sealed record WorldAction(string Verb, ulong? SteamId64, string Detail)
 {
@@ -77,6 +112,19 @@ public sealed class FakeGameWorld : IGameWorld
     public Dictionary<ulong, List<string>> Centered { get; } = new();
     /// <summary>Every centre-panel card printed to a player, as the markup the engine would read.</summary>
     public Dictionary<ulong, List<string>> Hudded { get; } = new();
+
+    /// <summary>
+    /// Every HUD layout in the world right now, in the order they were created (PRD-07
+    /// T3). A list and not a map: two entities for one layout is exactly the state a
+    /// plugin reload leaves behind, and <see cref="OrphanHudLayout"/> plants one.
+    /// </summary>
+    public List<FakeHudLayout> HudLayouts { get; } = [];
+
+    /// <summary>The one entity for <paramref name="layout"/>; throws when there is none, or more than one.</summary>
+    public FakeHudLayout HudLayout(string layout) => HudLayouts.Single(entity => entity.Layout == layout);
+
+    /// <summary>Every HUD verb the world was asked for, in order: <see cref="Actions"/> with nothing else in it.</summary>
+    public IReadOnlyList<WorldAction> HudActions => Actions.Where(action => action.Verb.StartsWith("hud_", StringComparison.Ordinal)).ToList();
 
     /// <summary>
     /// Every action as it is taken, for a test that has to stand <i>between</i> two of
@@ -176,6 +224,72 @@ public sealed class FakeGameWorld : IGameWorld
     }
 
     public void PrintConsole(IGamePlayer player, string text) => Record(new WorldAction("console", player.SteamId64, text));
+
+    // ------------------------------------------------------------------ the HUD
+
+    public void CreateHudLayout(string layout)
+    {
+        HudLayouts.Add(new FakeHudLayout(layout));
+        Record(new WorldAction("hud_create", null, layout));
+    }
+
+    public void RemoveHudLayouts()
+    {
+        HudLayouts.Clear();
+        Record(new WorldAction("hud_remove", null, ""));
+    }
+
+    public void SetHudClass(string layout, string panel, string className, bool has)
+    {
+        foreach (var entity in HudLayouts.Where(entity => entity.Layout == layout))
+        {
+            entity.Classes[(panel, className)] = has;
+        }
+
+        Record(new WorldAction("hud_class", null, $"{layout} {panel} {(has ? "+" : "-")}{className}"));
+    }
+
+    public void SetHudClass(IGamePlayer player, string layout, string panel, string className, bool has)
+    {
+        foreach (var entity in HudLayouts.Where(entity => entity.Layout == layout))
+        {
+            entity.SlotClasses.GetOrAdd(player.Slot)[(panel, className)] = has;
+        }
+
+        Record(new WorldAction("hud_class", player.SteamId64, $"{layout} {panel} {(has ? "+" : "-")}{className}"));
+    }
+
+    public void SetHudVariable(string layout, string panel, string variable, string value)
+    {
+        foreach (var entity in HudLayouts.Where(entity => entity.Layout == layout))
+        {
+            entity.Variables[(panel, variable)] = value;
+        }
+
+        Record(new WorldAction("hud_variable", null, $"{layout} {panel} {variable}={value}"));
+    }
+
+    public void SetHudVariable(IGamePlayer player, string layout, string panel, string variable, string value)
+    {
+        foreach (var entity in HudLayouts.Where(entity => entity.Layout == layout))
+        {
+            entity.SlotVariables.GetOrAdd(player.Slot)[(panel, variable)] = value;
+        }
+
+        Record(new WorldAction("hud_variable", player.SteamId64, $"{layout} {panel} {variable}={value}"));
+    }
+
+    /// <summary>
+    /// A layout entity nobody in this process created: what a plugin reload, or a load
+    /// that died before its <c>Unload</c>, leaves in the world. Not recorded as an action,
+    /// because no verb put it there.
+    /// </summary>
+    public FakeHudLayout OrphanHudLayout(string layout)
+    {
+        var orphan = new FakeHudLayout(layout);
+        HudLayouts.Add(orphan);
+        return orphan;
+    }
 
     public void Give(IGamePlayer player, string item)
     {
@@ -291,6 +405,7 @@ public sealed class FakeGameWorld : IGameWorld
     public event Action<IGamePlayer>? PlayerSpawned;
     public event Action<PlayerDeath>? PlayerDied;
     public event Action? RoundStarted;
+    public event Action? FreezeEnded;
     public event Action<RoundEnd>? RoundEnded;
     public event Action? MapEnded;
     public event Action<IGamePlayer, BombSiteName>? BombPlanted;
@@ -302,7 +417,8 @@ public sealed class FakeGameWorld : IGameWorld
     // ------------------------------------------------------------------ the script
 
     /// <summary>
-    /// The map finished loading (after a <c>ChangeLevel</c>, or at boot). A real world may
+    /// The map finished loading (after a <c>ChangeLevel</c>, or at boot): every entity of
+    /// the old one went with it, the HUD's layouts included. A real world may
     /// hold the news back a beat, so <paramref name="startedAtMs"/> says when the engine
     /// started the map if that is not now — which is how a test writes the boot map whose
     /// news arrives after the assignment already asked for another one (PRD-02 T22c).
@@ -314,6 +430,7 @@ public sealed class FakeGameWorld : IGameWorld
             Map = map;
         }
 
+        HudLayouts.Clear();
         MapStarted?.Invoke(new MapStart(Map, startedAtMs ?? Clock.NowMs));
     }
 
@@ -392,6 +509,9 @@ public sealed class FakeGameWorld : IGameWorld
 
     public void StartRound() => RoundStarted?.Invoke();
 
+    /// <summary>The freeze time is over: the round that started is being played.</summary>
+    public void EndFreeze() => FreezeEnded?.Invoke();
+
     public void EndRound(PlayerTeam winner, RoundEndReason reason, int tScore, int ctScore) =>
         RoundEnded?.Invoke(new RoundEnd(winner, reason, tScore, ctScore));
 
@@ -423,6 +543,18 @@ public sealed class FakeGameWorld : IGameWorld
 
 internal static class DictionaryExtensions
 {
+    public static Dictionary<TKey, TValue> GetOrAdd<TKey, TValue>(this Dictionary<int, Dictionary<TKey, TValue>> bySlot, int slot)
+        where TKey : notnull
+    {
+        if (!bySlot.TryGetValue(slot, out var own))
+        {
+            own = [];
+            bySlot[slot] = own;
+        }
+
+        return own;
+    }
+
     public static List<string> GetOrAdd(this Dictionary<ulong, List<string>> lists, ulong key)
     {
         if (!lists.TryGetValue(key, out var list))

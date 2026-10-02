@@ -208,7 +208,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   `ezpug.json`, since a clone has no entrypoint). The template stays without the `.vdf`
   (`dathost-image.mjs` refuses it). Tests on the fake vendor and the node spec; unset
   means byte-identical specs and uploads to today's.
-- [ ] **T3 (fable): the HUD seam.** `IGameWorld` grows the smallest set of verbs that can
+- [x] **T3 (fable): the HUD seam.** `IGameWorld` grows the smallest set of verbs that can
   show a layout to people (create and remove a layout, set a class and a variable for one
   player or all) and **no input-capture verb**; `CounterStrikeWorld` implements them;
   `FakeGameWorld` records them the way it records `Said` and `Hudded`. A `Hud` runtime
@@ -222,6 +222,11 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   for no HUD. The hello names a `hud` capability only when both the plugin and the addon id
   are there. Decision 34 in `docs/decisions.md`: what the HUD is for, what it may never do,
   and that it supersedes decision 22's deferral.
+  > note (T3, 2026-10-02): the switch the plugin reads is `hud` on the link's `assign`
+  > (the protocol, not the Match API), and nothing sets it yet: T4 maps the request's
+  > `branding.hud` onto it in `composeAssign`. `hud` in the hello is the protocol's own
+  > word too (`HELLO_CAPABILITIES`), not a manifest capability. No layout is registered
+  > yet (`Runtime.Hud.Register`), so a server with the id draws nothing until T5.
 - [ ] **T4 (fable): the contract.** Additive, in `@ezpug/match-api` and the link protocol.
   (a) The request's `branding` (`resources/match-request.ts:267-273`) gains what a welcome
   needs: a tagline, an optional banner key, and `hud` (a boolean, default false: this is the

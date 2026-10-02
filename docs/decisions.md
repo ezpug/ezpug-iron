@@ -298,6 +298,9 @@ it here.
 22. **Branding this round is hostname and chat.** Branded hostname per gamemode and event,
     coloured chat prefix and team names, a connect card. In-world banners need a Steam
     Workshop addon players download and are a later round.
+    *That round is PRD-07, and decision 34 is what it decided. The hostname, the prefix,
+    the team names and the connect card stay as they are on every server without the
+    addon.*
 23. **Self-hosted capacity is a node agent with a warm pool.** `ezpug-node` on any docker
     host enrols with a one-time token, reports capacity, starts and stops server containers
     from the one image on demand and keeps N idle warm instances. The orchestrator treats a
@@ -519,6 +522,52 @@ it here.
     download, and the platform would have to learn a second name for a map it picked); a
     workshop spelling of its own on the wire, such as a bare id (a contract change with no
     gain, since the platform's grammar was already right).
+
+34. **The HUD is decoration a server may show, never something a match needs.** (PRD-07
+    T3, 2026-10-02; supersedes the deferral in decision 22.) Valve gave servers a Panorama
+    panel of their own on 2026-08-24, the `custom_hud_layout` entity. The layout is a
+    file on the player's machine and the server sets only its state: a class on a panel
+    and a string a label binds. So the HUD has a client half, a Workshop addon this repo
+    builds and publishes (`docs/hud.md`), and MultiAddonManager hands it to a player while
+    they connect. **What it is for**: telling somebody who joins where they are (the
+    platform's name and mascots, tonight's event, the one thing to do next, in their
+    language), and showing a drop or a perk as if it mattered. **What it may never do**
+    is the larger part of the decision:
+    - **Nothing depends on it.** A match plays, a player is greeted and a drop is
+      announced with the HUD missing, broken or off. Everything it shows is also a chat
+      line. No code path waits for it, reads anything back from a client or fails because
+      of it, and the plugin swallows a failed HUD call with one line in the log.
+    - **It never takes the mouse.** The entity can put a player in cursor mode and freeze
+      their movement until it lets go, and it outlives the plugin that made it. `IGameWorld`
+      has no verb for that, and a test fails if the call appears anywhere in the tree.
+    - **It never covers a fight.** A card is shown only while nobody is playing, which the
+      SDK's `Hud` answers as one question (`Quiet`: warmup, the freeze time with what is
+      left of it, a decided round, a pause, halftime, the map over). The buy menu and the
+      scoreboard win in the stylesheet.
+    - **Off is the default at every layer, and off means untouched.** The HUD is on for a
+      match only when the server booted with the addon's id *and* the match asks for it
+      (`hud` on the link's `assign`). Without either, the `Hud` service returns before it
+      reaches the world, the server's `hello` is byte for byte what it was, and no client
+      is told to download anything. With the id, the `hello` lists `hud`, which is
+      information for an operator and decides nothing.
+    - **The platform says what happened, the server decides how it looks.** Nothing in
+      the Match API names a layout, a panel or a class.
+
+    The seam is six verbs on `IGameWorld` (create a layout, remove ours, a class and a
+    string for everybody or for one player) and one hook (`FreezeEnded`). The lifetime
+    rules that cost other people days are the `Hud` service's and each has a test: no
+    entity before the first `round_start` of a map (CounterStrikeSharp caches a failed
+    look at the entity list for the life of the process), our orphans removed by name
+    before anything is created, a slot told everything again when a person takes it, at
+    every spawn and two seconds after each (the engine keeps state by slot, and a client
+    still loading drops it), nothing remembered as "already set", bots and puppets
+    skipped, everything gone at release and at unload. Not chosen: a manifest capability
+    (the HUD belongs to the server and the request, and a mode that draws nothing is not a
+    lesser mode); the platform naming layouts in the contract (it would have to learn
+    Panorama, and it is as blind to this as it is to MatchZy); loading MultiAddonManager
+    on every server and leaving its list empty (it reloads the map at boot and breaks on
+    CS2 updates, so a server that does not need it does not load it, T2); `<Button>` and
+    click handling (there is nothing to click without a cursor).
 
 ## How the rounds run
 

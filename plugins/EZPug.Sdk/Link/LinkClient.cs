@@ -8,7 +8,7 @@ namespace EZPug.Sdk;
 /// <summary>What the hello reports about this build and this box.</summary>
 public sealed record HelloFacts(
     ServerVersions Versions,
-    IReadOnlyList<GamemodeCapability> Capabilities,
+    IReadOnlyList<HelloCapability> Capabilities,
     /// <summary>Plugin folders present in the image, whether or not enabled.</summary>
     IReadOnlyList<string> Plugins,
     string Hostname);
