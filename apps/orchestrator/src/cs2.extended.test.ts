@@ -295,6 +295,8 @@ type Summary = {
     hello: string[] | null
     /** The `hud:` lines of `ezpug_status` once both moments were due: empty on a server that cannot draw. */
     status: string[] | null
+    /** The engine's own answers over `POST /v1/fleet/servers/:id/rcon`, asked with {@link status} (PRD-07 T9a). */
+    engine: { metaList: string; clientAddons: string } | null
     /** Out of the container's own console, kept until the node removed it. */
     console: {
       container: string
@@ -1266,8 +1268,8 @@ const CASES: LaneCase[] = [
     // nothing: Metamod loads CounterStrikeSharp and nothing else, the hello
     // names no `hud`, the plugin says not one word about one, and a `moment`
     // is still answered `applied`, because its line in chat is owed by every
-    // server. The proof is what the server itself says, off its kept console
-    // and its own status, not an absence of errors.
+    // server. The proof is what the server itself says, over RCON, off its
+    // kept console and in its own status, not an absence of errors.
     id: 'hud-off',
     what: 'plays a pug that asks for a HUD on a server with no addon, which stays what it was',
     puppets: 2,
@@ -1290,10 +1292,15 @@ const CASES: LaneCase[] = [
         'this server can draw a HUD: the dev orchestrator was left with EZPUG_IRON_HUD_ADDON set, and this row is the server without it',
       ).not.toContain('hud')
       expect(hud?.status, 'a server without the addon said something about a HUD').toEqual([])
-      expect(hud?.console?.whole, "the server's console was not kept to its last line").toBe(true)
-      expect(hud?.console?.metamod[0], 'Metamod loaded more than CounterStrikeSharp').toBe(
-        '[META] Loaded 1 plugin.',
+      // The engine's own answers, through the fleet's RCON route (PRD-07 T9a).
+      expect(hud?.engine, "the server's RCON could not be read").not.toBeNull()
+      expect(hud?.engine?.metaList, 'Metamod loaded more than CounterStrikeSharp').toMatch(
+        /^Listing 1 plugin:\n {2}\[01\] CounterStrikeSharp /,
       )
+      expect(hud?.engine?.clientAddons, 'MultiAddonManager answered').toContain(
+        "Unknown command 'mm_client_extra_addons'",
+      )
+      expect(hud?.console?.whole, "the server's console was not kept to its last line").toBe(true)
       expect(hud?.console?.multiAddonManager, 'MultiAddonManager spoke').toEqual([])
       expect(hud?.console?.hud, 'the image or the plugin said something about a HUD').toEqual([])
     },
@@ -1332,14 +1339,19 @@ const CASES: LaneCase[] = [
       expect(summary.moment?.open?.status, 'the moment of an unknown kind was not held').toBe(
         'applied',
       )
-      // MultiAddonManager, loaded at boot beside CounterStrikeSharp.
+      // MultiAddonManager, loaded at boot beside CounterStrikeSharp, in the
+      // engine's own words over the fleet's RCON route (PRD-07 T9a).
+      expect(hud?.engine, "the server's RCON could not be read").not.toBeNull()
+      expect(hud?.engine?.metaList, 'Metamod did not load MultiAddonManager').toMatch(
+        /^Listing 2 plugins:\n/,
+      )
+      expect(hud?.engine?.metaList).toContain('MultiAddonManager')
       expect(hud?.console?.whole, "the server's console was not kept to its last line").toBe(true)
       expect(hud?.console?.crashed, 'the server crashed').toBe(false)
-      expect(hud?.console?.metamod[0], 'Metamod did not load MultiAddonManager').toBe(
-        '[META] Loaded 2 plugins.',
-      )
       expect(hud?.console?.multiAddonManager.join('\n')).toContain('Plugin loaded successfully')
-      // The client list, as MultiAddonManager holds it while the match is assigned.
+      // The client list, as MultiAddonManager holds it while the match is assigned:
+      // its own cvar, and the plugin's reading of it.
+      expect(hud?.engine?.clientAddons, 'MultiAddonManager hands clients nothing').toContain(addon)
       const status = hud?.status ?? []
       expect(status).toContain(`hud: addon ${addon}, on, 2 layout(s) in the world`)
       expect(status).toContain(`hud: clients who connect now are handed ${addon}`)

@@ -379,7 +379,7 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > **For T11's look list:** the check after every republish, with the wait; the
   > `hud-on` row as the drill after a CS2 update; the item's preview picture, still to be
   > set by hand; and the dev trace, which is 1.5 GB and nobody rotates.
-- [ ] **T9a (effort: medium): a node's RCON hands back what the server printed.**
+- [x] **T9a (effort: medium): a node's RCON hands back what the server printed.**
   `POST /v1/fleet/servers/:id/rcon` on a `nodes` server answers `{"output":""}` for every
   line (`meta list`, `status`, a cvar's name), which `scripts/iron-match.mjs` has worked
   around since PRD-02 T27 ("RCON runs a command and does not answer one"). It is not the

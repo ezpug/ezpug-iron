@@ -1794,14 +1794,15 @@ async function run() {
    * The `scoreboard:` line of `ezpug_status` — EZ Rating read back off the
    * controllers rather than off what was asked for (PRD-02 T27).
    *
-   * Two doors, in this order and for a reason. RCON *runs* the command: a node
-   * opens a Source RCON socket on the game port, which is the only way to make
-   * the plugin print anything on demand. RCON does not *read* it: a
-   * `SERVER_ONLY` CounterStrikeSharp command answers on the server console, so
-   * the RCON reply is empty (measured here). The report also goes into the
-   * plugin's console buffer, and `GET /v1/fleet/servers/:id/console` is what
-   * hands that back. Null rather than a failure at every step — this is a check
-   * on the way past, never a reason to lose a match.
+   * Two doors, in this order. RCON *runs* the command: a node opens a Source
+   * RCON socket on the game port, which is the only way to make the plugin
+   * print anything on demand. The report is read back off the plugin's
+   * console buffer (`GET /v1/fleet/servers/:id/console`), which is what this
+   * was written against while a node's RCON answered every line with `""`.
+   * That was the orchestrator's client, not CounterStrikeSharp (PRD-07 T9a):
+   * the RCON reply carries the report too now, and this read stays as it was.
+   * Null rather than a failure at every step — this is a check on the way
+   * past, never a reason to lose a match.
    */
   const readScoreboard = async id => (await readScoreboardAt(id))?.line ?? null
   /**
@@ -2071,11 +2072,7 @@ async function run() {
    * client who connects now is handed (MultiAddonManager's own list) and
    * every layout of ours off its entity: the names, everybody's state, each
    * slot's. A server that cannot draw says nothing about a HUD, and that
-   * silence is the answer. The engine's own answers (`meta list`, a cvar) are
-   * not asked for here: a node's RCON runs a line and hands back nothing
-   * (`readScoreboardAt`, above), so whether MultiAddonManager is loaded is
-   * read off Metamod's line in the kept console instead. `null` rather than
-   * a failure at every step.
+   * silence is the answer. `null` rather than a failure at every step.
    */
   const readHud = async id => {
     try {
@@ -2094,6 +2091,27 @@ async function run() {
             .slice(from)
             .filter(line => line.startsWith('[status] hud:'))
             .map(line => line.slice('[status] '.length))
+    } catch {
+      return null
+    }
+  }
+  /**
+   * **The engine's own answers, through the front door** (PRD-07 T9a): what
+   * Metamod has loaded (`meta list`) and what MultiAddonManager hands a client
+   * who connects now (`mm_client_extra_addons`), each the reply of
+   * `POST /v1/fleet/servers/:id/rcon`, which a node answers off the game port
+   * since its client stopped reading CS2's answer as an end marker. A command
+   * the server does not have answers in the engine's words ("Unknown
+   * command"), which is the off row's answer. `null` when it cannot be read.
+   */
+  const readEngine = async id => {
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      if (!row) return null
+      const ask = async command =>
+        (await api('POST', `/v1/fleet/servers/${row.id}/rcon`, { command })).output
+      return { metaList: await ask('meta list'), clientAddons: await ask('mm_client_extra_addons') }
     } catch {
       return null
     }
@@ -2320,9 +2338,9 @@ async function run() {
   /**
    * What `--drop-puppet` did: the kick the Match API answered, and whether the
    * room emptied by one and filled back up. Read off `presence` frames, which
-   * is the only record of the room there is — RCON *runs* a command and does
-   * not answer one (`status` over the fleet route comes back with an empty
-   * `output`, measured here), and `GET /v1/fleet/servers/:id/console` carries
+   * is the only record of the room there is — `status` over the fleet route
+   * is the engine's word on it since PRD-07 T9a, but CS2 answers a `status`
+   * asked again within ~200 ms with nothing — and `GET /v1/fleet/servers/:id/console` carries
    * the **core plugin's** lines and not the engine's or MatchZy's. Simulation
    * mode's own mapping log is not readable from outside the box at all, which
    * is exactly why T7a reads it from inside one.
@@ -2340,6 +2358,8 @@ async function run() {
   let momentAt = 0
   /** The `hud:` lines of the server's status once both moments were due (PRD-07 T9): `undefined` until asked, `null` when it could not be read. */
   let hud
+  /** `meta list` and MultiAddonManager's client list over the fleet's RCON, read with {@link hud} (PRD-07 T9a). */
+  let engine = null
   /** What `--walk` measured: the same bodies moved by the engine and by a teleport (T12). */
   let walked = null
   let rated = false
@@ -2705,6 +2725,10 @@ async function run() {
       say(
         `the server on its HUD: ${hud === null ? 'no status report' : hud.length === 0 ? 'nothing, it cannot draw one' : `${hud.length} line(s), ${hud[0]}`}`,
       )
+      engine = await readEngine(matchId)
+      say(
+        `the engine on its plugins: ${engine === null ? 'unreadable' : `${engine.metaList.split('\n')[0] || '(nothing)'}; client addons: ${engine.clientAddons.trim() || '(nothing)'}`}`,
+      )
       continue
     }
 
@@ -2984,6 +3008,7 @@ async function run() {
     widget,
     moment,
     hud: hud ?? null,
+    engine,
     console: consoleKept,
     walked,
   }
@@ -3320,7 +3345,9 @@ function write(result) {
      * that has the addon's id). `status` is the `hud:` lines of `ezpug_status`
      * once both moments were due: what a client who connects is handed and the
      * layouts, read back off MultiAddonManager and the entities; empty on a
-     * server that cannot draw. `console` is what the kept console says: what
+     * server that cannot draw. `engine` is the engine's own answer to
+     * `meta list` and `mm_client_extra_addons` over the fleet's RCON, asked
+     * at the same moment. `console` is what the kept console says: what
      * Metamod loaded at boot, and what the server said **after the release**,
      * which no route can ask it.
      */
@@ -3332,6 +3359,7 @@ function write(result) {
               .map(entry => entry.frame.capabilities)
               .at(-1) ?? null,
           status: result.hud ?? null,
+          engine: result.engine ?? null,
           console: consoleFacts(result.console),
         }
       : null,

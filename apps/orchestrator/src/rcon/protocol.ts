@@ -32,8 +32,13 @@ export const RCON_RESPONSE_VALUE = 0
 /** The id a server sends when it will not talk to you. */
 export const RCON_AUTH_FAILED_ID = -1
 
-/** The longest packet we will read before deciding the peer is not an RCON server. */
-export const RCON_PACKET_MAX = 4096 + 16
+/**
+ * The longest packet we will read before deciding the peer is not an RCON
+ * server. Classic Source splits an answer at 4 KiB; CS2 does not — `cvarlist`
+ * on 1.41.8.2 is one 647 KB packet (PRD-07 T9a) — so the ceiling is a sanity
+ * bound on a length prefix, not the engine's packet size.
+ */
+export const RCON_PACKET_MAX = 4 * 1024 * 1024
 
 export interface RconPacket {
   id: number

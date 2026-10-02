@@ -83,6 +83,15 @@ const COMMAND_ID = 2
  * *after* a command, and does so *after* every chunk of that command's
  * output — which is how a multi-packet answer is known to be complete
  * without guessing at a quiet period.
+ *
+ * It goes out only once the command's first answer is in (PRD-07 T9a). CS2
+ * tags that answer with the id of the newest packet it had read when its
+ * frame ran the command, so a marker written straight behind the command
+ * lands in the same frame and the answer comes back wearing the marker's id:
+ * read as "done", every node RCON line answered `""`. Measured on CS2
+ * 1.41.8.2 — and with Nagle on, the marker usually missed the frame, which
+ * is why a plain client read the same server fine. The price is one round
+ * trip; the answer's own id is never trusted.
  */
 const SENTINEL_ID = 3
 
@@ -217,9 +226,9 @@ export function createRconClient(options: RconClientOptions): RconClient {
           throw new RconError('auth_failed', 'rcon: the server refused the password')
 
         socket.write(encodeRconPacket({ id: COMMAND_ID, type: RCON_EXECCOMMAND, body: command }))
-        socket.write(encodeRconPacket({ id: SENTINEL_ID, type: RCON_RESPONSE_VALUE, body: '' }))
 
         let output = ''
+        let marked = false
         for (;;) {
           let packet: RconPacket
           try {
@@ -234,10 +243,16 @@ export function createRconClient(options: RconClientOptions): RconClient {
             if (output !== '' && error instanceof RconError && error.failure !== 'protocol') break
             throw error
           }
-          if (packet.id === SENTINEL_ID) break
           if (packet.id === RCON_AUTH_FAILED_ID)
             throw new RconError('auth_failed', 'rcon: the server dropped the session')
-          if (packet.id === COMMAND_ID) output += packet.body
+          if (marked && packet.id === SENTINEL_ID) break
+          // Whatever arrives before the marker's echo is the answer, by order
+          // and not by id: CS2's one packet, or a classic server's chunks.
+          output += packet.body
+          if (!marked) {
+            marked = true
+            socket.write(encodeRconPacket({ id: SENTINEL_ID, type: RCON_RESPONSE_VALUE, body: '' }))
+          }
         }
         return output
       } finally {

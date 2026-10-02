@@ -1,9 +1,29 @@
 import { createFakeClock } from '@ezpug/core'
 import { eventually } from '@ezpug/core/testing'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createRconClient, type RconClient, RconError, type RconTarget } from './client'
-import { createFakeRcon, FAKE_RCON_LONG_ANSWER, type FakeRcon } from './fake-server'
-import { decodeRconPackets, encodeRconPacket } from './protocol'
+import {
+  createRconClient,
+  type RconClient,
+  RconError,
+  type RconSocketPort,
+  type RconTarget,
+} from './client'
+import {
+  answerRconFrame,
+  createFakeRcon,
+  FAKE_RCON_LONG_ANSWER,
+  type FakeRcon,
+  type RconSession,
+} from './fake-server'
+import {
+  decodeRconPackets,
+  encodeRconPacket,
+  RCON_AUTH,
+  RCON_AUTH_RESPONSE,
+  RCON_EXECCOMMAND,
+  RCON_RESPONSE_VALUE,
+  type RconPacket,
+} from './protocol'
 import { CONSOLE_REDACTED, redactConsoleLine } from './redact'
 
 /**
@@ -42,6 +62,47 @@ async function rig(commands: Record<string, string> = {}): Promise<Rig> {
     client: createRconClient({ clock, connectTimeoutMs: 2_000, commandTimeoutMs: 5_000 }),
     target: { host: '127.0.0.1', port, password: PASSWORD },
   }
+}
+
+/**
+ * A socket double that is a CS2 server **one frame per tick**: whatever the
+ * client writes in one turn of the event loop is read in one frame, which is
+ * what the dev container did with a marker written straight behind its
+ * command (PRD-07 T9a). Deterministic where a TCP chunk boundary is not.
+ * `answer` replaces CS2's frame when a test wants another server's habits.
+ */
+function frameSocket(
+  commands: Record<string, string>,
+  answer: (session: RconSession, packets: readonly RconPacket[]) => Buffer[] = (session, packets) =>
+    answerRconFrame(session, packets, PASSWORD, command => commands[command] ?? ''),
+): { connect: () => Promise<RconSocketPort>; frames: RconPacket[][] } {
+  const frames: RconPacket[][] = []
+  const connect = async (): Promise<RconSocketPort> => {
+    const session: RconSession = { authenticated: false }
+    let pending: Buffer = Buffer.alloc(0)
+    let scheduled = false
+    let deliver: (chunk: Buffer) => void = () => undefined
+    return {
+      write: bytes => {
+        pending = Buffer.concat([pending, bytes])
+        if (scheduled) return
+        scheduled = true
+        queueMicrotask(() => {
+          scheduled = false
+          const { packets } = decodeRconPackets(pending)
+          pending = Buffer.alloc(0)
+          frames.push(packets)
+          for (const reply of answer(session, packets)) deliver(reply)
+        })
+      },
+      destroy: () => undefined,
+      onData: fn => {
+        deliver = fn
+      },
+      onClose: () => undefined,
+    }
+  }
+  return { connect, frames }
 }
 
 /** Run `attempt` while the fake timeline moves, and hand back however it settled. */
@@ -88,7 +149,7 @@ describe('the packet', () => {
 
   it('refuses a length prefix that is not a packet', () => {
     const nonsense = Buffer.alloc(8)
-    nonsense.writeInt32LE(1_000_000, 0)
+    nonsense.writeInt32LE(100_000_000, 0)
     expect(() => decodeRconPackets(nonsense)).toThrow(/not a packet/)
   })
 })
@@ -100,9 +161,52 @@ describe('the client', () => {
     expect(server.seen).toEqual(['status'])
   })
 
-  it('stitches a multi-packet answer back together', async () => {
-    const { client, target } = await rig({ status: FAKE_RCON_LONG_ANSWER })
-    expect(await client.exec(target, 'status')).toBe(FAKE_RCON_LONG_ANSWER)
+  it('takes an answer far past 4 KiB in one packet, the way CS2 sends cvarlist', async () => {
+    const { client, target } = await rig({ cvarlist: FAKE_RCON_LONG_ANSWER })
+    expect(await client.exec(target, 'cvarlist')).toBe(FAKE_RCON_LONG_ANSWER)
+  })
+
+  it('reads the answer CS2 tags with the marker’s id, because the marker waits for it', async () => {
+    // The bug of PRD-07 T9a: a marker written behind the command shared its
+    // frame, the answer came back with id 3, and every line read `""`.
+    const socket = frameSocket({ 'meta list': 'Listing 2 plugins:\n' })
+    const clock = createFakeClock()
+    const client = createRconClient({ clock, connect: socket.connect })
+    const target = { host: 'cs2', port: 27415, password: PASSWORD }
+    expect(await client.exec(target, 'meta list')).toBe('Listing 2 plugins:\n')
+    // The command had a frame of its own; the marker came after the answer.
+    expect(socket.frames.map(frame => frame.map(packet => packet.type))).toEqual([
+      [RCON_AUTH],
+      [RCON_EXECCOMMAND],
+      [RCON_RESPONSE_VALUE],
+    ])
+  })
+
+  it('hands back nothing for a command that prints nothing, without waiting out a deadline', async () => {
+    const socket = frameSocket({})
+    const client = createRconClient({ clock: createFakeClock(), connect: socket.connect })
+    expect(await client.exec({ host: 'cs2', port: 27415, password: PASSWORD }, 'sv_cheats 0')).toBe(
+      '',
+    )
+  })
+
+  it('stitches a classic server’s chunks back together, in order and whatever their id', async () => {
+    const chunks = ['first half, ', 'second half']
+    const socket = frameSocket({}, (_session, packets) =>
+      packets.flatMap(packet => {
+        if (packet.type === RCON_AUTH)
+          return [encodeRconPacket({ id: packet.id, type: RCON_AUTH_RESPONSE, body: '' })]
+        if (packet.type === RCON_EXECCOMMAND)
+          return chunks.map(body =>
+            encodeRconPacket({ id: packet.id, type: RCON_RESPONSE_VALUE, body }),
+          )
+        return [encodeRconPacket({ id: packet.id, type: RCON_RESPONSE_VALUE, body: '' })]
+      }),
+    )
+    const client = createRconClient({ clock: createFakeClock(), connect: socket.connect })
+    expect(await client.exec({ host: 'srcds', port: 27015, password: PASSWORD }, 'status')).toBe(
+      'first half, second half',
+    )
   })
 
   it('says so when the password is wrong, and never says what it sent', async () => {

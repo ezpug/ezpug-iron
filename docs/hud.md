@@ -484,12 +484,14 @@ when somebody asks for the status.
 Two rows of the CS2 lane (`apps/orchestrator/src/cs2.extended.test.ts`,
 `docs/operations.md`, "The `EZPUG_CS2_TESTS` lane") play the same puppeted 1v1 pug with
 `branding.hud: true` and two `moment`s, and hold the server to its own account: the
-status above, and the container's whole console, which `iron-match --console` keeps.
+status above, the engine's own answers to `meta list` and `mm_client_extra_addons` through
+`POST /v1/fleet/servers/:id/rcon` (asked at the same moment), and the container's whole
+console, which `iron-match --console` keeps.
 
 | Row | The server | What it is held to |
 | --- | ---------- | ------------------ |
-| `hud-off`, in the matrix | no `EZPUG_HUD_ADDON`: what production runs | the hello names no `hud`; Metamod says `[META] Loaded 1 plugin.`; not one `hud:` or MultiAddonManager line in the whole console; the status says nothing about a HUD; both moments `applied` |
-| `hud-on`, by name only | has the id | the hello names `hud`; `[META] Loaded 2 plugins.` and MultiAddonManager's "Plugin loaded successfully!"; clients are handed the id while the match is assigned; both layouts are entities, the moment's `observable` and the welcome's not; a toast row tinted `tier-rare` and one `tier-common` for everybody, which is what the two moments left; every slot holds nothing and nobody's mouse is taken |
+| `hud-off`, in the matrix | no `EZPUG_HUD_ADDON`: what production runs | the hello names no `hud`; `meta list` answers `Listing 1 plugin:` (CounterStrikeSharp) and `mm_client_extra_addons` is an unknown command; not one `hud:` or MultiAddonManager line in the whole console; the status says nothing about a HUD; both moments `applied` |
+| `hud-on`, by name only | has the id | the hello names `hud`; `meta list` answers `Listing 2 plugins:` with MultiAddonManager, and its "Plugin loaded successfully!" is in the console; `mm_client_extra_addons` holds the id while the match is assigned, and the status says clients are handed it; both layouts are entities, the moment's `observable` and the welcome's not; a toast row tinted `tier-rare` and one `tier-common` for everybody, which is what the two moments left; every slot holds nothing and nobody's mouse is taken |
 
 `hud-on` runs only when it is named, because the id is one value on the dev orchestrator
 and every server it starts gets it. So the row is played inside a hold of the lane, with
@@ -520,10 +522,13 @@ not say:
   left: what remains is no container, which every row of the lane is held to. That
   `mm_remove_client_addon` empties the list and that removal by name takes the entities
   were measured on a live server in T2 and T3 (above), and `HudTests` holds the order.
-- **A node's RCON hands back nothing.** `meta list` through the fleet's RCON route comes
-  back empty on a node, like every other command there, so the rows read Metamod's own
-  line off the console instead. (A plain Source RCON client that waits for quiet reads
-  the same server's answers; the node's client stops at its own end marker.)
+- **A node's RCON answers since T9a.** Until then every line through the fleet's RCON
+  route came back `""` on a node and the rows read Metamod's `[META] Loaded N plugin(s)`
+  off the console. It was the orchestrator's client: CS2 tags its answer with the id of
+  the newest packet it has read, and the client's end marker, written behind the command,
+  arrived in the same frame (`docs/operations.md`, "The console and RCON"). So
+  `mm_remove_client_addon <id>` typed into a live server is answered now, and
+  `mm_client_extra_addons` after it shows the list it left.
 
 Measured on the dev node on 2026-10-02 (CS2 1.41.8.2, CounterStrikeSharp 1.0.376), with
 a throwaway console command calling the world's verbs on a server booted with the id:

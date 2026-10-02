@@ -1071,7 +1071,13 @@ obvious one, and the reason is worth knowing: the **provider's** RCON door goes 
 because it is the only one that hands back *output*. Dathost reads its console around the
 command; a node opens a Source RCON socket on the game port (`apps/orchestrator/src/rcon/`
 — our own framing, ~150 lines, every deadline on the injected clock) with the password it
-put in the container's environment. Only when a provider has no door at all does the line
+put in the container's environment. CS2 answers every command with **one** packet (never
+split at 4 KiB: `cvarlist` is one 647 KB packet) carrying the id of the newest packet it
+had read when its frame ran the line, so the client sends its end marker only once that
+answer is in and reads the answer by order, never by id. A marker written straight behind
+the command shared its frame and turned every answer into `""` until PRD-07 T9a. One
+habit of the engine's own: a `status` asked again within ~200 ms of the last one answers
+nothing. Only when a provider has no door at all does the line
 go down the **link** instead: a plugin can run a command but cannot capture the engine's
 answer, so it applies the line and answers with nothing. A simulated server refuses with
 `command_unsupported`, which is what the route's contract promises. An unreachable door is
