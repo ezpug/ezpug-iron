@@ -118,8 +118,8 @@ own test for its lines, and a mode should assert the same for its pair.
 
 Helpers on the base: `World`, `Link`, `Clock`, `Localizer`, `Facts`, `Match`,
 `Assignment`, `Commands`; `Emit`, `EmitPluginEvent`, `PushWidget`; `Lines(player)`, `Say`,
-`SayAll`, `PrintCenter` (all localized per player); `PlayerState<T>(factory)`; `After`,
-`Every`.
+`SayAll`, `PrintCenter`, `Toast`, `ToastAll` (all localized per player; the last two are
+"A mode's own words on the HUD", below); `PlayerState<T>(factory)`; `After`, `Every`.
 
 ### Timers: a period is held, a stall is skipped
 
@@ -235,7 +235,8 @@ The second layout is **the moment's** (`Runtime.Moments`, `docs/hud.md`, "The mo
 what the Match API's `moment` command becomes. Its line goes out in chat behind the
 match's prefix whatever the server can draw. With the HUD on, everybody also gets a toast
 and the person a card, and the card is shown only in a stretch `Hud.Quiet` says is long
-enough for it. A mode has nothing to do for any of it. The sound at the card's turn is
+enough for it. A mode has nothing to do for any of it, and its own toasts share the
+moment's rows (below). The sound at the card's turn is
 `IGameWorld.PlaySound(player, soundEvent, volume)`: one of the game's own sound events
 (a name from its `soundevents/*.vsndevts`), to one player; `World.Sounds` on the harness
 is what was played to whom.
@@ -246,6 +247,74 @@ the engine would, per slot and surviving a disconnect, `layout.Has(slot, panel, 
 and `layout.Variable(slot, panel, variable)` read a screen, `World.HudActions` is every
 HUD verb in order, `World.OrphanHudLayout` plants a leftover and `World.EndFreeze()` ends
 a freeze.
+
+#### A mode's own words on the HUD: `Toast` and `ToastAll`
+
+What a mode draws is a **toast**: its own line as a slim strip at the right edge of the
+screen, under the kill feed, for six seconds.
+
+```csharp
+Toast(player, "powerup.landed", Lines(player)["powerup.kind.speed"]);  // one person
+ToastAll("powerup.bye");                                               // everybody, each in their language
+```
+
+`Toast` is `Say` and `ToastAll` is `SayAll`, with the same key and the same arguments,
+and each **says the chat line first**, behind the match's prefix, whatever the server can
+draw. With the HUD on the line is also the strip. So a mode never asks whether the HUD is
+on, and somebody without the addon misses nothing. The strip carries the line without the
+prefix and without the chat's colours (`ChatColor` is control characters, which a label
+would draw as boxes), cleaned the way every line on it is (`SaidLine.Sanitize`).
+
+The strips are the moment's three rows (`Runtime.Moments` owns them), so a mode's toast
+and a drop's wait for each other: three on screen, the next ones taking a row as it comes
+free, at most six waiting, and one beyond that said in chat and not drawn. A mode's toast
+is plain where a moment's is tinted. **A row is everybody's**: a toast for one person
+holds its row for the six seconds on every screen, and is simply not shown on the others.
+
+**The rules a mode must not break.** The first three are what decision 34 says the HUD
+may never do; the rest are how a layout fails without telling anybody.
+
+- **Decoration, never structure.** Nothing a mode does may wait for the HUD, depend on it
+  or read anything back from it. There is no "was it shown": a client without the addon,
+  one still loading and a bot all look the same from here. What a player has to know is
+  said in chat, which `Toast` does for you; a line that exists only on the HUD is a line
+  some players never get.
+- **Nothing takes the mouse.** The seam has no verb for input capture and a test fails
+  when the call appears anywhere in this repo. A mode that wants a menu has the phone
+  (`PushWidget`, player commands) and chat.
+- **Nothing covers a fight.** A toast is slim and at the edge, and that is all a mode
+  puts on a screen while a round is being played. Anything larger is a card, a card may
+  only show while nobody is playing (`Hud.Quiet`), and the cards are the runtime's.
+- **Use the helpers, not the seam.** `World.CreateHudLayout`, `SetHudClass` and
+  `SetHudVariable` are reachable from a mode and are not for it. A class set past
+  `Runtime.Hud` is dropped by a client that is still loading and never told again, and it
+  stays on the slot for whoever takes it after a disconnect; a layout made before a round
+  has started on the map breaks the entity list for the life of the process. The toast's
+  rows are not a mode's either: `moment_toast_<n>` set from a mode is a toast written
+  over a drop's.
+- **A mode ships no layout.** A layout is a compiled file in the Workshop addon, the
+  same for every server, and a changed one needs the addon republished and every client
+  restarted (`docs/hud.md`). A mode that needs a panel of its own is a change to the
+  addon and a round of its own, not a file beside the manifest.
+- **A toast is something worth a glance, a few times a round.** Every call goes out to
+  the client (nothing is remembered as already set) and holds a row for six and a half
+  seconds, on a strip the platform's drops use too. A line that changes every second is
+  the centre panel's: `powerup-dm`'s peek countdown is `World.PrintHud` ten times in five
+  seconds and stays there.
+- **Words come from the resx pair**, per player, German by default, like everything a
+  human reads. A name from outside goes in as an argument and through `ChatColor.Strip`
+  first, as it does for chat.
+
+On the harness a toast is read off the moment's layout, the way `ModeToastTests` does:
+
+```csharp
+var layout = host.World.HudLayout(Moments.Layout);
+Assert.True(layout.Has(player.Slot, Moments.Toast(1), Moments.Shown));
+Assert.Equal("Power-up aktiv: Tempo.", layout.Variable(player.Slot, Moments.ToastText(1), Moments.Text));
+```
+
+and the chat line in `World.Said` is the assertion that holds on every server. A puppet
+has no screen, so a lane row proves the line and never the strip.
 
 ### Warmup lines: what the server says while it waits
 

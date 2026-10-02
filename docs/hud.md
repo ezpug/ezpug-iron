@@ -474,7 +474,9 @@ the HUD off that is all a moment is: no layout is touched and no sound plays.
 **The toast**, with the HUD on: the same line as a slim strip for everybody, at the same
 instant, tinted by tier. Three rows (`moment_toast_1` to `moment_toast_3`), six seconds
 each. A fourth toast waits for the first row to come free, at most six wait, and one
-beyond that is not drawn: its line was said.
+beyond that is not drawn: its line was said. A gamemode's own toasts (`Gamemode.Toast`
+and `ToastAll`, `docs/sdk.md`, "A mode's own words on the HUD") go through the same rows
+and the same wait, untinted, and are a chat line first in the same way.
 
 **The card**, for the person: it slides in face down, turns over one second later with
 the sound, and is gone six seconds after it came. It is only ever shown while nobody is

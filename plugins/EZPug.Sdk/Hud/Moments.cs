@@ -363,6 +363,46 @@ public sealed partial class Moments
         });
     }
 
+    // ------------------------------------------------------------------ a mode's own words
+
+    /// <summary>
+    /// A toast that is no moment's: a mode's own line for one person
+    /// (<c>Gamemode.Toast</c>, PRD-07 T8). It takes a row like any other, because the
+    /// rows are one strip of the screen and a second hand writing on them would write
+    /// over the first: the same three, the same wait, plain where a moment is tinted.
+    /// The mode has said the line in chat already, so one that finds no room is not
+    /// drawn, and with the HUD off nothing here reaches the world. A bot has no screen,
+    /// somebody who left has none either, and neither takes a row.
+    /// </summary>
+    public void Toast(IGamePlayer player, string line)
+    {
+        if (!_hud.On || player.IsBot || _world.Find(player.SteamId64) is not { IsBot: false } || Drawn(line) is not { } drawn)
+        {
+            return;
+        }
+
+        var steamId64 = player.SteamId64;
+        Raise(MomentTier.Common, reader => reader.SteamId64 == steamId64 ? drawn : null);
+    }
+
+    /// <summary>A mode's own line for everybody, each in the words <paramref name="line"/> has for them.</summary>
+    public void ToastAll(Func<IGamePlayer, string> line)
+    {
+        if (!_hud.On)
+        {
+            return;
+        }
+
+        Raise(MomentTier.Common, reader => Drawn(line(reader)));
+    }
+
+    /// <summary>
+    /// A line a mode says in chat, as a label may show it: the chat's colours are control
+    /// characters a label would draw as boxes, and the rest is what every line on this
+    /// strip went through. <c>null</c> when nothing is left to draw.
+    /// </summary>
+    private static string? Drawn(string line) => SaidLine.Sanitize(ChatColor.Strip(line));
+
     // ------------------------------------------------------------------ the card
 
     /// <summary>Whether a card started this instant is over before anybody plays again, on layouts that are in the world.</summary>

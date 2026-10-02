@@ -333,10 +333,20 @@ Traced 2026-10-01 against the tree at match-api `0.30.0`. The research note is
   > their own card plays, and the welcome's `transition:` shorthand (registered in the
   > client, used nowhere in the game's own 239 stylesheets; the moment uses the
   > longhands).
-- [ ] **T8 (effort: medium): the mode's own words.** `Gamemode` gains the helpers a mode
+- [x] **T8 (effort: medium): the mode's own words.** `Gamemode` gains the helpers a mode
   author would reach for (a toast to one player or all, localized like `Say`), on top of T3
   and nothing else; `powerup-dm`'s peek countdown stays on the centre panel. `docs/sdk.md`
   gains the HUD section with the rules a mode must not break.
+  > note (T8, 2026-10-02): `Toast` and `ToastAll` say the chat line themselves (`Say`,
+  > `SayAll`) and then draw it, so a mode cannot show something the chat did not say. No
+  > new verb on the seam, no layout and no contract change, but the strip is **the
+  > moment's three rows**, not a second one: T7's layout holds the only toast panels the
+  > addon has, and two writers on them would write over each other, so a mode's toast goes
+  > through `Moments`' rows and queue, untinted. The price is that a toast for one person
+  > holds its row on every screen. No shipped mode calls the helpers, so what a server does
+  > is unchanged and no lane row was played for this task.
+  > **For T11's look list:** a mode's toast has never been drawn either; nothing but a
+  > test mode raises one, so seeing it needs a mode that calls `Toast`.
 - [ ] **T9 (checkpoint): the lane, both ways.** Two rows on the dev node behind the lock.
   **Off:** a puppeted match with no `EZPUG_HUD_ADDON`: the boot log, `meta list` and the
   hello are today's; a `moment` prints its line. **On:** the same match with the id set and

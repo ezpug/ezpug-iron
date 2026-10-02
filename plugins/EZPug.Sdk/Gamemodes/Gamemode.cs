@@ -143,6 +143,29 @@ public abstract class Gamemode
 
     protected void PrintCenter(IGamePlayer player, string key, params object[] args) => World.PrintCenter(player, Lines(player)[key, args]);
 
+    /// <summary>
+    /// <see cref="Say"/>, and on a match that draws the HUD the same line as a slim strip
+    /// at the edge of that player's screen for a few seconds (PRD-07 T8). The chat line is
+    /// said whatever the server can draw, so nobody without the addon misses a word and a
+    /// mode never asks whether the HUD is on. For something worth a glance, a few times a
+    /// round: the strip has three rows, shared with the platform's moments, and a line
+    /// that changes every second belongs on the centre panel (<c>docs/sdk.md</c>, "A
+    /// mode's own words").
+    /// </summary>
+    protected void Toast(IGamePlayer player, string key, params object[] args)
+    {
+        var line = Lines(player)[key, args];
+        Brand.Say(player, line);
+        Runtime.Moments.Toast(player, line);
+    }
+
+    /// <summary><see cref="SayAll"/>, and the same strip for everybody, each in their own language.</summary>
+    protected void ToastAll(string key, params object[] args)
+    {
+        SayAll(key, args);
+        Runtime.Moments.ToastAll(player => Lines(player)[key, args]);
+    }
+
     /// <summary>Per-player state the runtime drops when the player leaves and clears when the match ends.</summary>
     protected PlayerState<T> PlayerState<T>(Func<IGamePlayer, T> create) => Runtime.RegisterState(new PlayerState<T>(create));
 

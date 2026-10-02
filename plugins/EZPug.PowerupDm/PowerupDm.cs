@@ -208,6 +208,8 @@ public sealed class PowerupDm : Gamemode
             ["contacts"] = contacts,
         });
 
+        // On the centre panel and not a HUD toast (PRD-07 T8): this line is rewritten
+        // every beat, and a toast holds one of three shared rows for six seconds.
         World.PrintHud(player, Lines(player)["powerup.peek.hud", (long)Math.Ceiling(left / 1000.0)]);
     }
 

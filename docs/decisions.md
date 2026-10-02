@@ -642,6 +642,22 @@ it here.
     already moves by); a glow per tier (the same); the pictures at half size (a 4K
     screen draws the box at twice its pixels).
 
+    **What a mode may draw** (T8, 2026-10-02; `Gamemode.Toast`, `Gamemode.ToastAll`). A
+    toast, and nothing else: `Say` and `SayAll` with the same line as a strip on the
+    moment's three rows, plain where a moment is tinted. **The helper says the chat line
+    itself**, so "everything the HUD shows is also a chat line" is not a rule a mode can
+    forget, and a mode never asks whether the HUD is on. The rows are one strip of the
+    screen with one owner (`Moments`), so a mode's toast and the platform's wait for each
+    other and never write over each other. Not chosen: a layout per mode (a layout is a
+    file in the addon, so a mode's panel would be a republish and a client restart for
+    every mode that wanted one); a card for a mode (the card is the platform's moment,
+    and the rule about when one may show is not a mode's to get wrong); a tier on a
+    mode's toast (the four tints are the platform's rarities); rows per player, so a
+    toast for one person took nothing from the others (the tint is the row's, for
+    everybody, and a slot's own value cannot be taken back); `powerup-dm`'s peek
+    countdown as a toast (it is rewritten every half second and a toast holds a row for six:
+    the centre panel is the place for a line that is rewritten).
+
 ## How the rounds run
 
 24. **Spine first, then two loops in parallel.** `ralph/PRD-01-spine.md` (this repo, ~10
