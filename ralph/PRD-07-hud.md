@@ -490,3 +490,120 @@ addon published, and a closing note at the end of this file for the platform and
 the version to pin, the Workshop id, whether Wine did the compile or the fallback did, what
 a first join costs as far as a log can say, every item on the look list, and anything in
 `/root/ezpug/references/cs2-custom-hud.md` that turned out wrong.
+
+## Closing note
+
+Written 2026-10-02, in the completion run, for the platform and the owner.
+
+**Where it stands.** Every box is ticked. `pnpm verify` is green at `3f349a8`, the tree this
+note was written on. The extended tier was green at `8cc5d8e`, the last code change: T12's
+release run had 1501 passed, 0 failed and 4 skipped, with the lane and Dathost skipped by
+design. The lane's whole matrix plus `hud-off` was green at `95e4578` (T9, 156.6 min).
+`hud-on` was green inside a hand-held hold in T9 and again in T9a. T10's Dathost run was
+green. The full lane matrix was **not** played again at this sha. T9a's RCON client,
+T10's `dathost-image` and T12's manifest copy came after it.
+
+**For the platform: pin `@ezpug/match-api` 0.31.1.** It is `latest` on the box's Verdaccio
+(`http://172.17.0.1:4873/`). 0.31.0 carries the HUD contract, and its changelog line names
+PRD-18 T5. 0.31.1 is the manifests' copy (PRD-06 T5, here T12) and changes nothing on the
+wire. PRD-18 T5 unblocks on the bump. The platform gets:
+
+- `branding.tagline`, `branding.banner` (a key) and `branding.hud` (default `false`, the
+  platform's switch);
+- the `moment` command beside `announce`. Its answer never waits for the drawing, and a
+  server with no HUD says the line in chat behind its prefix;
+- `HUD_BANNER_KEYS` and `HUD_ART_KEYS` for a picker. `hudBannerKey()` and `hudArtKey()`
+  fall back to `default` and `empty` and never refuse;
+- the third switch as an RCON preset: one fixed line, `mm_client_extra_addons ""`, through
+  `POST /v1/fleet/servers/:id/rcon`. It needs no Workshop id.
+
+`branding.hud: true` is safe to send today. A server that has no addon id draws nothing
+and says the same lines (the `hud-off` row plays exactly that).
+
+**The addon.** Workshop item **`3811574606`**, unlisted. In this run an anonymous SteamCMD
+fetched it by id, byte for byte the same as `hud/dist/ezpug_hud.vpk` (`f4e428dc…`, 8.4 MB,
+34 files). `hud/` has not changed since T9 published it. **Wine did the compile**:
+Valve's `resourcecompiler.exe` runs under Wine 10.0 and Xvfb in our own build image, with
+the seven changes in `docs/hud.md`, "What Wine needed". The `build.ps1` fallback was not
+needed and is not shipped. The item's preview picture is still to be set by hand.
+
+**What a first join costs, as far as a log can say.** No real client has connected, so
+this comes from the server's console and from `multiaddonmanager.cpp`, not from a client's
+log. On the server, with the id set, MultiAddonManager loads at boot and adds one
+`Changelevel` at Steam-up. Without the id it adds nothing. On the client, the expected cost
+is a download of about 8.4 MB and one reconnect, which everybody else sees as "left the
+game" (`mm_block_disconnect_messages 0`, for the reason in T2). The only clock is
+`mm_addon_connection_timeout` (30 s), checked when the client comes back. A slow download
+costs one kick. One that cannot finish keeps the player out until the id leaves the list.
+`mm_cache_clients_with_addons 1` should spare a rejoin. The seconds a join adds are look-list
+step 1.
+
+**Off in production, and what the owner is left with.** Nothing in this round set
+`EZPUG_IRON_HUD_ADDON` in production, and nothing was deployed. Production's orchestrator is
+still `40ef8f6`. The round's link changes are additive, and `./scripts/deploy.sh` brings it
+to the tree with the HUD off. The one production piece this round changed is the Dathost
+template: since T10 it carries this tree's plugin and the corrected `gameinfo.gi`. Production's
+rented half could not boot from the CS2 update of 2026-09-30 until that fix, which left
+three `failed` Dathost rows in its ledger. The orchestrator does not notice a template
+whose clones cannot boot. The provider stays green and each match fails after three
+minutes. That gap is not a task in any PRD yet.
+
+**The look list** (`docs/hud.md`, "The look list", with the setup: one Dathost match from
+production's orchestrator with the id set for its length, the owner's call). Each step is
+for one person with a real client:
+
+1. The first join: how many seconds it adds, the download, the reconnect, a 30 s kick. It
+   also answers whether a retail client mounts Panorama from a packed VPK and whether it
+   wants a signature section.
+2. The welcome at 16:9 in German: the slide in, the card, the shrink to the mark after 8 s,
+   and no centre card beside it. If it does not slide, check the `transition:` shorthand
+   first.
+3. The welcome at 4:3 and in English.
+4. The welcome steps aside: the buy menu and the scoreboard fade it, and the mark is gone at
+   the first live round.
+5. The toasts: three rows and a fourth that waits, the four tints, a line of about 120
+   characters, and nothing over the kill feed during a fight.
+6. A toast over the welcome in the 8 s after a join.
+7. The card: its place between the radar and the chat at 16:9 and 4:3, the turn, a long
+   line, an art key the addon lacks.
+8. The sound: whether the four tiers differ, and whether the volume argument scales the
+   event's own 0.2 or replaces it.
+9. The card waits for a quiet stretch, vanishes at a freeze end and fades for the buy menu.
+10. A card due at the end of the match, under the game's own screen.
+11. A spectator: a watched team-mate's card, and whose card somebody dead sees when their
+    own plays.
+12. The MatchZy map change: the welcome and a moment still draw after it.
+13. A second join after the cache, and a join to the next match's server.
+14. The third switch on a live server: no download handshake, and a HUD already on screen
+    keeps drawing.
+15. A demo and GOTV: whether a toast or a card shows, and whose.
+16. A mode's own toast, once a mode calls `Gamemode.Toast`.
+
+Open, but not for a client: the item's preview and visibility on its page. After every
+republish, the `check` until it prints "byte for byte" (Steam lagged 47 minutes the last
+time). The `hud-on` row as the drill after a CS2 update. The dev trace
+(`.cache/trace/dev.ndjson`, about 1.5 GB), which nothing rotates.
+
+**Wrong in `/root/ezpug/references/cs2-custom-hud.md`.** That file is the platform's, so
+these are sent here and it was not edited:
+
+- The iron pins CounterStrikeSharp **1.0.376**, not 1.0.375, and it has both halves now:
+  MultiAddonManager 1.6.2 asleep, and Workshop item 3811574606.
+- The addon is **8.4 MB**, not "a megabyte or two", because a picture in a custom HUD has to
+  be uncompressed.
+- Wine **does** run the compiler headless, after seven changes (`docs/hud.md`, "What Wine
+  needed").
+- "Animation is CSS `@keyframes` started by a class" contradicts the note's own gotcha.
+  It is transitions on a class, and keyframes on opacity only.
+- Valve's compiler validates no CSS. A bogus property, `box-shadow: none` and a comma
+  selector all compile `OK`.
+- `mm_block_disconnect_messages` suppresses the `player_disconnect` event itself, not only
+  the chat line.
+- MultiAddonManager loaded late with `meta load` crashed 5 boots in 6. It loads at boot or
+  not at all.
+- CounterStrikeSharp's `NetworkedVector` cannot read the entity's string tables. The core
+  plugin walks them itself.
+- An unlisted item can be fetched anonymously by id. Steam serves a new revision about 47
+  minutes after the upload says it succeeded.
+- "A changed layout means rejoining" (the note) and "needs the client restarted" (this PRD)
+  disagree. Only the look list can settle it.
