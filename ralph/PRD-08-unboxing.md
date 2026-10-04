@@ -132,7 +132,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   "The generic flow" amended; the lane's Rush row green on the dev node behind the lock. This
   ships with T7's template refresh and deploy; if T7 is far off, deploy it on its own
   (`pnpm dathost:image`, `./scripts/deploy.sh all`) by 17:00.
-- [ ] **T1c (effort: medium): the hostname holds (ezpug-iron#8).** Found by the platform's
+- [x] **T1c (effort: medium): the hostname holds (ezpug-iron#8).** Found by the platform's
   lane (PRD-18 T4, 2026-10-04): in warmup the server reads MatchZy's own
   `Team_Kev1n vs Team_Murmeltier`, because `matchzy_loadmatch` rewrites the hostname
   `GamemodeLoader` set on assign before the match file's `matchzy_hostname_format` takes
