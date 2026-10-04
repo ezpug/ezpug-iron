@@ -111,7 +111,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   its reason, because the platform's crate, phone and feed reveal at that instant. The
   server is told nothing else new. Fixtures, the fake orchestrator's behaviour, the
   changelog. `docs/match-api.md` says what a client sends. No release yet (T8).
-- [ ] **T1a (effort: medium): release 0.32.0 now.** The platform's PRD-18 T5b waits for
+- [x] **T1a (effort: medium): release 0.32.0 now.** The platform's PRD-18 T5b waits for
   the contract, and the playtest is today: publish `@ezpug/match-api` 0.32.0 to the box's
   Verdaccio as soon as T1 is green, with the changelog line naming PRD-18 T5b, so the
   platform builds against it while this round draws. A later fix is 0.32.1, additive.

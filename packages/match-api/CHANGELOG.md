@@ -4,6 +4,10 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.32.0 — 2026-10-04
+
 **The unboxing, from a client's side** (PRD-08 T1, for the platform's PRD-18 T5b). Additive:
 one optional field on one command, one constant, one rule. A command written against 0.31.1
 parses and behaves exactly as it did.
