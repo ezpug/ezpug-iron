@@ -4,6 +4,10 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.33.0 — 2026-10-04
+
 **An empty PUG ends itself** (decision 26 as amended, 2026-10-04; for the platform's next
 `chore(deps): match-api` bump). A manifest that parsed under 0.32.0 parses and means the
 same; one shape that was refused now parses, and one shipped manifest names it.
