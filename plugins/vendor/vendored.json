@@ -13,9 +13,9 @@
     {
       "directory": "WeaponPaints",
       "repo": "https://github.com/Nereziel/cs2-WeaponPaints",
-      "tag": "build-459",
+      "tag": "build-463",
       "version": "3.3a",
-      "commit": "fa8936f3959310acf94de410bc5bd0015f34ff24",
+      "commit": "659dbc3756b8a2a3f49f0a0597af3fea041afa26",
       "versionHome": "WeaponPaints/WeaponPaints.cs",
       "versionPattern": "public override string ModuleVersion => \"3.3a\";",
       "patches": "WeaponPaints/PATCHES.md"

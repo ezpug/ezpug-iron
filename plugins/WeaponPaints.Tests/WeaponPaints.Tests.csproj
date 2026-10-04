@@ -3,7 +3,8 @@
     The WeaponPaints fork's data layer under xunit (PRD-02 T28): the mapping from the Match
     API's `Loadout` — the roster's, a `profile` push's — to the rows the plugin used to read
     out of MySQL, held against the protocol's recorded assign frame and the fork's own rules
-    (`plugins/vendor/WeaponPaints/PATCHES.md`). Everything else in the fork is a
+    (`plugins/vendor/WeaponPaints/PATCHES.md`), and the gamedata signature against the
+    game (`SkinsInGameTests`, PATCHES.md "The signature"). Everything else in the fork is a
     CounterStrikeSharp call and is checked on the dev server.
   -->
   <PropertyGroup>

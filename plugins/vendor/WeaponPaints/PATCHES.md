@@ -1,7 +1,7 @@
 # The EZPug fork of cs2-WeaponPaints — every patch
 
 Upstream: [Nereziel/cs2-WeaponPaints](https://github.com/Nereziel/cs2-WeaponPaints) at
-commit `fa8936f3` (tag `build-459`, `ModuleVersion` 3.3a), GPL-3.0 (`LICENSE`, kept
+commit `659dbc37` (tag `build-463`, `ModuleVersion` 3.3a), GPL-3.0 (`LICENSE`, kept
 verbatim). `docs/pins.md` and `plugins/vendor/vendored.json` hold the pin.
 
 This is the one vendored plugin this repo patches (`docs/decisions.md` 20, CLAUDE.md), and
@@ -33,7 +33,7 @@ image, none on the internet, and a LAN with no uplink still has skins. The platf
 | `Database.cs` | Deleted |
 | `Utility.cs` | `CheckDatabaseTables` (the `CREATE TABLE`s) deleted with the database; `CreateMenu` deleted with the menus; `CheckVersion` deleted — it fetched upstream's `VERSION` from GitHub at every load, and nothing in this image reaches the network at boot (decision 16). `using Dapper`, `MenuManager`, `Modules.Menu`, `Core.Translations` dropped |
 | `Variables.cs` | `Database`, `MenuApi`, `MenuCapability` and `_playerWeaponImage` removed; an `ILoadoutSource? _loadouts` field added; `using MenuManager` → `using EZPug.Sdk.Hosting` |
-| `WeaponPaints.cs` | `Load`: finds the source (`LoadoutSource.Find()`, null-safe — without EZPug.Core every player keeps default items and the plugin says so once), subscribes to `LoadoutChanged`, builds `WeaponSync` at once rather than waiting for the next map, and re-reads every connected player on **every** load, not only a hot reload — the core's loader hot-loads this plugin when a match is assigned, sometimes with players standing. `Unload` unsubscribes. `OnConfigParsed`: the database-credentials check, the connection-string builder, `CheckDatabaseTables` and `CheckVersion` are gone; `_localizer` and the banner stay; the gamedata check stays but finds `addons/counterstrikesharp` by name (`CounterStrikeSharpRoot()`) — upstream looked two levels up, which is wrong for a plugin under `plugins/disabled/` and logged a false "upload weaponpaints.json" error on every boot of the dev node while CounterStrikeSharp had already loaded the file. `OnAllPluginsLoaded`: looks for the source once more if the core came later, then `RegisterCommands()` — the six `Setup*Menu` calls are gone. **New** `OnLoadoutChanged`: a `profile` reached the core for a connected, non-bot player → re-read their rows; nothing is forced on them mid-round (the platform's page says "applies on your next connect, or type `!wp`", and that stays true). `ModuleAuthor`/`ModuleDescription` say what this build is |
+| `WeaponPaints.cs` | `Load`: finds the source (`LoadoutSource.Find()`, null-safe — without EZPug.Core every player keeps default items and the plugin says so once), subscribes to `LoadoutChanged`, builds `WeaponSync` at once rather than waiting for the next map, and re-reads every connected player on **every** load, not only a hot reload — the core's loader hot-loads this plugin when a match is assigned, sometimes with players standing. `Unload` unsubscribes. `OnConfigParsed`: logs a `skins:` error once when `CAttributeList_SetOrAddAttributeValueByName` resolved to nothing ("The signature", below); the database-credentials check, the connection-string builder, `CheckDatabaseTables` and `CheckVersion` are gone; `_localizer` and the banner stay; the gamedata check stays but finds `addons/counterstrikesharp` by name (`CounterStrikeSharpRoot()`) — upstream looked two levels up, which is wrong for a plugin under `plugins/disabled/` and logged a false "upload weaponpaints.json" error on every boot of the dev node while CounterStrikeSharp had already loaded the file. `OnAllPluginsLoaded`: looks for the source once more if the core came later, then `RegisterCommands()` — the six `Setup*Menu` calls are gone. **New** `OnLoadoutChanged`: a `profile` reached the core for a connected, non-bot player → re-read their rows; nothing is forced on them mid-round (the platform's page says "applies on your next connect, or type `!wp`", and that stays true). `ModuleAuthor`/`ModuleDescription` say what this build is |
 | `Events.cs` | `OnClientFullConnect` no longer requires a `Database` and calls `GetPlayerData` synchronously instead of `Task.Run`; `OnMapStart` builds `WeaponSync` over the source instead of over the database; `OnTick` and its `ShowSkinImage` registration deleted — the image it drew came only from a menu selection |
 | `Commands.cs` | Kept: `!wp` (`OnCommandRefresh`, now a synchronous read so the re-apply that follows sees what was just read — upstream's `Task.Run` never guaranteed that), the console `wp_refresh <steamid64|all>` (`OnCommandSkinRefresh`, same change), the upstream `!kill`. Deleted: the six `Setup*Menu` methods (knife, skins, gloves, agents, music, pins) and their command registrations, `!ws` (`OnCommandWS`: it printed a placeholder website and advertised the menus), `!st` (`OnCommandStattrak`: a toggle nothing would persist) |
 | `Config.cs` | `DatabaseHost/Port/User/Password/Name`, `Website`, `MenuType`, `ShowSkinImage` and the menu command lists (`CommandKnife`, `CommandMusic`, `CommandPin`, `CommandGlove`, `CommandAgent`, `CommandStattrak`, `CommandSkin`, `CommandSkinSelection`) removed, so the config CounterStrikeSharp writes advertises nothing that does not exist. **`CommandKillEnabled` defaults to `false`**: upstream's suicide command existed so a knife picked from a menu could be re-rendered, and a competitive server hands nobody a free death. A gamemode that wants it turns it on through its plugin config (`pluginConfigs`, `docs/gamemodes.md`) |
@@ -44,9 +44,39 @@ image, none on the internet, and a LAN with no uplink still has skins. The platf
 `README.md` is upstream's and describes upstream: MySQL, the website, the menus. It is
 kept because it is theirs; this file is ours.
 
+## The signature
+
+`gamedata/weaponpaints.json` is upstream's, byte for byte, and it is the one file in this
+tree a **CS2 update** can break without a line of ours changing: it holds the byte pattern
+CounterStrikeSharp scans `libserver.so` for to find
+`CAttributeList::SetOrAddAttributeValueByName`, the call every paint, sticker, StatTrak
+counter and glove goes through. The update of 2026-09-22 recompiled that function
+(`this` moved from `r14` to `r13`) and `build-459`'s pattern stopped matching anything.
+Nothing said so. CounterStrikeSharp swallows a signature it cannot find and hands back a
+function at address zero; `GivePlayerWeaponSkin` sets the fallback paint kit, seed and
+wear on the entity first and calls the function second, so the call throws there and
+everything after it never runs — the legacy-model body group (`SetBodygroup body,1`, from
+the catalogue's `legacy_model`), StatTrak, keychain, stickers — and `GivePlayerGloves`
+throws inside its own `catch`. The paint still showed, on the CS2 mesh, so every CS:GO-era
+kit (58% of the weapon rows saved on ezpug.com) drew its texture across the wrong UVs:
+the playtest of 2026-10-04 saw the Dragon Lore's checkerboard on the scope lens.
+
+Upstream fixed the pattern in `8cc9f88d` ("fix sigs", tag `build-463`), which touches
+this file and nothing else, so the bump to `build-463` re-applies no patch.
+`plugins/WeaponPaints.Tests/SkinsInGameTests.cs` holds it: against the function's
+prologue as the public build of 2026-10-02 carries it (always), and against the whole
+`libserver.so` when the box has one (`EZPUG_CS2_LIBSERVER`, or the dev node's `cs2-data`
+volume; `EZPUG_CS2_TESTS=required` refuses its absence) — exactly one match, or red. The
+fork's `OnConfigParsed` also logs `skins: CAttributeList_SetOrAddAttributeValueByName is
+not in this CS2 build` once at load when the pattern found nothing, so the next update
+that moves it is one line in the server console rather than a playtest report. **After a
+CS2 update**, beside `pnpm dathost:image --check`: `pnpm cs2:install`, `pnpm verify`, and
+if that test is red, upstream's newest `gamedata/weaponpaints.json` (or the pattern read
+off the new binary) is the fix.
+
 ## The schema, as `LoadoutMapper` mirrors it
 
-The pinned commit's `Utility.cs` created these tables; `Loadout` in `@ezpug/match-api`
+The pinned commit's `Utility.cs` created these tables (`build-463`'s are `build-459`'s, the commit the platform records); `Loadout` in `@ezpug/match-api`
 (`packages/match-api/src/resources/loadout.ts`) is a mapping of them, and the mapper puts
 each field back where the reader put each column.
 

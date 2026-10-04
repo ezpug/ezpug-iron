@@ -21,6 +21,16 @@ there, not this file.
 
 ## Unreleased
 
+**Skins with the right pattern** (playtest of 2026-10-04). The WeaponPaints fork goes from
+upstream `build-459` to **`build-463`**, which is `gamedata/weaponpaints.json` and nothing
+else: the CS2 update of 2026-09-22 moved `CAttributeList::SetOrAddAttributeValueByName`,
+the old pattern found nothing, and every skin since applied its paint kit but not its
+legacy-model body group, stickers, StatTrak or glove paint (`plugins/vendor/WeaponPaints/PATCHES.md`,
+"The signature"). The fork now says so in the console at load when the pattern is stale,
+and `WeaponPaints.Tests` holds the pattern against the game. Ships in the CS2 image and on
+the Dathost template (`pnpm cs2:build`, `pnpm dathost:image`); no orchestrator or contract
+change.
+
 **The HUD** (`ralph/PRD-07-hud.md`). A client addon for CS2's custom HUD layout, built on
 this box, and the plumbing that hands it to players. Everything ships switched off. Nothing
 is deployed to `gs.ezpug.com` yet, and no tag has been cut.

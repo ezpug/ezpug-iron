@@ -97,6 +97,19 @@ public partial class WeaponPaints : BasePlugin, IPluginConfig<WeaponPaintsConfig
 			return;
 		}
 
+		// EZPug (PATCHES.md, "The signature"): CounterStrikeSharp swallows a signature it
+		// cannot find and hands back a function at address zero, and every call to it then
+		// throws "Invalid function pointer" halfway through GivePlayerWeaponSkin — after the
+		// fallback paint kit is set, before the legacy-model body group, the stickers,
+		// StatTrak and the glove paints. A CS2 update that moves the function therefore
+		// looks like skins with the wrong pattern, not like an error. Say so once, here.
+		if (CAttributeListSetOrAddAttributeValueByName.Handle == IntPtr.Zero)
+		{
+			Logger.LogError(
+				"skins: CAttributeList_SetOrAddAttributeValueByName is not in this CS2 build — gamedata/weaponpaints.json is stale. " +
+				"Paints apply without their legacy model, stickers, StatTrak or glove paints until it is updated");
+		}
+
 		_localizer = Localizer;
 
 		Utility.Config = config;

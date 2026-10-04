@@ -1305,7 +1305,11 @@ and says the file was not compared. `--check` is red when the file has moved and
 loader line is gone, and `pnpm dathost:image` puts either right. **After a CS2 update,
 run `pnpm dathost:image --check` before the evening**: if a whole fleet's clones fail with
 "the server never said hello over the link", this is the first thing to look at, and the
-clone's console at Dathost says it in its last ten lines.
+clone's console at Dathost says it in its last ten lines. The same update can move a
+signature a plugin scans for without failing a boot: WeaponPaints' did on 2026-09-22 and
+skins went on drawing the wrong pattern for twelve days (`plugins/vendor/WeaponPaints/PATCHES.md`,
+"The signature"). `pnpm cs2:install` then `pnpm verify` reads the new `libserver.so` and
+goes red on it; on a server, the console's `skins:` line at load says the same.
 
 **The tests.** `providers/dathost/image-script.test.ts` runs the script against the fake
 Dathost (T15) with a hand-written artifact tree: the dry run, the create, idempotence, the

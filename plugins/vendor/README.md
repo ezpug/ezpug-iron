@@ -31,7 +31,7 @@ reads at load ride under `WeaponPaints/data/` instead.
 | Folder | Upstream | Pin | Licence |
 | ------ | -------- | --- | ------- |
 | `cs2-retakes/` | B3none/cs2-retakes | `3.1.0` | GPL-3.0 (`cs2-retakes/LICENSE`, kept verbatim) |
-| `WeaponPaints/` | Nereziel/cs2-WeaponPaints, **forked** (`WeaponPaints/PATCHES.md`) | commit `fa8936f3` (`build-459`, 3.3a) | GPL-3.0 (`WeaponPaints/LICENSE`, kept verbatim) |
+| `WeaponPaints/` | Nereziel/cs2-WeaponPaints, **forked** (`WeaponPaints/PATCHES.md`) | commit `659dbc37` (`build-463`, 3.3a) | GPL-3.0 (`WeaponPaints/LICENSE`, kept verbatim) |
 
 `vendored.json` beside this file is the machine-readable version of that table — repo,
 tag, commit and the line in the source that carries the version — and
