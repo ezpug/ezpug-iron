@@ -673,13 +673,13 @@ public class UnboxingTests
         Assert.Equal(Ticks(host, Ben), Ticks(host, Ada));
         Assert.All(host.World.Sounds[Ben].Where(sound => sound.Event == Moments.TickSound), sound => Assert.Equal(Moments.TickVolume, sound.Volume));
 
-        // Fast, then slower: never closer than the least gap, each gap after the first
-        // second longer than the one before, and the last well before the reveal.
+        // Fast, then slower: never closer than the least gap, each gap from the first one
+        // longer than the one before (the reel slows all the way, and no tick is skipped
+        // to make a gap uneven), and the last with most of a second left before the reveal.
         var gaps = heard.Zip(heard.Skip(1), (a, b) => b - a).ToList();
         Assert.All(gaps, gap => Assert.True(gap >= Moments.TickGapMinMs));
-        var late = heard.Zip(gaps).Where(pair => pair.First >= 1_000).Select(pair => pair.Second).ToList();
-        Assert.Equal(late.Order(), late);
-        Assert.True(heard[^1] < Moments.ReelMs - 1_000);
+        Assert.Equal(gaps.Order(), gaps);
+        Assert.True(heard[^1] <= Moments.ReelMs - 750);
 
         // The reveal is no tick, and none follows it.
         Assert.Single(Reveals(host, Ben));
@@ -689,17 +689,33 @@ public class UnboxingTests
     }
 
     [Fact]
-    public void EveryReelPassesTheSameSlots_AndTicksForAsManyAsCanBeHeard()
+    public void EveryReelPassesTheSameSlots_AndTicksForEachOfThem()
     {
         for (var landing = 1; landing <= Moments.ReelLandings; landing++)
         {
             var ticks = Moments.TicksOf(landing);
-            // A slot's edge for each slot between the resting one and the prize's, less the
-            // ones that came too close together at the start to be told apart.
-            Assert.InRange(ticks.Count, 15, Moments.ReelStopSlot - Moments.ReelRestSlot);
+            // A slot's edge for each slot between the resting one and the prize's, every one
+            // heard: the curve starts at a slot every 64 ms, slower than the least gap.
+            Assert.Equal(Moments.ReelStopSlot - Moments.ReelRestSlot, ticks.Count);
             Assert.True(ticks[0] > 0);
             Assert.Equal(ticks.Order(), ticks);
         }
+    }
+
+    /// <summary>
+    /// The schedule itself, pinned, so a change to the curve (which is the stylesheet's
+    /// too, and ships in the addon while this ships in the plugin) is a change somebody
+    /// sees in a diff. Before the playtest of 2026-10-04 it was 21 or 22 ticks from 14 ms,
+    /// the last at 3,883 to 4,910 ms; <c>docs/hud.md</c>, "The unboxing, played".
+    /// </summary>
+    [Fact]
+    public void TheTicksAreTheCurvesOwn_FirstAndLastPinnedForEachLanding()
+    {
+        Assert.Equal([0.2, 0.65, 0.4, 1], Moments.ReelCurve);
+        Assert.Equal(
+            [(32L, 4406L), (32L, 4574L), (32L, 4887L), (32L, 5194L)],
+            Enumerable.Range(1, Moments.ReelLandings).Select(landing => (Moments.TicksOf(landing)[0], Moments.TicksOf(landing)[^1])));
+        Assert.Equal([32L, 96, 161, 228, 296, 366, 438, 512, 588, 668], Moments.TicksOf(1).Take(10));
     }
 
     [Fact]

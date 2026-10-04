@@ -13,7 +13,7 @@
     "styles/ezpug_art.css": "acea3e7729ca19d62be95e4e37570a92483ec5af558206a798b432bf70beaabe",
     "styles/ezpug_banners.css": "2e7898eef86c52953eec3e92dde22664220f19df7aa69dc97c65c5a1d19fde8a",
     "styles/ezpug_moment.css": "60935610a7950d8996421d609ad9998d4eab046b7f5d810bd38ba7fcf2934ef6",
-    "styles/ezpug_unbox.css": "0981c52902ac932fce8714f821d6a92cce4283321392a594c3bb3875dc1bce2f",
+    "styles/ezpug_unbox.css": "9048ef315ed8bfcddc209475f028c871ef4f87196d958a6bf2118c43e3664e52",
     "styles/ezpug_welcome.css": "6d05847e94fde985bc2b25769284f30f233a067ffb6fb10daf976187e8bcfbee",
     "images/cast/hello.png": "7074ee2c698f334e6438387b1c828d0d1bc9d9efa0788aa1ca465a1c047df6f1",
     "banners/default.png": "6c0a2425f910be597764d4383627f8eca9e48264a90d8685964b2e1a65a94649",
@@ -178,8 +178,8 @@
       "bytes": 10087
     },
     "panorama/styles/custom_game/ezpug_unbox.vcss_c": {
-      "sha256": "99c52385d703919d81488031eba89d7169ad7b85d1bcaa28e58357c02fc02ed0",
-      "bytes": 20278
+      "sha256": "db1f201c20b864356c3011a6b7e33604c211883f57af13a9b2dfc04593766f95",
+      "bytes": 20250
     },
     "panorama/styles/custom_game/ezpug_welcome.vcss_c": {
       "sha256": "6b78c67487035ba3050e72204d23a3b193b40d1988c63e22400c6c4887002e2b",
@@ -188,7 +188,7 @@
   },
   "pack": {
     "file": "ezpug_hud.vpk",
-    "sha256": "56085a51d210baace9bac636aa108c3f3a440ddc89d295fe4efd632da62e55ce",
-    "bytes": 8454240
+    "sha256": "db2031a9fce0a488b33bd4505bfe2ba259ca7a5826f8ae70aa3bde82cc8de344",
+    "bytes": 8454212
   }
 }
