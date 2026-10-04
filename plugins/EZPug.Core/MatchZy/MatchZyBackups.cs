@@ -63,6 +63,35 @@ public static class MatchZyBackups
     }
 
     /// <summary>
+    /// Team A's and team B's score in a backup file, as MatchZy wrote it (<c>team1_score</c>,
+    /// <c>team2_score</c>: MatchZy's team1 is the match config's, which is team A), or
+    /// <c>null</c> when the file cannot be read or says neither.
+    /// </summary>
+    public static (long TeamA, long TeamB)? ScoreOf(string path)
+    {
+        try
+        {
+            if (JsonNode.Parse(File.ReadAllText(path)) is JsonObject backup
+                && Number(backup["team1_score"]) is { } teamA
+                && Number(backup["team2_score"]) is { } teamB)
+            {
+                return (teamA, teamB);
+            }
+        }
+        catch (Exception error) when (error is IOException or JsonException or UnauthorizedAccessException)
+        {
+        }
+
+        return null;
+
+        static long? Number(JsonNode? node) =>
+            node is JsonValue value && value.TryGetValue<string>(out var text)
+                && long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+                ? number
+                : node is JsonValue numeric && numeric.TryGetValue<long>(out var direct) ? direct : null;
+    }
+
+    /// <summary>
     /// The backup with the remote-log header value removed from <c>match_config</c> (and
     /// from the changed/original cvar maps, should a future MatchZy put it there), compact.
     /// Anything that is not a JSON object comes back as it was.
