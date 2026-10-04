@@ -132,6 +132,16 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   "The generic flow" amended; the lane's Rush row green on the dev node behind the lock. This
   ships with T7's template refresh and deploy; if T7 is far off, deploy it on its own
   (`pnpm dathost:image`, `./scripts/deploy.sh all`) by 17:00.
+- [ ] **T1c (effort: medium): the hostname holds (ezpug-iron#8).** Found by the platform's
+  lane (PRD-18 T4, 2026-10-04): in warmup the server reads MatchZy's own
+  `Team_Kev1n vs Team_Murmeltier`, because `matchzy_loadmatch` rewrites the hostname
+  `GamemodeLoader` set on assign before the match file's `matchzy_hostname_format` takes
+  effect. Make `Branding.HostnameFor`'s name hold from assign through warmup and live:
+  set `matchzy_hostname_format` before `matchzy_loadmatch` too, and/or re-assert
+  `hostname` after the load. A test or fixture reads it back after the load. #7 (the RCON
+  readback is 7-bit, `·` comes back as `B7`) is **not** for tonight: leave it open. Ships
+  with T1b in the same deploy by 17:00 (`pnpm dathost:image`, `./scripts/deploy.sh all`);
+  if T1b is already deployed, deploy this on its own. Close #8 with the commit.
 - [ ] **T3: the unboxing, drawn.** A layout (or a section of the moment's layout) with
   three beats: **the call** (the name or avatar, "hat einen Drop! Mal sehen…" / "got a
   drop! Let's see…", from the server's catalog in both languages), **the reel** (a strip
