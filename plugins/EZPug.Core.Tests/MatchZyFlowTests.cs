@@ -87,6 +87,15 @@ public class MatchZyFlowTests
             }
         }
 
+        /// <summary>One backup the way MatchZy writes the score into it: <c>team1</c> is team A.</summary>
+        public void WriteScoredBackup(int roundsCompleted, int teamA, int teamB)
+        {
+            Directory.CreateDirectory(BackupFolder);
+            File.WriteAllText(
+                Path.Combine(BackupFolder, $"matchzy_{Serial}_0_round{roundsCompleted:D2}.json"),
+                $$"""{"matchid":"{{Serial}}","round":"{{roundsCompleted:D2}}","team1_score":"{{teamA}}","team2_score":"{{teamB}}"}""");
+        }
+
         public string[] BackupFiles() =>
             Directory.GetFiles(BackupFolder).Select(path => Path.GetFileName(path)).Order(StringComparer.Ordinal).ToArray();
 
@@ -429,6 +438,160 @@ public class MatchZyFlowTests
         Assert.Equal(["matchzy_4711_0_round01.json"], rig.BackupFiles());
     }
 
+    /// <summary>
+    /// <b>Everybody left and came back</b> (2026-10-04, a production 1v1 on Dathost: both
+    /// players dropped at 2–0, the first one back found 0–0 and round 1). CS2 restarts the
+    /// game when somebody joins a side of a server whose sides were both empty: the round
+    /// ends drawn for <c>Game_Commencing</c>, the rounds played go back to nothing and the
+    /// engine sits in a warmup of its own, which MatchZy's paused warmup timer never ends.
+    /// The flow asks MatchZy for the newest backup at the round start that follows — the
+    /// one chosen before MatchZy wrote the reset's own 0–0 file — asks a second time because
+    /// MatchZy only holds a file loaded in warmup, and says <c>backup_restored</c> once the
+    /// engine plays the round again. Nobody asked, so nobody is answered.
+    /// </summary>
+    [Fact]
+    public void TheEnginesGameRestartOnALiveMapIsRewoundToTheNewestBackup()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(played: 2);
+        rig.WriteBackups(0, 1, 2);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.BackupSettleMs);
+        Assert.Equal("matchzy_4711_0_round02.json", Assert.Single(rig.Link.Backups).Backup.Filename);
+
+        // The server empties, somebody joins a side: the engine starts over in its own warmup.
+        rig.Rules(played: 0, warmup: true, phase: GamePhase.WarmupRound);
+        rig.World.EndRound(PlayerTeam.Spectator, RoundEndReason.GameCommencing, 0, 0);
+        Assert.Contains(rig.Log.Lines, line => line.StartsWith("warn: the engine restarted the game on a live map") && line.Contains("round 3 is restored from matchzy_4711_0_round02.json"));
+        rig.WriteBackups(0);
+        rig.World.StartRound();
+        Assert.Empty(LoadBackups(rig));
+
+        rig.World.Elapse(MatchZyFlow.CommencedSettleMs);
+        Assert.Equal(["command matchzy_loadbackup matchzy_4711_0_round02.json"], LoadBackups(rig));
+        // MatchZy held the file for a match start that will not come: the second ask is its
+        // own way of setting the match live and loading it.
+        rig.Poll();
+        Assert.Equal(2, LoadBackups(rig).Length);
+        rig.Poll();
+        Assert.Equal(2, LoadBackups(rig).Length);
+
+        // live.cfg ends the warmup at 0–0 first; that is not the restore.
+        rig.Rules(played: 0);
+        rig.World.StartRound();
+        Assert.Empty(rig.Link.EventsOf<PluginEvent>());
+        rig.Rules(played: 2, paused: true);
+        rig.World.StartRound();
+
+        var restored = Assert.Single(rig.Link.EventsOf<PluginEvent>());
+        Assert.Equal(GamemodeLoader.BackupRestoredEvent, restored.Name);
+        Assert.Equal(3, restored.Data["roundNumber"]!.GetValue<long>());
+        Assert.Equal("matchzy_4711_0_round02.json", restored.Data["filename"]!.GetValue<string>());
+        Assert.Empty(rig.Link.CommandResults);
+        Assert.Equal(["matchzy_4711_0_round00.json", "matchzy_4711_0_round01.json", "matchzy_4711_0_round02.json"], rig.BackupFiles());
+
+        // The rewound match plays on: its next backup crosses the link, and a second
+        // emptying is rewound the same way.
+        rig.Rules(played: 3);
+        rig.WriteBackups(3);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.BackupSettleMs);
+        Assert.Equal(4, rig.Link.Backups[^1].Backup.RoundNumber);
+        rig.Rules(played: 0, warmup: true, phase: GamePhase.WarmupRound);
+        rig.World.EndRound(PlayerTeam.Spectator, RoundEndReason.GameCommencing, 0, 0);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.CommencedSettleMs);
+        Assert.Equal("command matchzy_loadbackup matchzy_4711_0_round03.json", LoadBackups(rig)[^1]);
+    }
+
+    /// <summary>
+    /// The engine restarts the game at other times too, and none of them is a match being
+    /// lost: the first people into a warmup, a replacement server's players coming back to
+    /// a restore MatchZy is already holding, a map whose scoreboard is up. Only a map that
+    /// has been live on this server is rewound, and only from a backup it holds.
+    /// </summary>
+    [Fact]
+    public void TheEnginesGameRestartAnywhereElseRewindsNothing()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.WriteBackups(0, 1);
+
+        // Warmup's first joiners: nothing was live here yet, whatever is on disk.
+        rig.Rules(warmup: true, phase: GamePhase.WarmupRound);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.Spectator, RoundEndReason.GameCommencing, 0, 0);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.CommencedSettleMs + MatchZyFlow.RestoreAnswerMs);
+        Assert.Empty(LoadBackups(rig));
+
+        // A drawn round is a round, not a restart.
+        rig.Rules(played: 1);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.Spectator, RoundEndReason.Other, 1, 0);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.CommencedSettleMs);
+        Assert.Empty(LoadBackups(rig));
+
+        // The map is over: its scoreboard emptying is nobody's match.
+        rig.World.EndMap();
+        rig.Rules(played: 0, warmup: true, phase: GamePhase.WarmupRound);
+        rig.World.EndRound(PlayerTeam.Spectator, RoundEndReason.GameCommencing, 0, 0);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.CommencedSettleMs);
+        Assert.Empty(LoadBackups(rig));
+        Assert.Empty(rig.Link.EventsOf<PluginEvent>());
+    }
+
+    /// <summary>
+    /// A rewind that does not take is a warning on the console that names the way back —
+    /// nobody is holding a call for it — and a map with no backup on disk says so instead
+    /// of asking for one.
+    /// </summary>
+    [Fact]
+    public void ARewindAfterTheEnginesRestartThatDoesNotTakeSaysSo()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(played: 1);
+        rig.WriteBackups(0, 1);
+        rig.World.StartRound();
+
+        rig.Rules(played: 0, warmup: true, phase: GamePhase.WarmupRound);
+        rig.World.EndRound(PlayerTeam.Spectator, RoundEndReason.GameCommencing, 0, 0);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.CommencedSettleMs);
+        Assert.Equal(["command matchzy_loadbackup matchzy_4711_0_round01.json"], LoadBackups(rig));
+        rig.World.Elapse(MatchZyFlow.CommencedRestoreAnswerMs + MatchZyFlow.PollIntervalMs);
+
+        Assert.Equal(2, LoadBackups(rig).Length);
+        Assert.Contains(rig.Log.Lines, line => line.StartsWith("warn: the restore of round 2 after the engine's game restart did not take") && line.Contains("an admin's restore of round 2 is the way back"));
+        Assert.Empty(rig.Link.CommandResults);
+        Assert.Empty(rig.Link.EventsOf<PluginEvent>());
+
+        // An admin's restore is still MatchZy's verb once the match is live again.
+        rig.Rules(played: 0);
+        rig.World.StartRound();
+        Assert.Null(rig.Link.Command(new RestoreCommand { CorrelationId = "r-1", RoundNumber = 2 }));
+        Assert.Equal(3, LoadBackups(rig).Length);
+
+        // No backup on disk: said, and nothing asked.
+        using var bare = new Rig();
+        bare.StartPug();
+        bare.Rules(played: 1);
+        bare.World.StartRound();
+        bare.Rules(played: 0, warmup: true, phase: GamePhase.WarmupRound);
+        bare.World.EndRound(PlayerTeam.Spectator, RoundEndReason.GameCommencing, 0, 0);
+        bare.World.StartRound();
+        bare.World.Elapse(MatchZyFlow.CommencedSettleMs);
+        Assert.Empty(LoadBackups(bare));
+        Assert.Contains("warn: the engine restarted the game on a live map and no backup of it is on this server; the match stands at the engine's 0–0", bare.Log.Lines);
+    }
+
+    private static string[] LoadBackups(Rig rig) =>
+        rig.World.Actions.Select(action => action.ToString()!).Where(action => action.StartsWith("command matchzy_loadbackup", StringComparison.Ordinal)).ToArray();
+
     [Fact]
     public void SideSwapsFollowTheRosterAtARoundStartOutsideWarmup()
     {
@@ -635,6 +798,98 @@ public class MatchZyFlowTests
         rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
         rig.World.Elapse(1_200_000);
         Assert.Single(rig.Link.EventsOf<SeriesEndEvent>());
+    }
+
+    /// <summary>
+    /// <b>The idle clock and the rewind, together</b>: the 2026-10-04 1v1 again, this time
+    /// with one player back inside the ten minutes. The person coming back stops the idle
+    /// clock and the engine's restart is rewound; the restart's 0–0 round end never becomes
+    /// the map's score, so when everybody leaves for good the idle end reports the restored
+    /// 2-0. And once the match has ended idle, a restart nobody is playing is not rewound.
+    /// </summary>
+    [Fact]
+    public void APugEverybodyLeftAndOneCameBackIsRewoundAndItsIdleEndKeepsTheRestoredScore()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules();
+        var tk = rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        var maex = rig.World.Connect(Id(Maex), "maex", PlayerTeam.Terrorist);
+        rig.WriteScoredBackup(0, 0, 0);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, tScore: 0, ctScore: 1);
+        rig.WriteScoredBackup(1, 1, 0);
+        rig.Rules(played: 1);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, tScore: 0, ctScore: 2);
+        rig.WriteScoredBackup(2, 2, 0);
+        rig.Rules(played: 2);
+        rig.World.StartRound();
+
+        rig.World.Disconnect(maex);
+        rig.World.Disconnect(tk);
+        Assert.True(rig.Runtime.Length.Idling);
+        rig.World.Elapse(120_000);
+
+        // One of them is back: the clock stops, and the engine starts over at 0-0.
+        tk = rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        Assert.False(rig.Runtime.Length.Idling);
+        rig.Rules(played: 0, warmup: true, phase: GamePhase.WarmupRound);
+        rig.World.EndRound(PlayerTeam.Spectator, RoundEndReason.GameCommencing, 0, 0);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.CommencedSettleMs);
+        rig.Poll();
+        Assert.Equal(2, LoadBackups(rig).Length);
+        rig.Rules(played: 0);
+        rig.World.StartRound();
+        rig.Rules(played: 2, paused: true);
+        rig.World.StartRound();
+        Assert.Single(rig.Link.EventsOf<PluginEvent>());
+        Assert.False(rig.Runtime.Length.Idling);
+        Assert.Empty(rig.Link.EventsOf<SeriesEndEvent>());
+
+        // Gone for good this time: ten minutes from now, not from the first emptying.
+        rig.World.Disconnect(tk);
+        rig.World.Elapse(600_000 - 1_000);
+        Assert.Empty(rig.Link.EventsOf<SeriesEndEvent>());
+        rig.World.Elapse(1_000);
+        var series = Assert.Single(rig.Link.EventsOf<SeriesEndEvent>());
+        Assert.Equal(MatchEndReason.Idle, series.Reason);
+        Assert.Null(series.Winner);
+        Assert.Contains(rig.Log.Lines, line => line.Contains("score of its map at 2-0") && line.Contains("no winner"));
+
+        // The match is over: somebody wandering back into the released box is not rewound.
+        var asked = LoadBackups(rig).Length;
+        rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        rig.World.EndRound(PlayerTeam.Spectator, RoundEndReason.GameCommencing, 0, 0);
+        rig.World.StartRound();
+        rig.World.Elapse(MatchZyFlow.CommencedSettleMs + MatchZyFlow.CommencedRestoreAnswerMs);
+        Assert.Equal(asked, LoadBackups(rig).Length);
+    }
+
+    /// <summary>An admin's restore takes the map's score back with the rounds: an idle end after it carries the restored score, not the undone rounds'.</summary>
+    [Fact]
+    public void AnAdminsRestoreIsTheScoreAnIdleEndCarries()
+    {
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(played: 3);
+        var tk = rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, tScore: 1, ctScore: 3);
+        rig.WriteScoredBackup(1, 1, 0);
+        rig.WriteScoredBackup(4, 3, 1);
+        rig.World.StartRound();
+
+        Assert.Null(rig.Link.Command(new RestoreCommand { CorrelationId = "r-1", RoundNumber = 2 }));
+        rig.Rules(played: 1, paused: true);
+        rig.World.StartRound();
+        Assert.Equal(LinkCommandStatus.Applied, rig.Answer("r-1").Status);
+
+        rig.World.Disconnect(tk);
+        rig.World.Elapse(600_000);
+        Assert.Single(rig.Link.EventsOf<SeriesEndEvent>());
+        Assert.Contains(rig.Log.Lines, line => line.Contains("score of its map at 1-0"));
     }
 
     [Fact]

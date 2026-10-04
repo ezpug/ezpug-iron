@@ -80,6 +80,14 @@ public enum RoundEndReason
     BombDefused,
     TimeExpired,
     Other,
+    /// <summary>
+    /// Not a result: the engine restarting the game by itself. CS2 does it when somebody
+    /// joins a side of a server whose two sides were both empty — the round ends drawn and
+    /// the score, the rounds played and the round number start over, into a warmup of the
+    /// engine's own (measured on the dev node, 2026-10-04). A mode that keeps a score has
+    /// lost it at this point; MatchZy's flow restores its newest round backup.
+    /// </summary>
+    GameCommencing,
 }
 
 /// <summary>A round is over: who won and why, and the score as the engine keeps it (T on the left as CS does).</summary>

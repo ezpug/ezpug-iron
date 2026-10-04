@@ -798,6 +798,56 @@ seven server-minutes, 4 c) with the production recipe below plus
 nothing else: on any other provider it is `command_unsupported` with the provider named,
 before a channel is ever asked.
 
+**A live match the engine reset by itself is rewound to its newest backup** (2026-10-04).
+CS2 restarts the game when somebody joins a side of a server whose two sides were both
+empty: the round ends drawn for `Game_Commencing` (MatchZy's `round_end` says
+`"reason":16` and `winner.side "1"`), the score, the rounds played and the round number
+start over, and the engine opens a warmup of its own that MatchZy's
+`mp_warmup_pausetimer 1` never ends. MatchZy still holds the match as live, so the stream
+says `round_start` at 0–0, round 1, with no `going_live`, and kills in the warmup cross as
+deaths with no round ever ending. That is what a production 1v1 on Dathost did that day:
+both players dropped at 2–0, the first one back found 0–0. **Hibernation was not it.** The
+pug cfg sets `sv_hibernate_when_empty 0` on every provider, and the dev node, which never
+hibernates (its launch line says so too), does the same thing: emptied with `bot_kick` at
+2–1 and refilled 45 s later, it said `round_start` 0–0 round 1 and stayed in warmup.
+The link going quiet in between was an empty server with nothing to say. It came back
+because the orchestrator was redeployed at 14:29:55.
+
+So `MatchZyFlow` watches for that round end. On a map that has been live on this server
+(a live round started there since the assignment or the last map change) it picks the
+newest MatchZy backup of the map *before* MatchZy writes the reset's own 0–0 `round00`.
+At the round start that follows, a second later (`CommencedSettleMs`), it sends the same
+`matchzy_loadbackup` an admin's restore sends. In warmup MatchZy only holds a loaded file
+for a match start. A match it already holds as live never gets one, so the flow asks a
+second time on its next poll, and that second load is how MatchZy itself sets a held
+match live and loads the file. The engine plays the round again within about three seconds
+(2.9 s on the dev node). The flow says `backup_restored` (the same `plugin_event`, no new
+vocabulary) and MatchZy pauses the match after the restore, which is what holds it until
+the people who left are back and both sides type `.unpause`. An admin can lift it too, with
+`unpause`. On the dev node, a puppet 1v1 at 0–3 was emptied with `bot_kick` and refilled
+with `bot_add_ct` / `bot_add_t` 45 s later, through the fleet's `rcon` route. That is an
+operator's experiment and not a lane row, because a puppet cannot come back through the
+front door once a match is live. The reset said 0–0, round 1. The flow asked twice, and
+2.3 s later the match was paused at round 4, 0–3. Unpaused, it played round 4 to 0–4 and
+wrote round 5's backup. Nobody asked for this restore, so no command is answered. One that does not
+take within `CommencedRestoreAnswerMs` (15 s) is a `warn` on the server console naming the
+round an admin's `restore` should ask for. The same `Game_Commencing` before a map was
+live (the first people into warmup, a replacement server's players coming back to a
+restore MatchZy is already holding) or after its scoreboard is up rewinds nothing. A map
+with no backup on disk is a `warn` and nothing more. The rewind and the PUG's idle end
+(`EndIdle`, `MatchLength`) sit side by side. The person whose return causes the restart has
+already stopped the idle clock. The restart's drawn round end is not a result, so the map
+score an idle end reports is left alone by it. A restore, this one or an admin's, sets
+that score to the restored round's, read from the backup's `team1_score` / `team2_score`
+(MatchZy's team1 is team A). An idle end drops a rewind that is armed or being watched,
+and a restart after the match ended is never rewound. What the stream shows meanwhile: the
+0–0 `round_start` the reset caused, `match_paused`, the restored round's `round_start` at
+the old score, and `backup_restored`. Two cases are not covered. A knife round emptied
+before the match goes live has no backup to rewind to, and stays at the engine's 0–0 in
+warmup until an admin ends it. Every other flow (`none` and `plugin`: Rush, retakes,
+flying-scoutsman, powerup-dm) keeps no backup (`capabilities.backups: false`), so its
+engine restart is not rewound either.
+
 **The `sim` provider** (`providers/sim/`, decision 9) is the engine of `packages/sim`
 behind the provider interface: a handle, an address nobody can connect to
 (`sim-1.sim.invalid`), a GOTV relay that does not exist, and — once started — the server

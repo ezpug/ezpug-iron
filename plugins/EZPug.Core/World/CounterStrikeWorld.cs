@@ -565,7 +565,7 @@ public sealed class CounterStrikeWorld : IGameWorld
         return (t, ct);
     }
 
-    /// <summary>The engine's reason for a round's end, folded to the SDK's four that mean something to a mode.</summary>
+    /// <summary>The engine's reason for a round's end, folded to the SDK's four that mean something to a mode, and the engine's own game restart, which is not a result at all.</summary>
     public static RoundEndReason ReasonOf(EngineRoundEndReason reason) =>
         reason switch
         {
@@ -573,6 +573,7 @@ public sealed class CounterStrikeWorld : IGameWorld
             EngineRoundEndReason.BombDefused => RoundEndReason.BombDefused,
             EngineRoundEndReason.TargetSaved => RoundEndReason.TimeExpired,
             EngineRoundEndReason.CTsWin or EngineRoundEndReason.TerroristsWin => RoundEndReason.Elimination,
+            EngineRoundEndReason.GameCommencing => RoundEndReason.GameCommencing,
             _ => RoundEndReason.Other,
         };
 

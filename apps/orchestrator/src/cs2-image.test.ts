@@ -144,6 +144,27 @@ describe('the CS2 server image', () => {
     expect(entrypoint).not.toContain('sv_setsteamaccount')
   })
 
+  it('keeps every server awake when it empties, whatever started it', () => {
+    // The launch line above is ours only on a node. A Dathost clone boots on
+    // Dathost's line, which has no hibernation field (`cs2_settings` has none,
+    // references/dathost), so the cfg an assignment execs is the one place
+    // that holds on every provider: every shipped mode's cfg set says it. A
+    // server that sleeps when empty is not what reset the 2026-10-04 match
+    // (the engine's Game_Commencing does that awake too, `MatchZyFlow`), but a
+    // sleeping server's ticks, timers and link are a second unknown nobody
+    // needs on top of it.
+    for (const mode of readdirSync(repoUrl('gamemodes'), { withFileTypes: true })) {
+      if (!mode.isDirectory() || !existsSync(repoUrl(`gamemodes/${mode.name}/manifest.json`)))
+        continue
+      const declared =
+        (JSON.parse(repo(`gamemodes/${mode.name}/manifest.json`)) as { cfg?: string[] }).cfg ?? []
+      const said = declared.map(file => repo(`gamemodes/${mode.name}/cfg/${file}`)).join('\n')
+      expect(said, `gamemodes/${mode.name}'s cfg set lets an empty server hibernate`).toMatch(
+        /^sv_hibernate_when_empty 0$/m,
+      )
+    }
+  })
+
   it('prints where home is and never a secret', () => {
     expect(entrypoint).toContain('EZPUG_IRON_URL')
     expect(entrypoint).toContain('EZPUG_SERVER_TOKEN')

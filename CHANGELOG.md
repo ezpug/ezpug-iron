@@ -31,6 +31,29 @@ and `WeaponPaints.Tests` holds the pattern against the game. Ships in the CS2 im
 the Dathost template (`pnpm cs2:build`, `pnpm dathost:image`); no orchestrator or contract
 change.
 
+**A match survives an empty server** (the production 1v1 of 2026-10-04,
+`docs/operations.md`, "A live match the engine reset by itself"). Both players dropped at
+2–0, and the first one back found 0–0 and round 1, in a warmup that never ended. CS2
+restarts the game (`Game_Commencing`) when somebody joins a side of a server whose sides
+were both empty. Hibernation was not involved: the dev node, which never hibernates, does
+the same.
+
+- **The plugins**: `MatchZyFlow` rewinds a live map to MatchZy's newest round backup after
+  the engine's own restart. It uses the same `matchzy_loadbackup` an admin's restore sends,
+  ends with the same `backup_restored`, and leaves the match in MatchZy's pause after a
+  restore until both sides `.unpause`. Nothing is rewound before a map has been live on the
+  server, or after its scoreboard is up. The SDK's `RoundEndReason` gains `GameCommencing`,
+  which `CounterStrikeWorld` used to fold into `Other`. The restart's round end is not a
+  result, so the map score an idle end reports is left alone by it, and a restore (this one
+  or an admin's) sets that score to the restored round's. An idle end drops a rewind that
+  is armed or being watched. (The orchestrator already drops the restart's MatchZy
+  `round_end`, `winner.side "1"`.)
+- **The gamemodes**: a test holds every shipped mode's cfg set to `sv_hibernate_when_empty
+  0`. A Dathost clone boots on Dathost's launch line, and `cs2_settings` has no hibernation
+  field, so the cfg is the one place that holds on every provider. All five already said it.
+- The contract and the orchestrator are unchanged. Reaching a server takes a plugin
+  rollout: `pnpm dathost:image` for Dathost, a rebuilt CS2 image for a node.
+
 **The HUD** (`ralph/PRD-07-hud.md`). A client addon for CS2's custom HUD layout, built on
 this box, and the plumbing that hands it to players. Everything ships switched off. Nothing
 is deployed to `gs.ezpug.com` yet, and no tag has been cut.
