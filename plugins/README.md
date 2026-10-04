@@ -122,7 +122,9 @@ The token is a secret: it is never logged, never in a `state` or `console` frame
   value the cfg sets and the request sets back is not two changes but none
   (`GamemodeLoader.CvarSettleMs`, PRD-02 T22a) — the flat cvars are set, and for a
   `matchzy` flow the match config is written to `cfg/ezpug/match.json` (the orchestrator's document plus
-  `matchzy_hostname_format`, so MatchZy keeps the hostname), `matchzy_loadmatch`'d once
+  `matchzy_hostname_format`, also said to the console just before the load because the
+  load rewrites the hostname before the file's cvars run, so MatchZy keeps the hostname
+  from warmup on), `matchzy_loadmatch`'d once
   per assignment, and MatchZy's remote log is pointed at the orchestrator's
   `POST /matchzy/log` with this server's token in the `x-ezpug-server-token` header — as
   console commands after the load, never in the file, because MatchZy serialises the file

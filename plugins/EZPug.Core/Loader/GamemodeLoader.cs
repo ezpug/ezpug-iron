@@ -14,7 +14,8 @@ namespace EZPug.Core;
 /// and then — a beat later, in a console frame of its own, because the engine reconciles a
 /// cvar once per frame and two writes in one net out (<see cref="CvarSettleMs"/>) — set the
 /// flat cvars, and for a <c>matchzy</c> flow write the match config (the
-/// hostname format added, so MatchZy keeps the hostname the loader set), <c>matchzy_loadmatch</c>
+/// hostname format added, and said to the console before the load, so MatchZy keeps the
+/// hostname the loader set), <c>matchzy_loadmatch</c>
 /// it, once per assignment — MatchZy carries a series across its own map changes — and
 /// point its remote log at the orchestrator (<see cref="MatchZyRemoteLog"/>); on
 /// <c>release</c>, unload what was enabled, in reverse, and go back to the lobby map.
@@ -202,8 +203,14 @@ public sealed class GamemodeLoader
         // The plan's map names the match, as it did the hostname at assignment: the engine's
         // name for a workshop map is not one the client ever sent.
         var planned = MapFor(assignment);
-        var file = WithLoadedMap(WithHostnameFormat(config, Branding.HostnameFor(assignment, planned)), planned, map);
+        var hostname = Branding.HostnameFor(assignment, planned);
+        var file = WithLoadedMap(WithHostnameFormat(config, hostname), planned, map);
         File.WriteAllText(path, file.ToJsonString(ProtocolJson.Options));
+        // The format before the load as well as in the file (ezpug/ezpug-iron#8): MatchZy's
+        // LoadMatch queues the file's cvars and then rewrites the hostname at once from the
+        // format it holds *now*, so a format only in the file arrives a line after its own
+        // `hostname {TEAM1} vs {TEAM2}` and warmup reads the team names until the first round.
+        _world.SetCvar(MatchZyHostnameFormatCvar, hostname);
         _world.ExecCommand($"matchzy_loadmatch {MatchConfigFile}");
         _matchLoaded = true;
 
@@ -283,6 +290,9 @@ public sealed class GamemodeLoader
         return assignment.Maps[0].Map;
     }
 
+    /// <summary>MatchZy's cvar it rewrites <c>hostname</c> from, on <c>matchzy_loadmatch</c> and at every round start of a live match.</summary>
+    public const string MatchZyHostnameFormatCvar = "matchzy_hostname_format";
+
     /// <summary>
     /// The config with <c>matchzy_hostname_format</c> set to the hostname the loader decided:
     /// MatchZy rewrites <c>hostname</c> from that cvar on every round (its default is
@@ -298,7 +308,7 @@ public sealed class GamemodeLoader
             copy["cvars"] = cvars;
         }
 
-        cvars["matchzy_hostname_format"] = hostname;
+        cvars[MatchZyHostnameFormatCvar] = hostname;
         return copy;
     }
 

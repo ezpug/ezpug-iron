@@ -132,6 +132,8 @@ public class GamemodeLoaderTests
                 "cvar matchzy_enable_tech_pause 1",
                 "cvar matchzy_stop_command_available true",
                 "cvar matchzy_reset_cvars_on_series_end true",
+                // The hostname format before the load as well as in the file (#8).
+                "cvar matchzy_hostname_format EZPug · pug · Mirage",
                 "command matchzy_loadmatch cfg/ezpug/match.json",
                 // The remote log after loadmatch (loading replaces MatchZy's config object), the token last.
                 // Quoted, because `//` is a console comment (MatchZyRemoteLog).
@@ -155,11 +157,66 @@ public class GamemodeLoaderTests
                 "command css_plugins unload plugins/disabled/MatchZy/MatchZy.dll",
                 "changelevel de_dust2",
             ],
-            rig.Actions.Skip(13));
+            rig.Actions.Skip(14));
         Assert.False(File.Exists(rig.MatchConfigPath));
         Assert.Empty(rig.Loader.Enabled);
         Assert.Equal(LinkServerState.Idle, rig.Link.States[^1].State);
         Assert.DoesNotContain(rig.Log.Lines, line => line.StartsWith("warn"));
+    }
+
+    /// <summary>
+    /// <b>The hostname holds through <c>matchzy_loadmatch</c></b> (ezpug/ezpug-iron#8, found
+    /// by the platform's lane in a PUG warmup: <c>Team_Kev1n vs Team_Murmeltier</c>). The
+    /// console is replayed the way MatchZy-Enhanced 1.4.32 meets it (<c>LoadMatchFromJSON</c>):
+    /// every line is queued, the load queues the file's cvars and then a <c>hostname</c>
+    /// rendered from the format it holds at that instant, and the hostname read back after
+    /// the whole buffer ran is what warmup shows until MatchZy's next rewrite.
+    /// </summary>
+    [Fact]
+    public void TheHostnameTheLoaderSetIsStillTheHostnameAfterMatchZyLoadsTheMatch()
+    {
+        using var rig = new Rig("MatchZy");
+        var config = JsonNode.Parse("""{"matchid":"6f1a2b3c","num_maps":1,"maplist":["de_nuke"],"team1":{"name":"Team Kev1n"},"team2":{"name":"Team Murmeltier"},"cvars":{}}""")!.AsObject();
+        var assignment = GamemodeTestHost.AssignmentFor(Manifest("pug"), map: "de_nuke") with
+        {
+            MatchzyConfig = config,
+            Branding = new MatchBranding { EventName = "Drop Night" },
+        };
+        rig.Link.Assign(assignment);
+        rig.StartMap();
+
+        Assert.Equal("EZPug · Drop Night · pug · Nuke", HostnameAfterMatchZy(rig, config));
+    }
+
+    /// <summary>The console buffer as MatchZy-Enhanced loads a match into it; the <c>hostname</c> once it has drained.</summary>
+    private static string? HostnameAfterMatchZy(Rig rig, JsonObject config)
+    {
+        // MatchZy's own default until somebody says otherwise.
+        var cvars = new Dictionary<string, string> { ["matchzy_hostname_format"] = "{TEAM1} vs {TEAM2}" };
+        var buffer = new Queue<string>(rig.Actions);
+        while (buffer.TryDequeue(out var line))
+        {
+            if (line.StartsWith("cvar ", StringComparison.Ordinal))
+            {
+                var (name, value) = (line[5..line.IndexOf(' ', 5)], line[(line.IndexOf(' ', 5) + 1)..]);
+                cvars[name] = value;
+            }
+            else if (line == $"command matchzy_loadmatch {GamemodeLoader.MatchConfigFile}")
+            {
+                var file = JsonNode.Parse(File.ReadAllText(rig.MatchConfigPath))!.AsObject();
+                foreach (var (name, value) in file["cvars"]!.AsObject())
+                {
+                    buffer.Enqueue($"cvar {name} {value}");
+                }
+
+                var format = cvars["matchzy_hostname_format"]
+                    .Replace("{TEAM1}", config["team1"]!["name"]!.GetValue<string>().Replace(' ', '_'))
+                    .Replace("{TEAM2}", config["team2"]!["name"]!.GetValue<string>().Replace(' ', '_'));
+                buffer.Enqueue($"cvar hostname {format}");
+            }
+        }
+
+        return cvars.GetValueOrDefault("hostname");
     }
 
     [Fact]

@@ -152,7 +152,7 @@ match (decision 22; in-world banners need a Workshop addon and are a later round
 
 | Where | What |
 | ----- | ---- |
-| the server browser | `branding.hostname` when the request named one, else `EZPug · <event> · <mode> · <Map>` — the event only where `branding.eventName` was given. Clamped to 63 characters. The loader sets it on `assign` and writes the same string into `matchzy_hostname_format`, because MatchZy rewrites `hostname` from that cvar every round |
+| the server browser | `branding.hostname` when the request named one, else `EZPug · <event> · <mode> · <Map>` — the event only where `branding.eventName` was given. Clamped to 63 characters. The loader sets it on `assign` and writes the same string into `matchzy_hostname_format`, in the match file and on the console just before `matchzy_loadmatch`, because MatchZy rewrites `hostname` from that cvar on the load and every round |
 | every line the server says | `[EZPug] …` — the event's name in place of `EZPug` where there is one, green, in front of the text. `Say`/`SayAll` in a mode, the rating connect line and a refused player command all go through it, so the server has one voice |
 | a team's name in chat | `Brand.TeamName(MatchTeam.TeamA)` — the roster's name in the colour of the side that team is on right now (CT blue, T gold), which a `side_swap` moves with the players |
 | the middle of the screen | a four-line card two seconds after a player is fully connected: the event or `EZPug`, this gamemode's title from its manifest, the one thing to do now, and `ezpug.com` |

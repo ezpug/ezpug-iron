@@ -195,6 +195,9 @@ is:
   at two a side, whatever the manifest's `teamSize` says.
 - **The core plugin writes and loads it** when the map is up, adds
   `matchzy_hostname_format` (MatchZy rewrites the hostname from that cvar every round),
+  says the same format to the console just before `matchzy_loadmatch` (the load rewrites
+  the hostname at once from the format MatchZy already holds, a line before the file's
+  cvars run; without it warmup read `Team_A vs Team_B`, ezpug-iron#8),
   and *then* points MatchZy's remote log at the orchestrator's door `POST /matchzy/log`
   with its own link token in the `x-ezpug-server-token` header — from its sidecar, after
   `matchzy_loadmatch`, never inside the file: the file is serialised into every round
