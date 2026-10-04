@@ -211,13 +211,35 @@ describe('what the tier allows', () => {
     expect(issuesOf(sdkManifest({ flow: 'matchzy', length: { durationSeconds: 600 } }))).toEqual([
       'length',
     ])
+    expect(
+      issuesOf(
+        sdkManifest({ flow: 'matchzy', length: { idleTimeoutSeconds: 600, fragLimit: 30 } }),
+      ),
+    ).toEqual(['length'])
+    // But an empty server is nobody's game (decision 26 as amended, 0.33.0):
+    // production's first abandoned PUG billed an empty box until an admin
+    // force-ended it, so a matchzy mode may name the idle timeout, and only it.
+    expect(issuesOf(sdkManifest({ flow: 'matchzy', length: { idleTimeoutSeconds: 600 } }))).toEqual(
+      [],
+    )
   })
 
-  it('every shipped mode the SDK tells the story of can end on an empty server', () => {
+  it('every shipped mode can end on an empty server, a matchzy one too', () => {
     for (const manifest of SHIPPED_GAMEMODES) {
-      if (manifest.flow === 'matchzy') expect(manifest.length, manifest.id).toBeUndefined()
-      else expect(manifest.length?.idleTimeoutSeconds, manifest.id).toBeGreaterThan(0)
+      expect(manifest.length?.idleTimeoutSeconds, manifest.id).toBeGreaterThan(0)
+      // MatchZy's rounds are MatchZy's: the idle timeout is all a matchzy mode names.
+      if (manifest.flow === 'matchzy')
+        expect(Object.keys(manifest.length ?? {}), manifest.id).toEqual(['idleTimeoutSeconds'])
     }
+    // **The PUG's is ten minutes** (2026-10-04): longer than the platform's
+    // per-player abandon clock (five), so every leaver is judged before the
+    // server gives up; longer than its longest join window (five plus two
+    // extensions of two), so a server nobody reached is the platform's no-show
+    // and not an idle end; and long enough for a whole LAN to come back from a
+    // switch or an uplink falling over.
+    expect(SHIPPED_GAMEMODES.find(mode => mode.id === 'pug')?.length).toEqual({
+      idleTimeoutSeconds: 600,
+    })
     // The one mode with nothing to win is the one with a clock (OPEN-POINTS §1).
     expect(SHIPPED_GAMEMODES.find(mode => mode.id === 'powerup-dm')?.length).toEqual({
       durationSeconds: 600,

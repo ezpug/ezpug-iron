@@ -588,4 +588,119 @@ public class MatchZyFlowTests
         Assert.Equal(0, rig.Runtime.Match.RoundNumber);
         Assert.Contains(rig.Log.Lines, line => line.Contains("mid-series"));
     }
+
+    // ------------------------------------------------------------------ an empty server
+
+    private static ulong Id(RosterEntry entry) => ulong.Parse(entry.SteamId64);
+
+    [Fact]
+    public void APugEverybodyLeftEndsTenMinutesLaterWithNoWinnerAndNoMap()
+    {
+        // Production, 2026-10-04: a 1v1 pug at 2-0, both players gone at 14:36, the match
+        // live on an empty rented box until an admin force-ended it at 14:48. MatchZy has no
+        // end for that; the manifest's idle timeout does, and this flow says it.
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules();
+        var tk = rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        var maex = rig.World.Connect(Id(Maex), "maex", PlayerTeam.Terrorist);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, tScore: 0, ctScore: 1);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, tScore: 0, ctScore: 2);
+        rig.World.StartRound();
+
+        rig.World.Disconnect(maex);
+        rig.World.Elapse(3_000);
+        rig.World.Disconnect(tk);
+        // A spectator knocking at an abandoned match is turned away and holds nothing open.
+        rig.World.Elapse(80_000);
+        rig.World.Disconnect(rig.World.Connect(76561198145418067, "Steuerbescheid", PlayerTeam.Spectator));
+
+        rig.World.Elapse(600_000 - 80_000 - 1_000);
+        Assert.Empty(rig.Link.EventsOf<SeriesEndEvent>());
+        rig.World.Elapse(1_000);
+
+        var series = Assert.Single(rig.Link.EventsOf<SeriesEndEvent>());
+        Assert.Equal(MatchEndReason.Idle, series.Reason);
+        // Two rounds up is not a win: a leaver is a clock, not a forfeit.
+        Assert.Null(series.Winner);
+        Assert.Equal((0L, 0L), (series.SeriesScore.TeamA, series.SeriesScore.TeamB));
+        Assert.Empty(rig.Link.EventsOf<MapEndEvent>());
+        Assert.Contains(rig.Log.Lines, line => line.Contains("2-0") && line.Contains("no winner"));
+        // MatchZy is not asked to end anything: its endmatch would POST a winner of its own.
+        Assert.DoesNotContain(rig.World.Actions, action => action.ToString().Contains("endmatch"));
+
+        // Said once. Somebody coming back now changes nothing until the release.
+        rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        rig.World.Elapse(1_200_000);
+        Assert.Single(rig.Link.EventsOf<SeriesEndEvent>());
+    }
+
+    [Fact]
+    public void APugNobodyReachedIsLeftToTheJoinWindow()
+    {
+        // The idle clock starts with the first round outside MatchZy's warmup. Before it,
+        // nobody being there is a no-show, and a cup's join window (fifteen minutes) is
+        // longer than the idle timeout: the client judges it, never this server.
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules(warmup: true);
+        var tk = rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        rig.World.StartRound();
+        rig.World.Disconnect(tk);
+        rig.World.Elapse(3_600_000);
+        Assert.Empty(rig.Link.EventsOf<SeriesEndEvent>());
+        Assert.False(rig.Runtime.Length.Idling);
+    }
+
+    [Fact]
+    public void ASeriesWhoseMapsArePlayedLeavesTheMapsItFinishedInTheScore()
+    {
+        using var rig = new Rig();
+        var config = JsonNode.Parse("{\"matchid\":" + Serial + ",\"num_maps\":3,\"maplist\":[\"de_mirage\",\"de_nuke\",\"de_inferno\"],\"cvars\":{}}")!.AsObject();
+        var manifest = GamemodeTestHost.ManifestFrom(File.ReadAllText(Repo.Path("gamemodes", "pug", "manifest.json")));
+        rig.Link.Assign(GamemodeTestHost.AssignmentFor(manifest, map: "de_mirage", teamA: [Tk], teamB: [Maex]) with
+        {
+            MatchzyConfig = config,
+            Maps =
+            [
+                new MapPlan { Map = "de_mirage", Sides = MapPlanSides.Ct },
+                new MapPlan { Map = "de_nuke", Sides = MapPlanSides.Ct },
+                new MapPlan { Map = "de_inferno", Sides = MapPlanSides.Ct },
+            ],
+        });
+        rig.StartMap("de_mirage");
+        rig.Rules();
+        var tk = rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, tScore: 0, ctScore: 13);
+        rig.World.EndMap();
+        rig.StartMap("de_nuke");
+        rig.World.Disconnect(tk);
+        rig.World.Elapse(600_000);
+
+        var series = Assert.Single(rig.Link.EventsOf<SeriesEndEvent>());
+        Assert.Equal((1L, 0L), (series.SeriesScore.TeamA, series.SeriesScore.TeamB));
+        Assert.Null(series.Winner);
+    }
+
+    [Fact]
+    public void ASeriesMatchZyAlreadyFinishedIsNotEndedTwice()
+    {
+        // The last win panel is up and the demo is being written: the match ended on its
+        // rounds and only the orchestrator's demo window holds the server now.
+        using var rig = new Rig();
+        rig.StartPug();
+        rig.Rules();
+        var tk = rig.World.Connect(Id(Tk), "tk", PlayerTeam.CounterTerrorist);
+        rig.World.StartRound();
+        rig.World.EndRound(PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, tScore: 0, ctScore: 13);
+        rig.World.EndMap();
+        rig.World.Disconnect(tk);
+        rig.World.Elapse(600_000);
+
+        Assert.Empty(rig.Link.EventsOf<SeriesEndEvent>());
+        Assert.Contains(rig.Log.Lines, line => line.Contains("already finished"));
+    }
 }

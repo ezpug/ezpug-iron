@@ -10,6 +10,7 @@ import type {
   MatchCommand,
   MatchCommandResult,
   MatchEndedReason,
+  MatchEndReason,
   MatchListFilter,
   MatchRequest,
   MatchState,
@@ -306,6 +307,12 @@ interface Runtime {
   /** `series_end` arrived and the match is holding the server open for its demo. */
   awaitingDemo: boolean
   /**
+   * What that `series_end` said ended it, when the mode's length did — so a
+   * match that waited for its demo still ends `the mode’s length: idle`
+   * rather than a bare `completed`. Read back from the log by `resume()`.
+   */
+  seriesEndReason: MatchEndReason | null
+  /**
    * The engine game the server's last `server_ready` read (PRD-05 T2d): what
    * a `going_live` that does not say it is told, which is MatchZy's, because
    * its `going_live` comes over MatchZy's own log and knows no convar. Read
@@ -475,6 +482,7 @@ export function createMatches(options: MatchesOptions): Matches {
         resumePending: null,
         demos: { announced: 0, uploaded: 0 },
         awaitingDemo: false,
+        seriesEndReason: null,
         engine: null,
       }
       runtimes.set(row.id, runtime)
@@ -732,6 +740,10 @@ export function createMatches(options: MatchesOptions): Matches {
    * where to put it, and fewer demos have arrived than maps were played.
    */
   const demoPending = (row: MatchRow, runtime: Runtime): boolean =>
+    // A series that ends from `ready` never played a map (an idle end nobody
+    // came to, 0.33.0's PUG among them): there is no demo to wait for, and
+    // waiting would bill the empty box for the whole demo window.
+    row.state !== 'ready' &&
     manifestOf(row).records === 'demo' &&
     hasDemoUploadUrl(row.requestJson.callbacks) &&
     runtime.demos.announced < runtime.currentMap
@@ -836,6 +848,10 @@ export function createMatches(options: MatchesOptions): Matches {
    * fact is honest either way — `match.ended.demo` then says `no_demo`.
    * Counted from `series_end`, which a restart reads back from the log.
    */
+  /** How a finished series ends the match: `completed`, and which part of the mode's length when it was one (PRD-03 T9). */
+  const completedBy = (reason: MatchEndReason | null | undefined): MatchEndedReason =>
+    reason ? { kind: 'completed', detail: `the mode’s length: ${reason}` } : { kind: 'completed' }
+
   const armDemo = (row: MatchRow, seriesEndedAt = clock.now()): void =>
     setTimer(row, 'demo', seriesEndedAt + deadlines.demoMs, fresh => {
       const runtime = runtimes.get(fresh.id)
@@ -844,7 +860,7 @@ export function createMatches(options: MatchesOptions): Matches {
       log.info(
         `match ${fresh.id}: no demo within ${deadlines.demoMs} ms of series_end; ending without it`,
       )
-      return end(fresh, 'ended', { kind: 'completed' }, 'released')
+      return end(fresh, 'ended', completedBy(runtime.seriesEndReason), 'released')
     })
 
   const armJoin = (row: MatchRow): void =>
@@ -1433,7 +1449,7 @@ export function createMatches(options: MatchesOptions): Matches {
         if (runtime.awaitingDemo && !demoPending(row, runtime)) {
           cancelTimer(row, 'demo')
           runtime.awaitingDemo = false
-          await end(row, 'ended', { kind: 'completed' }, 'released')
+          await end(row, 'ended', completedBy(runtime.seriesEndReason), 'released')
         }
         break
       }
@@ -1441,6 +1457,7 @@ export function createMatches(options: MatchesOptions): Matches {
         // The series is over, but a GOTV demo is only finished `tv_delay`
         // after the last round and the server is released the moment the
         // match ends — so a match that records one waits for it (T21).
+        runtime.seriesEndReason = event.reason ?? null
         if (demoPending(row, runtime)) {
           runtime.awaitingDemo = true
           armDemo(row)
@@ -1449,14 +1466,7 @@ export function createMatches(options: MatchesOptions): Matches {
         // A series the mode's length ended (PRD-03 T9) is as complete as one the
         // game ended; which part of the length it was travels in the fact, and
         // in the detail for whoever reads the match and not its events.
-        await end(
-          row,
-          'ended',
-          event.reason
-            ? { kind: 'completed', detail: `the mode’s length: ${event.reason}` }
-            : { kind: 'completed' },
-          'released',
-        )
+        await end(row, 'ended', completedBy(event.reason), 'released')
         break
       default:
         break
@@ -1981,7 +1991,7 @@ export function createMatches(options: MatchesOptions): Matches {
    */
   const replayDemoWait = async (row: MatchRow): Promise<void> => {
     const runtime = runtimeOf(row)
-    let seriesEnd: { at: number; reason: string | undefined } | null = null
+    let seriesEnd: { at: number; reason: MatchEndReason | undefined } | null = null
     for (let after = 0; ; ) {
       const events = await store.listEvents(row.id, after, 500)
       if (events.length === 0) break
@@ -2002,19 +2012,13 @@ export function createMatches(options: MatchesOptions): Matches {
     if (!demoPending(row, runtime)) {
       const { reason } = seriesEnd
       log.info(`match ${row.id}: series_end and its demo were in before the restart; ending`)
-      void enqueue(row, fresh =>
-        end(
-          fresh,
-          'ended',
-          reason
-            ? { kind: 'completed', detail: `the mode’s length: ${reason}` }
-            : { kind: 'completed' },
-          'released',
-        ),
-      ).catch((error: unknown) => report(error, { phase: 'resume:demo', matchId: row.id }))
+      void enqueue(row, fresh => end(fresh, 'ended', completedBy(reason), 'released')).catch(
+        (error: unknown) => report(error, { phase: 'resume:demo', matchId: row.id }),
+      )
       return
     }
     runtime.awaitingDemo = true
+    runtime.seriesEndReason = seriesEnd.reason ?? null
     armDemo(row, seriesEnd.at)
   }
 

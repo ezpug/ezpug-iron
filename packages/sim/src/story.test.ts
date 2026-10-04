@@ -828,7 +828,12 @@ describe('the idle scenario (PRD-03 T9a, T11a)', () => {
   it('leaves a matchzy mode waiting in warmup, for the join deadline to decide', () => {
     // MatchZy holds warmup open until two teams ready up, and a `length` is
     // never its to enforce (`MatchLength.OnAssigned`) — so neither shape ends.
-    for (const overrides of [{}, { ...DEATHMATCH, flow: 'matchzy' as const }]) {
+    // Not the PUG's idle timeout either (0.33.0): it counts from going live.
+    for (const overrides of [
+      {},
+      { ...DEATHMATCH, flow: 'matchzy' as const },
+      { flow: 'matchzy' as const, length: { idleTimeoutSeconds: 600 } },
+    ]) {
       const story = storyFor(SIMULATOR_SCENARIOS.idle, 'idle-b', overrides)
       expect(story.outcome).toBe('idle')
       expect(story.beats.map(beat => beat.event.type)).toEqual(['server_ready'])

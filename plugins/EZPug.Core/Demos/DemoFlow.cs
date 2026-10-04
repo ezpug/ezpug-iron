@@ -45,6 +45,15 @@ namespace EZPug.Core;
 /// (<c>deadlines.demoMs</c>); <see cref="WindowMs"/> is the plugin's own patience, and
 /// it is deliberately the shorter of the two so the plugin gives up first and the match
 /// ends on a demo that is announced rather than on a deadline.
+///
+/// <b>An end with no win panel</b> (2026-10-04). The manifest's length can end a match the
+/// engine is still playing — a duration, a frag limit, and for a <c>matchzy</c> match an
+/// idle timeout on a server everybody left — and then no win panel ever comes and nobody
+/// stops the recording. <see cref="GamemodeRuntime.LengthEnded"/> stands in for it: the
+/// recording is stopped by this class whoever started it (at once for an idle end, whose
+/// last minutes are an empty server; one GOTV delay later otherwise, as after a win panel)
+/// and the file is handed over exactly as after one, so the orchestrator ends the match on
+/// an announced demo rather than its own deadline.
 /// </summary>
 public sealed class DemoFlow
 {
@@ -115,6 +124,7 @@ public sealed class DemoFlow
         _runtime.MapLoaded += OnMapLoaded;
         _runtime.Released += OnReleased;
         _world.MapEnded += OnMapEnded;
+        _runtime.LengthEnded += OnLengthEnded;
     }
 
     private void OnAssigned(Assignment assignment)
@@ -226,7 +236,19 @@ public sealed class DemoFlow
 
     // ------------------------------------------------------------------ the map is over
 
-    private void OnMapEnded()
+    private void OnMapEnded() => Collect(stopAfterMs: _ownsRecording ? TvDelaySeconds() * 1_000L : null);
+
+    /// <summary>
+    /// The length ended the match and no win panel is coming: nobody else will stop the
+    /// recording, MatchZy included, so this class does — at once when the server has been
+    /// empty for the idle timeout (the delayed broadcast's last minutes are nobody), one
+    /// GOTV delay later when the match was cut short with people on it.
+    /// </summary>
+    private void OnLengthEnded(MatchEndReason reason) =>
+        Collect(stopAfterMs: reason == MatchEndReason.Idle ? 0 : TvDelaySeconds() * 1_000L);
+
+    /// <summary>Find the map's demo once it stops growing and hand it over; <paramref name="stopAfterMs"/> is when to run <c>tv_stoprecord</c> ourselves, <c>null</c> when somebody else stops it.</summary>
+    private void Collect(long? stopAfterMs)
     {
         if (!_records || _poll is not null)
         {
@@ -248,17 +270,23 @@ public sealed class DemoFlow
         _done = false;
         _length = -1;
 
-        if (_ownsRecording)
+        if (stopAfterMs is { } delayMs)
         {
             // GOTV records the *delayed* broadcast: stopping on the win panel would cut
             // the last rounds off the demo. MatchZy waits the same delay for the same
             // reason (`DemoManagement.StopDemoRecording`).
-            var delayMs = TvDelaySeconds() * 1_000L;
-            _stop = _world.Clock.After(delayMs, () =>
+            if (delayMs <= 0)
             {
-                _stop = null;
                 _world.ExecCommand("tv_stoprecord");
-            });
+            }
+            else
+            {
+                _stop = _world.Clock.After(delayMs, () =>
+                {
+                    _stop = null;
+                    _world.ExecCommand("tv_stoprecord");
+                });
+            }
         }
 
         _length = -1;

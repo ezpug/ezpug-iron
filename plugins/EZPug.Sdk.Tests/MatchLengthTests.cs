@@ -9,8 +9,9 @@ namespace EZPug.Sdk.Tests;
 /// <c>powerup-dm</c> manifest played on the harness until its duration runs out, a frag
 /// limit reached, a server nobody comes to and a server everybody left — each ending in
 /// the terminal facts the orchestrator releases a server on, with the reason, and with no
-/// winner for one team. Then what the length must never do: end a <c>matchzy</c> match,
-/// or count a plain bot as somebody being there.
+/// winner for one team. Then what the length must never do: end a <c>matchzy</c> match on
+/// anything but an empty server, count a plain bot as somebody being there, or count a
+/// stranger at the door of a mode whose roster is its guest list.
 /// </summary>
 public class MatchLengthTests
 {
@@ -188,16 +189,117 @@ public class MatchLengthTests
     }
 
     [Fact]
-    public void AMatchzyMatchIsNeverTheLengthsToEnd()
+    public void AMatchzyMatchKeepsOnlyTheIdleTimeoutAndTheHostSaysTheEnd()
     {
-        // No shipped matchzy manifest may declare one (the schema refuses it); a frame that
-        // carried one anyway is still MatchZy's match.
+        // MatchZy's rounds are MatchZy's: a duration a frame carried anyway ends nothing.
+        // An empty server is nobody's game (decision 26 as amended, 2026-10-04), so the
+        // idle clock runs — and the end is the host's to say, never the generic flow's.
         var manifest = Manifest("pug") with { Length = new GamemodeLength { DurationSeconds = 60, IdleTimeoutSeconds = 30 } };
         using var host = Started(manifest);
+        var asked = new List<MatchEndReason>();
+        var told = new List<MatchEndReason>();
+        host.Runtime.EndHook = reason =>
+        {
+            asked.Add(reason);
+            return true;
+        };
+        host.Runtime.LengthEnded += told.Add;
 
+        Assert.True(host.Runtime.Length.Armed);
+        Assert.Null(host.Runtime.Length.InForce);
+        // Before the host says the match went live, nobody being there is the join
+        // window's to judge.
+        Assert.False(host.Runtime.Length.Idling);
+        host.Runtime.Length.HostWentLive();
+        Assert.True(host.Runtime.Length.Idling);
+        host.World.Elapse(29_000);
+        Assert.Empty(asked);
+        host.World.Elapse(1_000);
+
+        Assert.Equal([MatchEndReason.Idle], asked);
+        Assert.Equal([MatchEndReason.Idle], told);
+        Assert.Empty(host.Link.EventsOf<SeriesEndEvent>());
         Assert.False(host.Runtime.Length.Armed);
         host.World.Elapse(120_000);
+        Assert.Single(asked);
+    }
+
+    [Fact]
+    public void TheShippedPugEndsTenMinutesAfterTheLastRosteredPlayerLeft()
+    {
+        using var host = Started(Manifest("pug"));
+        var asked = new List<(MatchEndReason Reason, long AtMs)>();
+        host.Runtime.EndHook = reason =>
+        {
+            asked.Add((reason, host.World.Clock.NowMs));
+            return true;
+        };
+        var tk = host.World.Connect(Tk, "tk", PlayerTeam.CounterTerrorist);
+        host.Runtime.Length.HostWentLive();
+        host.World.Elapse(3_600_000);
+        Assert.Empty(asked);
+
+        host.World.Disconnect(tk);
+        var leftAt = host.World.Clock.NowMs;
+        // Somebody the roster does not name is turned away at the door, and is never on the
+        // server for the clock's purposes: knocking every minute holds nothing open.
+        for (var knock = 0; knock < 5; knock++)
+        {
+            host.World.Elapse(60_000);
+            host.World.Disconnect(host.World.Connect(76561198145418067, "stranger", PlayerTeam.Spectator));
+        }
+
+        host.World.Elapse(600_000 - 5 * 60_000 - 1_000);
+        Assert.Empty(asked);
+        host.World.Elapse(1_000);
+        var end = Assert.Single(asked);
+        Assert.Equal((MatchEndReason.Idle, leftAt + 600_000), end);
+    }
+
+    [Fact]
+    public void AMatchzyMatchNobodyReachedIsTheJoinWindowsToJudge()
+    {
+        // A cup's join window is fifteen minutes and a pug's idle timeout ten: counting from
+        // server_ready would end a match its players were still allowed to reach.
+        using var host = Started(Manifest("pug"));
+        var asked = new List<MatchEndReason>();
+        host.Runtime.EndHook = reason =>
+        {
+            asked.Add(reason);
+            return true;
+        };
+        var tk = host.World.Connect(Tk, "tk", PlayerTeam.CounterTerrorist);
+        host.World.Disconnect(tk);
+        host.World.Elapse(3_600_000);
+        Assert.Empty(asked);
+        Assert.False(host.Runtime.Length.Idling);
+    }
+
+    [Fact]
+    public void AMatchzyMatchWhoseHostCannotEndItEndsNothingByItself()
+    {
+        // A server whose host never took the hook — an SDK host without MatchZy's flow —
+        // ends nothing on its own: the generic flow does not speak for MatchZy.
+        using var host = Started(Manifest("pug"));
+        host.Runtime.Length.HostWentLive();
+        host.World.Elapse(600_000);
         Assert.Empty(host.Link.EventsOf<SeriesEndEvent>());
+        Assert.Empty(host.Link.EventsOf<MapEndEvent>());
+    }
+
+    [Fact]
+    public void WhereTheRosterIsTheGuestListOnlyTheRosterKeepsTheServerWarm()
+    {
+        using var host = Started(Manifest("rush"));
+        host.World.Connect(76561198145418067, "stranger", PlayerTeam.Terrorist);
+        Assert.True(host.Runtime.Length.Idling);
+
+        var tk = host.World.Connect(Tk, "tk", PlayerTeam.CounterTerrorist);
+        Assert.False(host.Runtime.Length.Idling);
+        host.World.Disconnect(tk);
+        Assert.True(host.Runtime.Length.Idling);
+        host.World.Elapse(300_000);
+        Assert.Equal(MatchEndReason.Idle, Assert.Single(host.Link.EventsOf<SeriesEndEvent>()).Reason);
     }
 
     [Fact]

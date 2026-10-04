@@ -384,6 +384,32 @@ it here.
     idle clock, a puppet is somebody; and **a one-team mode names no winner**, whoever
     ended it. It is never MatchZy's match to end (a `matchzy` manifest with a `length` does
     not parse), and `ttlMinutes` stays the backstop it always was, no longer the design.
+    *Amended 2026-10-04, after production: **an empty server is nobody's game, MatchZy's
+    included.** A custom 1v1 `pug` on Dathost lost both players at 14:36 and stayed `live`
+    on a billed, empty box until an admin force-ended it at 14:48 — MatchZy has no end for
+    a server everybody left, and the sentence above had made sure nothing else did either.
+    So a `matchzy` manifest may name `length.idleTimeoutSeconds` **and nothing else**
+    (`@ezpug/match-api` 0.33.0): a duration or a frag limit would still take MatchZy's
+    rounds away from it, an empty server takes nothing. The SDK runs the same clock
+    (`MatchLength` keeps the idle part for that flow) **from the first round outside
+    MatchZy's warmup only** (`HostWentLive`): before that, nobody having come is a no-show,
+    and the client's join window — fifteen minutes for a cup — judges it, never a shorter
+    clock on the server. The core plugin says the end
+    (`MatchZyFlow.EndIdle`, through the runtime's `EndHook`): a lone `series_end` with
+    `reason: "idle"`, **no winner** — a map nobody finished has no result, and naming the
+    leader would be the forfeit the platform's "a leaver is a clock" rule refuses — the
+    finished maps as the series score, no `map_end`, and nothing sent to MatchZy, whose
+    `endmatch` would POST a winner of its own. Decision 19's "neither double-speaks" holds:
+    MatchZy never says this end. The recording is stopped and handed over as after a win
+    panel (`DemoFlow` hears `LengthEnded`), and the orchestrator ends the match `completed`,
+    `the mode’s length: idle`, on that demo. Where a mode's roster is its guest list
+    (`openJoin: false`) only a rostered person stops the clock, because a stranger the
+    server turns away is not on it — the abandoned match had one knock four times. The
+    PUG's value is **600 s**: longer than the platform's per-player abandon clock (300 s), so
+    every leaver is judged before the server gives up; long enough for a whole LAN to come
+    back from a switch or an uplink falling over; and ten minutes of an empty box is the
+    price of both. The end is a `series_end` the platform's machine already takes, and
+    `match.ended` stays `completed` — no new reason kind.*
 
 27. **`retakes` is one team of ten, and every bundled mode seats puppets.** (PRD-03 T10,
     owner decision 2026-09-19.) The manifest said `teams: 2, teamSize: 5`, which was a

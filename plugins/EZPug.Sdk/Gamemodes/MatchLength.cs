@@ -8,8 +8,14 @@ namespace EZPug.Sdk;
 /// condition that could ever end it, and production's first seven <c>powerup-dm</c> rooms
 /// each billed a rented box until a human released it. So the manifest says how long a
 /// match lasts (<c>length</c>) and this class enforces it, for every flow the SDK tells
-/// the story of — never for <c>matchzy</c>, whose length is MatchZy's, and never over a
-/// mode that owns its own flow (<see cref="Gamemode.OwnsFlow"/>):
+/// the story of, and never over a mode that owns its own flow (<see cref="Gamemode.OwnsFlow"/>).
+/// A <c>matchzy</c> match keeps only the idle timeout (decision 26 as amended,
+/// 2026-10-04): MatchZy's rounds are MatchZy's, but MatchZy has no end for a server
+/// everybody left, and production's first abandoned PUG billed an empty box until an
+/// admin force-ended it. Its end is the host's to say (<see cref="GamemodeRuntime.EndHook"/>),
+/// and its clock runs only once the host says the match went live (<see cref="HostWentLive"/>):
+/// before that, nobody having come is a no-show, and the client's own join window — fifteen
+/// minutes for a cup — is the one that judges it, not an idle timeout ten minutes long:
 ///
 /// <list type="bullet">
 /// <item><b>A duration</b>, counted from <c>going_live</c>. <see cref="InForce"/> is what
@@ -19,12 +25,18 @@ namespace EZPug.Sdk;
 /// <item><b>An idle timeout</b>: nobody on the server for that long, from
 /// <c>server_ready</c> if nobody ever comes and from the moment the last person leaves.
 /// A person is a human or a puppet — a plain bot keeps nobody's seat warm, or a room
-/// of request bots would bill for ever exactly as before.</item>
+/// of request bots would bill for ever exactly as before. <b>Where the roster is the guest
+/// list</b> (<c>slots.openJoin: false</c>) only a rostered person counts: somebody the
+/// server is about to turn away is not on it, and a stranger knocking every minute must
+/// not hold an abandoned match open for ever.</item>
 /// </list>
 ///
 /// Whichever comes first ends the match through <see cref="GenericFlow.End"/>: a
 /// <c>map_end</c> when the map was live, a <c>series_end</c> always, both carrying the
-/// reason — and the orchestrator releases the server as it does after any series.
+/// reason — and the orchestrator releases the server as it does after any series. For a
+/// <c>matchzy</c> match the host says it instead, and <see cref="GamemodeRuntime.LengthEnded"/>
+/// follows either way, which is where a demo nobody's win panel will ever finish is
+/// handed over.
 ///
 /// <b>The clock is the server's own, so a time scale divides it.</b> The SDK's timers run
 /// on real milliseconds while a simulated match may run the engine faster
@@ -41,6 +53,9 @@ public sealed class MatchLength
     private double _scale = 1;
     private IClockTimer? _duration;
     private IClockTimer? _idle;
+    /// <summary>A <c>matchzy</c> match's idle clock waits for <see cref="HostWentLive"/>; every other flow's runs from <c>server_ready</c>.</summary>
+    private bool _waitsForLive;
+    private bool _wentLive;
 
     internal MatchLength(IGameWorld world, GamemodeRuntime runtime, ILinkLog log)
     {
@@ -71,8 +86,31 @@ public sealed class MatchLength
     internal void OnAssigned(Assignment assignment)
     {
         Stop();
-        _length = assignment.Gamemode.Flow == GamemodeFlow.Matchzy ? null : assignment.Gamemode.Length;
+        _waitsForLive = assignment.Gamemode.Flow == GamemodeFlow.Matchzy;
+        _wentLive = false;
+        _length = _waitsForLive ? IdleOnly(assignment.Gamemode.Length) : assignment.Gamemode.Length;
         _scale = assignment.Simulation?.TimeScale is { } scale && scale > 0 ? scale : 1;
+    }
+
+    /// <summary>What a <c>matchzy</c> match keeps of a length: the idle timeout, and nothing MatchZy's rounds decide.</summary>
+    private static GamemodeLength? IdleOnly(GamemodeLength? length) =>
+        length?.IdleTimeoutSeconds is { } seconds ? new GamemodeLength { IdleTimeoutSeconds = seconds } : null;
+
+    /// <summary>
+    /// <b>The host's word that a match whose flow it owns is past its warmup</b> — for
+    /// <c>matchzy</c>, the first round MatchZy starts outside warmup (the knife round, or the
+    /// first live one). From here an empty server counts; before it, nobody being there is
+    /// the join window's to judge. Said once; a second call changes nothing.
+    /// </summary>
+    public void HostWentLive()
+    {
+        if (!_waitsForLive || _wentLive)
+        {
+            return;
+        }
+
+        _wentLive = true;
+        IdleIfEmpty(leaving: null);
     }
 
     /// <summary>The map is up and configured (<c>server_ready</c>): an empty server starts counting.</summary>
@@ -92,7 +130,7 @@ public sealed class MatchLength
 
     internal void OnPlayerConnected(IGamePlayer player)
     {
-        if (IsPerson(player))
+        if (Counts(player))
         {
             _idle?.Cancel();
             _idle = null;
@@ -101,7 +139,7 @@ public sealed class MatchLength
 
     internal void OnPlayerDisconnected(IGamePlayer player)
     {
-        if (IsPerson(player))
+        if (Counts(player))
         {
             IdleIfEmpty(leaving: player);
         }
@@ -126,8 +164,15 @@ public sealed class MatchLength
 
     private void End(MatchEndReason reason)
     {
-        if (!_runtime.Flow.End(reason))
+        var matchzy = _runtime.Assignment?.Gamemode.Flow == GamemodeFlow.Matchzy;
+        var ended = matchzy ? _runtime.EndHook?.Invoke(reason) == true : _runtime.Flow.End(reason);
+        if (!ended)
         {
+            if (matchzy && _runtime.EndHook is null)
+            {
+                _log.Warn($"length: the match ran out on {reason} and nothing on this server can end a matchzy match");
+            }
+
             return;
         }
 
@@ -143,12 +188,14 @@ public sealed class MatchLength
             var lines = _runtime.Localizer.For(assignment.LocaleOf(player.SteamId64));
             _runtime.Brand.Say(player, lines[reason == MatchEndReason.FragLimit ? "length.ended.frag_limit" : "length.ended.time_limit"]);
         }
+
+        _runtime.OnLengthEnded(reason);
     }
 
     private void IdleIfEmpty(IGamePlayer? leaving)
     {
-        if (_length?.IdleTimeoutSeconds is not { } seconds || _idle is not null
-            || _world.Players.Any(player => IsPerson(player) && player.Slot != leaving?.Slot))
+        if (_length?.IdleTimeoutSeconds is not { } seconds || _idle is not null || (_waitsForLive && !_wentLive)
+            || _world.Players.Any(player => Counts(player) && player.Slot != leaving?.Slot))
         {
             return;
         }
@@ -164,9 +211,18 @@ public sealed class MatchLength
         _idle = null;
         _frags.Clear();
         _length = null;
+        _waitsForLive = false;
+        _wentLive = false;
     }
 
     private long Scaled(long seconds) => (long)Math.Ceiling(seconds * 1000 / _scale);
 
     private static bool IsPerson(IGamePlayer player) => !player.IsBot || player.IsPuppet;
+
+    /// <summary>Whether this body keeps the server from being empty: a person, and where the roster is the guest list, a rostered one.</summary>
+    private bool Counts(IGamePlayer player) =>
+        IsPerson(player)
+        && (_runtime.Assignment is not { } assignment
+            || assignment.Gamemode.Slots.OpenJoin
+            || assignment.IsRostered(player.SteamId64));
 }

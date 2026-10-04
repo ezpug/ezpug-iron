@@ -470,10 +470,12 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
   //
   // MatchZy holds its warmup open until two teams have readied up, so nothing
   // ever goes live and nothing ever ends: the story runs dry and the join
-  // deadline is what decides. A `length` changes none of that — it is never
-  // MatchZy's to enforce, and a real server drops it for that flow
-  // (`MatchLength.OnAssigned`), as the manifest rules already refuse to carry
-  // one there.
+  // deadline is what decides. A `length` changes none of that: MatchZy's rounds
+  // are never the SDK's to end, and the one part a matchzy manifest may name —
+  // the idle timeout (decision 26 as amended, `@ezpug/match-api` 0.33.0) —
+  // counts only once the match is past MatchZy's warmup
+  // (`MatchLength.HostWentLive`). Before that an empty server is a no-show, and
+  // the client's join window judges it.
   //
   // A flow the SDK tells the story of ends its *own* warmup instead
   // (`GenericFlow`, `GoLiveDelayMs`): twenty seconds after the map is up the

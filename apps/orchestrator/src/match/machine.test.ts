@@ -1680,6 +1680,71 @@ describe('the demo', () => {
     await app.close()
   })
 
+  it('ends a PUG everybody left on its demo, and the end still says idle (0.33.0)', async () => {
+    // Production, 2026-10-04: a live pug on an empty box until an admin
+    // force-ended it. The server now ends it itself — `series_end`, `idle`, no
+    // winner — and hands over the demo it had; the match waits for that the
+    // way it waits after any series, and ends saying why.
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key, match, say } = await scripted(app)
+
+    await say({
+      type: 'series_end',
+      seriesScore: { teamA: 0, teamB: 0 },
+      winner: null,
+      reason: 'idle',
+    })
+    await app.settle()
+    expect((await app.matches.get(key, match.id)).state).toBe('live')
+
+    await app.advance(20_000)
+    await say({
+      type: 'demo_available',
+      mapNumber: 1,
+      filename: 'match.dem',
+      sizeBytes: 9_000_000,
+      sha256: 'c'.repeat(64),
+      contentType: 'application/octet-stream',
+    })
+    await app.playOut()
+
+    const final = await app.matches.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.endedReason).toEqual({ kind: 'completed', detail: 'the mode’s length: idle' })
+    expect(
+      app.store.rows.events.find(e => e.matchId === match.id && e.payload.type === 'match.ended')
+        ?.payload,
+    ).toMatchObject({ demo: { uploaded: 1 } })
+    expect(app.store.rows.servers.find(s => s.matchId === match.id)?.state).toBe('released')
+    await app.close()
+  })
+
+  it('ends a PUG nobody reached at once, with no demo to wait for', async () => {
+    const app = createTestApp({ providers: [createPhantomProvider()] })
+    const { key } = await platformKey(app)
+    const { match } = await app.matches.create(key, withDemo())
+    await app.settle()
+    const row = app.store.rows.servers.find(server => server.matchId === match.id)
+    if (!row?.serverId) throw new Error('the walk left no server')
+    const source = { provider: PHANTOM, serverId: row.serverId }
+    const say = async (event: Record<string, unknown> & { type: GameserverEvent['type'] }) =>
+      app.matches.ingest(source, { ...event, matchId: match.id, source } as GameserverEvent)
+    await say({ type: 'server_ready', map: 'de_mirage' })
+    await say({
+      type: 'series_end',
+      seriesScore: { teamA: 0, teamB: 0 },
+      winner: null,
+      reason: 'idle',
+    })
+    await app.settle()
+
+    const final = await app.matches.get(key, match.id)
+    expect(final.state).toBe('ended')
+    expect(final.endedReason).toEqual({ kind: 'completed', detail: 'the mode’s length: idle' })
+    expect(app.store.rows.servers.find(s => s.matchId === match.id)?.releasedAt).toBeTruthy()
+    await app.close()
+  })
+
   it('ends anyway when the demo never comes, and says so', async () => {
     const app = createTestApp({ providers: [createPhantomProvider()] })
     const { key, match, say } = await scripted(app)

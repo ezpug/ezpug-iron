@@ -92,8 +92,8 @@ export type GamemodeSlots = z.infer<typeof gamemodeSlotsSchema>
  * nothing to win and therefore nothing to end on, and a rented server played
  * one for as long as nobody released it. So the manifest says it, and the SDK
  * on the server enforces it for every flow it tells the story of (`plugin` and
- * `none`; a `matchzy` mode's length is MatchZy's and a manifest claiming one
- * does not parse):
+ * `none`; a `matchzy` mode's rounds are MatchZy's, and it may name only the
+ * idle timeout — see below):
  *
  * - `durationSeconds` — the match ends this long after `going_live`
  *   (`time_limit`). What a client counts **down**: `going_live.length` repeats
@@ -109,6 +109,15 @@ export type GamemodeSlots = z.infer<typeof gamemodeSlotsSchema>
  * Whichever is reached first ends the match: `map_end` and `series_end` carry
  * the `reason`, and the orchestrator releases the server as it does for any
  * finished series. At least one of the three is named.
+ *
+ * **A `matchzy` mode may name the idle timeout and nothing else** (since
+ * 0.33.0, decision 26 as amended). MatchZy plays the rounds it was given, so a
+ * duration or a frag limit there does not parse; but MatchZy has no end for a
+ * server everybody left, and production's first abandoned PUG billed an empty
+ * box until an admin force-ended it. The SDK on that server runs the same idle
+ * clock, and its end is a `series_end` with `reason: "idle"` and **no winner**:
+ * a map nobody finished has no result, and naming the leader would be a
+ * forfeit. No `map_end` precedes it — the map was abandoned, not won.
  */
 export const gamemodeLengthSchema = z
   .object({
@@ -131,6 +140,14 @@ export type GamemodeLength = z.infer<typeof gamemodeLengthSchema>
  * on the rules that plugin plays, and nothing here ends its match for it.
  */
 export const SDK_TOLD_FLOWS: readonly GamemodeFlow[] = ['plugin', 'none']
+
+/**
+ * The one part of a {@link gamemodeLengthSchema} a flow the SDK does not tell
+ * may carry: `idleTimeoutSeconds` (since 0.33.0). Nobody on the server is not
+ * a rule of the game the match plugin plays, so ending on it takes nothing
+ * away from the plugin; a duration or a frag limit would.
+ */
+export const OWNED_FLOW_LENGTH_FIELDS: readonly (keyof GamemodeLength)[] = ['idleTimeoutSeconds']
 
 /**
  * Which maps a match of this mode may pin. `any` — whatever the request
@@ -457,8 +474,17 @@ function checkManifestConsistency(
     refuse('plugins', `a ${manifest.tier} mode names the plugin it runs on`)
   }
 
-  if (manifest.length !== undefined && !SDK_TOLD_FLOWS.includes(manifest.flow))
-    refuse('length', 'a length is enforced by the SDK, for the flows it tells the story of')
+  if (manifest.length !== undefined && !SDK_TOLD_FLOWS.includes(manifest.flow)) {
+    // A flow its match plugin owns keeps its rounds; an empty server is nobody's game.
+    const named = Object.entries(manifest.length as Record<string, unknown>)
+      .filter(([, value]) => value !== undefined)
+      .map(([field]) => field)
+    if (!named.every(field => (OWNED_FLOW_LENGTH_FIELDS as readonly string[]).includes(field)))
+      refuse(
+        'length',
+        'a flow its match plugin owns plays the rules it was given; its length is an idle timeout only',
+      )
+  }
 
   if (manifest.tier !== 'sdk') {
     if (manifest.commands.length > 0) refuse('commands', 'only an sdk mode accepts player commands')

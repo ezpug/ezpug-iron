@@ -102,9 +102,18 @@ match's time scale is taken out of it) and a leader's kills up to `fragLimit` fr
 `player_death`s you already have — and `map_end.reason` / `series_end.reason` is
 `time_limit`, `frag_limit` or `idle` when the length ended the match, absent when the game
 did. An `idle` end may come from `ready`, with no `going_live` and no `map_end` before it:
-nobody came. Either way the match ends `completed` and the server is released. **A
-one-team mode (`slots.teams: 1`) names no winner**: `winner` is `null` on both facts,
+nobody came. Either way the match ends `completed` and the server is released.
+**A one-team mode (`slots.teams: 1`) names no winner**: `winner` is `null` on both facts,
 whatever the engine's two side scores said.
+
+**A `matchzy` mode may name the idle timeout too** (since 0.33.0; `pug`'s is 600 s). It
+counts only once the match is past the match plugin's warmup, so a match nobody reached is
+still the join deadline's (and your join window's). After that, its idle end is a lone
+`series_end` with `reason: "idle"` and **`winner: null`** even from `live`: no `map_end`
+for the map in play (it was abandoned, not won), the maps already finished as
+`seriesScore`, and the match ends `completed` once the demo of what was played is handed
+over. Read it as "everybody left", never as a draw: a client that rates matches should
+rate this one as nobody's result.
 
 **A tower round says who owned the tower** (since 0.28.0, PRD-06; decision 33). On
 `rush_001` a round is won by whoever owns the room's tower when it ends, and the match walks

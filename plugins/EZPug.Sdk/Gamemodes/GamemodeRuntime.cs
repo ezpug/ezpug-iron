@@ -196,6 +196,23 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
     /// <summary>The host answers a Match API command first; <c>null</c> lets the runtime and the mode try.</summary>
     public Func<LinkCommand, CommandAnswer?>? CommandHook { get; set; }
 
+    /// <summary>
+    /// <b>The host ends a match whose flow the SDK does not tell</b> (decision 26 as amended,
+    /// 2026-10-04): <see cref="MatchLength"/> calls it when a <c>matchzy</c> match runs out
+    /// its idle timeout, and the host says the terminal facts the generic flow would have
+    /// said for one of its own. <c>true</c> when the end was said.
+    /// </summary>
+    public Func<MatchEndReason, bool>? EndHook { get; set; }
+
+    /// <summary>
+    /// The manifest's length ended the match and its terminal facts are said — by the generic
+    /// flow or by <see cref="EndHook"/>. No win panel is coming, so whoever was waiting for one
+    /// (the demo) does its work now.
+    /// </summary>
+    public event Action<MatchEndReason>? LengthEnded;
+
+    internal void OnLengthEnded(MatchEndReason reason) => LengthEnded?.Invoke(reason);
+
     /// <summary>What the link says in <c>hello</c> and every heartbeat.</summary>
     public LinkStatus Status() =>
         new(_state, World.Map, World.Players.Count, Assignment?.MatchId);

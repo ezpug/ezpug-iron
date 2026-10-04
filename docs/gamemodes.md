@@ -96,7 +96,19 @@ A terminal fact with no `reason` is the game's own end (the win panel). **A one-
 (`slots.teams: 1`) never names a winner**, whoever ended it: the engine keeps a CT and a T
 score in a free-for-all too, and the side that happened to lead did not win a deathmatch.
 
-What ships: `powerup-dm` is ten minutes, or five with nobody there. `retakes` and
+**A `matchzy` mode may name `idleTimeoutSeconds` and nothing else** (decision 26 as
+amended, 2026-10-04). MatchZy's rounds stay MatchZy's, but it has no end for a server
+everybody left. Its clock runs only once the match is past MatchZy's warmup (the first
+knife or live round): before that an empty server is a no-show, and the client's join
+window judges it. The core plugin says that end: a lone `series_end` with `reason: "idle"`,
+**no winner** (a map nobody finished has no result; naming whoever led would be a
+forfeit), the finished maps as `seriesScore`, and no `map_end`. The recording is stopped
+at once and handed over as after a win panel. **Where `openJoin` is `false` only a
+rostered person stops the clock**, in every flow: somebody the server turns away at the
+door is not on it.
+
+What ships: `pug` ends ten minutes after the last rostered player left a match past its
+warmup (decision 26 says why ten). `powerup-dm` is ten minutes, or five with nobody there. `retakes` and
 `flying-scoutsman` end on the rounds the request's rules set — cs2-retakes plays
 `mp_maxrounds` like any round-based game, which is the one end its plugin can honestly
 reach — and on five idle minutes. Measured on the dev node for `retakes` in T10: the

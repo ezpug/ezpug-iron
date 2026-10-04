@@ -10,6 +10,7 @@
   "slots": { "teamSize": 5, "teams": 2, "openJoin": false },
   "formats": ["competitive", "wingman"],
   "flow": "matchzy",
+  "length": { "idleTimeoutSeconds": 600 },
   "records": "demo",
   "ranked": false,
   "maps": "any",
@@ -33,6 +34,6 @@
     "mixedRoster": true
   },
   "commands": [],
-  "version": "0.3.0",
+  "version": "0.4.0",
   "sdkVersion": "0.1.0"
 }

@@ -30,6 +30,10 @@ namespace EZPug.Core;
 /// <item>a <c>restore</c> relayed over the link on a live match (PRD-04 T8), answered
 /// with MatchZy's own <c>matchzy_loadbackup</c> and, like a pause, by what the engine
 /// did — see <see cref="Restore"/>.</item>
+/// <item><b>The end of a match everybody left</b> (decision 26 as amended, 2026-10-04):
+/// MatchZy has no end for an empty server, so when the manifest's idle timeout runs out
+/// (<see cref="MatchLength"/>) this class says the one terminal fact MatchZy never will —
+/// see <see cref="EndIdle"/>.</item>
 /// </list>
 ///
 /// Pure over <see cref="IGameWorld"/> and the runtime, proven on the harness; inactive for
@@ -79,6 +83,13 @@ public sealed class MatchZyFlow
     private string? _restoreSeen;
     private long _roundStarts;
     private bool _roundOver;
+    /// <summary>Team A's and team B's score at the last round end on this map, as the engine counted it.</summary>
+    private (long TeamA, long TeamB) _mapScore;
+    /// <summary>Maps whose win panel this server showed, by who led at it — the series score an idle end carries.</summary>
+    private long _mapsA;
+    private long _mapsB;
+    private long _mapsOver;
+    private bool _ended;
 
     public MatchZyFlow(IGameWorld world, GamemodeRuntime runtime, string csgoDirectory, ILinkLog? log = null)
     {
@@ -100,8 +111,11 @@ public sealed class MatchZyFlow
         _runtime.Assigned += OnAssigned;
         _runtime.Released += OnReleased;
         _runtime.CommandHook = OnCommand;
+        _runtime.EndHook = EndIdle;
         _world.RoundStarted += OnRoundStarted;
         _world.RoundEnded += OnRoundEnded;
+        _world.MapEnded += OnMapEnded;
+        _world.MapStarted += OnMapStarted;
     }
 
     private void OnAssigned(Assignment assignment)
@@ -114,6 +128,11 @@ public sealed class MatchZyFlow
         _pendingSwap = false;
         _lastBackup = null;
         _roundOver = false;
+        _mapScore = (0, 0);
+        _mapsA = 0;
+        _mapsB = 0;
+        _mapsOver = 0;
+        _ended = false;
         if (!_active)
         {
             return;
@@ -576,6 +595,9 @@ public sealed class MatchZyFlow
             return;
         }
 
+        // Past MatchZy's warmup — everybody readied up: an empty server counts from here.
+        _runtime.Length.HostWentLive();
+
         var context = _runtime.Match;
         if (RosteredSide(assignment) is { } observed)
         {
@@ -600,10 +622,83 @@ public sealed class MatchZyFlow
 
     private void OnRoundEnded(RoundEnd end)
     {
-        if (_active)
+        if (!_active)
         {
-            _roundOver = true;
+            return;
         }
+
+        _roundOver = true;
+        // The engine's scores belong to the sides, and the sides to whoever stands on them
+        // this round — team A's side is the context's until the next round start says a swap.
+        var teamAOnCt = _runtime.Match.TeamASide == TeamSide.Ct;
+        _mapScore = teamAOnCt
+            ? (end.CounterTerroristScore, end.TerroristScore)
+            : (end.TerroristScore, end.CounterTerroristScore);
+    }
+
+    private void OnMapStarted(MapStart start) => _mapScore = (0, 0);
+
+    /// <summary>The win panel: MatchZy reports the map's result over its own log, and this server keeps the tally an idle end will need.</summary>
+    private void OnMapEnded()
+    {
+        if (!_active)
+        {
+            return;
+        }
+
+        _mapsOver++;
+        if (_mapScore.TeamA > _mapScore.TeamB)
+        {
+            _mapsA++;
+        }
+        else if (_mapScore.TeamB > _mapScore.TeamA)
+        {
+            _mapsB++;
+        }
+    }
+
+    // ------------------------------------------------------------------ an empty server
+
+    /// <summary>
+    /// <b>The idle timeout ran out on a <c>matchzy</c> match</b> (<see cref="GamemodeRuntime.EndHook"/>):
+    /// nobody the match is for has been on the server for the manifest's
+    /// <c>idleTimeoutSeconds</c>, and MatchZy, which has no end for that, would hold the
+    /// server for ever. Said here, once, as the one fact the orchestrator ends a match and
+    /// releases its server on: a <c>series_end</c> with <c>reason: idle</c>.
+    ///
+    /// <list type="bullet">
+    /// <item><b>No winner, whatever the score.</b> A map nobody finished has no result, and
+    /// naming whoever led would be a forfeit — which the platform's rule, "a leaver is a
+    /// clock, not a forfeit", refuses. The series score is the maps that were finished.</item>
+    /// <item><b>No <c>map_end</c>.</b> The map in play was abandoned, not won; its rounds
+    /// are already in the log, round by round, as MatchZy reported them.</item>
+    /// <item><b>Nothing to MatchZy.</b> Its own <c>endmatch</c> would POST a
+    /// <c>series_end</c> of its own with a winner in it. The orchestrator releases the
+    /// server, which unloads MatchZy with everything else.</item>
+    /// </list>
+    ///
+    /// <c>false</c> — nothing said — for another flow, a second time, and a series whose
+    /// last win panel this server already showed: that match ended on its own rounds and
+    /// is only waiting for its demo.
+    /// </summary>
+    public bool EndIdle(MatchEndReason reason)
+    {
+        if (!_active || _ended || _runtime.Assignment is not { } assignment)
+        {
+            return false;
+        }
+
+        var maps = Math.Max(assignment.Maps.Count, 1);
+        if (_mapsOver >= maps || _mapsA * 2 > maps || _mapsB * 2 > maps)
+        {
+            _log.Info($"length: {reason} on a series MatchZy already finished; nothing to end");
+            return false;
+        }
+
+        _ended = true;
+        _runtime.Emit(_runtime.Facts.SeriesEnd(new TeamScore { TeamA = _mapsA, TeamB = _mapsB }, winner: null, reason));
+        _log.Info($"length: nobody on the server, the match ends ({reason}) with the score of its map at {_mapScore.TeamA}-{_mapScore.TeamB} and no winner");
+        return true;
     }
 
     /// <summary>The side most of team A's rostered players stand on, or <c>null</c> when none of them is on a side (or they split evenly).</summary>

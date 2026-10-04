@@ -358,8 +358,14 @@ that is what the centre panel reads.
 A round-based mode ends when the engine has counted its rounds and the generic flow emitter
 reports the win panel. A free-for-all has no such thing, so the manifest declares a
 `length` (`docs/gamemodes.md`, "Length") and the SDK enforces it — `MatchLength`, owned by
-the runtime like the emitter, for every flow the emitter tells (`plugin`, `none`), never
-for `matchzy`, and never over a mode whose class says `OwnsFlow`. A mode writes nothing:
+the runtime like the emitter, for every flow the emitter tells (`plugin`, `none`), and never
+over a mode whose class says `OwnsFlow`. A `matchzy` match keeps the idle timeout and
+nothing else, counted only once the host calls `Length.HostWentLive()` (the core plugin does
+at the first round outside MatchZy's warmup), and its end is the host's to say through
+`GamemodeRuntime.EndHook` (the core
+plugin's `MatchZyFlow.EndIdle`: a lone `series_end`, `idle`, no winner). Whoever ended it,
+`GamemodeRuntime.LengthEnded` follows, because no win panel is coming and the demo is
+handed over on it. A mode writes nothing:
 
 ```json
 "length": { "durationSeconds": 600, "fragLimit": 30, "idleTimeoutSeconds": 300 }
@@ -373,7 +379,9 @@ for `matchzy`, and never over a mode whose class says `OwnsFlow`. A mode writes 
   to the world are nobody's. The death is emitted before the end it causes.
 - **The idle timeout** runs whenever nobody is on the server — from `server_ready`, and
   from the last person leaving — and a connect cancels it. A person is a human or a puppet
-  (`IsBot && !IsPuppet` is furniture), or a room of request bots would bill for ever.
+  (`IsBot && !IsPuppet` is furniture), or a room of request bots would bill for ever; where
+  `slots.openJoin` is `false`, only a rostered one, because the server turns a stranger
+  away and a knock every minute must not hold an abandoned match open.
 
 Whichever comes first calls `GenericFlow.End(reason)`: `map_end` if the map was live,
 `series_end` always, both with `reason`, no winner for `slots.teams: 1`; the humans are told

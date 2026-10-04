@@ -143,6 +143,35 @@ public class DemoFlowTests
     }
 
     [Fact]
+    public async Task AnIdleEndStopsMatchZysRecordingAtOnceAndHandsTheDemoOver()
+    {
+        // A pug everybody left (2026-10-04): no win panel is ever coming, MatchZy keeps
+        // GOTV recording an empty server, and the orchestrator waits for a demo. The end
+        // the length said stands in for the win panel.
+        using var rig = new Rig();
+        rig.Runtime.EndHook = _ => true;
+        rig.Start();
+        rig.Runtime.Length.HostWentLive();
+        var path = rig.WriteDemo(rig.MatchZyFolder, $"2026_{Serial}_de_mirage_A_vs_B.dem", 4_096);
+
+        rig.World.Elapse(599_000);
+        Assert.DoesNotContain(rig.World.Actions, action => action.Verb == "command" && action.Detail == "tv_stoprecord");
+        rig.World.Elapse(1_000);
+        // At once: the delayed broadcast's last minutes are an empty server.
+        Assert.Contains(rig.World.Actions, action => action.Verb == "command" && action.Detail == "tv_stoprecord");
+
+        rig.Poll();
+        rig.World.Elapse(DemoFlow.SettleMs);
+        var announced = await rig.WaitForDemoAsync();
+
+        Assert.NotNull(announced);
+        Assert.Equal(4_096, announced.SizeBytes);
+        Assert.NotNull(announced.Sha256);
+        Assert.Equal(1, announced.MapNumber);
+        Assert.Equal(File.ReadAllBytes(path), Assert.Single(rig.Transport.Attempts).Body);
+    }
+
+    [Fact]
     public async Task WithNowhereToPutItTheDemoIsStillAnnouncedAndCarriesNoHash()
     {
         using var rig = new Rig();

@@ -4,7 +4,28 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
-_Nothing yet._
+**An empty PUG ends itself** (decision 26 as amended, 2026-10-04; for the platform's next
+`chore(deps): match-api` bump). A manifest that parsed under 0.32.0 parses and means the
+same; one shape that was refused now parses, and one shipped manifest names it.
+
+- **A `matchzy` manifest may carry `length: { idleTimeoutSeconds }`, and only that**
+  (`OWNED_FLOW_LENGTH_FIELDS`). A duration or a frag limit there is still refused: MatchZy
+  plays the rounds it was given.
+- **`pug` (manifest 0.4.0) ends after 600 s with nobody on the server**, counted from the
+  last rostered player leaving a match past its warmup (the first knife or live round).
+  A match nobody reached is not an idle end: it stays the join deadline's, and the
+  client's own join window (a cup's fifteen minutes) is never cut short.
+  Production's first abandoned pug stayed `live` on an empty, billed server until an admin
+  force-ended it.
+- **What a client sees**: a lone `series_end` with `reason: "idle"`, `winner: null` even
+  from `live` (a map nobody finished has no result; naming the leader would be a forfeit),
+  the finished maps as `seriesScore`, no `map_end` before it, then the demo of what was
+  played and `match.ended` `completed` with `the mode’s length: idle`. **A client that
+  rates matches must treat it as nobody's result**, not as a draw.
+- **Where `slots.openJoin` is `false`, only a rostered person stops an idle clock**, in
+  every mode (`rush` too): a stranger the server turns away is not on it.
+- **The simulator's `idle` scenario** (nobody ever comes) still runs dry for `pug`, for
+  the same reason.
 
 ## 0.32.0 — 2026-10-04
 
