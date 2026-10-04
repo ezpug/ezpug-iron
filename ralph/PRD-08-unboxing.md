@@ -153,7 +153,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   buying while they watch). 16:9 and 4:3. In the house style of the welcome and the card
   (`hud/styles/`), with the cast where a hand is needed. Gotchas above; transitions on
   classes, never keyframes on transforms.
-- [ ] **T4 (fable): the unboxing, played.** In the SDK, beside `Moments`. A drop moment
+- [x] **T4 (fable): the unboxing, played.** In the SDK, beside `Moments`. A drop moment
   with a reel, due in a quiet stretch that fits the whole sequence, plays the unboxing for
   everybody on the server: slots chosen deterministically (seeded by the moment, so a
   redelivery shows the same reel), the prize in the stopping slot, classes set per beat on
