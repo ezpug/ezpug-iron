@@ -17,6 +17,16 @@ reel and waits for this round's release. The platform already holds a win until 
 **Branch:** `main`. **Surface:** the whole repo. **Model:** `claude-opus-5-5`; tasks tagged
 `(fable)` run on Fable 5.1; effort as tagged, `high` without a tag.
 
+**The deadline: a playtest at 19:00 on 2026-10-04** (the owner, final preparation for the
+SaarLAN the weekend after). Everything below must be published, released and deployed by
+**18:00**. Order of work is therefore T1, T1a, T3, T4, T5, T7, T6, T8, and T2 last; if T2
+does not fit, it moves to after the playtest with a `> note:` and nothing else waits for it.
+Checkpoints are trimmed: `pnpm verify` every task, the lane plays **only the unboxing rows**
+(never the whole matrix), and the extended tier runs once, in T6, detached, in parallel with
+the lane. The Workshop serves a new revision about 47 minutes late, so the first publish
+happens as soon as the layout and the sound are in (T7 before T6), and a later fix is a
+republish started no later than 17:00.
+
 **Budgets:**
 - **Decision 34 holds as written.** Nothing depends on the unboxing; it never takes the
   mouse; off means untouched. A server without a HUD prints the line, as today. A freeze
@@ -101,14 +111,10 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   its reason, because the platform's crate, phone and feed reveal at that instant. The
   server is told nothing else new. Fixtures, the fake orchestrator's behaviour, the
   changelog. `docs/match-api.md` says what a client sends. No release yet (T8).
-- [ ] **T2 (effort: medium): the avatar, tried.** Find out what can show a person's Steam
-  avatar in a `custom_hud_layout`: read Valve's panel registry and the game's own layouts
-  (the scoreboard draws avatars), then build each plausible candidate in a **debug
-  layout** that only an rcon command shows, never a moment. Write down what the compiler
-  accepts and refuses. Whatever compiles goes into the addon and onto the look list as one
-  step. The unboxing's default design must not need it: the fallback is the person's name,
-  large, in their team's colour with the cast's mascot of that side. When the owner has
-  looked, the winner is wired into T4 or the step says why not.
+- [ ] **T1a (effort: medium): release 0.32.0 now.** The platform's PRD-18 T5b waits for
+  the contract, and the playtest is today: publish `@ezpug/match-api` 0.32.0 to the box's
+  Verdaccio as soon as T1 is green, with the changelog line naming PRD-18 T5b, so the
+  platform builds against it while this round draws. A later fix is 0.32.1, additive.
 - [ ] **T3: the unboxing, drawn.** A layout (or a section of the moment's layout) with
   three beats: **the call** (the name or avatar, "hat einen Drop! Mal sehen…" / "got a
   drop! Let's see…", from the server's catalog in both languages), **the reel** (a strip
@@ -136,21 +142,31 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   schedule), and the reveal by tier, for everybody, at a volume that does not drown the
   round's audio. If the volume argument does not scale an event (PRD-07's open question),
   say so and pick events that differ by tier instead. `PlaySound` only; no shipped audio.
-- [ ] **T6 (checkpoint): the lane.** A row on the dev node behind the lock: a puppeted
+- [ ] **T7 (effort: medium): publish and the template.** `pnpm hud:build`,
+  `pnpm hud:publish`, the check until byte for byte. `pnpm dathost:image` and `--check`
+  green. `./scripts/deploy.sh all` for the orchestrator.
+- [ ] **T6 (checkpoint, trimmed): the lane.** The unboxing rows only, never the matrix,
+  with the extended tier detached in parallel. A row on the dev node behind the lock: a puppeted
   match, a drop moment with a reel sent at a `round_start`, and the layout's state read
   back over the freeze (`ezpug_status`, the entity read-back of PRD-07 T9): the beats in
   order, their instants, everything cleared before `round_freeze_end`. The same with a
   freeze too short, and with the HUD off (the line only). The extended tier green.
-- [ ] **T7 (effort: medium): publish and the template.** `pnpm hud:build`,
-  `pnpm hud:publish`, the check until byte for byte. `pnpm dathost:image` and `--check`
-  green. `./scripts/deploy.sh all` for the orchestrator.
-- [ ] **T8 (effort: medium): the release and the books.** `@ezpug/match-api` 0.32.0 on
-  Verdaccio, changelog line naming PRD-18 T5b. `docs/hud.md`: the unboxing section, the
+- [ ] **T8 (effort: medium): the books.** (0.32.0 shipped in T1a; a 0.32.1 only if
+  something changed.) `docs/hud.md`: the unboxing section, the
   avatar's finding, the timing table, and **the look list's new steps**: the unboxing at
   16:9 and 4:3 in both languages, with the buy menu open, as a spectator, a freeze too
   short, the avatar debug layout. `docs/decisions.md` 34 amended for "the whole server
   watches a drop". A closing note for the platform: the version, the reveal constant, what
   a reel needs.
+
+- [ ] **T2 (effort: medium): the avatar, tried.** (Last; after the playtest if it does not fit.) Find out what can show a person's Steam
+  avatar in a `custom_hud_layout`: read Valve's panel registry and the game's own layouts
+  (the scoreboard draws avatars), then build each plausible candidate in a **debug
+  layout** that only an rcon command shows, never a moment. Write down what the compiler
+  accepts and refuses. Whatever compiles goes into the addon and onto the look list as one
+  step. The unboxing's default design must not need it: the fallback is the person's name,
+  large, in their team's colour with the cast's mascot of that side. When the owner has
+  looked, the winner is wired into T4 or the step says why not.
 
 ## Working rules
 
