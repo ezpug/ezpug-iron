@@ -289,6 +289,14 @@ public sealed partial class Moments
     private bool UnboxStretch =>
         _hud.Spawned && _hud.Quiet is { } quiet && quiet.Reason != QuietReason.RoundOver && quiet.Fits(UnboxMs + UnboxSpareMs);
 
+    /// <summary>What is left of the stretch, for a console line: the milliseconds, or why there is none.</summary>
+    private string Left() => _hud.Quiet switch
+    {
+        null => "no stretch",
+        { LeftMs: { } left } quiet => $"{quiet.Reason}, {left} ms left",
+        { } quiet => $"{quiet.Reason}",
+    };
+
     /// <summary>The winner's name as a label and a chat line may carry it: the player's on the server (a puppet's seat too), or the roster's.</summary>
     private string? NameOf(ulong steamId64) =>
         (_world.Find(steamId64)?.Name ?? _assignment?.ProfileOf(steamId64)?.Name) is { } name ? SaidLine.Sanitize(name) : null;
@@ -315,6 +323,7 @@ public sealed partial class Moments
 
         if (!busy && _hud.Quiet is not { Reason: QuietReason.RoundOver })
         {
+            _log.Info($"hud: no stretch fits the unboxing for {about} ({Left()}, {UnboxMs + UnboxSpareMs} ms wanted); it is shown without its reel");
             return false;
         }
 
@@ -415,7 +424,7 @@ public sealed partial class Moments
             _brand.Say(player, SaidLine.Fit($"{name} {call}", room));
         }
 
-        _log.Info($"hud: unboxing for {about}, {_watching.Count} watching; the prize shows in {RevealMs} ms");
+        _log.Info($"hud: unboxing for {about} ({Left()}), {_watching.Count} watching; the prize shows in {RevealMs} ms");
         _unboxTimer = _world.Clock.After(CallMs, Roll);
     }
 
@@ -428,6 +437,7 @@ public sealed partial class Moments
             _hud.SetClass(watcher, Layout, Unbox, Rolling, true);
         }
 
+        _log.Info($"hud: the unboxing for {_unboxing!.Moment.About} rolls to landing {_landing}");
         _tick = 0;
         _tickTimer = _world.Clock.After(TicksOf(_landing)[0], Tick);
         _unboxTimer = _world.Clock.After(ReelMs, Reveal);
@@ -450,6 +460,7 @@ public sealed partial class Moments
     {
         var moment = _unboxing!.Moment;
         _revealed = true;
+        _log.Info($"hud: the unboxing for {moment.About} shows its prize ({moment.Tier.ToString().ToLowerInvariant()}) and says its line");
         foreach (var watcher in Watching())
         {
             _hud.SetClass(watcher, Layout, Unbox, Landing(_landing), false);
@@ -460,7 +471,7 @@ public sealed partial class Moments
         Say(moment, PersonOf(moment));
         _unboxTimer = _world.Clock.After(PrizeMs, () =>
         {
-            Close();
+            Close("its prize was shown");
             _unboxResting = true;
             _unboxTimer = _world.Clock.After(UnboxRestMs, () =>
             {
@@ -549,8 +560,9 @@ public sealed partial class Moments
     // ------------------------------------------------------------------ gone
 
     /// <summary>Every beat off every screen it was on, in one frame: the stylesheet fades the panel whatever the reel is doing.</summary>
-    private void Close()
+    private void Close(string why)
     {
+        _log.Info($"hud: the unboxing for {_unboxing?.Moment.About} is put away: {why}");
         foreach (var watcher in Watching())
         {
             _hud.SetClass(watcher, Layout, Unbox, Shown, false);
@@ -575,7 +587,7 @@ public sealed partial class Moments
             return;
         }
 
-        Close();
+        Close(_revealed ? "somebody is playing" : "somebody is playing before its prize, so it is shown without its reel");
         if (!_revealed)
         {
             Plain(unboxing.Moment);
@@ -588,7 +600,7 @@ public sealed partial class Moments
         var unsaid = _unboxings.Select(waiting => waiting.Moment).ToList();
         if (_unboxing is { } unboxing)
         {
-            Close();
+            Close("the map changed");
             if (!_revealed)
             {
                 unsaid.Insert(0, unboxing.Moment);

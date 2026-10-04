@@ -26,7 +26,7 @@ public sealed class GamemodeTestHost : IDisposable
         Clock = clock ?? new FakeClock();
         World = new FakeGameWorld(Clock, map);
         Link = new FakePlatformLink();
-        Runtime = new GamemodeRuntime(World, Link, hudAddon: hudAddon);
+        Runtime = new GamemodeRuntime(World, Link, new ListLog(Logged), hudAddon);
         Mode = mode;
         if (mode is not null)
         {
@@ -40,6 +40,9 @@ public sealed class GamemodeTestHost : IDisposable
     public FakeGameWorld World { get; }
     public FakePlatformLink Link { get; }
     public GamemodeRuntime Runtime { get; }
+
+    /// <summary>What the runtime said to the server's console, in order, each line <c>info: </c> or <c>warn: </c> first.</summary>
+    public List<string> Logged { get; } = [];
     public Gamemode? Mode { get; }
 
     /// <summary>Assign the match and bring the first map up, which is when <c>OnStart</c> fires and <c>server_ready</c> is emitted.</summary>
@@ -100,4 +103,12 @@ public sealed class GamemodeTestHost : IDisposable
         new() { SteamId64 = steamId64.ToString(), Name = name, Locale = locale, Rating = rating };
 
     public void Dispose() => Runtime.Dispose();
+}
+
+/// <summary>A console that keeps what it is told, for <see cref="GamemodeTestHost.Logged"/>.</summary>
+internal sealed class ListLog(List<string> lines) : ILinkLog
+{
+    public void Info(string message) => lines.Add("info: " + message);
+
+    public void Warn(string message) => lines.Add("warn: " + message);
 }

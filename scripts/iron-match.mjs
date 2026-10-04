@@ -130,6 +130,14 @@ const HELP = `iron-match — run one real match through the Match API and record
                          (PRD-07 T4). Then it asks the server what it holds:
                          the addons a client is handed and the layouts, as
                          ezpug_status reads them back (T9). Implies --console
+  --unbox                ask for a HUD on the request and, at the first
+                         round_start the run sees once the match is live,
+                         tell it a drop about the first rostered player with
+                         a reel, the way the platform does (PRD-08 T6); then
+                         read the server over that freeze: ezpug_status
+                         mid-reel and after the freeze, and the unboxing's
+                         console lines timed against round_start, keeping
+                         live.cfg's freeze. Implies --console
   --console              keep the server's console: follow the container the
                          node started (docker logs, so only on the node's own
                          box) into <out>/console.log until it is removed
@@ -425,6 +433,24 @@ const MOMENT = flags.get('moment') === 'true'
 /** How long after the two moments the server is asked what it holds: both are due by then, the second one two seconds on. */
 const HUD_READ_AFTER_MS = 4_000
 /**
+ * **The unboxing, at a round start** (PRD-08 T6). The platform holds a win
+ * until the next `round_start` and sends it with a reel, so the run waits for
+ * one and sends the drop the instant the stream carries it. A server of
+ * puppets has nobody to draw the beats for (a bot has no screen, so nobody
+ * watches), and what the lane can hold the server to is what it says: the
+ * console's line for each beat, at its instant, and the reel laid out for
+ * everybody in `ezpug_status`, all of it before the freeze ends.
+ */
+const UNBOX = flags.get('unbox') === 'true'
+/** When, after the round start, the server is asked what it holds: inside the reel, which rolls from 2 s to 8 s of the sequence. */
+const UNBOX_READ_AT_MS = 5_000
+/**
+ * How long the run watches after the round start: past a PUG's 18 s freeze. No fact
+ * marks a freeze's end (the vocabulary has none), so the server's own reading of what
+ * was left of it is on the unboxing's first console line, and the lane reads it there.
+ */
+const UNBOX_WATCH_MS = 21_000
+/**
  * **The server's console, kept** (PRD-07 T9). A node removes its container
  * when the match ends and the console goes with it, and what a server says
  * *after* its release (that its layouts are gone, that clients are handed no
@@ -435,7 +461,7 @@ const HUD_READ_AFTER_MS = 4_000
  * console and stays in the run's folder; the summary quotes only its `hud:`
  * and MultiAddonManager lines.
  */
-const CONSOLE = flags.get('console') === 'true' || MOMENT
+const CONSOLE = flags.get('console') === 'true' || MOMENT || UNBOX
 /** `apps/node/src/instances.ts`, `CONTAINER_NAME_PREFIX`. */
 const NODE_CONTAINER_PREFIX = 'ezpug-node-'
 /** How long the run waits for the container to go once the match is over, so the file holds what the server said last. */
@@ -1687,7 +1713,10 @@ async function run() {
         // round. It was reverted rather than kept on a reason that had already
         // been shown to be something else; a shorter round is a change somebody
         // can make later, on a measurement of its own.
-        mp_freezetime: '5',
+        //
+        // **Not under `--unbox`** (PRD-08 T6): that run is about whether the
+        // freeze a PUG plays fits an unboxing, so it keeps `live.cfg`'s.
+        ...(!UNBOX && { mp_freezetime: '5' }),
         // **Not under `--simulate`: the bot population is the fork's there**
         // (PRD-03 T5). Simulation mode sets `bot_join_after_player 0`,
         // `bot_quota_mode normal` and `bot_difficulty 3` itself and then walks
@@ -1729,7 +1758,11 @@ async function run() {
     branding: {
       hostname: `EZPug · ${GAMEMODE} · ${MAP}`,
       eventName: 'iron-match',
-      ...(MOMENT && { tagline: 'Ein Match, alles aufgeschrieben.', banner: 'default', hud: true }),
+      ...((MOMENT || UNBOX) && {
+        tagline: 'Ein Match, alles aufgeschrieben.',
+        banner: 'default',
+        hud: true,
+      }),
     },
     ttlMinutes: 60,
   }
@@ -1759,6 +1792,8 @@ async function run() {
 
   // 5. The stream, from the moment the match exists.
   const streamFrames = []
+  /** `--unbox`: when the round's facts arrived on this box's clock, the one the orchestrator stamps console lines with. */
+  const roundArrivals = []
   /**
    * **The ephemeral tier, kept** — only for `--walk` (PRD-03 T12), because a
    * five-minute match is thousands of position ticks and nothing else in this
@@ -1776,6 +1811,13 @@ async function run() {
     try {
       const frame = JSON.parse(data.toString())
       streamFrames.push(frame)
+      const type = frame.type === 'event' ? frame.envelope?.payload?.type : null
+      if (UNBOX && type === 'round_start')
+        roundArrivals.push({
+          type,
+          round: frame.envelope.payload.roundNumber ?? null,
+          at: wall.now(),
+        })
       if (WALK_SECONDS > 0 && frame.type === 'tick')
         for (const tick of frame.ticks)
           radarSamples.push({ at: wall.now(), positions: tick.positions })
@@ -2104,6 +2146,77 @@ async function run() {
     }
   }
   /**
+   * **The unboxing, played and read back** (`--unbox`, PRD-08 T6). Waits for the
+   * next `round_start`, tells the drop with its reel at once, reads
+   * `ezpug_status` inside the reel and again once the freeze is over, and
+   * times every console line that names the unboxing against the round start
+   * as it arrived here.
+   */
+  const unboxRound = async id => {
+    const starts = () => roundArrivals.filter(entry => entry.type === 'round_start')
+    const seen = starts().length
+    const until = wall.now() + 120_000
+    while (starts().length === seen && wall.now() < until) await wall.sleep(100)
+    const start = starts()[seen]
+    if (!start) return { round: null }
+    const about = request.teams.teamA.players[0]
+    const who = about?.name ?? 'somebody'
+    const answer = await command({
+      correlationId: `${RUN_ID}-unbox`,
+      type: 'moment',
+      kind: 'drop',
+      ...(about && { steamId64: about.steamId64 }),
+      tier: 'legendary',
+      art: 'big-jersey',
+      text: {
+        de: { everyone: `${who} zieht: BIG Trikot!`, you: 'Du ziehst: BIG Trikot!' },
+        en: { everyone: `${who} wins: BIG jersey!`, you: 'You win: BIG jersey!' },
+      },
+      reel: [
+        { art: 'category-skin', tier: 'common' },
+        { art: 'category-merch', tier: 'uncommon' },
+        { art: 'double-xp', tier: 'rare' },
+        { art: 'big-cap', tier: 'legendary' },
+      ],
+    })
+    const sentAfterMs = wall.now() - start.at
+    say(
+      `round ${start.round}: told the drop with its reel ${sentAfterMs} ms after its round_start (${answer?.status ?? 'no status'})`,
+    )
+    await wall.sleep(Math.max(0, start.at + UNBOX_READ_AT_MS - wall.now()))
+    const duringAfterMs = wall.now() - start.at
+    const during = await readHud(id)
+    await wall.sleep(Math.max(0, start.at + UNBOX_WATCH_MS - wall.now()))
+    const after = await readHud(id)
+    let beats = null
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      const tail = row ? await api('GET', `/v1/fleet/servers/${row.id}/console`) : { lines: [] }
+      // CounterStrikeSharp's logger colours what it prints; the words are what count.
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: the escape is what the console prints
+      const colours = /\x1b\[[0-9;]*m/g
+      beats = tail.lines
+        .map(entry => ({ at: entry.at, line: entry.line.replace(colours, '').trim() }))
+        .filter(entry => entry.line.includes('hud:') && entry.line.includes('unboxing'))
+        .map(entry => ({ afterMs: Date.parse(entry.at) - start.at, line: entry.line }))
+        .filter(entry => entry.afterMs >= -1_000)
+    } catch (error) {
+      say(`unbox: the console could not be read: ${error.message}`)
+    }
+    say(
+      `round ${start.round}: the console said ${beats?.length ?? 'nothing'} line(s) of the unboxing`,
+    )
+    return {
+      round: start.round,
+      status: answer?.status ?? null,
+      sentAfterMs,
+      beats,
+      during: { afterMs: duringAfterMs, hud: during },
+      after: after,
+    }
+  }
+  /**
    * **The engine's own answers, through the front door** (PRD-07 T9a): what
    * Metamod has loaded (`meta list`) and what MultiAddonManager hands a client
    * who connects now (`mm_client_extra_addons`), each the reply of
@@ -2377,6 +2490,8 @@ async function run() {
   let widget = null
   /** What `--moment` did: the server's answer to each of the two moments (PRD-07 T4). */
   let moment = null
+  /** What `--unbox` saw over one freeze (PRD-08 T6). */
+  let unbox = null
   let momentAt = 0
   /** The `hud:` lines of the server's status once both moments were due (PRD-07 T9): `undefined` until asked, `null` when it could not be read. */
   let hud
@@ -2738,6 +2853,13 @@ async function run() {
       )
       continue
     }
+    // Live: the next round start gets a drop with its reel (PRD-08 T6), and the
+    // run watches that freeze through, which takes it twenty seconds.
+    if (UNBOX && unbox === null && liveAt > 0) {
+      unbox = await unboxRound(matchId)
+      if (engine === null) engine = await readEngine(matchId)
+      continue
+    }
     // And once both are due, what the server holds of them (PRD-07 T9).
     if (MOMENT && moment !== null && hud === undefined && now.state === 'live') {
       await wall.sleep(Math.max(0, HUD_READ_AFTER_MS - (wall.now() - momentAt)))
@@ -3027,6 +3149,7 @@ async function run() {
     humans: HUMAN_STEAM_IDS,
     widget,
     moment,
+    unbox,
     hud: hud ?? null,
     engine,
     console: consoleKept,
@@ -3359,6 +3482,14 @@ function write(result) {
      */
     moment: result.moment ?? null,
     /**
+     * `--unbox` (PRD-08 T6): the round whose start got a drop with a reel, the
+     * server's answer, when it was sent (ms after the round start arrived
+     * here), the console's lines of the
+     * unboxing at their instants, and `ezpug_status`'s `hud:` lines inside the
+     * reel and after the freeze. `null` when the run told none.
+     */
+    unbox: result.unbox ?? null,
+    /**
      * **The HUD, as the server itself accounts for it** (PRD-07 T9), or `null`
      * when the run told no moment. `hello` is what the server said it can do
      * when it dialled in (off the trace: `hud` is among it only on a server
@@ -3371,18 +3502,19 @@ function write(result) {
      * Metamod loaded at boot, and what the server said **after the release**,
      * which no route can ask it.
      */
-    hud: result.moment
-      ? {
-          hello:
-            link
-              .filter(entry => entry.from === 'server' && entry.frame?.type === 'hello')
-              .map(entry => entry.frame.capabilities)
-              .at(-1) ?? null,
-          status: result.hud ?? null,
-          engine: result.engine ?? null,
-          console: consoleFacts(result.console),
-        }
-      : null,
+    hud:
+      result.moment || result.unbox
+        ? {
+            hello:
+              link
+                .filter(entry => entry.from === 'server' && entry.frame?.type === 'hello')
+                .map(entry => entry.frame.capabilities)
+                .at(-1) ?? null,
+            status: result.hud ?? null,
+            engine: result.engine ?? null,
+            console: consoleFacts(result.console),
+          }
+        : null,
     /**
      * **`--walk`: what a radar would have drawn** (PRD-03 T12). The same
      * bodies in the same match, once as the engine moves them and once on a

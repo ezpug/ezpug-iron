@@ -2001,7 +2001,12 @@ orchestrator and every server it starts gets it, so the row is **not part of the
 matrix**: it runs when `EZPUG_CS2_CASES=hud-on` names it, inside a hold of the lane, with
 the orchestrator restarted for it and back again (`docs/hud.md` has the four steps). Its
 first fact is that the server could draw at all, so a run against an orchestrator
-without the value fails saying which value.
+without the value fails saying which value. PRD-08 T6's `unbox` and `unbox-short` (a drop
+with a reel at a round start, in a PUG's freeze and in Rush's) are by name for the same
+reason and run in the same hold; `unbox-off` is in the matrix beside `hud-off`. `unbox`
+and `unbox-off` pass `--timescale 1`: the SDK reads a freeze in wall time, and at the
+lane's 2 a PUG's 18 s are 9, which no unboxing fits (`docs/hud.md`, "The lane, both
+ways").
 
 **The console, kept.** Both rows read the container's own console, which the node
 removes with the container. `iron-match --console` (implied by `--moment`) follows

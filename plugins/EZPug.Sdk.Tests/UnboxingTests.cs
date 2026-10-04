@@ -212,6 +212,46 @@ public class UnboxingTests
         Assert.Equal(1, Read(host, Ada, YouWin));
     }
 
+    /// <summary>The beats of the unboxing as the server's console says them, which is all a lane on a server of puppets can time (PRD-08 T6): a bot has no screen.</summary>
+    private static List<string> Said(GamemodeTestHost host) =>
+        [.. host.Logged.Where(line => line.Contains("unboxing", StringComparison.Ordinal))];
+
+    [Fact]
+    public void TheConsoleSaysEachBeatAtItsInstant_SoAServerOfPuppetsCanBeTimed()
+    {
+        using var host = Assigned();
+        Freeze(host);
+        host.Link.Command(Drop("m1"));
+        Assert.Equal([$"info: hud: unboxing for {Ada} (FreezeTime, 18000 ms left), 2 watching; the prize shows in {Moments.RevealMs} ms"], Said(host));
+
+        host.Clock.Advance(Moments.CallMs);
+        Assert.Matches($"^info: hud: the unboxing for {Ada} rolls to landing [1-{Moments.ReelLandings}]$", Said(host)[1]);
+        host.Clock.Advance(Moments.ReelMs);
+        Assert.Equal($"info: hud: the unboxing for {Ada} shows its prize (rare) and says its line", Said(host)[2]);
+        host.Clock.Advance(Moments.PrizeMs - 1);
+        Assert.Equal(3, Said(host).Count);
+        host.Clock.Advance(1);
+        Assert.Equal($"info: hud: the unboxing for {Ada} is put away: its prize was shown", Said(host)[3]);
+        Assert.Equal(4, Said(host).Count);
+
+        // Cut by the freeze's end before the prize, and a freeze too short to start one: each says why.
+        host.World.EndFreeze();
+        Decide(host);
+        Freeze(host);
+        host.Link.Command(Drop("m2", tier: MomentTier.Legendary));
+        host.Clock.Advance(Moments.CallMs + 1_000);
+        host.World.EndFreeze();
+        Assert.Equal(
+            $"info: hud: the unboxing for {Ada} is put away: somebody is playing before its prize, so it is shown without its reel",
+            Said(host)[^1]);
+        Decide(host);
+        Freeze(host, "13");
+        host.Link.Command(Drop("m3", tier: MomentTier.Uncommon));
+        Assert.Equal(
+            $"info: hud: no stretch fits the unboxing for {Ada} (FreezeTime, 13000 ms left, {Moments.UnboxMs + Moments.UnboxSpareMs} ms wanted); it is shown without its reel",
+            Said(host)[^1]);
+    }
+
     [Fact]
     public void ThePrizeIsInTheSlotTheReelStopsOn_AndEveryOtherSlotIsADecoy()
     {

@@ -289,6 +289,16 @@ type Summary = {
   } | null
   /** `--moment` (PRD-07 T4): what the server answered each of the two moments. */
   moment?: { about: { status?: string } | null; open: { status?: string } | null } | null
+  /** `--unbox` (PRD-08 T6): one freeze that started with a drop and its reel, read back. */
+  unbox?: {
+    round: number | null
+    status?: string | null
+    sentAfterMs?: number
+    /** The console's lines of the unboxing, ms after the round start, as the orchestrator stamped them. */
+    beats?: { afterMs: number; line: string }[] | null
+    during?: { afterMs: number; hud: string[] | null }
+    after?: string[] | null
+  } | null
   /** The HUD as the server itself accounts for it (PRD-07 T9); `null` when the run told no moment. */
   hud?: {
     /** What the server said it can do when it dialled in; `null` when the orchestrator wrote no trace. */
@@ -1383,6 +1393,169 @@ const CASES: LaneCase[] = [
     },
   },
   {
+    // **The unboxing, on a server of puppets** (PRD-08 T6). A drop about the
+    // first rostered player, with a reel, told the instant the stream carries
+    // a `round_start`: the platform's own timing (its PRD-18 T1 holds a win for
+    // the next round start). A PUG's freeze fits the whole sequence, so the
+    // server plays it, and nobody watches: a bot has no screen. What the row
+    // can hold the server to is its console, one line a beat on the SDK's
+    // clock (the call, the reel at 2 s, the prize at 8 s, gone at 12 s, all
+    // before the freeze ends), and the reel laid out for everybody, read back
+    // off the entity inside the reel. What a client draws of it is the look
+    // list's. **By name only**, like `hud-on`: the dev orchestrator has to
+    // hand every server the addon's id for it. **At timescale 1**, as
+    // production plays: the SDK reads a freeze in wall time, and at the
+    // lane's 2 a PUG's 18 s are 9, which fits no unboxing (the first run of
+    // this row said `FreezeTime, 8847 ms left` 150 ms after the round start).
+    id: 'unbox',
+    what: 'plays a pug whose round start gets a drop with a reel, unboxed and put away inside the freeze',
+    puppets: 2,
+    byName: true,
+    args: ['--unbox', '--no-demo', '--timescale', '1'],
+    facts: summary => {
+      const addon = (
+        JSON.parse(readFileSync(`${REPO}hud/workshop.json`, 'utf8')) as { publishedFileId: string }
+      ).publishedFileId
+      expect(
+        summary.hud?.hello,
+        `this server cannot draw a HUD: start the dev orchestrator with EZPUG_IRON_HUD_ADDON=${addon} for this row`,
+      ).toContain('hud')
+      readiedUp(summary, 2)
+      const unbox = summary.unbox
+      expect(unbox?.round, 'no round started while the run watched').not.toBeNull()
+      expect(unbox?.status, 'the drop with its reel was not held').toBe('applied')
+      // One line a beat, in order, at the instants the sequence names
+      // (`Moments.CallMs`, `RevealMs`, `UnboxMs`), give or take the console's
+      // trip to the orchestrator, which is the same for all four.
+      const beats = unbox?.beats ?? []
+      const at = (pattern: RegExp) => {
+        const beat = beats.find(entry => pattern.test(entry.line))
+        expect(beat, `the console never said ${pattern}: ${JSON.stringify(beats)}`).toBeDefined()
+        return beat?.afterMs ?? Number.NaN
+      }
+      const call = at(
+        /hud: unboxing for \d+ \(FreezeTime, \d+ ms left\), 0 watching; the prize shows in 8000 ms$/,
+      )
+      // No fact marks a freeze's end, so the server's own reading of what was
+      // left of it, said with the call, is where it ends.
+      const left = Number(
+        /\(FreezeTime, (\d+) ms left\)/.exec(
+          beats.find(entry => / unboxing for /.test(entry.line))?.line ?? '',
+        )?.[1],
+      )
+      const freezeEnd = call + left
+      const rolls = at(/hud: the unboxing for \d+ rolls to landing [1-4]$/)
+      const prize = at(/hud: the unboxing for \d+ shows its prize \(legendary\) and says its line$/)
+      const away = at(/hud: the unboxing for \d+ is put away: its prize was shown$/)
+      expect(beats.filter(entry => entry.line.includes('without its reel'))).toEqual([])
+      expect(
+        call - (unbox?.sentAfterMs ?? 0),
+        'the call came long after the drop was told',
+      ).toBeLessThan(1_500)
+      expect(
+        Math.abs(rolls - call - 2_000),
+        `the reel rolled ${rolls - call} ms after the call`,
+      ).toBeLessThan(750)
+      expect(
+        Math.abs(prize - call - 8_000),
+        `the prize showed ${prize - call} ms after the call`,
+      ).toBeLessThan(750)
+      expect(
+        Math.abs(away - call - 12_000),
+        `it was put away ${away - call} ms after the call`,
+      ).toBeLessThan(750)
+      expect(away, `put away at ${away} ms, the freeze ends at ${freezeEnd} ms`).toBeLessThan(
+        freezeEnd,
+      )
+      // And the freeze a PUG plays, measured: `live.cfg`'s 18 s, less what the
+      // round start took to reach the stream and the drop to reach the server.
+      expect(left, `the call had ${left} ms of freeze`).toBeGreaterThanOrEqual(13_500)
+      // Inside the reel: everybody's reel, the prize in the slot it stops on, the
+      // winner's name, and no slot told anything.
+      const during = unbox?.during?.hud ?? []
+      expect(during).toContain(`hud: addon ${addon}, on, 2 layout(s) in the world`)
+      const everybody = (panel: string) =>
+        during.find(line => line.startsWith(`hud:   everybody, ${panel}:`)) ?? ''
+      expect(everybody('unbox_slot_33')).toContain('+tier-legendary')
+      expect(everybody('unbox_slot_33')).toContain('+art-big-jersey')
+      expect(everybody('unbox')).toContain('+tier-legendary')
+      expect(everybody('unbox_name')).toMatch(/\{s:text\}="[^"]+"/)
+      const reel = during.filter(line => /^hud: {3}everybody, unbox_slot_\d+:/.test(line))
+      expect(reel.length, 'the reel is not laid out slot by slot').toBe(36)
+      for (const state of [during, unbox?.after ?? []]) {
+        const untold = state.filter(line => line.endsWith('slot(s) hold nothing'))
+        expect(untold.length).toBe(2)
+        for (const line of untold)
+          expect(line).toMatch(/^hud: {3}(\d+) of \1 slot\(s\) hold nothing$/)
+        expect(state.join('\n')).not.toContain('TAKES THE MOUSE')
+      }
+      // Not the moment it would have been without a reel: no toast was tinted.
+      expect(during.some(line => line.startsWith('hud:   everybody, moment_toast_'))).toBe(false)
+      expect(summary.hud?.console?.crashed, 'the server crashed').toBe(false)
+    },
+  },
+  {
+    // **The unboxing in a freeze too short** (PRD-08 T6): the same drop with its
+    // reel at a Rush round start, whose 13 s freeze never fits the 13.5 s the
+    // sequence and its spare take. The server says so, and the moment is
+    // PRD-07's: a toast tinted for everybody, no reel. By name, like `unbox`,
+    // and at the lane's time scale: Rush's freeze fits at none.
+    id: 'unbox-short',
+    what: 'plays a Rush whose round start gets a drop with a reel, shown as the toast and the card',
+    puppets: 6,
+    byName: true,
+    args: ['--gamemode', 'rush', '--map', 'rush_001', '--unbox', '--no-demo'],
+    facts: summary => {
+      expect(summary.hud?.hello, 'this server cannot draw a HUD').toContain('hud')
+      const unbox = summary.unbox
+      expect(unbox?.round, 'no round started while the run watched').not.toBeNull()
+      expect(unbox?.status, 'the drop with its reel was not held').toBe('applied')
+      const beats = unbox?.beats ?? []
+      expect(beats.map(entry => entry.line)).toEqual([
+        expect.stringMatching(
+          /hud: no stretch fits the unboxing for \d+ \(FreezeTime, \d+ ms left, 13500 ms wanted\); it is shown without its reel$/,
+        ),
+      ])
+      const during = unbox?.during?.hud ?? []
+      expect(
+        during.some(
+          line =>
+            line.startsWith('hud:   everybody, moment_toast_') && line.includes('+tier-legendary'),
+        ),
+        `no toast is tinted legendary: ${JSON.stringify(during)}`,
+      ).toBe(true)
+      expect(during.some(line => line.startsWith('hud:   everybody, unbox_slot_'))).toBe(false)
+      expect(summary.hud?.console?.crashed, 'the server crashed').toBe(false)
+    },
+  },
+  {
+    // **The unboxing with the HUD off** (PRD-08 T6, decision 34): the same pug
+    // and the same drop on a server with no addon. The moment is held
+    // (`applied`), its line is said in chat as every server owes, and the
+    // server says not one word of an unboxing or a HUD.
+    id: 'unbox-off',
+    what: 'plays a pug whose round start gets a drop with a reel on a server with no addon: the line only',
+    puppets: 2,
+    args: ['--unbox', '--no-demo', '--timescale', '1'],
+    facts: summary => {
+      readiedUp(summary, 2)
+      expect(
+        summary.hud?.hello,
+        'this server can draw a HUD: the dev orchestrator was left with EZPUG_IRON_HUD_ADDON set',
+      ).not.toContain('hud')
+      const unbox = summary.unbox
+      expect(unbox?.round, 'no round started while the run watched').not.toBeNull()
+      expect(unbox?.status, 'the drop with its reel was not held').toBe('applied')
+      expect(unbox?.beats).toEqual([])
+      expect(unbox?.during?.hud).toEqual([])
+      expect(unbox?.after).toEqual([])
+      expect(
+        summary.hud?.console?.hud,
+        'the image or the plugin said something about a HUD',
+      ).toEqual([])
+    },
+  },
+  {
     // **The movement spike** (PRD-03 T12), and the only row here that is not a
     // shape of match: it is a question about hardware. Can a puppet be *moved*
     // — by `Teleport`, once an engine frame — smoothly enough that the
@@ -1829,6 +2002,11 @@ describe('the iron-match script', () => {
       // by name only, on one that has it.
       'hud-off',
       'hud-on',
+      // PRD-08 T6's: a drop with a reel at a round start, unboxed in a PUG's
+      // freeze, too short for one in Rush's, and only its line with no addon.
+      'unbox',
+      'unbox-short',
+      'unbox-off',
       // **T12**'s spike, which is not part of the matrix and runs only when
       // it is named: can a puppet be moved smoothly enough for a radar?
       'radar',
@@ -1855,7 +2033,11 @@ describe('the iron-match script', () => {
     // And one row needs a world a demanded lane does not have, so it is asked
     // for by name: the dev orchestrator hands the HUD's addon id to every
     // server it starts, and no other row may see it.
-    expect(CASES.filter(lane => lane.byName).map(lane => lane.id)).toEqual(['hud-on'])
+    expect(CASES.filter(lane => lane.byName).map(lane => lane.id)).toEqual([
+      'hud-on',
+      'unbox',
+      'unbox-short',
+    ])
   })
 })
 

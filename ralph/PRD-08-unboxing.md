@@ -172,7 +172,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
 - [x] **T7 (effort: medium): publish and the template.** `pnpm hud:build`,
   `pnpm hud:publish`, the check until byte for byte. `pnpm dathost:image` and `--check`
   green. `./scripts/deploy.sh all` for the orchestrator.
-- [ ] **T6 (checkpoint, trimmed): the lane.** The unboxing rows only, never the matrix,
+- [x] **T6 (checkpoint, trimmed): the lane.** The unboxing rows only, never the matrix,
   with the extended tier detached in parallel. A row on the dev node behind the lock: a puppeted
   match, a drop moment with a reel sent at a `round_start`, and the layout's state read
   back over the freeze (`ezpug_status`, the entity read-back of PRD-07 T9): the beats in

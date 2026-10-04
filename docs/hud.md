@@ -657,6 +657,41 @@ console, which `iron-match --console` keeps.
 | `hud-off`, in the matrix | no `EZPUG_HUD_ADDON`: what production runs | the hello names no `hud`; `meta list` answers `Listing 1 plugin:` (CounterStrikeSharp) and `mm_client_extra_addons` is an unknown command; not one `hud:` or MultiAddonManager line in the whole console; the status says nothing about a HUD; both moments `applied` |
 | `hud-on`, by name only | has the id | the hello names `hud`; `meta list` answers `Listing 2 plugins:` with MultiAddonManager, and its "Plugin loaded successfully!" is in the console; `mm_client_extra_addons` holds the id while the match is assigned, and the status says clients are handed it; both layouts are entities, the moment's `observable` and the welcome's not; a toast row tinted `tier-rare` and one `tier-common` for everybody, which is what the two moments left; every slot holds nothing and nobody's mouse is taken |
 
+Three more rows (PRD-08 T6) send the unboxing the way the platform does: `iron-match
+--unbox` waits for a `round_start` on the stream and tells a drop about the first rostered
+player with a four-item reel in that instant, reads `ezpug_status` 5 s into the round and
+again 21 s in, and times every console line of the unboxing against the round start. No
+fact marks a freeze's end, so the server's own reading of what is left of it is said with
+the call (`hud: unboxing for <id> (FreezeTime, <n> ms left), …`), and the row puts the end
+there. Every player is a puppet, so nobody watches (`0 watching`) and no slot is told a
+beat; what the rows hold the server to is its console, one line a beat on the SDK's clock,
+and the reel laid out for everybody.
+
+| Row | The server | What it is held to |
+| --- | ---------- | ------------------ |
+| `unbox`, by name only, timescale 1 | has the id; MatchZy's `live.cfg` freeze (the lane's 5 s is not sent) | the drop `applied`; the call with at least 13.5 s of freeze left, the reel 2 s after it, the prize (`legendary`) at 8 s, put away "its prize was shown" at 12 s, each within 0.75 s, and before the freeze ends; no line "without its reel"; inside the reel, everybody's 36 slots dressed, slot 33 `+tier-legendary +art-big-jersey`, `unbox` tinted and named; no toast; every slot holds nothing and nobody's mouse is taken |
+| `unbox-short`, by name only | has the id; Rush at the lane's time scale | one line, "no stretch fits the unboxing … 13500 ms wanted; it is shown without its reel"; a toast row tinted `tier-legendary` for everybody; no slot of the reel dressed |
+| `unbox-off`, in the matrix, timescale 1 | no id | the drop `applied`; not one line of an unboxing, no `hud:` line in the status or the console |
+
+Played on 2026-10-04 on the dev node (image with T6's console lines, orchestrator at
+`e067a28` and this task's rows). `unbox`: the drop reached the server 148 ms after the
+round start reached the stream, which said 17 805 ms of freeze left; then the reel at
++2 009 ms, the prize at +8 034, put away at +12 049, so 5.7 s of the freeze were spare.
+Inside the reel the reel stood for everybody with the prize in slot 33 and the winner's
+name, side `side-ct`. After the freeze `unbox` keeps its tint, art and side for everybody
+(only the difference is said for the next reel) and no slot holds anything. `unbox-short`:
+"FreezeTime, 6417 ms left" (Rush's 13 s at the lane's timescale 2), the toast tinted
+legendary. `unbox-off`: `applied`, and not one `hud:` line anywhere.
+
+**The time scale is the lane's trap.** The first runs of `unbox` played at the lane's
+timescale 2 and said `FreezeTime, 8847 ms left` 150 ms after the round start, and in the
+lane's own 5 s freeze `2325 ms left`: the SDK reads a freeze in wall time
+(`Hud.Scaled`), and at 2 a PUG's 18 s are 9, which no unboxing fits. That is not a delay
+on the way: at timescale 1 the call said 17 805 ms left, so the whole trip (MatchZy's
+`round_started` translated at the door, the stream, the drop back down the link) took
+about 0.2 s of the freeze. So the unboxing rows that are
+about a PUG's freeze play at timescale 1 and keep `live.cfg`'s freeze, as production does.
+
 `hud-on` runs only when it is named, because the id is one value on the dev orchestrator
 and every server it starts gets it. So the row is played inside a hold of the lane, with
 the orchestrator restarted for it and back again before the hold ends:
