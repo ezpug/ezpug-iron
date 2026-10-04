@@ -878,9 +878,9 @@ look list's.
 A drop with a reel (`docs/match-api.md`, "An unboxing") is played for everybody, in a
 freeze, by the last panel of the moment's layout: `#unbox` in `hud/layout/ezpug_moment.xml`,
 styled by `hud/styles/ezpug_unbox.css`, whose header is the reference for every number
-below. It is drawn and compiled (PRD-08 T3); the SDK that plays it is PRD-08 T4, so until
-then nothing sets its classes and it stays invisible. Three beats, each a class on `#unbox`
-for everybody:
+below. It is drawn and compiled (PRD-08 T3) and the SDK plays it ("The unboxing, played",
+below). Three beats, each a class on `#unbox`, set for every person who was on the server
+when it began:
 
 | Beat | Classes | What is drawn |
 | ---- | ------- | ------------- |
@@ -890,11 +890,11 @@ for everybody:
 
 | Panel or label | What is set on it |
 | -------------- | ----------------- |
-| `unbox` | the beats above; one `tier-*` (the prize's edge and burst, drawn only once revealed); `art-<key>` for the prize's picture; `side-ct` or `side-t` for the winner's side (the name in the game's CT blue or T gold and that side's half of the cast's picture, neither being the whole picture) |
-| `unbox_slot_<n>` (1 to 36) | `art-<key>` and one `tier-*`: a decoy, and in slot 33 the prize |
-| `unbox_name` | `{s:text}`: the winner's name |
-| `unbox_call` | `{s:text}`: "hat einen Drop! Mal sehen…" in the reader's language |
-| `unbox_line` | `{s:text}`: the item's line, and the winner's own line for the winner |
+| `unbox` | the beats above, per player; for everybody: one `tier-*` (the prize's edge and burst, drawn only once revealed); `art-<key>` for the prize's picture; `side-ct` or `side-t` for the winner's side (the name in the game's CT blue or T gold and that side's half of the cast's picture, neither being the whole picture) |
+| `unbox_slot_<n>` (1 to 36) | for everybody: `art-<key>` and one `tier-*`: a decoy, and in slot 33 the prize |
+| `unbox_name` | `{s:text}`, for everybody: the winner's name |
+| `unbox_call` | `{s:text}`, per player: "hat einen Drop! Mal sehen…" in the reader's language |
+| `unbox_line` | `{s:text}`, per player: the item's line, and the winner's own line for the winner |
 
 The pictures are the moment's (`hud/art/`, `HUD_ART_KEYS`): `pnpm hud:keys` writes a rule
 for each key on three boxes now, the card's, a slot's and the prize's, and an unknown key
@@ -920,6 +920,60 @@ marker, a strip that covers the window standing and stopped, a landing that neve
 the prize's picture), the one curve and the fade.
 
 Nobody has seen it. It is look-list step 17.
+
+### The unboxing, played
+
+`EZPug.Sdk.Moments` plays it (`plugins/EZPug.Sdk/Hud/Unboxing.cs`, the other half of the
+class), and `plugins/EZPug.Sdk.Tests/UnboxingTests.cs` holds every sentence of this
+section on the fake clock. A moment is an unboxing when it is a `drop`, about somebody,
+with a `reel`, the HUD is on, and the server has a name for the person: the player's on
+the server (a puppet's seat counts) or the roster's.
+
+| After the moment is due | Constant | What happens |
+| ----------------------- | -------- | ------------ |
+| 0 s | | the call: `shown` for everybody here, the reel laid out, "Ada hat einen Drop! Mal sehen…" in chat |
+| 2 s | `Moments.CallMs` | the reel: `rolling` and the landing |
+| 8 s | `Moments.RevealMs`, the contract's `MOMENT_UNBOXING_REVEAL_MS` | the reveal: `revealed`, the landing off, the sound for everybody watching (the card's, by tier, until PRD-08 T5 chooses), **and the line in chat** |
+| 12 s | `Moments.UnboxMs` | every class off |
+
+**The line waits for the reveal.** Chat is on every screen, and a line that names the
+prize at second 0 would open the box before the reel stopped. So an unboxing that plays
+says the call when it is due and the line at the reveal; a player without the addon reads
+both. Everywhere the unboxing is not played, the line is said when the moment is due, as
+every moment's is.
+
+**Where it plays.** The layouts are in the world and nobody plays for the whole sequence
+and a second and a half more (`UnboxMs + UnboxSpareMs`, 13.5 s):
+
+| When the moment is due | What happens |
+| ---------------------- | ------------ |
+| a freeze with 13.5 s left (a PUG's 18 s with the platform's beat of 2.5 s spent has 15.5), warmup, a pause standing in a freeze, halftime, the map over | the unboxing, now, and no toast and no card |
+| a freeze with less (Rush's 13 s and flying-scoutsman's 5 never fit), a round being played, before any round on the map | PRD-07's moment, now: the line, the toast, the card |
+| a decided round | it waits for the round start, seconds away: the win panel is up now. That round start plays it, or, where the freeze is too short, shows PRD-07's moment |
+| another unboxing is up or waiting | it waits, whole (no call, no line, no toast), for the next stretch that fits: in a freeze that is the next round's, in warmup half a second after the first (`UnboxRestMs`). At most four wait; one that waited three minutes (`CardWaitMs`) is shown as PRD-07's moment |
+| the HUD is off | the line, as today |
+
+**Put away at once.** The instant somebody is playing every class comes off. If the prize
+had not shown, nobody knows what was won: the line, the toast and the person's card (at
+the next stretch) follow in that instant. After the reveal nothing follows. A map change
+takes the one on screen and the ones waiting and says each line that was not said yet; a
+release takes everything silently.
+
+**Who sees it.** Whoever was on the server when it began: the beats are per player, so
+somebody who connects mid-sequence gets a clean slot and sees nothing (they read the line),
+and a spectator sees what the player they watch sees, the layout being `observable`. The
+winner need not be there. Their side (`side-ct`, `side-t`) is read off the server when
+they are, and is nobody's when they are not.
+
+**The same moment, the same reel.** The slots and the landing come from a seed over the
+moment's kind, person, picture, tier and reel (not its correlation id or `inMs`), so a
+redelivered command lays out the reel the first one did. The prize is in slot 33; the
+other 35 are drawn from the decoys, never the same twice running where there are two.
+The reel is everybody's state on the entity (a picture and a tier per slot) and only what
+differs from the reel before is set.
+
+Played on the fake clock only: the dev node's row is PRD-08 T6, and the screen is the
+look list's.
 
 ## Deleting it
 
@@ -1038,16 +1092,18 @@ Restart your game before step 4 if it was running when the addon was last publis
     down whether a toast or a card shows there, and whose.
 16. **A mode's own toast.** No shipped mode calls `Gamemode.Toast` yet, so this waits for
     the first mode that does. It uses the moment's three rows, untinted.
-17. **The unboxing** (once PRD-08 T4 plays it). Send a `drop` about yourself with a
+17. **The unboxing.** Send a `drop` about yourself with a
     `reel` of a few decoys (`--reel`, `docs/match-api.md`) so that it is due at a
-    `round_start` in a PUG. Expected, at the top centre under the team counter: the call
+    `round_start` in a PUG (it needs 13.5 s of freeze left; in warmup it plays at once).
+    In chat: the call at once, the line only when the prize shows. Expected, at the top centre under the team counter: the call
     with your name in your side's colour and that side's mascot, the reel sliding fast and
     slowing to a stop on the marker, then the prize growing over a burst in its tier's
     colour, your own line under it, all gone before the freeze ends. Look at, with a
     screenshot each: 16:9 and 4:3; German and English; **with the buy menu open** (the reel
     above the columns at 0.8, the call and the line gone, every column readable and every
     purchase working); a reel that seems to stop on one picture and reveals another (it
-    must never). Write down whether the side's half of the cast's picture reads as one
+    must never); as somebody who connects while it runs (nothing, and the line in chat); cut
+    by the freeze ending (gone at once, then the toast). Write down whether the side's half of the cast's picture reads as one
     mascot, and whether the reel's speed looks like a case opening.
 
 ### Not for a client, but open

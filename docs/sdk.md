@@ -243,7 +243,9 @@ enough for it. A mode has nothing to do for any of it, and its own toasts share 
 moment's rows (below). The sound at the card's turn is
 `IGameWorld.PlaySound(player, soundEvent, volume)`: one of the game's own sound events
 (a name from its `soundevents/*.vsndevts`), to one player; `World.Sounds` on the harness
-is what was played to whom.
+is what was played to whom. A `drop` about somebody that carries a `reel` is an
+**unboxing** the whole server watches where a freeze fits it (`docs/hud.md`, "The
+unboxing, played"); `Moments.Unboxing` and `Moments.UnboxingsWaiting` say where it stands.
 
 On the harness, `new GamemodeTestHost(hudAddon: "…")` is a server that can draw and
 `AssignmentFor(…, hud: true)` a match that asks. `World.HudLayouts` holds each layout as

@@ -521,8 +521,9 @@ What a client cannot know is whether the show was played. A stretch too short fo
 server that cannot draw, a HUD the match left off: every one of them shows the moment as
 it was before reels existed, the line, the toast and the card, at the instant the moment
 is due. So what a client reveals at `revealAt + MOMENT_UNBOXING_REVEAL_MS` is the prize
-and nothing before it, and the line in chat is still said when the moment is due, as
-every moment's is. A `perk`, a `raffle` and a `drop` without a reel or a person are
+and nothing before it. Where the show is not played the line in chat is said when the
+moment is due, as every moment's is; where it is, the server says the call in chat then
+and holds the line to the reveal, so chat does not open the box before the reel stops. A `perk`, a `raffle` and a `drop` without a reel or a person are
 PRD-07's moment and never an unboxing.
 
 **A server without a HUD prints the line** when the moment is due, to each player in their

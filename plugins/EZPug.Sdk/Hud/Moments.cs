@@ -52,6 +52,10 @@ namespace EZPug.Sdk;
 /// (<c>art-&lt;key&gt;</c>) because nothing can put a picture on a screen at runtime: a
 /// key the addon holds no rule for is the default picture on the client, without this
 /// class knowing the list.</para>
+///
+/// <para><b>The unboxing</b> (PRD-08 T4) is the one moment everybody watches: a drop
+/// about somebody that carries a reel. Its rules are in <c>Unboxing.cs</c>, the other
+/// half of this class.</para>
 /// </summary>
 public sealed partial class Moments
 {
@@ -165,7 +169,7 @@ public sealed partial class Moments
     private readonly record struct Words(string Everyone, string You);
 
     /// <summary>A moment as the server holds it: what the command said, cleaned.</summary>
-    private sealed record Told(string Kind, ulong? About, MomentTier Tier, string? Art, Words German, Words English)
+    private sealed record Told(string Kind, ulong? About, MomentTier Tier, string? Art, Words German, Words English, IReadOnlyList<Decoy>? Reel = null, ulong Seed = 0)
     {
         public Words In(Locale locale) => locale == Locale.En ? English : German;
     }
@@ -237,7 +241,9 @@ public sealed partial class Moments
             moment.Tier,
             ArtClassOf(moment.Art),
             german,
-            english);
+            english,
+            ReelOf(moment),
+            SeedOf(moment));
         if (moment.InMs <= 0)
         {
             Due(told);
@@ -270,10 +276,37 @@ public sealed partial class Moments
         }
     }
 
-    /// <summary>The moment is due: the line, and with the HUD on the toast and the person's card, now or at the next stretch of nobody playing.</summary>
+    /// <summary>
+    /// The moment is due: the line, and with the HUD on the toast and the person's card,
+    /// now or at the next stretch of nobody playing. A drop with a reel is offered to the
+    /// whole server first, and is only shown this way when that cannot be.
+    /// </summary>
     private void Due(Told moment)
     {
-        var person = moment.About is { } about && _world.Find(about) is { IsBot: false } present ? present : null;
+        if (!Unboxed(moment))
+        {
+            Plain(moment);
+        }
+    }
+
+    /// <summary>The moment as it is without a reel: the line, the toast, the card.</summary>
+    private void Plain(Told moment)
+    {
+        var person = PersonOf(moment);
+        Say(moment, person);
+        if (_hud.On)
+        {
+            Show(moment, person);
+        }
+    }
+
+    /// <summary>The person the moment is about, when they are here and have a screen.</summary>
+    private IGamePlayer? PersonOf(Told moment) =>
+        moment.About is { } about && _world.Find(about) is { IsBot: false } present ? present : null;
+
+    /// <summary>The line in chat, for everybody who can read.</summary>
+    private void Say(Told moment, IGamePlayer? person)
+    {
         // The client's words behind the match's prefix, and the whole of it one chat line.
         var room = SaidLine.MaxLength - _brand.Prefix.EnumerateRunes().Count() - 1;
         foreach (var player in _world.Players)
@@ -283,12 +316,11 @@ public sealed partial class Moments
                 _brand.Say(player, SaidLine.Fit(LineFor(moment, player, person), room));
             }
         }
+    }
 
-        if (!_hud.On)
-        {
-            return;
-        }
-
+    /// <summary>The toast for everybody and the card for the person.</summary>
+    private void Show(Told moment, IGamePlayer? person)
+    {
         var playing = person is not null && Offer(person, moment);
         Raise(moment.Tier, player => playing && player.SteamId64 == person!.SteamId64 ? null : LineFor(moment, player, person));
     }
@@ -568,6 +600,8 @@ public sealed partial class Moments
                 seat.Queue.AddFirst(card);
             }
         }
+
+        PutAwayUnboxing();
     }
 
     // ------------------------------------------------------------------ the runtime's hooks
@@ -604,6 +638,7 @@ public sealed partial class Moments
         }
 
         _toasts.Clear();
+        StopUnboxing();
         _arts.Clear();
         _assignment = null;
     }
@@ -611,6 +646,7 @@ public sealed partial class Moments
     /// <summary>A map change: a card is about a moment in the map that was being played, so the ones still waiting are dropped and one on a screen is put away. A moment that is not due yet is still told.</summary>
     internal void OnMapStarted()
     {
+        OnMapStartedUnboxing();
         foreach (var (steamId64, seat) in _seats)
         {
             seat.Timer?.Cancel();
@@ -626,7 +662,7 @@ public sealed partial class Moments
     }
 
     /// <summary>A round started: a freeze to show a waiting card in, or, in a mode without one, somebody playing.</summary>
-    internal void OnRoundStarted() => StretchOrNot();
+    internal void OnRoundStarted() => StretchOrNot(roundStart: true);
 
     /// <summary>The freeze ended: if that means somebody is playing, no card stays on a screen.</summary>
     internal void OnFreezeEnded() => StretchOrNot();
@@ -637,7 +673,7 @@ public sealed partial class Moments
     /// <summary>The map is over and the scoreboard is up.</summary>
     internal void OnMapEnded() => StretchOrNot();
 
-    private void StretchOrNot()
+    private void StretchOrNot(bool roundStart = false)
     {
         if (!_hud.On)
         {
@@ -652,6 +688,8 @@ public sealed partial class Moments
         {
             NextForEverybody();
         }
+
+        NextUnboxing(roundStart);
     }
 
     /// <summary>They left: nothing waits for them, and what was on their screen leaves with the HUD's record of it.</summary>
@@ -661,5 +699,7 @@ public sealed partial class Moments
         {
             seat.Timer?.Cancel();
         }
+
+        _watching.Remove(player.SteamId64);
     }
 }

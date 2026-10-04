@@ -70,6 +70,9 @@
   <data name="hud.moment.raffle" xml:space="preserve">
     <value>Raffle</value>
   </data>
+  <data name="hud.unbox.call" xml:space="preserve">
+    <value>got a drop! Let's see…</value>
+  </data>
   <data name="hud.welcome.eyebrow" xml:space="preserve">
     <value>Welcome to</value>
   </data>
