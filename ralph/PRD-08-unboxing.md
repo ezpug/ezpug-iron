@@ -19,7 +19,7 @@ reel and waits for this round's release. The platform already holds a win until 
 
 **The deadline: a playtest at 19:00 on 2026-10-04** (the owner, final preparation for the
 SaarLAN the weekend after). Everything below must be published, released and deployed by
-**18:00**. Order of work is therefore T1, T1a, T3, T4, T5, T7, T6, T8, and T2 last; if T2
+**18:00**. Order of work is therefore T1, T1a, T1b, T3, T4, T5, T7, T6, T8, and T2 last; if T2
 does not fit, it moves to after the playtest with a `> note:` and nothing else waits for it.
 Checkpoints are trimmed: `pnpm verify` every task, the lane plays **only the unboxing rows**
 (never the whole matrix), and the extended tier runs once, in T6, detached, in parallel with
@@ -115,6 +115,22 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   the contract, and the playtest is today: publish `@ezpug/match-api` 0.32.0 to the box's
   Verdaccio as soon as T1 is green, with the changelog line naming PRD-18 T5b, so the
   platform builds against it while this round draws. A later fix is 0.32.1, additive.
+- [ ] **T1b (effort: high): Rush waits for its people.** Urgent for tonight's Playtest Rush
+  Cup (owner, 2026-10-04). A `flow: none` mode goes live `GenericFlow.GoLiveDelayMs` (20 s)
+  after its map is up whether or not anybody came
+  (`plugins/EZPug.Sdk/Gamemodes/GenericFlow.cs:51-78`, `:347-366`). Puppets connect at once,
+  people take 30–90 s (more on a first join with the HUD's addon download and reconnect), so
+  a real Rush match starts 1v3. With people on the roster (`matchHumans`: every entry not a
+  puppet), warmup holds until every rostered person is connected and on a team, then the
+  server says so in chat in both languages (the platform's voice, `Branding`'s prefix) and
+  goes live after a short countdown. A seat that never fills is the platform's join
+  deadline's business (it aborts at 5 min, at most 9 with extensions), so the server keeps
+  only a ceiling of its own longer than that, after which it goes live as today. An
+  all-puppet match keeps today's 20 s. The welcome (`Welcome.cs`) then shows in a Rush
+  warmup as it does in a PUG's. Tests on the fake clock for each line; `docs/gamemodes.md`
+  "The generic flow" amended; the lane's Rush row green on the dev node behind the lock. This
+  ships with T7's template refresh and deploy; if T7 is far off, deploy it on its own
+  (`pnpm dathost:image`, `./scripts/deploy.sh all`) by 17:00.
 - [ ] **T3: the unboxing, drawn.** A layout (or a section of the moment's layout) with
   three beats: **the call** (the name or avatar, "hat einen Drop! Mal sehen…" / "got a
   drop! Let's see…", from the server's catalog in both languages), **the reel** (a strip
