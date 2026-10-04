@@ -115,7 +115,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   the contract, and the playtest is today: publish `@ezpug/match-api` 0.32.0 to the box's
   Verdaccio as soon as T1 is green, with the changelog line naming PRD-18 T5b, so the
   platform builds against it while this round draws. A later fix is 0.32.1, additive.
-- [ ] **T1b (effort: high): Rush waits for its people.** Urgent for tonight's Playtest Rush
+- [x] **T1b (effort: high): Rush waits for its people.** Urgent for tonight's Playtest Rush
   Cup (owner, 2026-10-04). A `flow: none` mode goes live `GenericFlow.GoLiveDelayMs` (20 s)
   after its map is up whether or not anybody came
   (`plugins/EZPug.Sdk/Gamemodes/GenericFlow.cs:51-78`, `:347-366`). Puppets connect at once,

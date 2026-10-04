@@ -1735,10 +1735,15 @@ person's SteamID is never announced, and nothing is cast as them. Only a mode wh
 manifest claims `capabilities.mixedRoster` takes the request. What the row does with the
 empty chair depends on the flow:
 
-- **An SDK flow** (`mixed`, on `retakes`) goes live on its own clock with the chair empty.
-  **`--stand-in`** adds one `bot_add` per person over RCON fifteen seconds into the live
-  match, as furniture. It is the one command the row types, declared as `rcon: 1`, and the
-  summary's `simulation.people[].announced` must stay `false` after it.
+- **An SDK flow** (`mixed`, on `retakes`) holds its warmup for the person since PRD-08 T1b
+  (`docs/gamemodes.md`, "The generic flow"): it used to go live on its own clock with the
+  chair empty. **`--hold`** waits for every puppet's `player_connected`, holds the room for
+  a minute (`SDK_HOLD_MS`, three times the 20 s the flow used to go live on) and cancels,
+  with the same `simulation.held` record as below. **`--stand-in`** adds one `bot_add` per
+  person over RCON as the hold starts (without `--hold`, fifteen seconds into the live
+  match), as furniture: it is the one command the row types, declared as `rcon: 1`, the
+  summary's `simulation.people[].announced` must stay `false` after it, and the room must
+  still not go live.
 - **`matchzy`** (`mixed-pug`, PRD-04 T2b) waits for the person at its ready gate, on our fork
   of MatchZy-Enhanced ("MatchZy-Enhanced, our fork" above). **`--hold`** waits for every
   puppet's `player_ready`, holds the room for two and a half minutes (`GATE_HOLD_MS`), past

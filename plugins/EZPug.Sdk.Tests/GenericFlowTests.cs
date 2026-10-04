@@ -143,6 +143,144 @@ public class GenericFlowTests
         Assert.Equal(3, host.World.Actions.Count(action => action.Detail == "mp_warmup_end"));
     }
 
+    // ------------------------------------------------------------------ people are waited for (PRD-08 T1b)
+
+    private const ulong Ada = 76561198000000001;
+    private const ulong Ben = 76561198000000002;
+
+    private static int WarmupEnds(GamemodeTestHost host) => host.World.Actions.Count(action => action.Detail == "mp_warmup_end");
+
+    /// <summary>A Rush for Ada (German, team A) and Ben (English, team B), in warmup, with whatever <paramref name="simulation"/> leaves to people.</summary>
+    private static GamemodeTestHost Rush(MatchSimulation? simulation = null)
+    {
+        var host = new GamemodeTestHost();
+        host.World.Rules = Rules(warmup: true, roundsPlayed: 0);
+        var assignment = GamemodeTestHost.AssignmentFor(
+            Manifest("rush"),
+            map: "rush_001",
+            teamA: [GamemodeTestHost.Player(Ada, "Ada")],
+            teamB: [GamemodeTestHost.Player(Ben, "Ben", Locale.En)],
+            branding: new MatchBranding { EventName = "Playtest Rush Cup" });
+        host.Start(simulation is null ? assignment : assignment with { Simulation = simulation });
+        return host;
+    }
+
+    [Fact]
+    public void ARushWithPeopleOnTheRosterHoldsWarmupUntilEveryOneOfThemIsOnATeam()
+    {
+        using var host = Rush();
+        Assert.True(host.Runtime.Flow.WaitingForPeople);
+
+        // The delay alone no longer starts it: nobody is here.
+        host.World.Elapse(5 * GenericFlow.GoLiveDelayMs);
+        Assert.Equal(0, WarmupEnds(host));
+
+        // Connected is not enough; on a team is.
+        host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist);
+        var ben = host.World.Connect(Ben, "Ben");
+        host.World.Elapse(10 * GenericFlow.PollIntervalMs);
+        Assert.Equal(0, WarmupEnds(host));
+        Assert.True(host.Runtime.Flow.WaitingForPeople);
+        Assert.DoesNotContain(host.World.Said.GetValueOrDefault(Ada) ?? [], line => line.Contains("Alle sind da"));
+
+        // The last of them picks a side: the server says so to each in their own language,
+        // in its own voice, and ends warmup when the countdown has run.
+        ben.Team = PlayerTeam.CounterTerrorist;
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        Assert.False(host.Runtime.Flow.WaitingForPeople);
+        Assert.Contains(host.Runtime.Brand.Line("Alle sind da – in 10 Sekunden geht es los. Viel Glück!"), host.World.Said[Ada]);
+        Assert.Contains(host.Runtime.Brand.Line("Everybody is here – going live in 10 seconds. Good luck!"), host.World.Said[Ben]);
+        Assert.StartsWith("[", host.World.Said[Ben].Last());
+        host.World.Elapse(GenericFlow.CountdownMs - GenericFlow.PollIntervalMs);
+        Assert.Equal(0, WarmupEnds(host));
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        Assert.Equal(1, WarmupEnds(host));
+
+        // Said once, and the match goes live as any generic flow does.
+        Assert.Single(host.World.Said[Ada], line => line.Contains("Alle sind da"));
+        host.World.Rules = Rules(warmup: false, roundsPlayed: 0);
+        PlayRound(host, PlayerTeam.CounterTerrorist, RoundEndReason.Elimination, t: 0, ct: 1);
+        Assert.Equal(["server_ready", "player_connected", "player_connected", "going_live", "round_start", "round_end"], host.Link.EventTypes);
+    }
+
+    [Fact]
+    public void SomebodyWhoLeavesDuringTheCountdownStopsIt_AndAfterGoingLiveNobodyHoldsAnythingUp()
+    {
+        using var host = Rush();
+        host.World.Elapse(GenericFlow.GoLiveDelayMs);
+        host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist);
+        var ben = host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        host.World.Elapse(GenericFlow.CountdownMs / 2);
+
+        host.World.Disconnect(ben);
+        host.World.Elapse(GenericFlow.CountdownMs);
+        Assert.Equal(0, WarmupEnds(host));
+        Assert.True(host.Runtime.Flow.WaitingForPeople);
+
+        // Back, and the countdown starts over from the beginning, said again.
+        ben = host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        Assert.Equal(2, host.World.Said[Ada].Count(line => line.Contains("Alle sind da")));
+        host.World.Elapse(GenericFlow.CountdownMs - GenericFlow.PollIntervalMs);
+        Assert.Equal(0, WarmupEnds(host));
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        Assert.Equal(1, WarmupEnds(host));
+
+        // Warmup ended for them: the engine re-entering it is ended again, whoever is here.
+        host.World.Disconnect(ben);
+        host.World.Elapse(GenericFlow.WarmupEndRetryMs);
+        Assert.Equal(2, WarmupEnds(host));
+    }
+
+    [Fact]
+    public void PeopleWhoAreQuickerThanTheDelayStillGetTheDelay()
+    {
+        using var host = Rush();
+        host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist);
+        host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        // The line counts down to the delay, not to a countdown that would end it sooner.
+        Assert.Contains(host.Runtime.Brand.Line("Alle sind da – in 20 Sekunden geht es los. Viel Glück!"), host.World.Said[Ada]);
+
+        host.World.Elapse(GenericFlow.GoLiveDelayMs - 2 * GenericFlow.PollIntervalMs);
+        Assert.Equal(0, WarmupEnds(host));
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        Assert.Equal(1, WarmupEnds(host));
+    }
+
+    [Fact]
+    public void AnAllPuppetMatchKeepsTheDelay()
+    {
+        // Every roster entry is a puppet: nobody to wait for, nothing to say.
+        using var host = Rush(new MatchSimulation());
+        Assert.False(host.Runtime.Flow.WaitingForPeople);
+        host.World.Elapse(GenericFlow.GoLiveDelayMs - GenericFlow.PollIntervalMs);
+        Assert.Equal(0, WarmupEnds(host));
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        Assert.Equal(1, WarmupEnds(host));
+        Assert.Empty(host.World.Said);
+    }
+
+    [Fact]
+    public void AMixedRosterWaitsForItsPeopleOnly()
+    {
+        // Ada is a puppet; Ben is a person, and the one warmup waits for.
+        using var host = Rush(new MatchSimulation { Puppets = [Ada.ToString()] });
+        var ada = host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist, bot: true);
+        ada.IsPuppet = true;
+        host.World.Elapse(3 * GenericFlow.GoLiveDelayMs);
+        Assert.Equal(0, WarmupEnds(host));
+
+        host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        host.World.Elapse(GenericFlow.PollIntervalMs);
+        Assert.Contains(host.Runtime.Brand.Line("Everybody is here – going live in 10 seconds. Good luck!"), host.World.Said[Ben]);
+        // A puppet has no client to read it.
+        Assert.False(host.World.Said.ContainsKey(Ada));
+        host.World.Elapse(GenericFlow.CountdownMs);
+        Assert.Equal(1, WarmupEnds(host));
+    }
+
     [Fact]
     public void ItLeavesAMatchZyFlowsWarmupAlone()
     {

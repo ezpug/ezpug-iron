@@ -76,6 +76,23 @@ public class WelcomeTests
     // ------------------------------------------------------------------ the card
 
     [Fact]
+    public void ARushHoldsItsWarmupForItsPeople_SoSomebodyWhoTakesAMinuteStillGetsTheCard()
+    {
+        // PRD-08 T1b: a flow-none mode used to end warmup twenty seconds after the map,
+        // which is before a person is through the addon's download. Now warmup waits for
+        // the roster, and the welcome is drawn in it as it is in a PUG's.
+        using var host = Assigned(mode: "rush");
+        InWarmup(host);
+        host.World.Elapse(60_000);
+        Assert.DoesNotContain(host.World.Actions, action => action.Detail == "mp_warmup_end");
+
+        var ada = host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist);
+        host.World.Elapse(Branding.CardDelayMs);
+        Assert.True(CardUp(host, ada));
+        Assert.False(host.World.Hudded.ContainsKey(Ada));
+    }
+
+    [Fact]
     public void SomebodyWhoJoinsInWarmupGetsTheCardInTheirOwnLanguage_AndNoCentreCard()
     {
         using var host = Assigned();

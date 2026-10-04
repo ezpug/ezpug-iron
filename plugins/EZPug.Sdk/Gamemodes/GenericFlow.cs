@@ -53,7 +53,22 @@ namespace EZPug.Sdk;
 /// <see cref="WarmupEndRetryMs"/> for as long as the gamerules still say warmup — the one
 /// early attempt is not enough (a <c>mp_warmup_end</c> in the cfg, one second into the
 /// map, is undone by the engine re-entering warmup right after it). The delay is what the
-/// roster and the request's bots connect in.
+/// request's bots and puppets connect in.
+///
+/// <b>People are waited for</b> (PRD-08 T1b). Puppets are on the server in seconds, a
+/// person in thirty to ninety (longer on a first join, with the HUD's addon to download),
+/// so a real Rush match that went live on the delay alone started one against three.
+/// When the roster holds people — every entry the request does not leave to a puppet, so
+/// the whole roster of a real match — warmup holds until each of them is connected and on
+/// a team. Then the server says so, in every player's own language and the platform's
+/// voice, and ends warmup <see cref="CountdownMs"/> later (never before
+/// <see cref="GoLiveDelayMs"/> after the map). Somebody who leaves during the countdown
+/// stops it, and it starts over when they are back. Once warmup has been ended for them
+/// the map is theirs: a person who leaves after that holds nothing up. The server keeps no
+/// ceiling of its own on the wait: a seat that never fills is the platform's join
+/// deadline's business, and the orchestrator's "no <c>going_live</c> within … of ready"
+/// release is the backstop. An all-puppet match and a match with nobody rostered go live
+/// on the delay, as before.
 ///
 /// <b>What it never does.</b> It says nothing during warmup, nothing before the map it was
 /// assigned is up, nothing for a <c>matchzy</c> flow, and nothing for a mode that says it
@@ -70,12 +85,20 @@ public sealed class GenericFlow
     public const long PollIntervalMs = 250;
 
     /// <summary>
-    /// How long after the assigned map is up the emitter ends warmup itself. Long enough
-    /// for the roster and the request's bots to connect after the loader set the cvars
-    /// that ask for them, short enough that a drop-in server is playing before anybody
-    /// wonders whether it is broken.
+    /// How long after the assigned map is up the emitter ends warmup itself, at the
+    /// earliest. Long enough for the request's bots and puppets to connect after the loader
+    /// set the cvars that ask for them, short enough that a drop-in server is playing
+    /// before anybody wonders whether it is broken. A roster with people on it waits for
+    /// them on top of this.
     /// </summary>
     public const long GoLiveDelayMs = 20_000;
+
+    /// <summary>
+    /// How long after the last rostered person is on a team warmup ends: long enough to read
+    /// the line that says so and pick a weapon, short enough that nobody who waited for the
+    /// others waits again.
+    /// </summary>
+    public const long CountdownMs = 10_000;
 
     /// <summary>How long between two <c>mp_warmup_end</c>s while the gamerules still say warmup.</summary>
     public const long WarmupEndRetryMs = 10_000;
@@ -94,6 +117,9 @@ public sealed class GenericFlow
     private bool _mapUp;
     private long _goLiveAtMs;
     private long _lastWarmupEndMs;
+    private ulong[] _people = [];
+    private long? _everybodyHereAtMs;
+    private bool _released;
     private IClockTimer? _poll;
     private TowerLine? _tower;
 
@@ -114,6 +140,13 @@ public sealed class GenericFlow
     /// <summary>Whether the current map has gone live — between <c>going_live</c> and <c>map_end</c>.</summary>
     public bool Live => _live;
 
+    /// <summary>
+    /// Whether warmup is being held for a rostered person who is not yet connected and on a
+    /// team. <c>false</c> once everybody is here (the countdown runs), once warmup has been
+    /// ended for them, and for a roster with nobody but puppets on it.
+    /// </summary>
+    public bool WaitingForPeople => Active && _mapUp && !_released && _people.Length > 0 && _everybodyHereAtMs is null;
+
     /// <summary>This map's score so far, in team order.</summary>
     public (long TeamA, long TeamB) Score => (_teamA, _teamB);
 
@@ -126,6 +159,7 @@ public sealed class GenericFlow
     {
         Disarm();
         _armed = assignment.Gamemode.Flow is GamemodeFlow.Plugin or GamemodeFlow.None;
+        _people = [.. assignment.Profiles.Keys.Where(steamId64 => assignment.IsRostered(steamId64) && !assignment.IsPuppet(steamId64))];
         _mapsA = 0;
         _mapsB = 0;
         ResetMap();
@@ -139,6 +173,7 @@ public sealed class GenericFlow
     {
         Disarm();
         _armed = false;
+        _people = [];
         _mapsA = 0;
         _mapsB = 0;
         ResetMap();
@@ -357,13 +392,72 @@ public sealed class GenericFlow
         }
 
         var now = _world.Clock.NowMs;
+        if (!_released && !PeopleReady(now))
+        {
+            return;
+        }
+
         if (now < _goLiveAtMs || now - _lastWarmupEndMs < WarmupEndRetryMs)
         {
             return;
         }
 
+        _released = true;
         _lastWarmupEndMs = now;
         _world.ExecCommand("mp_warmup_end");
+    }
+
+    /// <summary>
+    /// Whether every rostered person is connected and on a team, and has been for the
+    /// countdown — saying so the moment the last of them arrives, and starting over when
+    /// one of them leaves before it ran out. Always yes for a roster with no people on it.
+    /// </summary>
+    private bool PeopleReady(long now)
+    {
+        if (_people.Length == 0)
+        {
+            return true;
+        }
+
+        var missing = _people.Count(steamId64 => !_world.Players.Any(player =>
+            player.SteamId64 == steamId64 && !player.IsBot
+            && player.Team is PlayerTeam.Terrorist or PlayerTeam.CounterTerrorist));
+        if (missing > 0)
+        {
+            if (_everybodyHereAtMs is not null)
+            {
+                _log.Info($"a rostered person left during the countdown; waiting for {missing} again");
+                _everybodyHereAtMs = null;
+            }
+
+            return false;
+        }
+
+        if (_everybodyHereAtMs is null)
+        {
+            _everybodyHereAtMs = now;
+            _goLiveAtMs = Math.Max(_goLiveAtMs, now + CountdownMs);
+            var seconds = (_goLiveAtMs - now + 999) / 1000;
+            _log.Info($"all {_people.Length} rostered people are here; going live in {seconds} s");
+            Announce(seconds);
+        }
+
+        return true;
+    }
+
+    /// <summary>The countdown's line, to every person on the server in their own language, behind the match's prefix.</summary>
+    private void Announce(long seconds)
+    {
+        if (_runtime.Assignment is not { } assignment)
+        {
+            return;
+        }
+
+        foreach (var player in _world.Players.Where(player => !player.IsBot))
+        {
+            var lines = _runtime.Localizer.For(assignment.LocaleOf(player.SteamId64));
+            _runtime.Brand.Say(player, lines["flow.everybody_here", seconds]);
+        }
     }
 
     private void Disarm()
@@ -385,6 +479,8 @@ public sealed class GenericFlow
 
     private void ResetMap()
     {
+        _everybodyHereAtMs = null;
+        _released = false;
         _mapUp = false;
         _live = false;
         _mapOver = false;

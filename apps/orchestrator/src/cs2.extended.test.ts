@@ -343,7 +343,7 @@ type Summary = {
     humans?: number
     people?: { steamId64: string; announced: boolean }[]
     standIn?: { at: string; status: string | null; connectedBefore: number } | null
-    /** `--hold` (PRD-04 T2b): the ready puppets, how long the person's seat was held, and what had gone live by then. */
+    /** `--hold` (PRD-04 T2b, PRD-08 T1b): the puppets ready (an SDK flow: connected), how long the person's seat was held, and what had gone live by then. */
     held?: {
       at: string
       puppetsReady: number
@@ -936,30 +936,24 @@ const CASES: LaneCase[] = [
     },
   },
   {
-    // **A mixed roster, on the flow the SDK seats** (PRD-04 T2). Three are
-    // rostered, two are puppets and the third chair is a person's: the
-    // puppeteer seats exactly who is named, the person's SteamID is never
-    // announced, and the plain bot `--stand-in` adds once the match is live
-    // — a `bot_add` over RCON, the one command this row types and declares —
-    // is furniture, not the person. `retakes` because it is the cheapest
-    // mode that claims `mixedRoster` and plays a whole match out in minutes;
-    // the ready gate a `pug` holds for the tenth is what this row does not
-    // show, and `mixed-pug` below does.
+    // **A mixed roster, on the flow the SDK seats** (PRD-04 T2), **and its
+    // warmup held for the person** (PRD-08 T1b). Three are rostered, two are
+    // puppets and the third chair is a person's: the puppeteer seats exactly
+    // who is named, the person's SteamID is never announced, and the plain
+    // bot `--stand-in` adds as the hold starts — a `bot_add` over RCON, the
+    // one command this row types and declares — is furniture, not the
+    // person. Since T1b the SDK's generic flow ends warmup only once every
+    // rostered person is on a team, so nobody coming means nothing goes live:
+    // the row holds the room three times the 20 s it used to go live on, and
+    // cancels, as `mixed-pug` does under MatchZy. `retakes` because it is the
+    // cheapest mode that claims `mixedRoster`.
     id: 'mixed',
-    what: 'seats two of three retakes puppets, leaves the third chair to a person, and never casts a bot into it',
+    what: 'seats two of three retakes puppets, holds the warmup for the person past the 20 s, never casts a bot into the chair, and is called off',
     puppets: 3,
     humans: 1,
     rcon: 1,
-    args: [
-      '--gamemode',
-      'retakes',
-      '--humans',
-      '1',
-      '--stand-in',
-      '--no-demo',
-      '--max-live-minutes',
-      '12',
-    ],
+    held: true,
+    args: ['--gamemode', 'retakes', '--humans', '1', '--stand-in', '--hold', '--no-demo'],
     facts: summary => {
       expect(summary.payloads?.player_ready ?? 0, 'a plugin flow ran a ready system').toBe(0)
       expect(summary.simulation?.people, 'the run left nobody to a person').toHaveLength(1)
@@ -969,12 +963,19 @@ const CASES: LaneCase[] = [
         'the two puppets were not announced before the stand-in came',
       ).toBeGreaterThanOrEqual(2)
       // The stand-in is furniture: the durable log announces the puppets and
-      // nobody else, before the bot came and after.
+      // nobody else, before the bot came and after, and it fills no seat.
       expect(
         summary.payloads?.player_connected ?? 0,
         'somebody besides the two puppets was announced',
       ).toBe(2)
-      expect(summary.length?.winner, 'a one-team mode named a winning team').toBeNull()
+      const held = summary.simulation?.held
+      expect(held?.puppetsReady, 'not every puppet was connected before the hold').toBe(2)
+      expect(
+        held?.heldMs ?? 0,
+        'the room was not held past the flow’s own delay',
+      ).toBeGreaterThanOrEqual(60_000)
+      expect(held?.stateBefore, 'the room was not waiting in warmup').toBe('ready')
+      expect(held?.liveBefore, 'the match went live with nobody in the person’s seat').toBe(0)
     },
   },
   {
@@ -1839,7 +1840,8 @@ describe('the iron-match script', () => {
     // quietly grew an RCON would be caught here. **The one exception is
     // declared**: `mixed` (PRD-04 T2) leaves a chair to a person, and there
     // is no door on this box a person can come through — no CS2 client, no
-    // Steam — so its stand-in is one `bot_add` the row types and says so.
+    // Steam — so its stand-in is one `bot_add` the row types and says so,
+    // and since PRD-08 T1b the proof that such a bot does not fill the seat.
     // `mixed-pug` (T2b) types nothing: MatchZy's gate would never count such
     // a bot, so that row gives up on the person instead.
     expect(CASES.filter(lane => !lane.spike && (lane.rcon ?? 0) > 0).map(lane => lane.id)).toEqual([

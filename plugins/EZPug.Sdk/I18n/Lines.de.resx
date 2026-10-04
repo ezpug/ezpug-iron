@@ -85,4 +85,7 @@
   <data name="length.ended.frag_limit" xml:space="preserve">
     <value>Frag-Limit erreicht – das Match ist vorbei.</value>
   </data>
+  <data name="flow.everybody_here" xml:space="preserve">
+    <value>Alle sind da – in {0} Sekunden geht es los. Viel Glück!</value>
+  </data>
 </root>

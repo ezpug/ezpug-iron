@@ -330,6 +330,28 @@ for a mode whose class says `OwnsFlow` — a mode that knows better is always ri
 **It emits no pause.** Nothing pauses a stock server but an admin, and answering that
 command is the mode's job.
 
+**It starts the match, and waits for people first** (PRD-08 T1b). A `plugin` or `none`
+flow has no ready-up and CS2's warmup does not run down on a dedicated server, so the
+emitter ends warmup itself for every mode it speaks for (Rush, flying-scoutsman, retakes,
+powerup-dm): `mp_warmup_end`, repeated every 10 s while the gamerules still say warmup,
+because the engine re-enters it after an early one. When:
+
+| Roster | Warmup ends |
+| ------ | ----------- |
+| nobody rostered, or every entry a puppet | `GoLiveDelayMs` (20 s) after the map is up — what the bots and puppets connect in |
+| people on it (every entry `simulation.puppets` does not name; the whole roster of a real match) | once every rostered person is connected **and on a team**: the server says so in chat, to each person in their own language behind the match's prefix ("Alle sind da – in 10 Sekunden geht es los. Viel Glück!" / "Everybody is here – going live in 10 seconds. Good luck!"), and ends warmup `CountdownMs` (10 s) later, never sooner than the 20 s |
+
+Somebody who leaves during the countdown stops it; it starts over, said again, when they
+are back. Once warmup has been ended for them, nobody holds anything up. The server keeps
+no ceiling of its own on the wait: a seat that never fills is the platform's join deadline
+(5 min for a queue match, 15 for a cup's), and the orchestrator's "no `going_live` within
+20 minutes of ready" release is the backstop. The one thing on the server that still ends a
+waiting match is the manifest's `length.idleTimeoutSeconds` ("Length" above), and only when
+nobody at all, person or puppet, is on the server for that long. A Rush used to go live
+20 s after its map whoever had come, and puppets come at once while people take 30–90 s,
+so a real Rush match started one against three. Because the warmup is now held, the HUD's
+welcome is drawn in a Rush warmup as it is in a PUG's.
+
 ## What the tier allows
 
 | Rule | Because |

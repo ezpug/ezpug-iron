@@ -106,17 +106,20 @@ const HELP = `iron-match — run one real match through the Match API and record
                          run proves nothing sits down in them. Needs
                          --simulate, fewer than --bots, and a mode whose
                          manifest claims capabilities.mixedRoster
-  --stand-in             once the match is live, bot_add one plain bot per
+  --stand-in             once the match is live (with --hold: once the hold
+                         starts, in warmup), bot_add one plain bot per
                          --humans over RCON, standing in for a person who
                          never came: the assertion is that it is furniture —
                          never announced, never cast as the person. The one
                          RCON command of the row, declared as such. SDK flows
                          only: MatchZy's gate never counts a plain bot
-  --hold                 matchzy + --humans: wait for every puppet's
-                         player_ready, hold the warmup for the person past
-                         the fork's watchdog, and then call the match off the
-                         way a client does for a no-show (cancel). The run
-                         ends cancelled, and that is its success (T2b)
+  --hold                 --humans: wait for every puppet (matchzy: its
+                         player_ready; an SDK flow: its player_connected),
+                         hold the warmup for the person past the point the
+                         room would have gone live without them, and then
+                         call the match off the way a client does for a
+                         no-show (cancel). The run ends cancelled, and that
+                         is its success (PRD-04 T2b, PRD-08 T1b)
   --pause                pause the live match through the Match API and
                          unpause it two polls later (PRD-03 T6)
   --moment               ask for a HUD on the request (\`branding.hud\`, a
@@ -495,6 +498,15 @@ const STAND_IN_AFTER_MS = 15_000
  */
 const HOLD = flags.get('hold') === 'true'
 if (HOLD && HUMANS === 0) die('--hold holds a seat for a person: pass --humans')
+/**
+ * **An SDK flow holds its warmup for its people too** (PRD-08 T1b): the
+ * generic flow ends warmup only once every rostered person is connected and
+ * on a team, and a plain bot standing in is not one of them. Its puppets
+ * never ready up, so the hold is counted from the last puppet's
+ * `player_connected`, and it runs three times the 20 s the flow used to go
+ * live on, whoever had come (`GenericFlow.GoLiveDelayMs`).
+ */
+const SDK_HOLD_MS = 60_000
 /**
  * **How long a `matchzy` room of ready puppets is held for the person**
  * before the run calls it off. Our fork's warmup watchdog reconciles 60 real
@@ -1541,10 +1553,6 @@ async function run() {
   // both skip a plain bot, so a stand-in there is a bot nobody counts ({@link HOLD}).
   if (STAND_IN && FLOW === 'matchzy')
     die('--stand-in is for SDK flows: MatchZy never counts a plain bot at its gate — use --hold')
-  if (HOLD && FLOW !== 'matchzy')
-    die(
-      `--hold holds MatchZy's ready gate, and ${GAMEMODE} has none: an SDK flow goes live on its own clock`,
-    )
   // **A phone needs a mode that has one** (PRD-03 T8). The catalog is asked
   // rather than the checkout, and the verb too: the widget socket's `hello`
   // answers with the verbs the *served* manifest declares, and a tap for one
@@ -2161,6 +2169,20 @@ async function run() {
     }
     return count
   }
+  /** `--stand-in`: one plain bot per person over RCON, after reading how many the log had announced. */
+  const standInForThePeople = async () => {
+    const connectedBefore = await countSaid('player_connected')
+    const answer = await rcon(
+      Array.from({ length: HUMANS }, () => 'bot_add').join('; '),
+      'stand-in',
+    )
+    say(`stood in for ${HUMANS} person(s) with a plain bot each (${answer.status ?? 'no status'})`)
+    return {
+      at: new Date(wall.now()).toISOString(),
+      status: answer.status ?? null,
+      connectedBefore,
+    }
+  }
   const command = async (body, waitMs = 10_000) => {
     let ack
     try {
@@ -2593,18 +2615,28 @@ async function run() {
       // the room past the moment an unpatched fork would have force-started
       // it, reads what the log says went live meanwhile (nothing may have),
       // and cancels: the next poll sees `cancelled` and the run ends there.
+      //
+      // An SDK flow holds its warmup the same way since PRD-08 T1b
+      // ({@link SDK_HOLD_MS}): its puppets are counted when they are announced,
+      // and the stand-in comes at the start of the hold, so the hold is also
+      // the proof that a plain bot does not fill a person's seat.
       if (HOLD && held === null) {
-        const ready = await saidBy('player_ready')
+        const sdk = FLOW !== 'matchzy'
+        const ready = await saidBy(sdk ? 'player_connected' : 'player_ready')
         const puppetsReady = PUPPET_STEAM_IDS.filter(steamId64 => ready.has(steamId64)).length
         if (puppetsReady < PUPPET_STEAM_IDS.length) continue
+        const holdMs = sdk ? SDK_HOLD_MS : GATE_HOLD_MS
         if (gateHeldSince === 0) {
           gateHeldSince = wall.now()
           say(
-            `all ${puppetsReady} puppets ready; holding ${GATE_HOLD_MS / 1_000} s for the person, past the fork's watchdog`,
+            sdk
+              ? `all ${puppetsReady} puppets connected; holding ${holdMs / 1_000} s for the person, past the flow's own delay`
+              : `all ${puppetsReady} puppets ready; holding ${holdMs / 1_000} s for the person, past the fork's watchdog`,
           )
+          if (STAND_IN && standIn === null) standIn = await standInForThePeople()
           continue
         }
-        if (wall.now() - gateHeldSince < GATE_HOLD_MS) continue
+        if (wall.now() - gateHeldSince < holdMs) continue
         const atMs = wall.now()
         held = {
           at: new Date(atMs).toISOString(),
@@ -2655,19 +2687,7 @@ async function run() {
     // summary reads the durable log for whether the person's SteamID was ever
     // announced, and it must not have been.
     if (STAND_IN && standIn === null && liveAt > 0 && wall.now() - liveAt >= STAND_IN_AFTER_MS) {
-      const connectedBefore = await countSaid('player_connected')
-      const answer = await rcon(
-        Array.from({ length: HUMANS }, () => 'bot_add').join('; '),
-        'stand-in',
-      )
-      standIn = {
-        at: new Date(wall.now()).toISOString(),
-        status: answer.status ?? null,
-        connectedBefore,
-      }
-      say(
-        `stood in for ${HUMANS} person(s) with a plain bot each (${answer.status ?? 'no status'})`,
-      )
+      standIn = await standInForThePeople()
       continue
     }
 
