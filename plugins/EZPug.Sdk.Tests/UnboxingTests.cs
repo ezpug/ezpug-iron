@@ -212,6 +212,38 @@ public class UnboxingTests
         Assert.Equal(1, Read(host, Ada, YouWin));
     }
 
+    /// <summary>
+    /// The reel is the client's own transition, started by one class: whatever the server
+    /// wrote to the layout while it slides could make a client restyle it mid-slide. So
+    /// from the instant it starts to the reveal the server writes nothing to any layout,
+    /// only the ticks, even where it is likeliest to: everybody spawned at the round start
+    /// the unboxing began at, so the slot's second telling (<see cref="Hud.ResendDelayMs"/>,
+    /// as long as the call) falls on the instant the reel starts. Asked after the playtest
+    /// of 2026-10-04, whose reel looked stuck: the server was not touching it.
+    /// </summary>
+    [Fact]
+    public void NothingTouchesTheLayoutWhileTheReelSlides_OnlyTheTicksAreHeard()
+    {
+        Assert.Equal(Hud.ResendDelayMs, Moments.CallMs);
+        using var host = Assigned();
+        Freeze(host);
+        host.World.Spawn(Player(host, Ada));
+        host.World.Spawn(Player(host, Ben));
+        host.Link.Command(Drop("m1"));
+        host.Clock.Advance(Moments.CallMs);
+        var rolling = Beats(host, Ben);
+        Assert.Matches($"^{Moments.Shown} {Moments.Rolling} land-[1-{Moments.ReelLandings}]$", rolling);
+        Assert.Equal(rolling, Beats(host, Ada));
+
+        var from = host.World.Actions.Count;
+        host.Clock.Advance(Moments.ReelMs - 1);
+        var during = host.World.Actions.Skip(from).ToList();
+        Assert.DoesNotContain(during, action => action.Verb.StartsWith("hud_", StringComparison.Ordinal));
+        Assert.All(during, action => Assert.Equal("sound", action.Verb));
+        Assert.NotEmpty(during);
+        Assert.Equal(rolling, Beats(host, Ben));
+    }
+
     /// <summary>The beats of the unboxing as the server's console says them, which is all a lane on a server of puppets can time (PRD-08 T6): a bot has no screen.</summary>
     private static List<string> Said(GamemodeTestHost host) =>
         [.. host.Logged.Where(line => line.Contains("unboxing", StringComparison.Ordinal))];
