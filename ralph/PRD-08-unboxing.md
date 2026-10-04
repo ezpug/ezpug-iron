@@ -142,7 +142,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   readback is 7-bit, `·` comes back as `B7`) is **not** for tonight: leave it open. Ships
   with T1b in the same deploy by 17:00 (`pnpm dathost:image`, `./scripts/deploy.sh all`);
   if T1b is already deployed, deploy this on its own. Close #8 with the commit.
-- [ ] **T3: the unboxing, drawn.** A layout (or a section of the moment's layout) with
+- [x] **T3: the unboxing, drawn.** A layout (or a section of the moment's layout) with
   three beats: **the call** (the name or avatar, "hat einen Drop! Mal sehen…" / "got a
   drop! Let's see…", from the server's catalog in both languages), **the reel** (a strip
   of pictures that slides and slows to a stop on the slot the server marks, with a
