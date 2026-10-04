@@ -83,3 +83,14 @@ announcement and the door says nothing to it; 48 is the one the room is owed. Ea
 held against the same floor a `team_ready` is, read off the payload's own counts rather
 than off what the door happens to remember — so the rule does not depend on MatchZy having
 sent the two `team_ready`s first.
+
+**50 is production's** (2026-10-04, iron match `513fb90f`): a round nobody won. A 1v1 pug
+stood at 2–0 when both players left, and the first one back on the empty server set off the
+engine's "Game Commencing" restart, which MatchZy-Enhanced reports as a `round_end` whose
+`winner.side` is the engine's `round_end.winner` — `"1"`, `WINNER_DRAW`, the number a
+spectator team also has (`"0"` is `WINNER_NONE`) — and whose `winner.team` is `"none"`.
+The door used to log it as a shape it could not read. It is a legitimate shape with no
+winner in it, and the vocabulary has no drawn round, so it is dropped on purpose; a restart
+(reason 16, `GameStart`) carries a note too, because the engine's score is starting again
+under a live match. Only `winner.side` was logged at the time, so the reason and the 2–0
+are reconstructed from the event log around it, and the file says so.

@@ -5,10 +5,12 @@ import { FIXTURE_MATCH_ID } from '@ezpug/match-api/fixtures'
 import { describe, expect, it } from 'vitest'
 import { matchzySerial } from '../match-config/matchzy'
 import {
+  GAME_COMMENCING_REASON,
   initialMatchZyState,
   MATCHZY_KNOWN_EVENTS,
   type MatchZyContext,
   type MatchZyState,
+  noWinnerOf,
   scheduledSide,
   sideOf,
   teamOf,
@@ -144,6 +146,58 @@ describe('the rules', () => {
     expect(sideOf('TERRORIST')).toBe('t')
     expect(sideOf('spec')).toBeNull()
     expect(sideOf(null)).toBeNull()
+  })
+
+  it('reads a round nobody won as nobody, and only the engine’s two numbers for it', () => {
+    // `round_end.winner` is WINNER_DRAW (1) or WINNER_NONE (0) for a round
+    // nobody won — production sent "1" on 2026-10-04 (fixture 50).
+    expect(sideOf('1')).toBeNull()
+    expect(noWinnerOf('1')).toBe('draw')
+    expect(noWinnerOf('0')).toBe('none')
+    for (const side of ['2', '3', 'ct', 't', 'spec', '', null]) expect(noWinnerOf(side)).toBeNull()
+  })
+
+  it('drops a drawn round on purpose, quietly, and a restart mid-map loudly', () => {
+    const roundEnd = (reason: number) => ({
+      event: 'round_end',
+      matchid: context.serial,
+      map_number: 0,
+      round_number: 3,
+      round_time: 0,
+      reason,
+      winner: { side: '1', team: 'none' },
+      team1: {
+        id: '',
+        name: 'EZPug A',
+        series_score: 0,
+        score: 2,
+        score_ct: 0,
+        score_t: 0,
+        players: [],
+      },
+      team2: {
+        id: '',
+        name: 'EZPug B',
+        series_score: 0,
+        score: 0,
+        score_ct: 0,
+        score_t: 0,
+        players: [],
+      },
+    })
+    const after = { ...initialMatchZyState(), scores: { 1: { team1: 2, team2: 0 } } }
+
+    const draw = translateMatchZyEvent(roundEnd(10), context, after)
+    expect(draw.events).toEqual([])
+    expect(draw.dropped).toMatch(/names nobody the winner .*WINNER_DRAW.*no drawn round/)
+    expect(draw.note).toBeUndefined()
+    expect(draw.state).toEqual(after)
+
+    const restart = translateMatchZyEvent(roundEnd(GAME_COMMENCING_REASON), context, after)
+    expect(restart.events).toEqual([])
+    expect(restart.dropped).toMatch(/Game Commencing/)
+    expect(restart.note).toMatch(/restarted under a live match at 2–0/)
+    expect(restart.state).toEqual(after)
   })
 
   it('reads team1/team2 and nothing else', () => {

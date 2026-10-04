@@ -655,6 +655,22 @@ const plan: Plan[] = [
       filename: `matchzy_${SERIAL}_0_round03.json`,
     },
   },
+
+  // ------------------------------------------ a round nobody won (production, 2026-10-04)
+  {
+    file: '50-round-end-game-commencing.json',
+    source: 'derived',
+    from: '14-round-end-clinch.json',
+    note: 'Production, 2026-10-04, iron match 513fb90f: a 1v1 pug at 2–0, both players gone, and the first one back on the empty server set off the engine’s "Game Commencing" restart. MatchZy-Enhanced reported it as a round_end whose winner.side is the engine’s round_end.winner — 1, WINNER_DRAW, the number a spectator team also has — and whose winner.team its SlotForTeamNum names "none". The door logged it as a shape it could not read; it is a round nobody won, dropped on purpose, and a warning that the engine’s score is starting again under a live match. Only winner.side was logged at the time: the reason is the engine’s GameStart (16) and the score the 2–0 the log held, both reconstructed.',
+    state: scores(2, 0),
+    payload: {
+      ...at('round_end', 3),
+      reason: 16,
+      winner: { side: '1', team: 'none' },
+      team1: { ...(at('round_end', 3).team1 as object), score: 2 },
+      team2: { ...(at('round_end', 3).team2 as object), score: 0 },
+    },
+  },
 ]
 
 // Only the fixtures: the folder's README is written by hand.

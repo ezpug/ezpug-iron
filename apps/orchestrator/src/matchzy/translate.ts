@@ -35,7 +35,17 @@ import { z } from 'zod'
  *   only then MatchZy's own field — each fallback is said in the log.
  * - **`winner.side` is an engine team number in a string.** The schema says
  *   `ct`/`t`; the code writes `@event.Winner.ToString()` — `"3"` for CT,
- *   `"2"` for T. Both spellings are read.
+ *   `"2"` for T. Both spellings are read. **`"1"` and `"0"` are nobody**, and
+ *   they are real: the engine's `round_end.winner` is `WINNER_DRAW` (1, the
+ *   number a spectator team also has) or `WINNER_NONE` (0) for a round nobody
+ *   won — a draw, and the "Game Commencing" restart the engine runs when the
+ *   first person joins a server everybody had left (production, 2026-10-04,
+ *   at 2–0 on map 1; the fork's `SlotForTeamNum` then names `winner.team`
+ *   `"none"`). The vocabulary has no drawn round, so such a payload is
+ *   dropped — on purpose and said so, never as a shape the door could not
+ *   read — and a restart mid-map is a warning, because the engine's score is
+ *   about to start again from 0–0 underneath a live match
+ *   ({@link noWinnerOf}).
  * - **Round numbers come from the score, not `round_number`.** The schema
  *   says rounds start at 0; the code sends `t1score + t2score` computed after
  *   the round, which is already 1-based for the round that just ended. The
@@ -484,6 +494,26 @@ export function sideOf(side: string | null | undefined): TeamSide | null {
       return null
   }
 }
+
+/**
+ * The engine's word for a round **nobody won**, when `winner.side` is one:
+ * `WINNER_DRAW` (`"1"`) or `WINNER_NONE` (`"0"`), what `round_end.winner`
+ * holds for a drawn round and for the "Game Commencing" restart. `null` for a
+ * side, and for anything the door cannot read at all.
+ */
+export function noWinnerOf(side: string | null | undefined): 'draw' | 'none' | null {
+  switch ((side ?? '').trim()) {
+    case '1':
+      return 'draw'
+    case '0':
+      return 'none'
+    default:
+      return null
+  }
+}
+
+/** CounterStrikeSharp's `RoundEndReason.GameStart`: the engine restarting the game — "Game Commencing". */
+export const GAME_COMMENCING_REASON = 16
 
 /** `team1`/`team2` onto `team_a`/`team_b`; anything else (`"none"`, `null`) is nobody. */
 export function teamOf(team: string | null | undefined): MatchTeam | null {
@@ -960,8 +990,22 @@ export function translateMatchZyEvent(
       const roundNumber = score.teamA + score.teamB
       if (roundNumber === 0) return drop('a round_end with a 0–0 score')
       const side = sideOf(event.winner.side)
-      if (!side)
-        return drop(`winner.side "${event.winner.side}" is neither a side nor a team number`)
+      if (!side) {
+        const nobody = noWinnerOf(event.winner.side)
+        if (!nobody)
+          return drop(`winner.side "${event.winner.side}" is neither a side nor a team number`)
+        const at = `${score.teamA}–${score.teamB}`
+        if (event.reason === GAME_COMMENCING_REASON)
+          return {
+            ...drop(
+              `the engine restarted the game ("Game Commencing", winner.side "${event.winner.side}") at ${at}: a restart is no round, and nobody won it`,
+            ),
+            note: `map ${mapNumber} restarted under a live match at ${at} — the engine does this when somebody joins a server everybody had left, and its score starts again from 0–0`,
+          }
+        return drop(
+          `round ${roundNumber} at ${at} names nobody the winner (winner.side "${event.winner.side}", the engine's ${nobody === 'draw' ? 'WINNER_DRAW' : 'WINNER_NONE'}): the vocabulary has no drawn round`,
+        )
+      }
 
       const previous = state.scores[mapNumber] ?? { team1: 0, team2: 0 }
       const rose = {
