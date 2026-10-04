@@ -23,7 +23,10 @@ namespace EZPug.Sdk;
 /// <item><b>The beats.</b> The call at once, in chat too; the reel
 /// <see cref="CallMs"/> later; the reveal <see cref="ReelMs"/> after that, which is the
 /// contract's <c>MOMENT_UNBOXING_REVEAL_MS</c> after the moment was due; everything gone
-/// <see cref="PrizeMs"/> later. <b>The line is said at the reveal</b>, not before: chat is
+/// <see cref="PrizeMs"/> later. The reel ticks as each slot passes the marker
+/// (<see cref="TickSound"/>, slowing with the curve) and the reveal sounds by tier
+/// (<see cref="RevealSoundOf"/>), the game's own case opening, for everybody watching.
+/// <b>The line is said at the reveal</b>, not before: chat is
 /// on every screen, and a line that names the prize would open the box before the reel
 /// stopped.</item>
 /// <item><b>The same moment, the same reel.</b> The slots and the landing come from a
@@ -108,6 +111,100 @@ public sealed partial class Moments
     /// <summary>The key of the call in the SDK's catalog.</summary>
     public const string CallKey = "hud.unbox.call";
 
+    /// <summary>
+    /// The tick as a slot passes the marker: the game's own, what its case opening plays
+    /// for every item the reel passes (<c>sounds/ui/csgo_ui_crate_item_scroll.vsnd</c>, in
+    /// <c>soundevents/game_sounds_ui.vsndevts</c>). Nothing ships in the addon.
+    /// </summary>
+    public const string TickSound = "UIPanorama.container_weapon_ticker";
+
+    /// <summary>How loud a tick plays: under the freeze's own sounds, the buying and the footsteps.</summary>
+    public const float TickVolume = 0.5f;
+
+    /// <summary>The least time between two ticks: early on the reel passes a slot every 28 ms, close to the server's 64 Hz frames and too fast for an event that plays one instance at a time; one closer than this to the last is skipped.</summary>
+    public const long TickGapMinMs = 60;
+
+    /// <summary>How loud the reveal plays for everybody but the winner, who hears it at the event's own volume.</summary>
+    public const float RevealVolume = 0.7f;
+
+    /// <summary>The slot under the marker while the reel stands: the stylesheet's resting position.</summary>
+    public const int ReelRestSlot = 4;
+
+    /// <summary>How far apart two slots' centres are, in the layout's pixels.</summary>
+    public const int ReelPitchPx = 140;
+
+    /// <summary>The reel's curve, the stylesheet's <c>cubic-bezier( 0.08, 0.6, 0.12, 1 )</c>: fast, then a long slow end.</summary>
+    public static readonly IReadOnlyList<double> ReelCurve = [0.08, 0.6, 0.12, 1];
+
+    /// <summary>Where in its slot the reel stops for each landing, from <c>land-1</c>: the stylesheet's second slide, in pixels.</summary>
+    public static readonly IReadOnlyList<int> LandingPx = [-46, -20, 18, 44];
+
+    /// <summary>
+    /// The reveal by tier: the game's own sound for an item awarded out of a case, a
+    /// different one for each rarity (<c>sounds/ui/panorama/case_awarded_*.vsnd</c>). Our
+    /// four tiers are Valve's rarities of the same names and colours; theirs above
+    /// legendary (ancient) are not ours. A different sound per tier, because nobody knows
+    /// yet whether a CS2 client lets the volume we send scale an event.
+    /// </summary>
+    public static string RevealSoundOf(MomentTier tier) =>
+        tier switch
+        {
+            MomentTier.Uncommon => "UIPanorama.ItemDropUncommon",
+            MomentTier.Rare => "UIPanorama.ItemDropRare",
+            MomentTier.Legendary => "UIPanorama.ItemDropLegendary",
+            _ => "UIPanorama.ItemDropCommon",
+        };
+
+    private static readonly long[][] Ticking = [.. Enumerable.Range(1, ReelLandings).Select(TicksAt)];
+
+    /// <summary>
+    /// When, after the reel starts with <paramref name="landing"/>, it ticks: each instant a
+    /// slot's edge passes the marker, read off the curve, without one closer than
+    /// <see cref="TickGapMinMs"/> to the last. The strip and the landing slide together, so
+    /// the marker moves over <c>(stop − rest) × pitch − landing</c> pixels; every reel
+    /// passes the same edges, and the last comes well before the reveal.
+    /// </summary>
+    public static IReadOnlyList<long> TicksOf(int landing) => Ticking[landing - 1];
+
+    private static long[] TicksAt(int landing)
+    {
+        var distance = (double)((ReelStopSlot - ReelRestSlot) * ReelPitchPx) - LandingPx[landing - 1];
+        var ticks = new List<long>();
+        // The marker starts over the resting slot's centre; the first edge is half a slot on.
+        for (var edge = ReelPitchPx / 2.0; edge <= distance; edge += ReelPitchPx)
+        {
+            var at = (long)Math.Round(TimeAt(edge / distance) * ReelMs);
+            if (ticks.Count == 0 || at - ticks[^1] >= TickGapMinMs)
+            {
+                ticks.Add(at);
+            }
+        }
+
+        return [.. ticks];
+    }
+
+    /// <summary>The share of the slide's time at which the curve has covered <paramref name="progress"/> of its way: the curve's parameter by bisection, then its time.</summary>
+    private static double TimeAt(double progress)
+    {
+        static double Bezier(double s, double a, double b) => 3 * (1 - s) * (1 - s) * s * a + 3 * (1 - s) * s * s * b + s * s * s;
+
+        double low = 0, high = 1;
+        for (var step = 0; step < 50; step++)
+        {
+            var middle = (low + high) / 2;
+            if (Bezier(middle, ReelCurve[1], ReelCurve[3]) < progress)
+            {
+                low = middle;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return Bezier((low + high) / 2, ReelCurve[0], ReelCurve[2]);
+    }
+
     /// <summary>A slot of the reel, 1 to <see cref="ReelSlots"/> from the left: a picture and a tier, for everybody.</summary>
     public static string ReelSlot(int slot) => $"unbox_slot_{slot}";
 
@@ -128,7 +225,9 @@ public sealed partial class Moments
     private bool _revealed;
     private bool _unboxResting;
     private int _landing;
+    private int _tick;
     private IClockTimer? _unboxTimer;
+    private IClockTimer? _tickTimer;
 
     /// <summary>How many unboxings are waiting for a stretch that fits them.</summary>
     public int UnboxingsWaiting => _unboxings.Count;
@@ -320,7 +419,7 @@ public sealed partial class Moments
         _unboxTimer = _world.Clock.After(CallMs, Roll);
     }
 
-    /// <summary>The reel: it slides for <see cref="ReelMs"/> and stops where this moment's seed says.</summary>
+    /// <summary>The reel: it slides for <see cref="ReelMs"/>, ticking as it passes the slots, and stops where this moment's seed says.</summary>
     private void Roll()
     {
         foreach (var watcher in Watching())
@@ -329,7 +428,21 @@ public sealed partial class Moments
             _hud.SetClass(watcher, Layout, Unbox, Rolling, true);
         }
 
+        _tick = 0;
+        _tickTimer = _world.Clock.After(TicksOf(_landing)[0], Tick);
         _unboxTimer = _world.Clock.After(ReelMs, Reveal);
+    }
+
+    /// <summary>A slot passes the marker: one tick for everybody watching, and the next one timed.</summary>
+    private void Tick()
+    {
+        foreach (var watcher in Watching())
+        {
+            _world.PlaySound(watcher, TickSound, TickVolume);
+        }
+
+        var ticks = TicksOf(_landing);
+        _tickTimer = ++_tick < ticks.Count ? _world.Clock.After(ticks[_tick] - ticks[_tick - 1], Tick) : null;
     }
 
     /// <summary>The reveal: the prize, its sound, and the line, which nobody was told before.</summary>
@@ -341,7 +454,7 @@ public sealed partial class Moments
         {
             _hud.SetClass(watcher, Layout, Unbox, Landing(_landing), false);
             _hud.SetClass(watcher, Layout, Unbox, Revealed, true);
-            _world.PlaySound(watcher, Sound, VolumeOf(moment.Tier));
+            _world.PlaySound(watcher, RevealSoundOf(moment.Tier), watcher.SteamId64 == moment.About ? 1f : RevealVolume);
         }
 
         Say(moment, PersonOf(moment));
@@ -448,6 +561,8 @@ public sealed partial class Moments
 
         _unboxTimer?.Cancel();
         _unboxTimer = null;
+        _tickTimer?.Cancel();
+        _tickTimer = null;
         _unboxing = null;
         _watching.Clear();
     }
@@ -494,6 +609,8 @@ public sealed partial class Moments
     {
         _unboxTimer?.Cancel();
         _unboxTimer = null;
+        _tickTimer?.Cancel();
+        _tickTimer = null;
         _unboxing = null;
         _unboxResting = false;
         _revealed = false;

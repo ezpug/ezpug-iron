@@ -125,6 +125,14 @@ public class UnboxingTests
     private static int Read(GamemodeTestHost host, ulong steamId64, string line) =>
         host.World.Said.GetValueOrDefault(steamId64, []).Count(said => said == host.Runtime.Brand.Line(line));
 
+    /// <summary>The sounds this player heard that were not the reel's ticks.</summary>
+    private static List<(string Event, float Volume)> Reveals(GamemodeTestHost host, ulong steamId64) =>
+        [.. host.World.Sounds.GetValueOrDefault(steamId64, []).Where(sound => sound.Event != Moments.TickSound)];
+
+    /// <summary>How many of the reel's ticks this player heard.</summary>
+    private static int Ticks(GamemodeTestHost host, ulong steamId64) =>
+        host.World.Sounds.GetValueOrDefault(steamId64, []).Count(sound => sound.Event == Moments.TickSound);
+
     /// <summary>What everybody's reel holds, slot by slot: the classes that are on.</summary>
     private static List<string> Reel(GamemodeTestHost host) =>
         [.. Enumerable.Range(1, Moments.ReelSlots).Select(slot => string.Join(' ', Layout(host).Classes
@@ -181,8 +189,8 @@ public class UnboxingTests
         Assert.Equal(AdaWinsEnglish, layout.Variable(Player(host, Ben).Slot, Moments.UnboxLine, Moments.Text));
         Assert.Equal(1, Read(host, Ada, YouWin));
         Assert.Equal(1, Read(host, Ben, AdaWinsEnglish));
-        Assert.Equal((Moments.Sound, Moments.VolumeOf(MomentTier.Rare)), Assert.Single(host.World.Sounds[Ada]));
-        Assert.Single(host.World.Sounds[Ben]);
+        Assert.Equal((Moments.RevealSoundOf(MomentTier.Rare), 1f), Assert.Single(Reveals(host, Ada)));
+        Assert.Equal((Moments.RevealSoundOf(MomentTier.Rare), Moments.RevealVolume), Assert.Single(Reveals(host, Ben)));
         Assert.True(layout.Classes[(Moments.Unbox, "tier-rare")]);
         Assert.True(layout.Classes[(Moments.Unbox, "art-big-jersey")]);
 
@@ -402,6 +410,8 @@ public class UnboxingTests
         Assert.StartsWith($"{Moments.Shown} {Moments.Rolling}", Beats(host, Ben), StringComparison.Ordinal);
 
         // Somebody unpaused, or the cvar was wrong: the freeze is over early.
+        var ticked = Ticks(host, Ben);
+        Assert.True(ticked > 0);
         host.World.EndFreeze();
 
         Assert.Equal("", Beats(host, Ada));
@@ -413,10 +423,11 @@ public class UnboxingTests
         Assert.Equal(YouWin, ToastOn(host, Ada));
         Assert.Equal(1, host.Runtime.Moments.CardsWaiting);
 
-        // No beat of it comes back, no sound of it plays, and the line is not said again.
+        // No beat of it comes back, no tick or reveal of it plays, and the line is not said again.
         host.Clock.Advance(Moments.UnboxMs);
         Assert.Equal("", Beats(host, Ben));
-        Assert.Empty(host.World.Sounds);
+        Assert.Equal(ticked, Ticks(host, Ben));
+        Assert.Empty(Reveals(host, Ben));
         Assert.Equal(1, Read(host, Ben, AdaWinsEnglish));
         Decide(host);
         Assert.True(CardUp(host, Ada));
@@ -564,6 +575,83 @@ public class UnboxingTests
         Assert.True(CardUp(rush, Ada));
     }
 
+    // ------------------------------------------------------------------ the sound
+
+    [Fact]
+    public void TheReelTicksAsEachSlotPassesTheMarker_SlowingWithIt_ForEverybodyWatching()
+    {
+        using var host = Assigned();
+        Freeze(host);
+        host.Link.Command(Drop("m1"));
+        host.Clock.Advance(Moments.CallMs - 1);
+        Assert.Equal(0, Ticks(host, Ben));
+        host.Clock.Advance(1);
+        var landing = int.Parse(Regex.Match(Beats(host, Ben), @"land-(\d)").Groups[1].Value, CultureInfo.InvariantCulture);
+
+        // Each instant a tick is heard, on the fake clock, from the reel's start.
+        var heard = new List<long>();
+        for (var ms = 0L; ms < Moments.ReelMs; ms++)
+        {
+            var before = Ticks(host, Ben);
+            host.Clock.Advance(1);
+            heard.AddRange(Enumerable.Repeat(ms + 1, Ticks(host, Ben) - before));
+        }
+
+        Assert.Equal(Moments.TicksOf(landing), heard);
+        Assert.Equal(Ticks(host, Ben), Ticks(host, Ada));
+        Assert.All(host.World.Sounds[Ben].Where(sound => sound.Event == Moments.TickSound), sound => Assert.Equal(Moments.TickVolume, sound.Volume));
+
+        // Fast, then slower: never closer than the least gap, each gap after the first
+        // second longer than the one before, and the last well before the reveal.
+        var gaps = heard.Zip(heard.Skip(1), (a, b) => b - a).ToList();
+        Assert.All(gaps, gap => Assert.True(gap >= Moments.TickGapMinMs));
+        var late = heard.Zip(gaps).Where(pair => pair.First >= 1_000).Select(pair => pair.Second).ToList();
+        Assert.Equal(late.Order(), late);
+        Assert.True(heard[^1] < Moments.ReelMs - 1_000);
+
+        // The reveal is no tick, and none follows it.
+        Assert.Single(Reveals(host, Ben));
+        var ticks = Ticks(host, Ben);
+        host.Clock.Advance(Moments.PrizeMs);
+        Assert.Equal(ticks, Ticks(host, Ben));
+    }
+
+    [Fact]
+    public void EveryReelPassesTheSameSlots_AndTicksForAsManyAsCanBeHeard()
+    {
+        for (var landing = 1; landing <= Moments.ReelLandings; landing++)
+        {
+            var ticks = Moments.TicksOf(landing);
+            // A slot's edge for each slot between the resting one and the prize's, less the
+            // ones that came too close together at the start to be told apart.
+            Assert.InRange(ticks.Count, 15, Moments.ReelStopSlot - Moments.ReelRestSlot);
+            Assert.True(ticks[0] > 0);
+            Assert.Equal(ticks.Order(), ticks);
+        }
+    }
+
+    [Fact]
+    public void TheRevealSoundsByTier_ForEverybody_TheWinnerTheLoudest()
+    {
+        var events = Enum.GetValues<MomentTier>().Select(Moments.RevealSoundOf).ToList();
+        Assert.Equal(events.Count, events.Distinct().Count());
+        Assert.DoesNotContain(Moments.TickSound, events);
+
+        foreach (var tier in Enum.GetValues<MomentTier>())
+        {
+            using var host = Assigned();
+            Freeze(host);
+            host.Link.Command(Drop("m1", tier: tier));
+            host.Clock.Advance(Moments.RevealMs);
+
+            Assert.Equal((Moments.RevealSoundOf(tier), 1f), Assert.Single(Reveals(host, Ada)));
+            Assert.Equal((Moments.RevealSoundOf(tier), Moments.RevealVolume), Assert.Single(Reveals(host, Ben)));
+        }
+
+        Assert.True(Moments.RevealVolume < 1f);
+        Assert.True(Moments.TickVolume < Moments.RevealVolume);
+    }
+
     // ------------------------------------------------------------------ who sees it
 
     [Fact]
@@ -584,8 +672,9 @@ public class UnboxingTests
 
         Assert.Equal(1, Read(host, Cleo, AdaWins));
         Assert.False(host.World.Sounds.ContainsKey(Cleo));
-        // Everybody who was there saw all of it.
-        Assert.Single(host.World.Sounds[Ben]);
+        // Everybody who was there saw and heard all of it.
+        Assert.Single(Reveals(host, Ben));
+        Assert.Contains(Ticks(host, Ben), Enumerable.Range(1, Moments.ReelLandings).Select(landing => Moments.TicksOf(landing).Count));
     }
 
     [Fact]
@@ -639,7 +728,7 @@ public class UnboxingTests
 
         Assert.Equal("Dana", Layout(host).Variables[(Moments.UnboxName, Moments.Text)]);
         Assert.True(Layout(host).Classes[(Moments.Unbox, Moments.SideT)]);
-        Assert.Single(host.World.Sounds[Ada]);
+        Assert.Equal((Moments.RevealSoundOf(MomentTier.Rare), Moments.RevealVolume), Assert.Single(Reveals(host, Ada)));
         Assert.DoesNotContain(host.World.HudActions, action => action.SteamId64 == puppet.SteamId64);
         Assert.False(host.World.Sounds.ContainsKey(Dana));
         Assert.False(host.World.Said.ContainsKey(Dana));
@@ -773,6 +862,17 @@ public class UnboxingTests
         Assert.Equal(Moments.ReelMs, (long)Math.Round(seconds * 1_000));
         var rolled = long.Parse(Regex.Match(strip, @"translate3d\( (-?\d+)px").Groups[1].Value, CultureInfo.InvariantCulture);
         Assert.Equal(430, rolled + 140 * (Moments.ReelStopSlot - 1) + 70);
+
+        // The ticks are timed on the stylesheet's slide: its resting slot, its curve, its landings.
+        var resting = Regex.Match(css, @"\.ezpug-unbox-strip\s*\{[^}]*translate3d\( (-?\d+)px").Groups[1].Value;
+        Assert.Equal(430, long.Parse(resting, CultureInfo.InvariantCulture) + Moments.ReelPitchPx * (Moments.ReelRestSlot - 1) + Moments.ReelPitchPx / 2);
+        Assert.Contains($"transition-timing-function: cubic-bezier( {string.Join(", ", Moments.ReelCurve.Select(n => n.ToString(CultureInfo.InvariantCulture)))} );", strip, StringComparison.Ordinal);
+        for (var landing = 1; landing <= Moments.ReelLandings; landing++)
+        {
+            var rule = Regex.Match(css, $@"\.ezpug-unbox\.rolling\.land-{landing} \.ezpug-unbox-land\s*\{{([^}}]*)\}}").Groups[1].Value;
+            Assert.Contains($"translate3d( {Moments.LandingPx[landing - 1]}px, 0px, 0px )", rule, StringComparison.Ordinal);
+            Assert.Contains($"cubic-bezier( {string.Join(", ", Moments.ReelCurve.Select(n => n.ToString(CultureInfo.InvariantCulture)))} )", rule, StringComparison.Ordinal);
+        }
 
         // Put away at once is the stylesheet's: the panel fades in an eighth of a second,
         // and the strip is back at its start before the next unboxing may begin.

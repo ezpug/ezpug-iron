@@ -932,8 +932,8 @@ the server (a puppet's seat counts) or the roster's.
 | After the moment is due | Constant | What happens |
 | ----------------------- | -------- | ------------ |
 | 0 s | | the call: `shown` for everybody here, the reel laid out, "Ada hat einen Drop! Mal sehen…" in chat |
-| 2 s | `Moments.CallMs` | the reel: `rolling` and the landing |
-| 8 s | `Moments.RevealMs`, the contract's `MOMENT_UNBOXING_REVEAL_MS` | the reveal: `revealed`, the landing off, the sound for everybody watching (the card's, by tier, until PRD-08 T5 chooses), **and the line in chat** |
+| 2 s | `Moments.CallMs` | the reel: `rolling` and the landing; a tick each time a slot passes the marker, 21 or 22 of them, the last before 7 s |
+| 8 s | `Moments.RevealMs`, the contract's `MOMENT_UNBOXING_REVEAL_MS` | the reveal: `revealed`, the landing off, the tier's reveal sound for everybody watching, **and the line in chat** |
 | 12 s | `Moments.UnboxMs` | every class off |
 
 **The line waits for the reveal.** Chat is on every screen, and a line that names the
@@ -972,8 +972,43 @@ other 35 are drawn from the decoys, never the same twice running where there are
 The reel is everybody's state on the entity (a picture and a tier per slot) and only what
 differs from the reel before is set.
 
-Played on the fake clock only: the dev node's row is PRD-08 T6, and the screen is the
-look list's.
+**The sound** (PRD-08 T5) is the game's own case opening, read out of
+`soundevents/game_sounds_ui.vsndevts` (decompiled from the dev node's `pak01_dir.vpk` into
+the build volume's `reference/soundevents`, like the stylesheets), played through
+`IGameWorld.PlaySound` to everybody watching. No sound ships in the addon.
+
+| | Event | Its file | Its own volume | We send |
+| - | ----- | -------- | -------------- | ------- |
+| a tick | `UIPanorama.container_weapon_ticker` | `sounds/ui/csgo_ui_crate_item_scroll.vsnd` | 0.2 | 0.5 (`Moments.TickVolume`) |
+| the reveal, common | `UIPanorama.ItemDropCommon` | `sounds/ui/panorama/case_awarded_0_common_01.vsnd` | 0.3 | 1.0 to the winner, 0.7 (`Moments.RevealVolume`) to everybody else |
+| uncommon | `UIPanorama.ItemDropUncommon` | `…case_awarded_1_uncommon_01.vsnd` | 0.3 | the same |
+| rare | `UIPanorama.ItemDropRare` | `…case_awarded_2_rare_01.vsnd` | 0.3 | the same |
+| legendary | `UIPanorama.ItemDropLegendary` | `…case_awarded_4_legendary_01.vsnd` | 0.3 | the same |
+
+The ticks are what the game's own case opening plays for every item its reel passes. The
+server times them on the stylesheet's slide: the marker passes a slot's edge 29 times
+between slot 4 and slot 33, at instants read off `cubic-bezier( 0.08, 0.6, 0.12, 1 )` for
+the landing that was drawn (`Moments.TicksOf`; a test holds its resting slot, curve and
+landings to `ezpug_unbox.css`). In the first second the reel passes a slot every 28 to
+90 ms; a tick closer than 60 ms (`TickGapMinMs`) to the last one is skipped, because the
+server schedules on its 64 Hz frames and the event plays one instance at a time. That
+leaves 21 or 22 ticks from 14 ms to 3.9–4.9 s, each gap longer than the last after the
+first second. The reveal is Valve's "awarded" sound for the rarity of the same name and
+colour. Our four tiers are four of their six rarities; mythical and ancient are not ours.
+
+**Whether the volume scales an event is still unknown**, so the tiers are four different
+sounds and do not depend on volume. `PlaySound` hands its volume to CounterStrikeSharp's
+`EmitSound`, which puts it in the engine's `EmitSound_t.m_flVolume` (1.0.376's
+`entity_manager.cpp`; the same code says the pitch next to it does nothing). Whether a CS2
+client multiplies the event's own volume by it, replaces it, or ignores it nobody has
+heard. If it is ignored, the ticks play at 0.2 and the reveal at 0.3, the volumes the
+game's own case opening uses in the main menu. Not chosen: `EndMatch.ItemRevealRarity*`,
+the end-of-match drop (one per rarity, but the end-of-match screen's sound, not a case's);
+`UI.CrateItemScroll`, the same file as the tick under an older name; the card's
+`EndMatch.ItemRevealSingleLocalPlayer`, which stays the card's.
+
+Played on the fake clock only: the dev node's row is PRD-08 T6, and the screen and the
+speakers are the look list's.
 
 ## Deleting it
 
@@ -1104,7 +1139,12 @@ Restart your game before step 4 if it was running when the addon was last publis
     purchase working); a reel that seems to stop on one picture and reveals another (it
     must never); as somebody who connects while it runs (nothing, and the line in chat); cut
     by the freeze ending (gone at once, then the toast). Write down whether the side's half of the cast's picture reads as one
-    mascot, and whether the reel's speed looks like a case opening.
+    mascot, and whether the reel's speed looks like a case opening. **Listen** too: a
+    tick as each slot passes the marker, quick and then slower, in step with the picture
+    (write down if they drift apart or rattle); the reveal, a different sound for each of
+    the four tiers (send one of each); and whether ticks at 0.5 and the reveal at 0.7 sound
+    any different from the winner's 1.0. If they do not, the volume argument does not scale an event
+    (the open question of step 8). Neither should drown the footsteps and buying around you.
 
 ### Not for a client, but open
 
