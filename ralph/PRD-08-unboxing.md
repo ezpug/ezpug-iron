@@ -169,7 +169,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   schedule), and the reveal by tier, for everybody, at a volume that does not drown the
   round's audio. If the volume argument does not scale an event (PRD-07's open question),
   say so and pick events that differ by tier instead. `PlaySound` only; no shipped audio.
-- [ ] **T7 (effort: medium): publish and the template.** `pnpm hud:build`,
+- [x] **T7 (effort: medium): publish and the template.** `pnpm hud:build`,
   `pnpm hud:publish`, the check until byte for byte. `pnpm dathost:image` and `--check`
   green. `./scripts/deploy.sh all` for the orchestrator.
 - [ ] **T6 (checkpoint, trimmed): the lane.** The unboxing rows only, never the matrix,
