@@ -164,7 +164,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   the winner not on the server still has everybody watch; the line is said in chat, as
   every moment's is; a map change, a pause and the match ending behave as `docs/hud.md`
   says a card does. Spectators follow `observable`.
-- [ ] **T5 (effort: medium): the sound.** Find the game's case-opening sound events and
+- [x] **T5 (effort: medium): the sound.** Find the game's case-opening sound events and
   choose: a tick as the reel passes slots (slowing with it, within what the server can
   schedule), and the reveal by tier, for everybody, at a volume that does not drown the
   round's audio. If the volume argument does not scale an event (PRD-07's open question),
