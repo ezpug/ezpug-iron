@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest'
 import {
   isOrchestratorCommand,
   isSimCommand,
+  isUnboxing,
   MATCH_COMMAND_TYPES,
   MATCH_COMMANDS_REQUIRING_ADMIN,
   MOMENT_IN_MS_MAX,
   MOMENT_KINDS,
+  MOMENT_REEL_MAX,
   MOMENT_TIERS,
+  MOMENT_UNBOXING_REVEAL_MS,
+  type MomentCommand,
   matchCommandResultSchema,
   matchCommandSchema,
   momentCommandSchema,
+  momentReelItemSchema,
   ORCHESTRATOR_COMMAND_TYPES,
   SIM_COMMAND_TYPES,
 } from './commands'
@@ -482,8 +487,67 @@ describe('MatchCommand', () => {
     )
     // Never a layout, a panel or a class: the platform does not know what a HUD is.
     expect(Object.keys(momentCommandSchema.shape).sort()).toEqual(
-      ['art', 'correlationId', 'inMs', 'kind', 'steamId64', 'text', 'tier', 'type'].sort(),
+      ['art', 'correlationId', 'inMs', 'kind', 'reel', 'steamId64', 'text', 'tier', 'type'].sort(),
     )
+  })
+
+  it('takes a reel: decoys by key and tier, bounded, and an unboxing is a drop about somebody with one', () => {
+    const text = {
+      de: { everyone: 'maex zieht: BIG Trikot!', you: 'Du ziehst: BIG Trikot!' },
+      en: { everyone: 'maex wins: BIG jersey!', you: 'You win: BIG jersey!' },
+    }
+    const drop = {
+      type: 'moment',
+      correlationId: 'c1',
+      kind: 'drop',
+      steamId64: '76561198279375307',
+      tier: 'rare',
+      art: 'big-jersey',
+      text,
+    } as const
+    const reel = [
+      { art: 'big-sticker', tier: 'common' },
+      { art: 'saarlan-cup', tier: 'uncommon' },
+      { art: 'a-picture-nobody-drew', tier: 'legendary' },
+    ] as const
+    // A decoy is a picture and a tint, nothing to read; the key is as open as `art`.
+    const unboxing = matchCommandSchema.parse({ ...drop, reel })
+    expect(unboxing).toMatchObject({ reel })
+    expect(isUnboxing(unboxing as MomentCommand)).toBe(true)
+
+    // Without the person, without the reel, or on any other kind: PRD-07's moment.
+    const { steamId64: _nobody, ...aboutNobody } = { ...drop, reel }
+    expect(isUnboxing(matchCommandSchema.parse(aboutNobody) as MomentCommand)).toBe(false)
+    expect(isUnboxing(matchCommandSchema.parse(drop) as MomentCommand)).toBe(false)
+    expect(
+      isUnboxing(matchCommandSchema.parse({ ...drop, reel, kind: 'perk' }) as MomentCommand),
+    ).toBe(false)
+
+    // Bounded, non-empty, and every decoy whole.
+    expect(matchCommandSchema.safeParse({ ...drop, reel: [] }).success).toBe(false)
+    expect(
+      matchCommandSchema.safeParse({ ...drop, reel: Array(MOMENT_REEL_MAX).fill(reel[0]) }).success,
+    ).toBe(true)
+    expect(
+      matchCommandSchema.safeParse({ ...drop, reel: Array(MOMENT_REEL_MAX + 1).fill(reel[0]) })
+        .success,
+    ).toBe(false)
+    expect(matchCommandSchema.safeParse({ ...drop, reel: [{ art: 'big-sticker' }] }).success).toBe(
+      false,
+    )
+    expect(matchCommandSchema.safeParse({ ...drop, reel: [{ tier: 'common' }] }).success).toBe(
+      false,
+    )
+    expect(
+      matchCommandSchema.safeParse({ ...drop, reel: [{ art: 'big-sticker', tier: 'mythic' }] })
+        .success,
+    ).toBe(false)
+    expect(Object.keys(momentReelItemSchema.shape).sort()).toEqual(['art', 'tier'])
+
+    // The one instant a client may count on: after the call and a reel that
+    // is seen to slow, inside a PUG's freeze with the platform's beat spent.
+    expect(MOMENT_UNBOXING_REVEAL_MS).toBe(8_000)
+    expect(MOMENT_UNBOXING_REVEAL_MS).toBeLessThan(MOMENT_IN_MS_MAX)
   })
 
   it('answers with the vocabulary’s codes when rejected', () => {

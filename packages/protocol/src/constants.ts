@@ -1,4 +1,4 @@
-import { CONSOLE_LINES_MAX } from '@ezpug/match-api'
+import { CONSOLE_LINES_MAX, MOMENT_REEL_MAX, MOMENT_UNBOXING_REVEAL_MS } from '@ezpug/match-api'
 
 /**
  * **The numbers both ends agree on.** Exported into the JSON Schema documents
@@ -88,6 +88,15 @@ export const CONSOLE_LINE_MAX = 2048
 export const CONSOLE_TAIL_DEFAULT = 100
 
 /**
+ * **The unboxing's one shared instant** (PRD-08 T1): how long after a `moment`
+ * is due the prize shows, when the server unboxes it. The Match API exports it
+ * for the platform's surfaces; it rides here so the plugin plays to the same
+ * number and the two never drift. {@link MOMENT_REEL_MAX} beside it bounds
+ * the reel the server lays out.
+ */
+export { MOMENT_REEL_MAX, MOMENT_UNBOXING_REVEAL_MS }
+
+/**
  * Why the orchestrator closed a link, as WebSocket close codes in the
  * application range — the same convention as the stream's
  * `STREAM_CLOSE_CODES`. A peer reconnects with backoff on `1006` (the
@@ -132,6 +141,8 @@ export const PROTOCOL_CONSTANTS = Object.freeze({
   CONSOLE_TAIL_MAX,
   CONSOLE_LINE_MAX,
   CONSOLE_TAIL_DEFAULT,
+  MOMENT_REEL_MAX,
+  MOMENT_UNBOXING_REVEAL_MS,
   ...Object.fromEntries(
     Object.entries(LINK_CLOSE_CODES).map(([name, code]) => [
       `CLOSE_${camelToUpperSnake(name)}`,

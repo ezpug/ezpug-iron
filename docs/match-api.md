@@ -437,7 +437,7 @@ id; a retried command with the same id is not applied twice):
 | `force_end`     | `reason?` | the match ends `force_ended` |
 | `kick`          | `steamId64, reason?` | |
 | `announce`      | `text` ≤512 | the plugin prints it, as the client wrote it and behind no prefix of ours; a sim echoes it as a `plugin_event`. Sanitized into one chat line first — control characters, `;`, `"` and `\` out, 127 code points — and `validation_failed` when nothing is left |
-| `moment`        | `kind, steamId64?, tier, art?, text, inMs` | this happened to this player; the server decides how and when to show it. **A server without a HUD prints the line**, behind its own chat prefix. See [The HUD, from a client's side](#the-hud-from-a-clients-side) |
+| `moment`        | `kind, steamId64?, tier, art?, text, inMs, reel?` | this happened to this player; the server decides how and when to show it. **A server without a HUD prints the line**, behind its own chat prefix. A `drop` about somebody with a `reel` is an **unboxing** the whole server watches. See [The HUD, from a client's side](#the-hud-from-a-clients-side) |
 | `rcon`          | `command` | needs `admin`; `command_unsupported` on a sim |
 | `restore`       | `roundNumber?` | **`live`**: the match is rewound on its own server to the start of that round of the map being played, the latest backup's round when unsaid — `applied` once the round has started again, `invalid_state` with the reason word first when the match software refused ([A restore on a live match](#a-restore-on-a-live-match)). **`recovering`**: the backup the replacement resumes from. `no_backup` when there is none; `invalid_state` in any other state |
 | `reroll`        | | the match over on the same server, rosters kept |
@@ -487,10 +487,43 @@ request with `hud: true` is accepted by an orchestrator none of whose servers ca
 | `art?`       | key | the picture, by key |
 | `text`       | `{ de: { everyone, you? }, en: { everyone, you? } }` | both languages, always; each line ≤512 and sanitized into one chat line like an `announce`. `everyone` is what the server reads, `you` what the person reads in its place. A player reads the language of their roster entry |
 | `inMs`       | int, 0…60000 | how long after the server receives the command the moment is due. `0` when unsaid. **Relative on purpose**: the server's clock is not the client's, so a client that reveals the same win elsewhere at a time of its own says how far off that time is |
+| `reel?`      | `[{ art, tier }]`, 1…32 | the decoys a drop is unboxed against (`momentReelSchema`, `MOMENT_REEL_MAX`): each a picture by key and a tier, nothing to read. Only a `drop` about somebody is unboxed ([An unboxing](#an-unboxing)); on any other moment the reel is taken and not drawn. An empty list is `validation_failed`: a mistake, not a short reel |
 
 The answer does not wait for `inMs`. `applied` means the server holds the moment; a server
 released before it is due shows nothing. `validation_failed` when nothing of a line
 survives the chat sanitizer. `invalid_state` when the match has no server.
+
+##### An unboxing
+
+Drops are rare, a few an evening, so a drop may be loud (PRD-08, 0.32.0). A `drop` about
+somebody (`steamId64`) that carries a `reel` is an **unboxing**, and `isUnboxing(moment)`
+is that rule as a function. Where the server can draw and the quiet stretch the moment
+falls in fits the whole show, **everybody on the server watches it**: the call ("X hat
+einen Drop! Mal sehen…"), a reel of the decoys that slows and stops on the prize, then the
+reveal, tinted and loud by its tier, in place of the person's private card. The platform
+holds a win until the match's next `round_start` and sends the moment due at the start of
+that freeze; the server plays from there, puts everything away the instant the freeze
+ends, and keeps the buy menu usable throughout.
+
+The server is told the decoys and nothing else new. It chooses the slots (seeded by the
+moment, so a redelivered command shows the same reel), the stopping place, every duration
+and the sound; nothing in the command names a panel, a class or a timing a client must
+obey. **One instant is shared**: `MOMENT_UNBOXING_REVEAL_MS` (8000) is how long after the
+moment is due the prize shows. A client that reveals the same win elsewhere, as the
+platform's crate, phone and feed do (its PRD-18 T5b), adds it to the instant it told the
+server about, so the hall and the screens speak in one beat. The number is the server's
+budget: two seconds for the call to be read, six for a reel that is seen to slow, and with
+the reveal held after it the show ends inside a PUG's eighteen seconds of freeze with the
+platform's beat of two and a half already spent, and with time to spare.
+
+What a client cannot know is whether the show was played. A stretch too short for it
+(Rush's thirteen seconds of freeze, flying-scoutsman's five, a freeze already half gone), a
+server that cannot draw, a HUD the match left off: every one of them shows the moment as
+it was before reels existed, the line, the toast and the card, at the instant the moment
+is due. So what a client reveals at `revealAt + MOMENT_UNBOXING_REVEAL_MS` is the prize
+and nothing before it, and the line in chat is still said when the moment is due, as
+every moment's is. A `perk`, a `raffle` and a `drop` without a reel or a person are
+PRD-07's moment and never an unboxing.
 
 **A server without a HUD prints the line** when the moment is due, to each player in their
 language and to the person in their own words. Unlike an `announce`, the line is the
@@ -1328,8 +1361,10 @@ seed and options: same envelopes, same deliveries — the recorded fixtures rely
 `chat_announced` — as are the request's `warmupLines`, one every eight seconds between
 `server_ready` and `going_live`, which is what a real plugin prints in the same window;
 `moment` is held for its `inMs` on the fake's clock (not divided by the time scale) and
-then said as a `plugin_event` `moment_shown` with `{ kind, tier, steamId64?, art?, text }`,
-the lines sanitized, so a test can prove a moment landed where it was meant to; `pause` parks the story (and the loss detector) and emits `match_paused`,
+then said as a `plugin_event` `moment_shown` with `{ kind, tier, steamId64?, art?, text,
+reel? }`, the lines sanitized and the reel as it was told (a simulated server has no
+screen, so it unboxes nothing and says what it was given), so a test can prove a moment
+landed where it was meant to; `pause` parks the story (and the loss detector) and emits `match_paused`,
 `unpause` resumes with `match_unpaused`; `force_end` ends `force_ended`; `kick` removes a
 present player (`player_disconnected`, `player.left`); `profile` teaches the server a
 player; `restore` works while `recovering`, and on a `live` match resolves its point
@@ -1412,9 +1447,9 @@ refuses a request with `rules`, `validation_failed` on `rules`), `wingman-format
 `validation_failed` on a mode the catalog says cannot seat them and on a scenario nobody defined, and
 on the scoped key plays a Bo1 whose `Match.simulated` and every `source.simulated` are
 `true`), `budget-refused`, `moment` (a request with `branding.hud`, a tagline and a banner
-key nobody drew goes live like any other; a moment about a player and one with an unknown
-kind, an unknown picture and a time of its own are both taken; a simulated server says
-each once, as told), `webhook-replay` (the cursor walked to the end equals the tail)
+key nobody drew goes live like any other; a moment about a player, one with an unknown
+kind, an unknown picture and a time of its own, and a drop with a reel are all taken; a
+simulated server says each once, as told, the reel decoy for decoy), `webhook-replay` (the cursor walked to the end equals the tail)
 and `stream-hello` (the `hello.seq` agrees with the events route, and every `event` frame is
 an envelope the route also has).
 

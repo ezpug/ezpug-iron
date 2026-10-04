@@ -4,7 +4,35 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
-_Nothing yet._
+**The unboxing, from a client's side** (PRD-08 T1, for the platform's PRD-18 T5b). Additive:
+one optional field on one command, one constant, one rule. A command written against 0.31.1
+parses and behaves exactly as it did.
+
+- **`moment.reel`** is the decoys a drop is unboxed against (`momentReelSchema`,
+  `MomentReel`): one to `MOMENT_REEL_MAX` (32) of `{ art, tier }` (`momentReelItemSchema`),
+  each a picture by key and a tier for the tint, nothing to read. The key is as open as
+  `art`. An empty list is `validation_failed`: a mistake, not a short reel.
+- **An unboxing** is a `drop` about somebody with a reel, and `isUnboxing(moment)` is that
+  rule as a function. Where the server can draw and the freeze fits the show, everybody on
+  the server watches the call, a reel that slows and stops on the prize, and the reveal by
+  tier, in place of the person's private card. The server is told the decoys and nothing
+  else new: it chooses the slots (seeded by the moment, so a redelivery shows the same
+  reel), the stopping place, every duration and the sound. A `perk`, a `raffle`, a `drop`
+  without a reel or a person, a server that cannot draw, a freeze too short (Rush,
+  flying-scoutsman) and a HUD the match left off all show PRD-07's moment, at the instant it
+  is due; a client cannot tell which happened and never needs to. The line in chat is said
+  either way.
+- **`MOMENT_UNBOXING_REVEAL_MS`** (8000) is the one instant a client may count on: how long
+  after the moment is due the prize shows. The platform's crate, phone and feed add it to
+  the instant they told the server about and reveal then, so the hall and the screens
+  speak in one beat. The number is the server's budget (two seconds for the call, six for
+  the reel; with the reveal after it the show ends inside a PUG's eighteen seconds of
+  freeze with the platform's beat of two and a half already spent), not a client's to tune.
+- **The fake and the `sim` provider** take the reel and say it back on `moment_shown`
+  (`{ kind, tier, steamId64?, art?, text, reel? }`), decoy for decoy, as a server without a
+  screen does. **Conformance flow `moment`** gains the unboxing, and its recording
+  (`fixtures/recorded/moment.json`) is re-recorded.
+- `docs/match-api.md`, "An unboxing", says what a client sends and what it may count on.
 
 ## 0.31.1 — 2026-10-02
 

@@ -103,7 +103,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
 
 ## Tasks
 
-- [ ] **T1 (fable): the contract.** Additive, in `@ezpug/match-api`. A `moment` may carry
+- [x] **T1 (fable): the contract.** Additive, in `@ezpug/match-api`. A `moment` may carry
   a **reel**: the decoys the platform could have drawn, each an art key and a tier, in a
   bounded list. A moment with a reel and a person is an **unboxing**; without either, the
   moment is PRD-07's. Export the sequence's timing that a client needs to keep its own

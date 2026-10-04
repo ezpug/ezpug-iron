@@ -1737,6 +1737,39 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         `${later.status} ${later.code ?? ''}`,
       )
 
+      // An unboxing (PRD-08 T1): a drop about somebody with the decoys the
+      // draw could have given. The server is told the reel and nothing else
+      // new; a server that cannot draw still only prints the line. (An empty
+      // reel is the schema's refusal, and the typed client makes it before
+      // the request leaves, so it is the package's unit test and not a flow.)
+      const unboxing = {
+        type: 'moment' as const,
+        correlationId: 'conformance-moment-unboxing',
+        kind: 'drop',
+        steamId64: body.teams.teamB.players[0]?.steamId64 ?? '76561198000000100',
+        tier: 'legendary' as const,
+        art: 'saarlan-cup',
+        text: {
+          de: { everyone: 'wickeD zieht: SaarLAN Cup!', you: 'Du ziehst: SaarLAN Cup!' },
+          en: { everyone: 'wickeD wins: SaarLAN Cup!', you: 'You win: SaarLAN Cup!' },
+        },
+        // Mutable on purpose: the schema's reel is an array a server lays out,
+        // and `as const` would make it readonly.
+        reel: [
+          { art: 'big-sticker', tier: 'common' as const },
+          { art: 'big-lanyard', tier: 'common' as const },
+          { art: 'double-waffel', tier: 'uncommon' as const },
+          { art: 'big-jersey', tier: 'rare' as const },
+          { art: 'a-picture-nobody-drew', tier: 'common' as const },
+        ],
+      }
+      const watched = await ctx.api.matches.command({ params, body: unboxing })
+      ctx.check(
+        'a drop with a reel is taken by a server that cannot draw it',
+        watched.status === 'applied' || watched.status === 'accepted',
+        `${watched.status} ${watched.code ?? ''}`,
+      )
+
       const { final, envelopes } = await playToEnd(ctx, created.id)
       ctx.require('the match ends', final.state === 'ended', terminal(final))
       checkEnvelopeStream(ctx, created.id, body.clientMatchId, envelopes, final.seq)
@@ -1751,7 +1784,7 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       )
       ctx.check(
         'a simulated server says each moment once',
-        shown.length === 2,
+        shown.length === 3,
         String(shown.length),
       )
       const { type: _type, correlationId: _correlationId, ...words } = drop
@@ -1760,10 +1793,20 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         deepEqual(shown[0], words),
         JSON.stringify(shown[0]),
       )
+      // The open-ended one was due 250 ms later than the unboxing sent after
+      // it, so the two are found by what they are, not by where they landed.
+      const open = shown.find(moment => moment.kind === 'happy-hour')
       ctx.check(
-        'the second with the tier a moment has when none is said',
-        shown[1]?.kind === 'happy-hour' && shown[1]?.tier === 'common',
-        JSON.stringify(shown[1]),
+        'the open-ended one with the tier a moment has when none is said',
+        open?.tier === 'common',
+        JSON.stringify(open),
+      )
+      const { type: _unboxingType, correlationId: _unboxingId, ...decoys } = unboxing
+      const unboxed = shown.find(moment => moment.steamId64 === unboxing.steamId64)
+      ctx.check(
+        'the unboxing with its reel as it was told, decoy for decoy',
+        deepEqual(unboxed, decoys),
+        JSON.stringify(unboxed),
       )
     },
   },

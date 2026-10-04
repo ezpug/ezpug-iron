@@ -207,6 +207,11 @@ export const LINK_COMMAND_FIXTURES: {
       en: { everyone: 'maex wins: BIG jersey!', you: 'You win: BIG jersey!' },
     },
     inMs: 3000,
+    reel: [
+      { art: 'big-sticker', tier: 'common' },
+      { art: 'saarlan-cup', tier: 'uncommon' },
+      { art: 'big-home-jersey', tier: 'rare' },
+    ],
   },
   rcon: { type: 'rcon', correlationId: 'cmd-0009', command: 'status' },
   restore: { type: 'restore', correlationId: 'cmd-0010', roundNumber: 12 },

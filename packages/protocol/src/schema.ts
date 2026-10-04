@@ -27,6 +27,7 @@ import {
   matchSimulationSchema,
   matchTeamSchema,
   matchTeamsSchema,
+  momentReelItemSchema,
   momentTierSchema,
   momentWordsSchema,
   pauseKindSchema,
@@ -286,6 +287,12 @@ const SHARED_NAMES: readonly Named[] = [
     id: 'MomentWords',
     description:
       'A moment’s words in one language: the line everybody reads and the person’s own (PRD-07 T4).',
+  },
+  {
+    schema: momentReelItemSchema,
+    id: 'MomentReelItem',
+    description:
+      'One slot of an unboxing’s reel: a decoy the draw could have given, a picture by key and a tier (PRD-08 T1).',
   },
   { schema: gamemodeTierSchema, id: 'GamemodeTier', description: 'The three tiers (decision 15).' },
   {

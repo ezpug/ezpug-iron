@@ -404,6 +404,16 @@ describe('matches', () => {
     )
     expect(moment.code).toBe(EXIT.ok)
     expect(moment.out).toMatch(/moment (applied|accepted)/)
+    const unboxing = await h.run(
+      `matches command ${match.id} moment --kind drop --steam-id 76561198000000001 --tier legendary --art saarlan-cup --text '{"de":{"everyone":"maex zieht: SaarLAN Cup!","you":"Du ziehst: SaarLAN Cup!"},"en":{"everyone":"maex wins: SaarLAN Cup!","you":"You win: SaarLAN Cup!"}}' --reel '[{"art":"big-sticker","tier":"common"},{"art":"big-jersey","tier":"rare"}]'`,
+    )
+    expect(unboxing.code).toBe(EXIT.ok)
+    expect(unboxing.out).toMatch(/moment (applied|accepted)/)
+    const emptyReel = await h.run(
+      `matches command ${match.id} moment --kind drop --text '{"de":{"everyone":"x"},"en":{"everyone":"x"}}' --reel '[]'`,
+    )
+    expect(emptyReel.code).toBe(EXIT.usage)
+    expect(emptyReel.err).toContain('reel')
 
     const speed = await h.run(`matches command ${match.id} sim.speed --time-scale 4 --json`)
     expect(speed.code).toBe(EXIT.ok)

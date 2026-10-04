@@ -64,7 +64,9 @@ Commands and the fields they take:
   reroll                           reprovision              force_end [--reason <t>]
   kick --steam-id <id> [--reason <t>]                       announce --text <t>
   moment --kind <k> --text <json> [--steam-id <id>] [--tier <t>] [--art <key>] [--in-ms <n>]
-                                   (text: {"de":{"everyone":…,"you":…},"en":{…}})
+         [--reel <json>]           (text: {"de":{"everyone":…,"you":…},"en":{…}};
+                                   reel: [{"art":<key>,"tier":<t>},…], the decoys a drop
+                                   about somebody is unboxed against)
   rcon --command <line>            (needs the admin scope; refused on a sim)
   restore [--round <n>]            profile --file <path|->   (one roster entry)
   sim.step  sim.kill  sim.mode --mode <m>  sim.speed --time-scale <x>
@@ -341,6 +343,7 @@ const COMMAND_FIELDS: Readonly<
     { flag: 'art', key: 'art', kind: 'string' },
     { flag: 'text', key: 'text', kind: 'json' },
     { flag: 'in-ms', key: 'inMs', kind: 'number' },
+    { flag: 'reel', key: 'reel', kind: 'json' },
   ],
   rcon: [{ flag: 'command', key: 'command', kind: 'string' }],
   restore: [{ flag: 'round', key: 'roundNumber', kind: 'number' }],

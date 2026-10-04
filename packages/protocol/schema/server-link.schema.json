@@ -19,6 +19,8 @@
     "CONSOLE_TAIL_MAX": 500,
     "CONSOLE_LINE_MAX": 2048,
     "CONSOLE_TAIL_DEFAULT": 100,
+    "MOMENT_REEL_MAX": 32,
+    "MOMENT_UNBOXING_REVEAL_MS": 8000,
     "CLOSE_UNAUTHORIZED": 4001,
     "CLOSE_PROTOCOL_MISMATCH": 4002,
     "CLOSE_MALFORMED": 4003,
@@ -2404,6 +2406,25 @@
       ],
       "additionalProperties": false
     },
+    "MomentReelItem": {
+      "description": "One slot of an unboxing’s reel: a decoy the draw could have given, a picture by key and a tier (PRD-08 T1).",
+      "type": "object",
+      "properties": {
+        "art": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "tier": {
+          "$ref": "#/$defs/MomentTier"
+        }
+      },
+      "required": [
+        "art",
+        "tier"
+      ],
+      "additionalProperties": false
+    },
     "GamemodeTier": {
       "description": "The three tiers (decision 15).",
       "type": "string",
@@ -3058,6 +3079,14 @@
                 "en"
               ],
               "additionalProperties": false
+            },
+            "reel": {
+              "minItems": 1,
+              "maxItems": 32,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MomentReelItem"
+              }
             },
             "inMs": {
               "default": 0,

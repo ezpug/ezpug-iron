@@ -32,6 +32,8 @@ public static class ProtocolConstants
     public const int ConsoleTailMax = 500;
     public const int ConsoleLineMax = 2048;
     public const int ConsoleTailDefault = 100;
+    public const int MomentReelMax = 32;
+    public const int MomentUnboxingRevealMs = 8000;
     public const int CloseUnauthorized = 4001;
     public const int CloseProtocolMismatch = 4002;
     public const int CloseMalformed = 4003;
@@ -2191,6 +2193,18 @@ public sealed record MomentWords
     public string? You { get; init; }
 }
 
+/// <summary>One slot of an unboxing’s reel: a decoy the draw could have given, a picture by key and a tier (PRD-08 T1).</summary>
+public sealed record MomentReelItem
+{
+    [JsonPropertyName("art")]
+    [JsonPropertyOrder(0)]
+    public required string Art { get; init; }
+
+    [JsonPropertyName("tier")]
+    [JsonPropertyOrder(1)]
+    public required MomentTier Tier { get; init; }
+}
+
 /// <summary>The three tiers (decision 15).</summary>
 public enum GamemodeTier
 {
@@ -2746,8 +2760,13 @@ public sealed record MomentCommand : LinkCommand
     [JsonPropertyOrder(6)]
     public required MomentCommandText Text { get; init; }
 
-    [JsonPropertyName("inMs")]
+    [JsonPropertyName("reel")]
     [JsonPropertyOrder(7)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<MomentReelItem>? Reel { get; init; }
+
+    [JsonPropertyName("inMs")]
+    [JsonPropertyOrder(8)]
     public long InMs { get; init; } = 0;
 }
 

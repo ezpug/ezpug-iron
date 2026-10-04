@@ -52,6 +52,20 @@
           "you": "You win: BIG jersey!"
         }
       },
+      "reel": [
+        {
+          "art": "big-sticker",
+          "tier": "common"
+        },
+        {
+          "art": "saarlan-cup",
+          "tier": "uncommon"
+        },
+        {
+          "art": "big-home-jersey",
+          "tier": "rare"
+        }
+      ],
       "inMs": 3000
     },
     {

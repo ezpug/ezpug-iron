@@ -68,6 +68,54 @@ export type MomentWords = z.infer<typeof momentWordsSchema>
 export const MOMENT_IN_MS_MAX = 60_000
 
 /**
+ * **One slot of a reel** (PRD-08 T1): a prize the draw could have given
+ * instead, as the server can show it — a picture by key and a tier for the
+ * tint. No words: a decoy is looked at, never read. The key is open like the
+ * moment's own `art` (one the addon does not hold shows the default picture).
+ */
+export const momentReelItemSchema = z.object({
+  art: hudKeySchema,
+  tier: momentTierSchema,
+})
+export type MomentReelItem = z.infer<typeof momentReelItemSchema>
+
+/**
+ * The most decoys a reel carries. A strip shows a few at a time and the
+ * server lays it out from what it is given, repeating decoys when there are
+ * few; this is a catalog's worth, not a budget the server needs filled.
+ */
+export const MOMENT_REEL_MAX = 32
+
+/**
+ * **The decoys a drop is unboxed against**: a bounded, non-empty list
+ * ({@link MOMENT_REEL_MAX}). The platform says what the draw could have
+ * given; the server chooses the slots, the stopping place, the timing and
+ * the sound, so a reel names no panel, no class and no duration. An empty
+ * list is a mistake, not a short reel, and is refused.
+ */
+export const momentReelSchema = z.array(momentReelItemSchema).min(1).max(MOMENT_REEL_MAX)
+export type MomentReel = z.infer<typeof momentReelSchema>
+
+/**
+ * **When the prize shows**, in milliseconds after the moment is due, for a
+ * moment the server unboxes ({@link isUnboxing}). The server plays the whole
+ * show from the moment it is due — the call ("X got a drop, let's see…"), the
+ * reel that slows and stops on the prize, then the reveal — and a client that
+ * reveals the same win elsewhere (the platform's crate, the phone, the feed;
+ * its PRD-18 T5b) adds this to the instant it told the server about, so the
+ * hall and the screens speak in one beat. The number is the server's budget
+ * and not a client's to tune: eight seconds is two for the call to be read
+ * and six for a reel that is seen to slow, and with the reveal held after it
+ * the whole show ends inside a PUG's eighteen seconds of freeze time with the
+ * platform's beat of two and a half seconds already spent, and with time to
+ * spare. Rush's thirteen does not fit it, and a server that cannot fit the
+ * show plays the toast and the card instead, at the instant the moment is
+ * due; a client cannot know which, so what it reveals at this instant is the
+ * prize and nothing before.
+ */
+export const MOMENT_UNBOXING_REVEAL_MS = 8_000
+
+/**
  * **This happened to this player** (PRD-07 T4, decision 34): the client says
  * what, to whom and how much it matters, and the server decides how and when
  * to show it.
@@ -90,6 +138,13 @@ export const MOMENT_IN_MS_MAX = 60_000
  *
  * The person need not be on the server, or on the roster: everybody else
  * still reads the line, and nothing waits for somebody to come back.
+ *
+ * **A drop with a reel** (PRD-08 T1) is the one moment the whole server
+ * watches: where the freeze fits the show, everybody sees the call, a reel
+ * that slows and stops on the prize, and the reveal, instead of the person's
+ * private card. The reel is the only thing the server is told; it chooses
+ * everything else, and {@link MOMENT_UNBOXING_REVEAL_MS} is the one instant
+ * a client may count on.
  */
 export const momentCommandSchema = commandBase.extend({
   type: z.literal('moment'),
@@ -105,6 +160,15 @@ export const momentCommandSchema = commandBase.extend({
   art: hudKeySchema.optional(),
   /** The words, in both languages; a player reads the roster locale's. */
   text: z.object({ de: momentWordsSchema, en: momentWordsSchema }),
+  /**
+   * The decoys, for a drop the whole server should watch being unboxed
+   * ({@link momentReelSchema}). With a reel and a person, a `drop` is an
+   * **unboxing** ({@link isUnboxing}) and the prize shows
+   * {@link MOMENT_UNBOXING_REVEAL_MS} after the moment is due, where the
+   * freeze fits it; without either, or on any other kind, the moment is
+   * shown as it was before reels existed and the reel is kept, not drawn.
+   */
+  reel: momentReelSchema.optional(),
   /** Milliseconds from the server receiving this until the moment is due. */
   inMs: z
     .number()
@@ -115,6 +179,22 @@ export const momentCommandSchema = commandBase.extend({
     .describe('how long after the server receives it the moment is due; relative, never a time'),
 })
 export type MomentCommand = z.infer<typeof momentCommandSchema>
+
+/**
+ * **Is this moment an unboxing?** A `drop`, about somebody, with a reel: the
+ * one rule, so a client that mirrors the server's show (reveal the prize at
+ * {@link MOMENT_UNBOXING_REVEAL_MS}) and the server itself cannot disagree
+ * about which moments get one. Whether a given server *can* draw it is not
+ * asked here, as nothing about a HUD ever is: one that cannot prints the line.
+ */
+export function isUnboxing(
+  moment: Pick<MomentCommand, 'kind' | 'steamId64' | 'reel'>,
+): moment is Pick<MomentCommand, 'kind' | 'steamId64' | 'reel'> & {
+  steamId64: string
+  reel: MomentReel
+} {
+  return moment.kind === 'drop' && moment.steamId64 !== undefined && moment.reel !== undefined
+}
 
 export const matchCommandSchema = z.discriminatedUnion('type', [
   /** Pause the match (the gamemode's own pause where it has one). */
