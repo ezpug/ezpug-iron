@@ -124,8 +124,9 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   puppet), warmup holds until every rostered person is connected and on a team, then the
   server says so in chat in both languages (the platform's voice, `Branding`'s prefix) and
   goes live after a short countdown. A seat that never fills is the platform's join
-  deadline's business (it aborts at 5 min, at most 9 with extensions), so the server keeps
-  only a ceiling of its own longer than that, after which it goes live as today. An
+  deadline's business (5 min for a queue match, **15 min for a cup's**, at most 19 with
+  extensions; platform PRD-18 T4b), so the server keeps no ceiling of its own: the
+  orchestrator's 20-minute "no `going_live` within … of ready" release is the backstop. An
   all-puppet match keeps today's 20 s. The welcome (`Welcome.cs`) then shows in a Rush
   warmup as it does in a PUG's. Tests on the fake clock for each line; `docs/gamemodes.md`
   "The generic flow" amended; the lane's Rush row green on the dev node behind the lock. This
