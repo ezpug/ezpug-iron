@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { ART_STYLES, artTexture, renderArtStyles } from '../src/art.ts'
+import { ART_BOXES, ART_STYLES, artTexture, renderArtStyles } from '../src/art.ts'
 import { DEFAULT_ART, hudKeys } from '../src/keys.ts'
 
 const HUD = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -21,14 +21,23 @@ describe('the moment’s pictures', () => {
       ['.ezpug-moment-art', artTexture('empty')],
       ['.ezpug-moment-card.art-big-jersey .ezpug-moment-art', artTexture('big-jersey')],
       ['.ezpug-moment-card.art-category-merch .ezpug-moment-art', artTexture('category-merch')],
+      ['.ezpug-unbox-slot-art', artTexture('empty')],
+      ['.ezpug-unbox-slot.art-big-jersey .ezpug-unbox-slot-art', artTexture('big-jersey')],
+      ['.ezpug-unbox-slot.art-category-merch .ezpug-unbox-slot-art', artTexture('category-merch')],
+      ['.ezpug-unbox-prize-art', artTexture('empty')],
+      ['.ezpug-unbox.art-big-jersey .ezpug-unbox-prize-art', artTexture('big-jersey')],
+      ['.ezpug-unbox.art-category-merch .ezpug-unbox-prize-art', artTexture('category-merch')],
     ])
   })
 
-  it('have one rule each, for the box the moment’s layout carries', () => {
+  it('have one rule each per box, for the boxes the moment’s layout carries', () => {
     const css = readFileSync(join(HUD, ART_STYLES), 'utf8')
     const xml = readFileSync(join(HUD, 'layout/ezpug_moment.xml'), 'utf8')
-    expect(css.match(/background-image/g)).toHaveLength(hudKeys(HUD).art.length)
-    expect(xml).toContain('class="ezpug-moment-art"')
+    expect(css.match(/background-image/g)).toHaveLength(ART_BOXES.length * hudKeys(HUD).art.length)
+    for (const { box, carrier } of ART_BOXES) {
+      expect(xml).toContain(`class="${box}"`)
+      expect(xml).toContain(`class="${carrier}"`)
+    }
     expect(xml).toMatch(/<Panel id="moment_card" class="ezpug-moment-card"/)
     expect(xml).toContain('ezpug_art.vcss_c')
   })

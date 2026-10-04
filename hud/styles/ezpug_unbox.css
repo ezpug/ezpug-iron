@@ -1,0 +1,523 @@
+/*
+  The unboxing (PRD-08 T3): a drop with a reel, which the whole server watches at the start
+  of a freeze. Panorama, not the web, with the rules of ezpug_moment.css: no flex, no calc,
+  no var, hex colours, transitions started by a class and written as the four longhands,
+  never keyframes on a transform.
+
+  Three beats, each a class the plugin sets on #unbox for everybody:
+    shown              the call: the winner's name and "hat einen Drop! Mal sehen…" over a
+                       reel standing still
+    rolling + land-<n> the reel: the strip slides 29 slots in 6 s and slows to a stop with
+                       slot 33 under the marker, n (1 to 4) a little left or right of its
+                       centre, the way a real reel never stops dead in the middle
+    revealed, land off the reveal: the reel settles to the centre and dims, the prize grows
+                       out of it over a burst in the tier's colour, the line comes under it
+
+  and, set with them:
+    #unbox.tier-<name>          the prize's tint and the size of its burst (only drawn once
+                                revealed, so it gives nothing away before)
+    #unbox.art-<key>            the prize's picture (ezpug_art.css)
+    #unbox.side-ct / side-t     the winner's side: the name in its colour and that side's
+                                half of the cast's picture; neither is the whole picture
+    #unbox_slot_<n>.art-<key>   a slot's picture (ezpug_art.css), n from 1 to 36
+    #unbox_slot_<n>.tier-<name> a slot's tint
+  The prize goes in slot 33, the one the reel stops on; the rest are the decoys.
+
+  The reel's geometry, which hud/test/unbox.test.ts holds the numbers below to:
+    the window 860 wide, a slot 128 wide with 6 on either side, so 140 a slot; slot k
+    (from 1) has its centre 70 + 140 (k - 1) from the strip's left edge, and the marker is
+    at the window's centre, 430;
+    standing still the strip is at -60 (slot 4 under the marker), rolled at -4120 (slot 33);
+    the slide is cubic-bezier( 0.08, 0.6, 0.12, 1 ) over 6 s: fast, then a long slow end,
+    which is the curve the server follows to tick as a slot passes the marker.
+  The landing is a second panel around the strip, moved by the same curve in the same time,
+  so the two add up to one slide; taking land-<n> off settles it back in 0.3 s.
+
+  Where it sits, against the game's own HUD at 1080 lines (hud.xml, hudteamcounter.css and
+  buymenu.xml/.css in the game's files): top centre, 900 wide, from 140 to 448, under the
+  team counter (to about 120) and clear of the crosshair (540). The buy menu is drawn under
+  a custom HUD, its columns start at 180 and above them is only the team counter, so with
+  the menu open the call and the line (both said in chat) fade and the reel moves up and
+  shrinks to 0.8, from 14 to 155: everybody keeps buying and still watches. It steps aside
+  for the scoreboard, the team intro and the end of the match, like the moment.
+
+  Put away at once: the plugin takes every class off in the frame the freeze ends, and the
+  whole panel fades in 0.12 s whatever the reel is doing; the strip jumps back to the start
+  only after that, unseen.
+*/
+
+/* ------------------------------------------------------------------ the panel */
+
+.ezpug-unbox
+{
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	transform: translate3d( 0px, -24px, 0px );
+	transition-property: opacity, transform;
+	transition-duration: 0.12s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.shown
+{
+	opacity: 1;
+	transform: translate3d( 0px, 0px, 0px );
+	transition-property: opacity, transform;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-unbox-body
+{
+	width: 900px;
+	height: fit-children;
+	flow-children: down;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 140px;
+	opacity: 1;
+	transform: translate3d( 0px, 0px, 0px ) scale3d( 1, 1, 1 );
+	transform-origin: 50% 0%;
+	transition-property: opacity, transform;
+	transition-duration: 0.25s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+/* The buy menu: the reel moves into the band above its columns. One rule each, never a comma. */
+.HUD_BUYMENU_VISIBLE .ezpug-unbox-body
+{
+	transform: translate3d( 0px, -195px, 0px ) scale3d( 0.8, 0.8, 1 );
+}
+
+.HUD_BUYMENU_VISIBLE .ezpug-unbox-call
+{
+	opacity: 0;
+}
+
+.HUD_BUYMENU_VISIBLE .ezpug-unbox.revealed .ezpug-unbox-line
+{
+	opacity: 0;
+}
+
+.HUD_SCOREBOARD_VISIBLE .ezpug-unbox-body
+{
+	opacity: 0;
+}
+
+.HUD_TEAMINTRO_VISIBLE .ezpug-unbox-body
+{
+	opacity: 0;
+}
+
+.HUD_ENDOFMATCH_VISIBLE .ezpug-unbox-body
+{
+	opacity: 0;
+}
+
+/* ------------------------------------------------------------------ the call */
+
+.ezpug-unbox-call
+{
+	width: fit-children;
+	height: 76px;
+	flow-children: right;
+	horizontal-align: center;
+	padding: 0px 20px 0px 12px;
+	background-color: #171512e6;
+	border: 1px solid #f0ece326;
+	border-radius: 10px;
+	opacity: 1;
+	transition-property: opacity;
+	transition-duration: 0.2s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+/* Nobody's side: the whole cast. A side: its own half of the same picture. */
+.ezpug-unbox-mascot
+{
+	width: 124px;
+	height: 76px;
+	vertical-align: center;
+	background-image: url( "s2r://panorama/images/custom_game/ezpug/cast/hello.vtex" );
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+.ezpug-unbox.side-ct .ezpug-unbox-mascot
+{
+	width: 56px;
+	background-size: auto 100%;
+	background-position: 0% 50%;
+}
+
+.ezpug-unbox.side-t .ezpug-unbox-mascot
+{
+	width: 56px;
+	background-size: auto 100%;
+	background-position: 100% 50%;
+}
+
+.ezpug-unbox-call-words
+{
+	width: fit-children;
+	height: fit-children;
+	flow-children: down;
+	vertical-align: center;
+	margin-left: 12px;
+}
+
+.ezpug-unbox-name
+{
+	max-width: 680px;
+	font-size: 28px;
+	font-weight: bold;
+	color: #f0ece3;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.ezpug-unbox.side-ct .ezpug-unbox-name
+{
+	color: #96c8fa;
+}
+
+.ezpug-unbox.side-t .ezpug-unbox-name
+{
+	color: #eabe54;
+}
+
+.ezpug-unbox-call-text
+{
+	max-width: 680px;
+	font-size: 18px;
+	font-weight: bold;
+	color: #c9c3b6;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ the reel */
+
+/* The window, the burst and the prize lie on each other, all centred. */
+.ezpug-unbox-stage
+{
+	width: 100%;
+	height: 176px;
+	margin-top: 10px;
+}
+
+.ezpug-unbox-window
+{
+	width: 860px;
+	height: 150px;
+	horizontal-align: center;
+	vertical-align: center;
+	overflow: clip clip;
+	background-color: #171512e6;
+	border: 2px solid #f0ece326;
+	border-radius: 10px;
+	opacity: 1;
+	transition-property: opacity;
+	transition-duration: 0.25s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.revealed .ezpug-unbox-window
+{
+	opacity: 0.3;
+}
+
+/* The landing: where in its slot the reel stops, a second slide under the strip's. */
+.ezpug-unbox-land
+{
+	width: 5040px;
+	height: 100%;
+	transform: translate3d( 0px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.rolling.land-1 .ezpug-unbox-land
+{
+	transform: translate3d( -46px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 6s;
+	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.rolling.land-2 .ezpug-unbox-land
+{
+	transform: translate3d( -20px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 6s;
+	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.rolling.land-3 .ezpug-unbox-land
+{
+	transform: translate3d( 18px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 6s;
+	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.rolling.land-4 .ezpug-unbox-land
+{
+	transform: translate3d( 44px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 6s;
+	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-delay: 0s;
+}
+
+/* Back to the start without a slide, and only once the panel has faded. */
+.ezpug-unbox-strip
+{
+	width: 5040px;
+	height: 100%;
+	flow-children: right;
+	transform: translate3d( -60px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 0s;
+	transition-timing-function: linear;
+	transition-delay: 0.2s;
+}
+
+.ezpug-unbox.rolling .ezpug-unbox-strip
+{
+	transform: translate3d( -4120px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 6s;
+	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-delay: 0s;
+}
+
+.ezpug-unbox-slot
+{
+	width: 128px;
+	height: 100%;
+	margin: 0px 6px 0px 6px;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #24211c ), to( #8a83783d ) );
+}
+
+/* The picture's own box; which picture is ezpug_art.css. */
+.ezpug-unbox-slot-art
+{
+	width: 116px;
+	height: 116px;
+	horizontal-align: center;
+	margin-top: 10px;
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+.ezpug-unbox-slot-tier
+{
+	width: 100%;
+	height: 6px;
+	vertical-align: bottom;
+	background-color: #8a8378;
+}
+
+.ezpug-unbox-slot.tier-common
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #24211c ), to( #8a83783d ) );
+}
+
+.ezpug-unbox-slot.tier-common .ezpug-unbox-slot-tier
+{
+	background-color: #8a8378;
+}
+
+.ezpug-unbox-slot.tier-uncommon
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #24211c ), to( #f0ece33d ) );
+}
+
+.ezpug-unbox-slot.tier-uncommon .ezpug-unbox-slot-tier
+{
+	background-color: #f0ece3;
+}
+
+.ezpug-unbox-slot.tier-rare
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #24211c ), to( #86a6ff4d ) );
+}
+
+.ezpug-unbox-slot.tier-rare .ezpug-unbox-slot-tier
+{
+	background-color: #86a6ff;
+}
+
+.ezpug-unbox-slot.tier-legendary
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #24211c ), to( #ff5ad04d ) );
+}
+
+.ezpug-unbox-slot.tier-legendary .ezpug-unbox-slot-tier
+{
+	background-color: #ff5ad0;
+}
+
+/* The marker: the window's centre, over the strip. */
+.ezpug-unbox-marker
+{
+	width: 4px;
+	height: 100%;
+	horizontal-align: center;
+	background-color: #f0ece3;
+	border-radius: 2px;
+}
+
+/* ------------------------------------------------------------------ the reveal */
+
+/* The burst: a glow in the tier's colour, bigger the rarer. Drawn only once revealed. */
+.ezpug-unbox-burst
+{
+	width: 176px;
+	height: 176px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-color: gradient( radial, 50% 50%, 0% 0%, 50% 50%, from( #8a8378b3 ), to( #8a837800 ) );
+	opacity: 0;
+	transform: scale3d( 0.4, 0.4, 1 );
+	transition-property: opacity, transform;
+	transition-duration: 0.5s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.revealed .ezpug-unbox-burst
+{
+	opacity: 1;
+	transform: scale3d( 1.8, 1.8, 1 );
+}
+
+.ezpug-unbox.revealed.tier-common .ezpug-unbox-burst
+{
+	transform: scale3d( 1.6, 1.6, 1 );
+}
+
+.ezpug-unbox.revealed.tier-uncommon .ezpug-unbox-burst
+{
+	transform: scale3d( 1.9, 1.9, 1 );
+}
+
+.ezpug-unbox.revealed.tier-rare .ezpug-unbox-burst
+{
+	transform: scale3d( 2.3, 2.3, 1 );
+}
+
+.ezpug-unbox.revealed.tier-legendary .ezpug-unbox-burst
+{
+	transform: scale3d( 2.9, 2.9, 1 );
+}
+
+.ezpug-unbox.tier-uncommon .ezpug-unbox-burst
+{
+	background-color: gradient( radial, 50% 50%, 0% 0%, 50% 50%, from( #f0ece3b3 ), to( #f0ece300 ) );
+}
+
+.ezpug-unbox.tier-rare .ezpug-unbox-burst
+{
+	background-color: gradient( radial, 50% 50%, 0% 0%, 50% 50%, from( #86a6ffcc ), to( #86a6ff00 ) );
+}
+
+.ezpug-unbox.tier-legendary .ezpug-unbox-burst
+{
+	background-color: gradient( radial, 50% 50%, 0% 0%, 50% 50%, from( #ff5ad0e6 ), to( #ff5ad000 ) );
+}
+
+/* The prize grows out of the reel with a little overshoot, the game's own curve for it. */
+.ezpug-unbox-prize
+{
+	width: 172px;
+	height: 172px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-color: #171512f2;
+	border: 3px solid #8a8378;
+	border-radius: 14px;
+	opacity: 0;
+	transform: scale3d( 0.6, 0.6, 1 );
+	transition-property: opacity, transform;
+	transition-duration: 0.45s;
+	transition-timing-function: cubic-bezier( 0.175, 0.885, 0.32, 1.275 );
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.revealed .ezpug-unbox-prize
+{
+	opacity: 1;
+	transform: scale3d( 1, 1, 1 );
+}
+
+.ezpug-unbox.tier-uncommon .ezpug-unbox-prize
+{
+	border: 3px solid #f0ece3;
+}
+
+.ezpug-unbox.tier-rare .ezpug-unbox-prize
+{
+	border: 3px solid #86a6ff;
+}
+
+.ezpug-unbox.tier-legendary .ezpug-unbox-prize
+{
+	border: 3px solid #ff5ad0;
+}
+
+/* The picture's own box; which picture is ezpug_art.css. */
+.ezpug-unbox-prize-art
+{
+	width: 150px;
+	height: 150px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+/* The line: the item's for everybody, the winner's own for them, under the prize. */
+.ezpug-unbox-line
+{
+	max-width: 860px;
+	horizontal-align: center;
+	margin-top: 10px;
+	padding: 6px 16px 6px 16px;
+	font-size: 20px;
+	font-weight: bold;
+	color: #f0ece3;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	background-color: #171512e6;
+	border-radius: 8px;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.2s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.revealed .ezpug-unbox-line
+{
+	opacity: 1;
+	transition-property: opacity;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
+	transition-delay: 0.25s;
+}

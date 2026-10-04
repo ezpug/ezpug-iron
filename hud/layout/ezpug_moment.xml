@@ -5,6 +5,11 @@
   plugin's `Moments` (plugins/EZPug.Sdk/Hud/Moments.cs) drives it and names every id and
   class below; docs/hud.md, "The moment", is the table.
 
+  The unboxing (PRD-08 T3) is the last panel: a drop with a reel, played for everybody at
+  the top of the screen in a freeze. The call (the winner's name and "hat einen Drop!"),
+  a reel of 36 slots that slides and slows to a stop under the marker, then the prize,
+  grown and tinted. ezpug_unbox.css says which slot the reel stops on and every class.
+
   Every label binds `{s:text}` and the server sets it on the label's own id. The card's
   picture is a class on #moment_card (`art-<key>`, ezpug_art.css); no class, or a key this
   addon does not hold, is the empty sleeve. A tier is a class too (`tier-<name>`), on the
@@ -18,6 +23,7 @@
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/custom_game/ezpug_moment.vcss_c" />
+		<include src="s2r://panorama/styles/custom_game/ezpug_unbox.vcss_c" />
 		<include src="s2r://panorama/styles/custom_game/ezpug_art.vcss_c" />
 	</styles>
 
@@ -51,6 +57,180 @@
 						</Panel>
 					</Panel>
 				</Panel>
+			</Panel>
+		</Panel>
+
+		<!-- The unboxing (PRD-08 T3): a drop with a reel, which everybody watches. Outside the
+		     moment's own panel, because that one fades for the buy menu and this one does not. -->
+		<Panel id="unbox" class="ezpug-unbox" hittest="false">
+			<Panel class="ezpug-unbox-body" hittest="false">
+				<Panel class="ezpug-unbox-call" hittest="false">
+					<Panel class="ezpug-unbox-mascot" hittest="false" />
+					<Panel class="ezpug-unbox-call-words" hittest="false">
+						<Label id="unbox_name" class="ezpug-unbox-name" hittest="false" text="{s:text}" />
+						<Label id="unbox_call" class="ezpug-unbox-call-text" hittest="false" text="{s:text}" />
+					</Panel>
+				</Panel>
+
+				<Panel class="ezpug-unbox-stage" hittest="false">
+					<Panel class="ezpug-unbox-window" hittest="false">
+						<Panel class="ezpug-unbox-land" hittest="false">
+							<Panel class="ezpug-unbox-strip" hittest="false">
+								<Panel id="unbox_slot_1" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_2" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_3" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_4" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_5" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_6" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_7" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_8" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_9" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_10" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_11" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_12" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_13" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_14" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_15" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_16" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_17" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_18" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_19" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_20" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_21" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_22" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_23" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_24" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_25" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_26" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_27" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_28" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_29" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_30" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_31" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_32" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_33" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_34" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_35" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+								<Panel id="unbox_slot_36" class="ezpug-unbox-slot" hittest="false">
+									<Panel class="ezpug-unbox-slot-art" hittest="false" />
+									<Panel class="ezpug-unbox-slot-tier" hittest="false" />
+								</Panel>
+							</Panel>
+						</Panel>
+						<Panel class="ezpug-unbox-marker" hittest="false" />
+					</Panel>
+					<Panel class="ezpug-unbox-burst" hittest="false" />
+					<Panel class="ezpug-unbox-prize" hittest="false">
+						<Panel class="ezpug-unbox-prize-art" hittest="false" />
+					</Panel>
+				</Panel>
+
+				<Label id="unbox_line" class="ezpug-unbox-line" hittest="false" text="{s:text}" />
 			</Panel>
 		</Panel>
 	</Panel>

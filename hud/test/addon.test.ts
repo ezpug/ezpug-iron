@@ -108,6 +108,7 @@ const PROPERTIES = [
   'max-height',
   'max-width',
   'opacity',
+  'overflow',
   'padding',
   'text-overflow',
   'text-transform',

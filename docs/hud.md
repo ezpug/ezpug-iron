@@ -873,6 +873,54 @@ entity would hold, the fake clock and the files; what it looks and sounds like, 
 whether those places are as empty on a real screen as the game's stylesheets say, is the
 look list's.
 
+### The unboxing, drawn
+
+A drop with a reel (`docs/match-api.md`, "An unboxing") is played for everybody, in a
+freeze, by the last panel of the moment's layout: `#unbox` in `hud/layout/ezpug_moment.xml`,
+styled by `hud/styles/ezpug_unbox.css`, whose header is the reference for every number
+below. It is drawn and compiled (PRD-08 T3); the SDK that plays it is PRD-08 T4, so until
+then nothing sets its classes and it stays invisible. Three beats, each a class on `#unbox`
+for everybody:
+
+| Beat | Classes | What is drawn |
+| ---- | ------- | ------------- |
+| the call | `shown` | a strip at the top: the cast's picture, the winner's name large and, under it, "hat einen Drop! Mal sehen…" / "got a drop! Let's see…"; below it the reel, standing still |
+| the reel | `rolling` and one `land-1` … `land-4` | 36 slots slide past a marker at the window's centre, fast, then slower, for 6 s (`cubic-bezier( 0.08, 0.6, 0.12, 1 )`), and stop with slot 33 under it, a little left or right of its centre |
+| the reveal | `revealed`, `land-*` off | the reel settles to the centre and dims, the prize grows out of it (the game's own overshoot curve) over a burst in the tier's colour, bigger the rarer, and the line comes under it |
+
+| Panel or label | What is set on it |
+| -------------- | ----------------- |
+| `unbox` | the beats above; one `tier-*` (the prize's edge and burst, drawn only once revealed); `art-<key>` for the prize's picture; `side-ct` or `side-t` for the winner's side (the name in the game's CT blue or T gold and that side's half of the cast's picture, neither being the whole picture) |
+| `unbox_slot_<n>` (1 to 36) | `art-<key>` and one `tier-*`: a decoy, and in slot 33 the prize |
+| `unbox_name` | `{s:text}`: the winner's name |
+| `unbox_call` | `{s:text}`: "hat einen Drop! Mal sehen…" in the reader's language |
+| `unbox_line` | `{s:text}`: the item's line, and the winner's own line for the winner |
+
+The pictures are the moment's (`hud/art/`, `HUD_ART_KEYS`): `pnpm hud:keys` writes a rule
+for each key on three boxes now, the card's, a slot's and the prize's, and an unknown key
+is the empty sleeve in every one of them.
+
+**Where it sits.** Top centre, 900 wide, from 140 to 448 at 1080 lines: under the team
+counter (to about 120, `hudteamcounter.css`) and clear of the crosshair. At 4:3 the same
+900 fit inside 1440. **It stays for the buy menu.** The game's buy menu
+(`buymenu.xml`, `buymenu.css`, decompiled into the build volume's `reference/` like the
+stylesheets above) fills the screen, and a custom HUD is drawn over it (cs2-ui-kit's
+GOTCHAS: its panels lie on the open menu). The menu's own columns start at 180, 950 wide
+and centred, and above them is only the team counter. So while the menu is open the call
+and the line fade (both are said in chat) and the reel moves up and shrinks to 0.8, from
+14 to 155, over the team counter's centre and clear of the columns: people keep buying and
+still watch the reel stop. Nothing takes the mouse, so a click lands on the menu wherever
+the reel lies. It steps aside for the scoreboard, the team intro and the end of the match,
+as the moment does.
+
+**Put away at once.** The plugin takes every class off in the frame the freeze ends; the
+panel fades in 0.12 s whatever the reel is doing, and the strip jumps back to its start
+0.2 s later, unseen. `hud/test/unbox.test.ts` holds the geometry (the stop slot under the
+marker, a strip that covers the window standing and stopped, a landing that never leaves
+the prize's picture), the one curve and the fade.
+
+Nobody has seen it. It is look-list step 17.
+
 ## Deleting it
 
 ```
@@ -990,6 +1038,17 @@ Restart your game before step 4 if it was running when the addon was last publis
     down whether a toast or a card shows there, and whose.
 16. **A mode's own toast.** No shipped mode calls `Gamemode.Toast` yet, so this waits for
     the first mode that does. It uses the moment's three rows, untinted.
+17. **The unboxing** (once PRD-08 T4 plays it). Send a `drop` about yourself with a
+    `reel` of a few decoys (`--reel`, `docs/match-api.md`) so that it is due at a
+    `round_start` in a PUG. Expected, at the top centre under the team counter: the call
+    with your name in your side's colour and that side's mascot, the reel sliding fast and
+    slowing to a stop on the marker, then the prize growing over a burst in its tier's
+    colour, your own line under it, all gone before the freeze ends. Look at, with a
+    screenshot each: 16:9 and 4:3; German and English; **with the buy menu open** (the reel
+    above the columns at 0.8, the call and the line gone, every column readable and every
+    purchase working); a reel that seems to stop on one picture and reveals another (it
+    must never). Write down whether the side's half of the cast's picture reads as one
+    mascot, and whether the reel's speed looks like a case opening.
 
 ### Not for a client, but open
 
