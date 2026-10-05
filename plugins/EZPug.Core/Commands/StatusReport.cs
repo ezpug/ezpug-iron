@@ -63,6 +63,9 @@ public static class StatusReport
                 "" => "hud: clients who connect now are handed no addon",
                 var handed => $"hud: clients who connect now are handed {handed}",
             });
+            // The reel's mode and switch, its schedule, and the addon stamp this build was
+            // made beside (PRD-09 T8): what a look compares the client's card with.
+            lines.AppendLine($"hud: reel {runtime.Moments.ReelReport()}");
             foreach (var line in HudReadback.Render(input.HudLayouts ?? []))
             {
                 lines.AppendLine(line);

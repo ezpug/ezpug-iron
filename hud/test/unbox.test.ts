@@ -13,14 +13,19 @@ const css = readFileSync(join(HUD, 'styles/ezpug_unbox.css'), 'utf8').replace(
   '',
 )
 
+/** Every rule of the sheet: its selector and its declarations, in order. */
+const rules = [...css.matchAll(/([^{}]+?)\s*\{([^}]*)\}/g)].map(match => ({
+  selector: match[1]!.trim(),
+  declarations: Object.fromEntries(
+    [...match[2]!.matchAll(/([a-z-]+)\s*:\s*([^;]+);/g)].map(d => [d[1]!, d[2]!.trim()]),
+  ) as Record<string, string>,
+}))
+
 /** One rule's declarations, by its exact selector. */
 function rule(selector: string): Record<string, string> {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = css.match(new RegExp(`(?:^|\\})\\s*${escaped}\\s*\\{([^}]*)\\}`))
-  if (!match) throw new Error(`no rule for ${selector}`)
-  return Object.fromEntries(
-    [...match[1]!.matchAll(/([a-z-]+)\s*:\s*([^;]+);/g)].map(d => [d[1]!, d[2]!.trim()]),
-  )
+  const found = rules.find(r => r.selector === selector)
+  if (!found) throw new Error(`no rule for ${selector}`)
+  return found.declarations
 }
 
 const px = (value: string | undefined) => {
@@ -40,14 +45,28 @@ const seconds = (value: string | undefined) => {
 }
 
 // The numbers the stylesheet's header promises, and that the plugin builds on: the prize
-// goes in slot 33 because that is the slot the reel stops on, and a tick is timed by the
-// curve below. A width changed on one side and not the other stops the reel on a decoy.
+// goes in slot 33 because that is the slot the 29th step stops on, and every step is a
+// class the plugin sets. A width changed on one side and not the other stops the reel
+// on a decoy.
 const SLOTS = 36
 const REST_SLOT = 4
 const STOP_SLOT = 33
-const REEL_MS = 6000
-const CURVE = 'cubic-bezier( 0.2, 0.65, 0.4, 1 )'
+const STEPS = STOP_SLOT - REST_SLOT
 const LANDINGS = 4
+
+/** The transition longhands: the four Panorama animates a change by. */
+const TRANSITION = [
+  'transition-property',
+  'transition-duration',
+  'transition-timing-function',
+  'transition-delay',
+]
+
+/** A selector is a panel's own rule when it names one class and no state (`.ezpug-unbox-strip`, never `.ezpug-unbox.at-1 .ezpug-unbox-strip`). */
+const isOwnRule = (selector: string) => /^\.ezpug-[a-z-]+$/.test(selector)
+
+/** The old slide, kept for `ezpug_unbox_test slide`: the one place a state may carry a transition. */
+const isSlide = (selector: string) => selector.startsWith('.ezpug-unbox.slide')
 
 describe('the unboxing’s reel', () => {
   const slot = rule('.ezpug-unbox-slot')
@@ -74,98 +93,99 @@ describe('the unboxing’s reel', () => {
     expect(rule('.ezpug-unbox-marker')['horizontal-align']).toBe('center')
   })
 
-  it('stands with slot 4 under the marker and stops with slot 33 there', () => {
+  it('stands with slot 4 under the marker, and step k puts slot 4 + k there, the 29th slot 33', () => {
     const rest = translateX(rule('.ezpug-unbox-strip').transform)
-    const rolled = translateX(rule('.ezpug-unbox.rolling .ezpug-unbox-strip').transform)
     expect(centre(REST_SLOT, rest)).toBe(window / 2)
-    expect(centre(STOP_SLOT, rolled)).toBe(window / 2)
-    // Standing or stopped, the strip covers the whole window: no empty end shows.
     expect(rest).toBeLessThanOrEqual(0)
+    for (let k = 1; k <= STEPS; k++) {
+      const at = translateX(rule(`.ezpug-unbox.at-${k} .ezpug-unbox-strip`).transform)
+      expect(centre(REST_SLOT + k, at)).toBe(window / 2)
+      // Standing or stepped, the strip covers the whole window: no empty end shows.
+      expect(at + SLOTS * pitch).toBeGreaterThanOrEqual(window)
+    }
+    expect(
+      centre(STOP_SLOT, translateX(rule(`.ezpug-unbox.at-${STEPS} .ezpug-unbox-strip`).transform)),
+    ).toBe(window / 2)
+    // No step past the prize, and none the layout could not show.
+    expect(rules.filter(r => /^\.ezpug-unbox\.at-\d+ /.test(r.selector))).toHaveLength(STEPS)
+  })
+
+  it('lands a little off the centre, never off the picture, and settles back in a third of a second', () => {
+    const rolled = translateX(rule(`.ezpug-unbox.at-${STEPS} .ezpug-unbox-strip`).transform)
     for (let n = 1; n <= LANDINGS; n++) {
-      const landing = translateX(rule(`.ezpug-unbox.rolling.land-${n} .ezpug-unbox-land`).transform)
+      const landing = translateX(rule(`.ezpug-unbox.land-${n} .ezpug-unbox-land`).transform)
       expect(rolled + landing).toBeLessThanOrEqual(0)
       expect(rolled + landing + SLOTS * pitch).toBeGreaterThanOrEqual(window)
-      // Off the centre, but never off the picture: the marker stays inside the prize's box.
       expect(Math.abs(landing)).toBeLessThan(px(rule('.ezpug-unbox-slot-art').width) / 2)
+      expect(landing).not.toBe(0)
     }
+    expect(seconds(rule('.ezpug-unbox-land')['transition-duration'])).toBeLessThanOrEqual(300)
   })
 
-  it('slides on one curve for 6 s, the landing with it, and settles in a third of a second', () => {
-    const slides = [
-      rule('.ezpug-unbox.rolling .ezpug-unbox-strip'),
-      ...Array.from({ length: LANDINGS }, (_, i) =>
-        rule(`.ezpug-unbox.rolling.land-${i + 1} .ezpug-unbox-land`),
-      ),
-    ]
-    for (const slide of slides) {
-      expect(slide['transition-property']).toBe('transform')
-      expect(seconds(slide['transition-duration'])).toBe(REEL_MS)
-      expect(slide['transition-timing-function']).toBe(CURVE)
-      expect(seconds(slide['transition-delay'])).toBe(0)
-    }
-    const settle = rule('.ezpug-unbox-land')
-    expect(seconds(settle['transition-duration'])).toBeLessThanOrEqual(300)
-  })
-
-  // The playtest of 2026-10-04 (docs/hud.md, "The unboxing, drawn"): the curve before,
-  // ( 0.08, 0.6, 0.12, 1 ), started at 85 px a frame, went half the way in the first half
-  // second and then crept through the prize's slot for 2.3 s, under a pixel a frame for
-  // the last 1.2. It read as a jump and then a stuck picture. These are the numbers a
-  // curve has to meet to read as a spin that slows.
-  it('reads as a spin that slows: never a blur, readable at the end, not a crawl', () => {
-    const [x1, y1, x2, y2] = CURVE.match(/[\d.]+/g)!.map(Number) as [number, number, number, number]
-    const bezier = (s: number, a: number, b: number) =>
-      3 * (1 - s) ** 2 * s * a + 3 * (1 - s) * s ** 2 * b + s ** 3
-    /** The share of the way covered at the share of the time t, by bisection on the curve's parameter. */
-    const way = (t: number) => {
-      let low = 0
-      let high = 1
-      for (let i = 0; i < 60; i++) {
-        const middle = (low + high) / 2
-        if (bezier(middle, x1, x2) < t) low = middle
-        else high = middle
+  // The playtests of 2026-10-04 and 2026-10-05 (docs/hud.md, "The unboxing, drawn"): the
+  // strip's own rule said 0 s and the class that started the roll said 6 s, and on a real
+  // client the strip jumped and sat. The landing's settle, 0.3 s on its own rule, was
+  // smooth. Valve's own reel declares its 6 s on the panel's rule. So: what animates is
+  // declared where the panel is, and a state changes only the target.
+  it('declares every transition on a panel’s own rule; a state changes only the target', () => {
+    let own = 0
+    for (const { selector, declarations } of rules) {
+      const named = TRANSITION.filter(longhand => longhand in declarations)
+      if (isOwnRule(selector)) {
+        // A panel that animates says all four, so nothing is left to the state's choosing.
+        if (named.length > 0) {
+          expect(named, selector).toEqual(TRANSITION)
+          own++
+        }
+        continue
       }
-      return bezier((low + high) / 2, y1, y2)
+      if (isSlide(selector)) continue
+      expect(named, `${selector} carries a transition; put it on the panel's own rule`).toEqual([])
+      expect(declarations).not.toHaveProperty('transition')
     }
-    const distance = (STOP_SLOT - REST_SLOT) * pitch
-    const frame = 1000 / 60
-    const at = (ms: number) => way(Math.min(1, ms / REEL_MS)) * distance
-    const speeds = Array.from(
-      { length: Math.ceil(REEL_MS / frame) },
-      (_, i) => at((i + 1) * frame) - at(i * frame),
-    )
-    const from = (test: (ms: number) => boolean) => {
-      for (let ms = 0; ms <= REEL_MS; ms += 10) if (test(ms)) return ms
-      return REEL_MS
-    }
-
-    // It stops softly, and slows all the way there.
-    expect(y2).toBe(1)
-    for (let i = 1; i < speeds.length; i++)
-      expect(speeds[i]!).toBeLessThanOrEqual(speeds[i - 1]! + 1e-9)
-    // A spin from the first frame, but at most a slot every 62.5 ms, the game's own
-    // fastest tick (popup_capability_decodable), so the server can tick every slot.
-    const start = (y1 / x1) * (distance / REEL_MS) * 1000
-    expect(start / pitch).toBeGreaterThan(12)
-    expect(start / pitch).toBeLessThanOrEqual(16)
-    // Not half the way in the first second: the old curve was two thirds there.
-    expect(at(1000) / distance).toBeLessThan(0.5)
-    // Readable as it slows: under four slots a second with at least four still to pass.
-    const readable = from(ms => at(ms + frame) - at(ms) < (4 * pitch) / 60)
-    expect((distance - at(readable)) / pitch).toBeGreaterThanOrEqual(4)
-    // And not a crawl: in the prize's slot for less than two seconds, under a pixel a
-    // frame for less than one.
-    expect(REEL_MS - from(ms => distance - at(ms) < pitch)).toBeLessThan(2000)
-    expect(REEL_MS - from(ms => at(ms + frame) - at(ms) < 1)).toBeLessThan(1000)
+    expect(own).toBeGreaterThanOrEqual(8)
+    expect(css).not.toMatch(/@keyframes|animation-name/)
   })
 
-  it('is put away at once, and the strip goes back only once nobody sees it', () => {
+  it('steps in short slides the strip’s own rule animates, quick enough to keep up with the ticks', () => {
+    const strip = rule('.ezpug-unbox-strip')
+    expect(strip['transition-property']).toBe('transform')
+    const step = seconds(strip['transition-duration'])
+    expect(step).toBeGreaterThanOrEqual(100)
+    // Shorter than the slowest readable gap between two steps, so a step is over before
+    // the next one, and the strip never lags a slot behind the ticks at the end.
+    expect(step).toBeLessThanOrEqual(250)
+    expect(seconds(strip['transition-delay'])).toBe(0)
+    for (let k = 1; k <= STEPS; k++) {
+      const at = rule(`.ezpug-unbox.at-${k} .ezpug-unbox-strip`)
+      expect(Object.keys(at)).toEqual(['transform'])
+    }
+  })
+
+  it('keeps the old slide for the diagnostic only: started by `slide`, never by a step', () => {
+    const slide = rule('.ezpug-unbox.slide .ezpug-unbox-strip')
+    expect(seconds(slide['transition-duration'])).toBe(6000)
+    expect(slide['transition-timing-function']).toMatch(/^cubic-bezier\(/)
+    expect(translateX(slide.transform)).toBe(
+      translateX(rule(`.ezpug-unbox.at-${STEPS} .ezpug-unbox-strip`).transform),
+    )
+    for (let n = 1; n <= LANDINGS; n++) {
+      const landing = rule(`.ezpug-unbox.slide.land-${n} .ezpug-unbox-land`)
+      expect(seconds(landing['transition-duration'])).toBe(6000)
+      expect(landing.transform).toBe(rule(`.ezpug-unbox.land-${n} .ezpug-unbox-land`).transform)
+    }
+    expect(rules.filter(r => isSlide(r.selector))).toHaveLength(1 + LANDINGS)
+    expect(css).not.toMatch(/\.rolling\b/)
+  })
+
+  it('is put away at once, and the strip is back before the next unboxing may begin', () => {
     const panel = rule('.ezpug-unbox')
     const fade = seconds(panel['transition-duration']) + seconds(panel['transition-delay'])
     expect(fade).toBeLessThanOrEqual(150)
-    const back = rule('.ezpug-unbox-strip')
-    expect(seconds(back['transition-duration'])).toBe(0)
-    expect(seconds(back['transition-delay'])).toBeGreaterThan(fade)
+    expect(Object.keys(rule('.ezpug-unbox.shown'))).toEqual(['opacity', 'transform'])
+    // The plugin takes the step class off 0.2 s after the fade (Moments.StripBackMs); the
+    // strip's own slide is over well inside the half second before the next reel.
+    expect(seconds(rule('.ezpug-unbox-strip')['transition-duration'])).toBeLessThanOrEqual(250)
   })
 
   it('stays for the buy menu, smaller and above its columns, and steps aside for the rest', () => {
@@ -198,5 +218,12 @@ describe('the unboxing’s reel', () => {
       rule(`.ezpug-unbox-slot.tier-${tier}`)
       rule(`.ezpug-unbox-slot.tier-${tier} .ezpug-unbox-slot-tier`)
     }
+  })
+
+  it('carries the build stamp in the reel’s window, small and quiet', () => {
+    expect(xml).toMatch(/<Label class="ezpug-unbox-stamp" hittest="false" text="[0-9a-f]{7}" \/>/)
+    const stamp = rule('.ezpug-unbox-stamp')
+    expect(px(stamp['font-size'])).toBeLessThanOrEqual(12)
+    expect(stamp.color).toMatch(/^#[0-9a-f]{6}[0-9a-f]{2}$/)
   })
 })

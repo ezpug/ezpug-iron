@@ -1,15 +1,21 @@
 /*
-  The unboxing (PRD-08 T3): a drop with a reel, which the whole server watches at the start
-  of a freeze. Panorama, not the web, with the rules of ezpug_moment.css: no flex, no calc,
-  no var, hex colours, transitions started by a class and written as the four longhands,
-  never keyframes on a transform.
+  The unboxing (PRD-08 T3, redrawn in PRD-09 T8): a drop with a reel, which the whole
+  server watches at the start of a freeze. Panorama, not the web, with the rules of
+  ezpug_moment.css: no flex, no calc, no var, hex colours, transitions started by a class
+  and written as the four longhands, never keyframes on a transform, and one more rule
+  this sheet learnt the hard way (below): a transition's four longhands live on the
+  panel's own rule and a state class changes only the target.
 
   Three beats, each a class the plugin sets on #unbox for everybody:
     shown              the call: the winner's name and "hat einen Drop! Mal sehen…" over a
                        reel standing still
-    rolling + land-<n> the reel: the strip slides 29 slots in 6 s, slowing all the way, to a stop with
-                       slot 33 under the marker, n (1 to 4) a little left or right of its
-                       centre, the way a real reel never stops dead in the middle
+    at-<k>             the reel, stepped by the server: at-k puts slot 4 + k under the marker,
+                       k from 1 to 29, one class a step on the plugin's schedule (fast, then
+                       slowing), each step a short slide the strip's own rule animates; the
+                       tick is played in the same frame, so sight and sound are one clock.
+                       The 29th step is slot 33, the prize's. With it, land-<n> (1 to 4):
+                       the reel stops a little left or right of the slot's centre, the way a
+                       real reel never stops dead in the middle
     revealed, land off the reveal: the reel settles to the centre and dims, the prize grows
                        out of it over a burst in the tier's colour, the line comes under it
 
@@ -21,23 +27,30 @@
                                 half of the cast's picture; neither is the whole picture
     #unbox_slot_<n>.art-<key>   a slot's picture (ezpug_art.css), n from 1 to 36
     #unbox_slot_<n>.tier-<name> a slot's tint
+    #unbox.slide                the reel the playtests saw (PRD-08 T3, PRD-09 T1): one 6 s
+                                transition over the whole way, declared inside the class
+                                that starts it. Kept only for `ezpug_unbox_test slide`, so
+                                a client can show the two side by side; never set by a match.
   The prize goes in slot 33, the one the reel stops on; the rest are the decoys.
 
   The reel's geometry, which hud/test/unbox.test.ts holds the numbers below to:
     the window 860 wide, a slot 128 wide with 6 on either side, so 140 a slot; slot k
     (from 1) has its centre 70 + 140 (k - 1) from the strip's left edge, and the marker is
     at the window's centre, 430;
-    standing still the strip is at -60 (slot 4 under the marker), rolled at -4120 (slot 33);
-    the slide is cubic-bezier( 0.2, 0.65, 0.4, 1 ) over 6 s, which is the curve the server
-    follows to tick as a slot passes the marker. It starts at about 16 slots a second (37 px
-    a frame at 60 fps), the game's own fastest tick, so every slot gets its tick; it is
-    under four a second from 2.6 s with five slots to go, in the prize's slot from 4.3 s,
-    and under a pixel a frame only from 5.3 s. The curve before (0.08, 0.6, 0.12, 1) started
-    at 85 px a frame, went half the way in the first half second and then crept through
-    the prize's slot for 2.3 s, under a pixel a frame for the last 1.2: a jump, then a
-    stuck picture (the playtest of 2026-10-04, docs/hud.md "The unboxing, drawn").
-  The landing is a second panel around the strip, moved by the same curve in the same time,
-  so the two add up to one slide; taking land-<n> off settles it back in 0.3 s.
+    standing still the strip is at -60 (slot 4 under the marker); at-k is -60 - 140 k, so
+    at-29 is -4120 (slot 33). A step slides for 0.15 s, ease-out, the strip's own rule.
+  The landing is a second panel around the strip with its own 0.3 s; land-<n> moves it
+  a few pixels and taking it off settles it back.
+
+  What happened before (docs/hud.md, "The unboxing, drawn"): the strip's rule said
+  transition-duration 0s and the class that started the roll said 6s with a curve. On a
+  real client the strip jumped to the prize and sat there for six seconds while the ticks
+  played, on two playtests (2026-10-04 and 2026-10-05) and with two curves. The landing's
+  settle, the same kind of panel with its 0.3 s on its own rule, was smooth both times;
+  Valve's own reel (popup_capability_decodable.css) declares its 6 s on the panel's rule
+  and scrolls it. So: no transition parameter on a state class, ever again, and the motion
+  itself is the server's, one step at a time, so a client that animates nothing still
+  shows the decoys run past and settle.
 
   Where it sits, against the game's own HUD at 1080 lines (hud.xml, hudteamcounter.css and
   buymenu.xml/.css in the game's files): top centre, 900 wide, from 140 to 448, under the
@@ -48,8 +61,11 @@
   for the scoreboard, the team intro and the end of the match, like the moment.
 
   Put away at once: the plugin takes every class off in the frame the freeze ends, and the
-  whole panel fades in 0.12 s whatever the reel is doing; the strip jumps back to the start
-  only after that, unseen.
+  whole panel fades in 0.12 s whatever the reel is doing; the step class comes off 0.2 s
+  later, so the strip slides back to its start unseen.
+
+  The stamp: the addon's build stamp (hud/src/stamp.ts), written into the layout by
+  `pnpm hud:build`, in the window's corner: a look says which revision a client mounted.
 */
 
 /* ------------------------------------------------------------------ the panel */
@@ -70,10 +86,6 @@
 {
 	opacity: 1;
 	transform: translate3d( 0px, 0px, 0px );
-	transition-property: opacity, transform;
-	transition-duration: 0.3s;
-	transition-timing-function: ease-out;
-	transition-delay: 0s;
 }
 
 .ezpug-unbox-body
@@ -240,7 +252,8 @@
 	opacity: 0.3;
 }
 
-/* The landing: where in its slot the reel stops, a second slide under the strip's. */
+/* The landing: where in its slot the reel stops, a second slide under the strip's. Its
+   0.3 s is its own; land-<n> moves it and taking land-<n> off settles it back. */
 .ezpug-unbox-land
 {
 	width: 5040px;
@@ -252,7 +265,199 @@
 	transition-delay: 0s;
 }
 
-.ezpug-unbox.rolling.land-1 .ezpug-unbox-land
+.ezpug-unbox.land-1 .ezpug-unbox-land
+{
+	transform: translate3d( -46px, 0px, 0px );
+}
+
+.ezpug-unbox.land-2 .ezpug-unbox-land
+{
+	transform: translate3d( -20px, 0px, 0px );
+}
+
+.ezpug-unbox.land-3 .ezpug-unbox-land
+{
+	transform: translate3d( 18px, 0px, 0px );
+}
+
+.ezpug-unbox.land-4 .ezpug-unbox-land
+{
+	transform: translate3d( 44px, 0px, 0px );
+}
+
+/* The strip: one short slide a step, the strip's own. The server sets at-<k> for the
+   step it ticks, and the class before it comes off in the same frame. Back to the start
+   the same way, 0.2 s after the panel has faded. */
+.ezpug-unbox-strip
+{
+	width: 5040px;
+	height: 100%;
+	flow-children: right;
+	transform: translate3d( -60px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.at-1 .ezpug-unbox-strip
+{
+	transform: translate3d( -200px, 0px, 0px );
+}
+
+.ezpug-unbox.at-2 .ezpug-unbox-strip
+{
+	transform: translate3d( -340px, 0px, 0px );
+}
+
+.ezpug-unbox.at-3 .ezpug-unbox-strip
+{
+	transform: translate3d( -480px, 0px, 0px );
+}
+
+.ezpug-unbox.at-4 .ezpug-unbox-strip
+{
+	transform: translate3d( -620px, 0px, 0px );
+}
+
+.ezpug-unbox.at-5 .ezpug-unbox-strip
+{
+	transform: translate3d( -760px, 0px, 0px );
+}
+
+.ezpug-unbox.at-6 .ezpug-unbox-strip
+{
+	transform: translate3d( -900px, 0px, 0px );
+}
+
+.ezpug-unbox.at-7 .ezpug-unbox-strip
+{
+	transform: translate3d( -1040px, 0px, 0px );
+}
+
+.ezpug-unbox.at-8 .ezpug-unbox-strip
+{
+	transform: translate3d( -1180px, 0px, 0px );
+}
+
+.ezpug-unbox.at-9 .ezpug-unbox-strip
+{
+	transform: translate3d( -1320px, 0px, 0px );
+}
+
+.ezpug-unbox.at-10 .ezpug-unbox-strip
+{
+	transform: translate3d( -1460px, 0px, 0px );
+}
+
+.ezpug-unbox.at-11 .ezpug-unbox-strip
+{
+	transform: translate3d( -1600px, 0px, 0px );
+}
+
+.ezpug-unbox.at-12 .ezpug-unbox-strip
+{
+	transform: translate3d( -1740px, 0px, 0px );
+}
+
+.ezpug-unbox.at-13 .ezpug-unbox-strip
+{
+	transform: translate3d( -1880px, 0px, 0px );
+}
+
+.ezpug-unbox.at-14 .ezpug-unbox-strip
+{
+	transform: translate3d( -2020px, 0px, 0px );
+}
+
+.ezpug-unbox.at-15 .ezpug-unbox-strip
+{
+	transform: translate3d( -2160px, 0px, 0px );
+}
+
+.ezpug-unbox.at-16 .ezpug-unbox-strip
+{
+	transform: translate3d( -2300px, 0px, 0px );
+}
+
+.ezpug-unbox.at-17 .ezpug-unbox-strip
+{
+	transform: translate3d( -2440px, 0px, 0px );
+}
+
+.ezpug-unbox.at-18 .ezpug-unbox-strip
+{
+	transform: translate3d( -2580px, 0px, 0px );
+}
+
+.ezpug-unbox.at-19 .ezpug-unbox-strip
+{
+	transform: translate3d( -2720px, 0px, 0px );
+}
+
+.ezpug-unbox.at-20 .ezpug-unbox-strip
+{
+	transform: translate3d( -2860px, 0px, 0px );
+}
+
+.ezpug-unbox.at-21 .ezpug-unbox-strip
+{
+	transform: translate3d( -3000px, 0px, 0px );
+}
+
+.ezpug-unbox.at-22 .ezpug-unbox-strip
+{
+	transform: translate3d( -3140px, 0px, 0px );
+}
+
+.ezpug-unbox.at-23 .ezpug-unbox-strip
+{
+	transform: translate3d( -3280px, 0px, 0px );
+}
+
+.ezpug-unbox.at-24 .ezpug-unbox-strip
+{
+	transform: translate3d( -3420px, 0px, 0px );
+}
+
+.ezpug-unbox.at-25 .ezpug-unbox-strip
+{
+	transform: translate3d( -3560px, 0px, 0px );
+}
+
+.ezpug-unbox.at-26 .ezpug-unbox-strip
+{
+	transform: translate3d( -3700px, 0px, 0px );
+}
+
+.ezpug-unbox.at-27 .ezpug-unbox-strip
+{
+	transform: translate3d( -3840px, 0px, 0px );
+}
+
+.ezpug-unbox.at-28 .ezpug-unbox-strip
+{
+	transform: translate3d( -3980px, 0px, 0px );
+}
+
+.ezpug-unbox.at-29 .ezpug-unbox-strip
+{
+	transform: translate3d( -4120px, 0px, 0px );
+}
+
+/* The old slide, for `ezpug_unbox_test slide` only: the whole way in one transition
+   declared inside the class that starts it, with the curve PRD-09 T1 shipped. Two
+   playtests saw it jump and stick; it stays so a client can show both and say which. */
+.ezpug-unbox.slide .ezpug-unbox-strip
+{
+	transform: translate3d( -4120px, 0px, 0px );
+	transition-property: transform;
+	transition-duration: 6s;
+	transition-timing-function: cubic-bezier( 0.2, 0.65, 0.4, 1 );
+	transition-delay: 0s;
+}
+
+.ezpug-unbox.slide.land-1 .ezpug-unbox-land
 {
 	transform: translate3d( -46px, 0px, 0px );
 	transition-property: transform;
@@ -261,7 +466,7 @@
 	transition-delay: 0s;
 }
 
-.ezpug-unbox.rolling.land-2 .ezpug-unbox-land
+.ezpug-unbox.slide.land-2 .ezpug-unbox-land
 {
 	transform: translate3d( -20px, 0px, 0px );
 	transition-property: transform;
@@ -270,7 +475,7 @@
 	transition-delay: 0s;
 }
 
-.ezpug-unbox.rolling.land-3 .ezpug-unbox-land
+.ezpug-unbox.slide.land-3 .ezpug-unbox-land
 {
 	transform: translate3d( 18px, 0px, 0px );
 	transition-property: transform;
@@ -279,31 +484,9 @@
 	transition-delay: 0s;
 }
 
-.ezpug-unbox.rolling.land-4 .ezpug-unbox-land
+.ezpug-unbox.slide.land-4 .ezpug-unbox-land
 {
 	transform: translate3d( 44px, 0px, 0px );
-	transition-property: transform;
-	transition-duration: 6s;
-	transition-timing-function: cubic-bezier( 0.2, 0.65, 0.4, 1 );
-	transition-delay: 0s;
-}
-
-/* Back to the start without a slide, and only once the panel has faded. */
-.ezpug-unbox-strip
-{
-	width: 5040px;
-	height: 100%;
-	flow-children: right;
-	transform: translate3d( -60px, 0px, 0px );
-	transition-property: transform;
-	transition-duration: 0s;
-	transition-timing-function: linear;
-	transition-delay: 0.2s;
-}
-
-.ezpug-unbox.rolling .ezpug-unbox-strip
-{
-	transform: translate3d( -4120px, 0px, 0px );
 	transition-property: transform;
 	transition-duration: 6s;
 	transition-timing-function: cubic-bezier( 0.2, 0.65, 0.4, 1 );
@@ -386,6 +569,17 @@
 	horizontal-align: center;
 	background-color: #f0ece3;
 	border-radius: 2px;
+}
+
+/* The build stamp, in the window's corner: small and quiet, for a look that asks which revision this client mounted. */
+.ezpug-unbox-stamp
+{
+	horizontal-align: right;
+	vertical-align: bottom;
+	margin-right: 8px;
+	margin-bottom: 3px;
+	font-size: 11px;
+	color: #f0ece366;
 }
 
 /* ------------------------------------------------------------------ the reveal */
@@ -514,16 +708,12 @@
 	border-radius: 8px;
 	opacity: 0;
 	transition-property: opacity;
-	transition-duration: 0.2s;
+	transition-duration: 0.3s;
 	transition-timing-function: ease-out;
-	transition-delay: 0s;
+	transition-delay: 0.25s;
 }
 
 .ezpug-unbox.revealed .ezpug-unbox-line
 {
 	opacity: 1;
-	transition-property: opacity;
-	transition-duration: 0.3s;
-	transition-timing-function: ease-out;
-	transition-delay: 0.25s;
 }

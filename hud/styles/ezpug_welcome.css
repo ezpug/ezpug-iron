@@ -166,6 +166,16 @@
 	color: #57d364;
 }
 
+/* The build stamp (PRD-09 T8): small and quiet, right under the url, so a look at the card says which revision this client mounted. */
+.ezpug-welcome-stamp
+{
+	width: fit-children;
+	horizontal-align: right;
+	margin-top: 4px;
+	font-size: 11px;
+	color: #f0ece34d;
+}
+
 /* ------------------------------------------------------------------ the mark */
 
 .ezpug-welcome-mark

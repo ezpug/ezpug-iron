@@ -34,6 +34,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The addon's build stamp (PRD-09 T8, Hud/HudStamp.cs): hud/dist/manifest.json, as
+      `pnpm hud:build` wrote it, embedded whole, so `ezpug_status` can say which revision
+      of the addon this build was made beside. The CS2 image's Dockerfile copies the
+      file to the same place beside the sources; a build without it is an error, never a
+      plugin that says "unstamped" in production.
+    -->
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)../../hud/dist/manifest.json" LogicalName="EZPug.Sdk.hud.manifest.json" Condition="Exists('$(MSBuildThisFileDirectory)../../hud/dist/manifest.json')" />
+  </ItemGroup>
+
+  <Target Name="RequireHudManifest" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(MSBuildThisFileDirectory)../../hud/dist/manifest.json')" Text="hud/dist/manifest.json is missing beside the plugin sources: the SDK embeds the addon's build stamp from it (run `pnpm hud:build`, or copy the file in a container build)" />
+  </Target>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="EZPug.Sdk.Tests" />
     <InternalsVisibleTo Include="EZPug.Sdk.Testing" />
   </ItemGroup>

@@ -262,6 +262,58 @@ public sealed class CorePlugin : BasePlugin
         }
     }
 
+    /// <summary>
+    /// <b>The reel's diagnostic</b> (PRD-09 T8): play the unboxing's reel now, for
+    /// whoever is on the server, in any stretch or none, with the steps a match plays or
+    /// the old slide the playtests saw, so a look at a client answers in one join. The
+    /// server console and RCON are the admin's door; the SDK says why when it cannot.
+    /// </summary>
+    [ConsoleCommand("ezpug_unbox_test", "Play the unboxing's reel now for whoever is here: ezpug_unbox_test [steps|slide]. steps is what a match plays; slide is the old one-transition reel, for a client to compare.")]
+    [CommandHelper(usage: "[steps|slide]", whoCanExecute: CommandUsage.SERVER_ONLY)]
+    public void OnUnboxTest(CCSPlayerController? player, CommandInfo info)
+    {
+        if (_runtime is null)
+        {
+            return;
+        }
+
+        var mode = info.ArgCount > 1 && info.GetArg(1).Equals("slide", StringComparison.OrdinalIgnoreCase) ? ReelMode.Slide : ReelMode.Steps;
+        var outcome = _runtime.Moments.PlayTest(mode);
+        info.ReplyToCommand(outcome);
+        _runtime.Console($"[unbox] {outcome}");
+    }
+
+    /// <summary>The reel's switch (PRD-09 T8): off, a drop with a reel is its line, its toast and its card. Flipped without a deploy; <c>ezpug_status</c>'s <c>hud: reel</c> line says which.</summary>
+    [ConsoleCommand("ezpug_unbox_reel", "The unboxing's reel: ezpug_unbox_reel 0 shows a drop as its line, toast and card; 1 plays the reel; no argument says which.")]
+    [CommandHelper(usage: "[0|1]", whoCanExecute: CommandUsage.SERVER_ONLY)]
+    public void OnUnboxReel(CCSPlayerController? player, CommandInfo info)
+    {
+        if (_runtime is null)
+        {
+            return;
+        }
+
+        if (info.ArgCount > 1)
+        {
+            switch (info.GetArg(1))
+            {
+                case "0":
+                    _runtime.Moments.SwitchReel(false);
+                    break;
+                case "1":
+                    _runtime.Moments.SwitchReel(true);
+                    break;
+                default:
+                    info.ReplyToCommand("ezpug_unbox_reel takes 0 or 1");
+                    return;
+            }
+        }
+
+        var line = $"reel {_runtime.Moments.ReelReport()}";
+        info.ReplyToCommand(line);
+        _runtime.Console($"[unbox] {line}");
+    }
+
     [ConsoleCommand("ezpug_announce", "Say a line to everybody on the server, as the announce command over the link would.")]
     [CommandHelper(minArgs: 1, usage: "<text>", whoCanExecute: CommandUsage.SERVER_ONLY)]
     public void OnAnnounce(CCSPlayerController? player, CommandInfo info)

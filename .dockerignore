@@ -8,6 +8,8 @@ node_modules
 **/node_modules
 dist
 **/dist
+# …except the addon's manifest, which the SDK embeds (docker/cs2/Dockerfile, PRD-09 T8).
+!hud/dist/manifest.json
 .turbo
 **/.turbo
 **/bin

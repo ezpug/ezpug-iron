@@ -22,7 +22,7 @@ lock") says. The lane lock's fairness (issue #1) is decision 31. §7 (a mixed ro
 a fork of our own, `ezpug/MatchZy-Enhanced`, and `pug` claims `capabilities.mixedRoster`
 (decisions 19 and 28 as amended). What only a person can show of it is §8.
 PRD-05 (workshop maps) took neither §3 nor §8. It found §9 and §10, and decision 32 records
-what it decided. PRD-09 (after the playtest) found §12.
+what it decided. PRD-09 (after the playtest) found §12 and §13.
 
 ## §3 EZ Rating on a human's scoreboard has never been seen
 
@@ -136,3 +136,24 @@ measured. Two things are untested beside it: whether Dathost's servers accept al
 **What needs a decision.** If the owner's two clients (`docs/hud.md`, the look list's step 18)
 cannot hear each other with the band up, either another cvar is found and measured, or the
 capability comes off `pug` (a manifest patch; the band and the lines go with it) until one is.
+
+## §13 The unboxing's reel has never been seen moving on a client
+
+**What is known** (PRD-09 T8, 2026-10-05): two playtests (2026-10-04, 2026-10-05 22:23) saw
+the reel stand on the prize while the ticks played, on two curves. The server wrote nothing
+to the layout while the reel ran (a test holds it), so the client was declining to play a
+`transform` transition whose parameters lived in the state rule that started it, while the
+same panel's settle on its own rule played. Decision 36 moved the motion to the server (29
+step classes on the plugin's schedule, the strip's own 0.15 s slide) and shipped a build
+stamp, a diagnostic (`ezpug_unbox_test [steps|slide]`) and a switch (`ezpug_unbox_reel 0`).
+The lane's `unbox` row reads the steps back off the entity and times the beats, and no row
+has a screen: **whether the stepped reel slides, snaps or stands on a real client is the
+owner's look** (`docs/hud.md`, the look list's steps 17 and 19), and the old slide beside
+it is the experiment that settles the cause.
+
+**What needs a decision.** If the stepped reel moves, the old slide (`.ezpug-unbox.slide`,
+the one state rule allowed a transition) comes out of the sheet and the plugin, and the
+cause goes into `docs/hud.md` as a fact. If it snaps but does not slide, the strip's own
+transition is the next suspect (its duration, or `transition-high-framerate`, untried). If
+it does not move at all, `ezpug_unbox_reel 0` holds the evening and the panel's class
+changes themselves are in question, which no other beat has shown.

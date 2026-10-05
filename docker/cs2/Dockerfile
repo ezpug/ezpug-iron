@@ -42,6 +42,9 @@ RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet restore EZPug.Core/EZPug.Core.csproj \
     && dotnet restore EZPug.PowerupDm/EZPug.PowerupDm.csproj
 COPY plugins/ ./
+# The addon's build stamp: the SDK embeds hud/dist/manifest.json from two folders up
+# (EZPug.Sdk.csproj, PRD-09 T8), so it goes where the csproj looks for it.
+COPY hud/dist/manifest.json /hud/dist/manifest.json
 # `.git` is not in the build context (`.dockerignore`), so the commit arrives
 # as a build argument — `pnpm cs2:build` passes it and `build.json` records it.
 ARG EZPUG_GIT_SHA=unknown

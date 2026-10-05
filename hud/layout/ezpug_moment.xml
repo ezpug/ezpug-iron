@@ -8,10 +8,12 @@
   Half time (PRD-09 T4) is a band at the top of the screen for everybody, standing for the
   whole break while both sides can hear each other; its words are each player's language.
 
-  The unboxing (PRD-08 T3) is the last panel: a drop with a reel, played for everybody at
-  the top of the screen in a freeze. The call (the winner's name and "hat einen Drop!"),
-  a reel of 36 slots that slides and slows to a stop under the marker, then the prize,
-  grown and tinted. ezpug_unbox.css says which slot the reel stops on and every class.
+  The unboxing (PRD-08 T3, redrawn in PRD-09 T8) is the last panel: a drop with a reel,
+  played for everybody at the top of the screen in a freeze. The call (the winner's name
+  and "hat einen Drop!"), a reel of 36 slots the server steps past the marker, fast and
+  then slower, to a stop on the prize, then the prize, grown and tinted. ezpug_unbox.css
+  says which slot the reel stops on and every class. The label without an id in the
+  reel's window is the addon's build stamp, written by `pnpm hud:build` (hud/src/stamp.ts).
 
   Every label binds `{s:text}` and the server sets it on the label's own id. The card's
   picture is a class on #moment_card (`art-<key>`, ezpug_art.css); no class, or a key this
@@ -234,6 +236,7 @@
 							</Panel>
 						</Panel>
 						<Panel class="ezpug-unbox-marker" hittest="false" />
+						<Label class="ezpug-unbox-stamp" hittest="false" text="613853e" />
 					</Panel>
 					<Panel class="ezpug-unbox-burst" hittest="false" />
 					<Panel class="ezpug-unbox-prize" hittest="false">

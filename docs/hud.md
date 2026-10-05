@@ -125,6 +125,7 @@ and wait for the check ("Changing it", below).
 | add a banner | `pnpm hud:banner <key> <file>` ("The pictures a client asks for by key"), then the same build, commit and publish, **and** a release of `@ezpug/match-api` for the new key in `HUD_BANNER_KEYS` |
 | republish without a change | `pnpm hud:publish` refuses nothing for that, but Steam serves the revision before for most of an hour |
 | know the republish is live | `node hud/src/cli.ts check 3811574606` until it prints the "byte for byte" line ("What happened on 2026-10-02") |
+| know which revision a client mounted | read the seven-character **build stamp** off the welcome card (under `ezpug.com`) or the reel's window (bottom right) and compare it with `ezpug_status`'s `hud: reel … stamp <x> expected on a client's card` line, the stamp the server was built beside. `pnpm hud:build` writes it into the layouts (`hud/src/stamp.ts`: a hash of every source with the stamp's own characters held at a placeholder, so it is a fixed point) and into `hud/dist/manifest.json`, which the SDK embeds; `hud:publish` and `check` print it. Two different stamps are a stale client, not a wrong sheet |
 | fetch new compiler depots | `pnpm hud:build --tools` |
 | delete what the compiler needs | "Deleting it", at the end |
 
@@ -159,6 +160,10 @@ of them silently, so a test is the only place anyone will see it fail:
 - there is no inline `style`, no `<Image>` (pictures are backgrounds), no script, and
   nothing with `hittest="true"`;
 - `@keyframes` names are quoted, and no keyframes animate `transform`;
+- a transition's four longhands sit on the panel's own rule, and a state class changes
+  only the target (`hud/test/unbox.test.ts` holds it for the reel's sheet): a transition
+  declared inside the class that starts it is the reel two playtests saw jump and stick
+  ("The unboxing, drawn", PRD-09 T8, decision 36);
 - no selector has a comma in it, and every property is on a list in the test, each one
   looked up in the client's own (`dump_panorama_css_properties`, panorama-hud's reference);
 - every stylesheet a layout includes and every picture a stylesheet names is in the addon;
@@ -613,6 +618,7 @@ not remembered:
 ```
 hud: addon 3811574606, on, 2 layout(s) in the world
 hud: clients who connect now are handed 3811574606
+hud: reel steps, 29 steps over 4989 ms of 6000, 150 ms a step; stamp 613853e expected on a client's card
 hud: layout panorama/layout/custom_game/ezpug_moment.xml is entity 371, observable, 64 slot(s); panels [moment_toast_1, moment_toast_2], classes [tier-common, tier-uncommon, tier-rare, tier-legendary], strings []
 hud:   everybody, moment_toast_1: +tier-common -tier-uncommon -tier-rare -tier-legendary
 hud:   everybody, moment_toast_2: -tier-common -tier-uncommon +tier-rare -tier-legendary
@@ -628,6 +634,9 @@ hud:   everybody, welcome_title: {s:text}="iron-match"
   connects **now** is told to mount. This is the line to look at after
   `mm_remove_client_addon <id>` on a live server ("no addon"), and it says
   "does not answer" when the Metamod plugin is not there.
+- The third is the reel (PRD-09 T8): `steps` or `off (ezpug_unbox_reel 0 …)`, its
+  schedule, the step on screens while one plays (`, on screens now at step 23 (steps)`),
+  and the build stamp this plugin was built beside, which a client's card must show.
 - The rest is every `custom_hud_layout` named `ezpug_hud`, off the entity
   (`CounterStrikeWorld.ReadHudLayouts`): its path, `observable`, the entity's three
   tables of names (the engine networks a panel, a class and a variable as an index into
@@ -669,7 +678,7 @@ and the reel laid out for everybody.
 
 | Row | The server | What it is held to |
 | --- | ---------- | ------------------ |
-| `unbox`, by name only, timescale 1 | has the id; MatchZy's `live.cfg` freeze (the lane's 5 s is not sent) | the drop `applied`; the call with at least 13.5 s of freeze left, the reel 2 s after it, the prize (`legendary`) at 8 s, put away "its prize was shown" at 12 s, each within 0.75 s, and before the freeze ends; no line "without its reel"; inside the reel, everybody's 36 slots dressed, slot 33 `+tier-legendary +art-big-jersey`, `unbox` tinted and named; no toast; every slot holds nothing and nobody's mouse is taken |
+| `unbox`, by name only, timescale 1 | has the id; MatchZy's `live.cfg` freeze (the lane's 5 s is not sent) | the drop `applied`; the call with at least 13.5 s of freeze left, the reel 2 s after it ("rolls to landing n (29 steps)"), the prize (`legendary`) at 8 s, put away "its prize was shown" at 12 s, each within 0.75 s, and before the freeze ends; no line "without its reel"; inside the reel, everybody's 36 slots dressed, slot 33 `+tier-legendary +art-big-jersey`, `unbox` tinted and named and carrying exactly one step class `+at-<k>` with k ≥ 18 (5 s into the round is 3 s into the reel), none after the freeze; the `hud: reel` line saying `steps`, the step on screens and the stamp `hud/dist/manifest.json` holds; no toast; every slot holds nothing and nobody's mouse is taken |
 | `unbox-short`, by name only | has the id; Rush at the lane's time scale | one line, "no stretch fits the unboxing … 13500 ms wanted; it is shown without its reel"; a toast row tinted `tier-legendary` for everybody; no slot of the reel dressed |
 | `unbox-off`, in the matrix, timescale 1 | no id | the drop `applied`; not one line of an unboxing, no `hud:` line in the status or the console |
 
@@ -913,27 +922,41 @@ look list's.
 A drop with a reel (`docs/match-api.md`, "An unboxing") is played for everybody, in a
 freeze, by the last panel of the moment's layout: `#unbox` in `hud/layout/ezpug_moment.xml`,
 styled by `hud/styles/ezpug_unbox.css`, whose header is the reference for every number
-below. It is drawn and compiled (PRD-08 T3) and the SDK plays it ("The unboxing, played",
-below). Three beats, each a class on `#unbox`, set for every person who was on the server
-when it began:
+below. It was drawn in PRD-08 T3 and redrawn in PRD-09 T8 after two playtests saw its reel
+stand still ("What the playtests saw", below); the SDK plays it ("The unboxing, played").
+Three beats, each a class on `#unbox`:
 
 | Beat | Classes | What is drawn |
 | ---- | ------- | ------------- |
-| the call | `shown` | a strip at the top: the cast's picture, the winner's name large and, under it, "hat einen Drop! Mal sehen…" / "got a drop! Let's see…"; below it the reel, standing still |
-| the reel | `rolling` and one `land-1` … `land-4` | 36 slots slide past a marker at the window's centre, about 16 a second at first and slowing all the way, for 6 s (`cubic-bezier( 0.2, 0.65, 0.4, 1 )`, "The roll's curve" below), and stop with slot 33 under it, a little left or right of its centre |
-| the reveal | `revealed`, `land-*` off | the reel settles to the centre and dims, the prize grows out of it (the game's own overshoot curve) over a burst in the tier's colour, bigger the rarer, and the line comes under it |
+| the call | `shown`, per person | a strip at the top: the cast's picture, the winner's name large and, under it, "hat einen Drop! Mal sehen…" / "got a drop! Let's see…"; below it the reel, standing still with slot 4 under the marker |
+| the reel | `at-1` … `at-29`, for everybody, one at a time; one `land-1` … `land-4` per person | **the server steps the strip one slot at a time**: `at-k` puts slot 4 + k under the marker, and the strip's own 0.15 s ease-out slides it there; the plugin sets the next step on its schedule (every 67 ms at first, the last five more than a quarter of a second apart, the 29th at 4,989 ms into the reel) and plays the tick in the same frame, so what is heard and what is seen are one clock. The 29th step is slot 33, the prize's, and the reel stands on it for most of a second. `land-n` moves a second panel a few pixels, so the stop is a little left or right of the slot's centre, the way a real reel never stops dead in the middle |
+| the reveal | `revealed`, `land-*` off, per person | the landing settles to the centre, the reel dims, the prize grows out of it (the game's own overshoot curve) over a burst in the tier's colour, bigger the rarer, and the line comes under it |
 
 | Panel or label | What is set on it |
 | -------------- | ----------------- |
-| `unbox` | the beats above, per player; for everybody: one `tier-*` (the prize's edge and burst, drawn only once revealed); `art-<key>` for the prize's picture; `side-ct` or `side-t` for the winner's side (the name in the game's CT blue or T gold and that side's half of the cast's picture, neither being the whole picture) |
+| `unbox` | the beats above; for everybody: the step `at-<k>`; one `tier-*` (the prize's edge and burst, drawn only once revealed); `art-<key>` for the prize's picture; `side-ct` or `side-t` for the winner's side (the name in the game's CT blue or T gold and that side's half of the cast's picture, neither being the whole picture); and, only from `ezpug_unbox_test slide`, `slide` per person |
 | `unbox_slot_<n>` (1 to 36) | for everybody: `art-<key>` and one `tier-*`: a decoy, and in slot 33 the prize |
 | `unbox_name` | `{s:text}`, for everybody: the winner's name |
 | `unbox_call` | `{s:text}`, per player: "hat einen Drop! Mal sehen…" in the reader's language |
 | `unbox_line` | `{s:text}`, per player: the item's line, and the winner's own line for the winner |
+| the stamp label (no id) | the build stamp, written by `pnpm hud:build`, drawn small in the window's corner ("Changing it") |
 
 The pictures are the moment's (`hud/art/`, `HUD_ART_KEYS`): `pnpm hud:keys` writes a rule
 for each key on three boxes now, the card's, a slot's and the prize's, and an unknown key
 is the empty sleeve in every one of them.
+
+**Why the server steps it** (decision 36). A reel that is one long transition on the
+client is a reel the server cannot see and cannot time: if the client does not animate
+it, nothing moves and the server never knows. A reel the server steps is motion by
+construction. Each step is a class change the client is known to apply (every beat of
+the moment and the welcome is one), the strip's own short transition makes it a slide
+where the client animates, and where it does not, the slot still changes under the
+marker at the tick: a flicker of tier-coloured decoys that settles on the prize, which
+is still a case opening. Two class writes a step (the new step before the old comes off,
+so the strip never aims at its resting place in between) are 57 small messages over the
+reel, against the 36 slots' pictures laid out once; the 5,040 px strip stays, because
+its cost is at most five textures (the reel's decoys and the prize), not 36 pictures,
+and a window of recycled slots would have to be re-dressed every step for everybody.
 
 **Where it sits.** Top centre, 900 wide, from 140 to 448 at 1080 lines: under the team
 counter (to about 120, `hudteamcounter.css`) and clear of the crosshair. At 4:3 the same
@@ -948,54 +971,58 @@ still watch the reel stop. Nothing takes the mouse, so a click lands on the menu
 the reel lies. It steps aside for the scoreboard, the team intro and the end of the match,
 as the moment does.
 
-**Put away at once.** The plugin takes every class off in the frame the freeze ends; the
-panel fades in 0.12 s whatever the reel is doing, and the strip jumps back to its start
-0.2 s later, unseen. `hud/test/unbox.test.ts` holds the geometry (the stop slot under the
-marker, a strip that covers the window standing and stopped, a landing that never leaves
-the prize's picture), the one curve, its shape and the fade.
+**Put away at once.** The plugin takes every per-person class off in the frame the freeze
+ends; the panel fades in 0.12 s whatever the reel is doing, and the step class comes off
+0.2 s later (`Moments.StripBackMs`), so the strip slides back to its start unseen and is
+home well inside the half second before the next unboxing may begin. `hud/test/unbox.test.ts`
+holds the geometry (the stop slot under the marker at the 29th step, a strip that covers
+the window at every step, a landing that never leaves the prize's picture), the step's
+slide, the fade, and **what may and may not animate**: every transition longhand in the
+sheet sits on a panel's own single-class rule, a state rule changes only its target, no
+keyframes, with one named exception kept on purpose (`slide`, below).
 
-**The roll's curve.** The first playtest on a real client (production, a Dathost server,
-2026-10-04, two unboxings in a freeze) found the call, the ticks and the reveal right and
-the roll wrong: "sticky, laggy… mostly a stuck item, not animated", and smoother after the
-reveal. The curve was `cubic-bezier( 0.08, 0.6, 0.12, 1 )`. Its starting speed is 7.5
-times the average: 85 px a frame at 60 fps, more than half a slot, so the first half
-second, which covers half the way, is a jump. Then it
-crawls: from 1.75 s it is under four slots a second with five to go, from 3.7 s it is
-inside the prize's slot, and from 4.8 s it moves less than a pixel a frame, which a screen
-shows as a pixel step every few frames. For the last 3.5 s the prize stands in the window
-and barely moves. The game's own case opening has the same shape, even steeper
-(`popup_capability_decodable`: `cubic-bezier(0.075, 0.82, 0.165, 1)` over 6 s, 32 tiles of
-340 px), but its tiles are 2.4 times ours on a full screen, so its crawl still reads as
-motion. Ours is an 860 px strip at the top of a HUD. The reveal's motions (the landing
-settling in 0.3 s, the prize's overshoot) are short and smooth, which is the "smoother
-after".
+**What the playtests saw.** On 2026-10-04 (production, a Dathost server, two unboxings
+in a freeze) the call, the ticks and the reveal were right and the roll was "sticky,
+laggy… mostly a stuck item, not animated", smoother after the reveal. PRD-09 T1 read
+that as a curve that jumped and then crept (`cubic-bezier( 0.08, 0.6, 0.12, 1 )` went
+half the way in its first half second and moved under a pixel a frame for the last 1.2 s)
+and shipped `( 0.2, 0.65, 0.4, 1 )` the same day. On 2026-10-05 at 22:23, with that
+revision published at 12:21 and read back byte for byte at 12:32, a tester said the case
+"is still not spinning". A reel that does not move at all says the curve was never the
+cause. What the sheet said until T8: the strip's own rule carried
+`transition-duration: 0s` (with a 0.2 s delay, so the strip could jump back unseen), and
+the class that started the roll, `.ezpug-unbox.rolling .ezpug-unbox-strip`, carried the
+6 s and the curve. The landing panel beside it, the same kind of panel 5,040 px wide with
+a `transform` transition, carried its 0.3 s on its own rule and its 6 s in the state rule,
+and its settle at the reveal (the state rule off, the panel's own 0.3 s) was smooth both
+times. The reveal's burst and prize, whose rules never change their transition, played.
+The one motion that never played is the one whose duration lived in the class that
+started it. Valve's own case opening (`popup_capability_decodable.css`, in the build
+volume's `reference/`) declares its 6 s `cubic-bezier(0.075, 0.82, 0.165, 1)` on the
+reel panel's own rule (`HorizontalScrollBar`) and scrolls it; the kit examples known to
+move (CustomHudProbeSW2's 0.8 s flip, cs2-ui-kit's toast glitch) do the same. A state rule
+that carries its own parameters exists in both files too (Valve's
+`.popup-decodable-lootlist-container.hidden`, the kit's `.toast.on .toast-white`), with no
+record of whether it plays in a `custom_hud_layout`. Whether Panorama reads a transition's
+parameters from the style before the change or simply ignores a state rule's is not
+written anywhere; what is written now is the rule above, and the reel no longer depends
+on the answer. The look list's step 19 is the one experiment that can say. **The old slide is kept** as `.ezpug-unbox.slide …`, the one state rule in
+the sheet allowed a transition, so `ezpug_unbox_test slide` can play it on a client right
+after the stepped reel and a look can say which moved: that is the experiment that
+settles the cause, and the look list's step 19.
 
-The server was ruled out: from the instant `rolling` is set to the reveal it writes
-nothing to any layout, only the ticks, even when the spawn's second telling falls on the
-reel's first instant (`UnboxingTests.NothingTouchesTheLayoutWhileTheReelSlides_OnlyTheTicksAreHeard`).
-Nothing in the stylesheet re-lays the strip out while it moves: it is one `transform`
-transition on the strip and one on the landing, and the slots' widths, margins and
-`flow-children` never change.
-
-So the curve is `cubic-bezier( 0.2, 0.65, 0.4, 1 )`, still 6 s (the game's own reel is 6 s,
-and the reveal at 8 s is the contract's), still slowing all the way to a soft stop:
-
-| | Before | Now |
-| - | ------ | --- |
-| speed at the start | 85 px a frame, 36 slots a second | 37 px a frame, 16 slots a second (the game's fastest tick, so each slot gets one) |
-| of the way after 0.5 s, 1 s, 2 s | 48 %, 68 %, 85 % | 25 %, 45 %, 72 % |
-| under four slots a second | from 1.75 s, five slots to go | from 2.6 s, five slots to go |
-| inside the prize's slot | from 3.7 s (2.3 s) | from 4.3 s (1.7 s) |
-| under a pixel a frame | from 4.8 s (1.2 s) | from 5.3 s (0.7 s) |
-
-`hud/test/unbox.test.ts` holds those properties, not just the numbers: a speed that never
-rises, a start between 12 and 16 slots a second, less than half the way in the first
-second, at least four slots still to pass once it is readable, less than two seconds in the
-prize's slot and less than one under a pixel a frame.
-
-The look-list's step 17 is how to tell whether that is enough. If the reel still looks
-stuck at its start on a client that runs well, the next suspect is the first sight of 36
-uncompressed pictures; compare the first unboxing of a session with the second.
+Two things a look can no longer confuse. **The build stamp**: nothing on screen said which
+revision of the addon a client had mounted, while Steam serves a republish late (47 and 66
+minutes on 2026-10-02, 11 on 2026-10-05) and a client keeps what it mounted until the game
+restarts; now the welcome card and the reel's window carry seven characters that
+`ezpug_status` names too. **The diagnostic**: `ezpug_unbox_test [steps|slide]` on the
+server console (RCON is the admin's door) plays a reel now, in any stretch or none, about
+the first person on the server (a puppet's seat counts), so the look needs one join and no
+platform command; it answers with what it plays, for how many, and the stamp to expect,
+or why it cannot (no addon id, the match did not ask for a HUD, no round started yet, a
+reel already up). And **the switch**: `ezpug_unbox_reel 0` makes a drop with a reel PRD-07's
+moment (the line, the toast, the card) for the life of the process, flipped without a
+deploy; `1` turns the reel back on; `ezpug_status` says which.
 
 ### The unboxing, played
 
@@ -1008,7 +1035,7 @@ the server (a puppet's seat counts) or the roster's.
 | After the moment is due | Constant | What happens |
 | ----------------------- | -------- | ------------ |
 | 0 s | | the call: `shown` for everybody here, the reel laid out, "Ada hat einen Drop! Mal sehen…" in chat |
-| 2 s | `Moments.CallMs` | the reel: `rolling` and the landing; a tick each time a slot passes the marker, 29 of them, the last between 6.4 and 7.2 s |
+| 2 s | `Moments.CallMs` | the reel: the landing per person, then the 29 steps on `Moments.Steps` (the first 32 ms later, the last at 4,989 ms into the reel), each a class for everybody and a tick for everybody watching in the same frame |
 | 8 s | `Moments.RevealMs`, the contract's `MOMENT_UNBOXING_REVEAL_MS` | the reveal: `revealed`, the landing off, the tier's reveal sound for everybody watching, **and the line in chat** |
 | 12 s | `Moments.UnboxMs` | every class off |
 
@@ -1055,26 +1082,27 @@ the build volume's `reference/soundevents`, like the stylesheets), played throug
 
 | | Event | Its file | Its own volume | We send |
 | - | ----- | -------- | -------------- | ------- |
-| a tick | `UIPanorama.container_weapon_ticker` | `sounds/ui/csgo_ui_crate_item_scroll.vsnd` | 0.2 | 0.5 (`Moments.TickVolume`) |
+| a tick, with each step | `UIPanorama.container_weapon_ticker` | `sounds/ui/csgo_ui_crate_item_scroll.vsnd` | 0.2 | 0.5 (`Moments.TickVolume`) |
 | the reveal, common | `UIPanorama.ItemDropCommon` | `sounds/ui/panorama/case_awarded_0_common_01.vsnd` | 0.3 | 1.0 to the winner, 0.7 (`Moments.RevealVolume`) to everybody else |
 | uncommon | `UIPanorama.ItemDropUncommon` | `…case_awarded_1_uncommon_01.vsnd` | 0.3 | the same |
 | rare | `UIPanorama.ItemDropRare` | `…case_awarded_2_rare_01.vsnd` | 0.3 | the same |
 | legendary | `UIPanorama.ItemDropLegendary` | `…case_awarded_4_legendary_01.vsnd` | 0.3 | the same |
 
-The ticks are what the game's own case opening plays for every item its reel passes. The
-server times them on the stylesheet's slide: the marker passes a slot's edge 29 times
-between slot 4 and slot 33, at instants read off `cubic-bezier( 0.2, 0.65, 0.4, 1 )` for
-the landing that was drawn (`Moments.TicksOf`; a test holds its resting slot, curve and
-landings to `ezpug_unbox.css`). At its fastest the reel passes a slot every 64 ms, so every
-one of the 29 is ticked: 29 ticks from 32 ms to 4.4–5.2 s (`land-1` 4,406, `land-2` 4,574,
-`land-3` 4,887, `land-4` 5,194), each gap longer than the one before, and the last at least
-0.8 s before the reveal. A tick closer than 60 ms (`TickGapMinMs`) to the last one would be
-skipped, because the server schedules on its 64 Hz frames and the event plays one instance
-at a time; the curve never comes that close. The game's own case opening ticks at most 16
-times a second too, on a fixed list. Before the playtest of 2026-10-04 the curve was
-`( 0.08, 0.6, 0.12, 1 )` and the schedule 21 or 22 ticks from 14 ms to 3.9–4.9 s, with 8 of
-the first 20 slots unticked. **The schedule is the plugin's and the curve is also the
-addon's**: they ship by different roads ("Shipping the roll", below).
+The ticks are what the game's own case opening plays for every item its reel passes. Each
+one is played in the frame the server sets the step that brings the next slot under the
+marker (`Moments.Steps`, 29 instants read off the plugin's own curve
+`( 0.2, 0.65, 0.55, 1 )`: 32, 99, 168, 240 … 3,820, 4,286, 4,989 ms into the reel), so a
+tick and a step cannot drift apart. The schedule starts at a step every 67 ms, which is
+the game's own fastest tick (its case opening ticks at most 16 times a second, on a fixed
+list), slows all the way (every gap longer than the one before, the last five over a
+quarter of a second), and leaves the prize standing for about a second before the reveal.
+No step is ever skipped: a skipped tick would leave the strip a slot behind, so
+`Moments.TickGapMinMs` (60 ms, the least gap the server can play one instance of the event
+at) is held by a test on the schedule, not by the runtime. Before T8 the ticks followed the
+stylesheet's slide instead, 29 of them from 32 ms to 4.4–5.2 s by landing, and the two
+shipped by different roads ("Shipping the roll", below); now the schedule and the motion
+are one thing in the plugin, and the addon holds only the step's 0.15 s slide, which a
+test reads back.
 
 The reveal is Valve's "awarded" sound for the rarity of the same name and colour. Our
 four tiers are four of their six rarities; mythical and ancient are not ours.
@@ -1093,28 +1121,27 @@ the end-of-match drop (one per rarity, but the end-of-match screen's sound, not 
 Played on the fake clock only: the dev node's row is PRD-08 T6, and the screen and the
 speakers are the look list's.
 
-**Shipping the roll.** The curve is in two places that reach a player by two roads: the
-stylesheet in the Workshop addon (`pnpm hud:build`, `pnpm hud:publish`, live for a client
-once Steam serves the revision and the client has restarted its game), and the tick
-schedule in the plugin (`pnpm cs2:build`, then `pnpm dathost:image` for the Dathost
-template, which the next match's server is cloned from). Neither can see the other, so a
-change to one is a change to both, published the same day, and in between a player hears
-ticks out of step with the picture. Nothing worse: the stop slot, the landings and the
-reveal at 8 s are the same on both sides. `UnboxingTests` pins the schedule and its curve,
-and a test there reads the curve back out of `ezpug_unbox.css`, so the two cannot differ in
-one commit.
+**Shipping the roll.** The reel reaches a player by two roads: the stylesheet in the
+Workshop addon (`pnpm hud:build`, `pnpm hud:publish`, live for a client once Steam serves
+the revision and the client has restarted its game) and the plugin (`pnpm cs2:build`, then
+`pnpm dathost:image` for the Dathost template, which the next match's server is cloned
+from). Since T8 the plugin needs the addon to know only the step classes `at-1` … `at-29`
+and the strip's 0.15 s; the schedule is the plugin's alone. A plugin at T8 driving the
+addon before it (the one the playtests saw) sets step classes no rule styles, so its reel
+stands still: a stale client is told apart by the stamp on its card. `UnboxingTests` pins
+the schedule and reads the step's slide, the landings and the stamp back out of `hud/`, so
+the two cannot differ in one commit.
 
 Shipped on 2026-10-05 (PRD-09 T1), both halves from the merge `72c248c` of `3dd4a6a` and
-`ae9fdff`. **The addon:** `pnpm hud:build` gave `hud/dist/` back byte for byte as the fix
-had committed it, and `pnpm hud:publish` uploaded it at 12:21 CEST. Its own check failed,
-as it always does right after an upload, and `node hud/src/cli.ts check 3811574606`
-fetched the new pack anonymously, byte for byte, the next time it ran, at 12:32. That is
-11 minutes at most, against the 47 and 66 minutes of 2026-10-02. **The plugin:**
-`pnpm cs2:build`, then `pnpm dathost:image`, which uploaded 9 files (the SDK, the core
-plugin and the two disabled plugins built beside them), and `--check` green, then
-`./scripts/deploy.sh all`. The lane's `unbox` row on the dev node, with the addon, timed
-the same beats as PRD-08 T6: the call with 17,871 ms of freeze left, the reel 2 s later,
-the prize at 8 s and the put-away at 12 s.
+`ae9fdff`: `pnpm hud:publish` uploaded at 12:21 CEST and the anonymous check read the pack
+back byte for byte at 12:32, 11 minutes against the 47 and 66 of 2026-10-02; then
+`cs2:build`, `dathost:image` (9 files, `--check` green) and `./scripts/deploy.sh all`. The
+tester's "still not spinning" at 22:23 was on that revision.
+
+Shipped again late on 2026-10-05 (PRD-09 T8, decision 36), the stepped reel: the shas, the
+upload's and the check's times and the lane's `unbox` row are in
+`ralph/PRD-09-after-the-playtest.progress.txt`'s T8 line; the stamp of that revision is
+`613853e`.
 
 ### The half-time band
 
@@ -1272,13 +1299,17 @@ Restart your game before step 4 if it was running when the addon was last publis
     purchase working); a reel that seems to stop on one picture and reveals another (it
     must never); as somebody who connects while it runs (nothing, and the line in chat); cut
     by the freeze ending (gone at once, then the toast). Write down whether the side's half of the cast's picture reads as one
-    mascot, and whether the reel's speed looks like a case opening: from its first frame
-    the slots visibly run past (about 16 a second, no jump), by about 2.5 s each picture can
-    be read as it passes, the last one or two slots creep in over the final second and a
-    half, and it stands still a moment before the prize grows ("The roll's curve"). Watch
-    the first unboxing after a game start and a second one: if only the first stutters, it
-    is the pictures loading, not the curve. **Listen** too: a
-    tick as each slot passes the marker, quick and then slower, in step with the picture
+    mascot, and whether the reel's motion looks like a case opening: from its first frame
+    the slots run past (a step every 67 ms at the start, each a short slide, no jump and no
+    standing picture), by about 2.5 s each picture can be read as it clicks in, the last
+    four or five steps come a third to two thirds of a second apart like a wheel's détente,
+    and the prize stands still for about a second before it grows ("The unboxing, drawn").
+    Write down whether a step **slides** (the strip glides a slot) or **snaps** (the next
+    picture appears under the marker with no motion between): a snap is the client not
+    animating the strip's own transition, which is still a show, and still worth knowing.
+    Watch the first unboxing after a game start and a second one: if only the first
+    stutters, it is the pictures loading. **Listen** too: a
+    tick with each step, quick and then slower, in step with the picture
     (write down if they drift apart or rattle); the reveal, a different sound for each of
     the four tiers (send one of each); and whether ticks at 0.5 and the reveal at 0.7 sound
     any different from the winner's 1.0. If they do not, the volume argument does not scale an event
@@ -1299,6 +1330,21 @@ Restart your game before step 4 if it was running when the addon was last publis
     the other side. If the two of you cannot hear each other with the band up, the cvars
     are not enough for CS2's voice (`ralph/OPEN-POINTS.md`), and the band must come off
     until they are.
+19. **The reel's diagnostic, and the stamp.** On the same server, in warmup, read the
+    seven characters under `ezpug.com` on the welcome card (and later in the reel's
+    window, bottom right) and compare them with the `hud: reel … stamp <x> expected` line
+    of `ezpug_status` (`pnpm iron matches command <matchId> rcon --command ezpug_status`,
+    then the fleet console): the same seven characters mean this client mounted the
+    revision the server was built beside; different ones mean a stale client (restart the
+    game, join again) and nothing below counts until they agree. Then
+    `pnpm iron matches command <matchId> rcon --command ezpug_unbox_test`: the stepped
+    reel plays at once, about you, with "Testlauf 1" in the line. Then
+    `… --command 'ezpug_unbox_test slide'`: the old one-transition reel. Write down, for
+    each, whether the strip moved at all, and how (slides, snaps, stands). The stepped
+    reel is what a match plays; the old slide is the experiment that settles the cause
+    ("What the playtests saw"), and once it has been seen once it can go. If the stepped
+    reel does not move either, `ezpug_unbox_reel 0` on the same door turns a drop into
+    PRD-07's toast and card for the evening, without a deploy.
 
 ### Not for a client, but open
 

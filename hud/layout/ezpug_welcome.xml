@@ -7,7 +7,9 @@
 
   Every label binds `{s:text}` and the server sets it on the label's own id. A banner is a
   class on #welcome (`banner-<key>`, ezpug_banners.css); no class, or a key this addon does
-  not hold, is the house banner.
+  not hold, is the house banner. The label without an id under the card's words is the
+  addon's build stamp, written by `pnpm hud:build` (hud/src/stamp.ts, PRD-09 T8): a look
+  at a card says which revision this client mounted.
 
   Rules every layout in hud/layout/ keeps (docs/hud.md, the Findings of ralph/PRD-07-hud.md):
   - the root panel carries no id; the server addresses the panels inside it;
@@ -31,6 +33,7 @@
 					<Label id="welcome_team" class="ezpug-welcome-team" hittest="false" text="{s:text}" />
 					<Label id="welcome_todo" class="ezpug-welcome-todo" hittest="false" text="{s:text}" />
 					<Label id="welcome_url" class="ezpug-welcome-url" hittest="false" text="{s:text}" />
+					<Label class="ezpug-welcome-stamp" hittest="false" text="613853e" />
 				</Panel>
 			</Panel>
 

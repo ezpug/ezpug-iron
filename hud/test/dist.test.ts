@@ -1,4 +1,4 @@
-import { appendFileSync, cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -27,10 +27,15 @@ describe('hud/dist/', () => {
     expect(verifyDist(HUD)).toEqual([])
   })
 
-  it('is stale the moment a source changes', () => {
+  it('is stale the moment a source changes, and so is the stamp the layouts carry', () => {
     const dir = copy()
     appendFileSync(join(dir, 'styles/ezpug_welcome.css'), '\n.x { width: 1px; }\n')
-    expect(verifyDist(dir)).toEqual([expect.stringMatching(/styles\/ezpug_welcome\.css changed/)])
+    const problems = verifyDist(dir)
+    expect(problems).toContainEqual(expect.stringMatching(/styles\/ezpug_welcome\.css changed/))
+    expect(problems).toContainEqual(
+      expect.stringMatching(/ezpug_moment\.xml is stamped [0-9a-f]{7}, the sources stamp/),
+    )
+    expect(problems).toHaveLength(3)
   })
 
   it('is stale when a source is added', () => {
@@ -46,6 +51,19 @@ describe('hud/dist/', () => {
     const problems = verifyDist(dir).join('\n')
     expect(problems).toMatch(/ezpug_welcome\.vxml_c does not match its hash/)
     expect(problems).toMatch(/stray\.vxml_c is not in the manifest/)
+  })
+
+  it('is stale when a layout says a stamp the sources do not', () => {
+    const dir = copy()
+    const layout = join(dir, 'layout/ezpug_moment.xml')
+    writeFileSync(
+      layout,
+      readFileSync(layout, 'utf8').replace(
+        /(class="ezpug-unbox-stamp"[^>]*text=")[^"]*/,
+        '$1abcdef0',
+      ),
+    )
+    expect(verifyDist(dir).join('\n')).toMatch(/ezpug_moment\.xml is stamped abcdef0/)
   })
 
   it('refuses a pack that is not the loose files', () => {

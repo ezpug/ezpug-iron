@@ -6,7 +6,8 @@
  * - `panorama/**` — the compiled files, loose, as the compiler wrote them;
  * - `ezpug_hud.vpk` — the same files packed, the thing that is published;
  * - `manifest.json` — the hash of every source the compile read, of every file
- *   it wrote, of the pack, and what compiled it.
+ *   it wrote, of the pack, what compiled it, and the build stamp the layouts carry
+ *   (`stamp.ts`).
  *
  * `verifyDist` is the honesty check, run by `pnpm hud:build`, before every
  * publish, and by a test on every `pnpm verify`: a source edited without a
@@ -16,6 +17,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { compiledPath, listFiles, sha256, sourceHashes, sources, VPK_NAME } from './addon.ts'
+import { stampOf, stampProblems } from './stamp.ts'
 import { readVpk } from './vpk.ts'
 
 export interface DistManifest {
@@ -26,6 +28,8 @@ export interface DistManifest {
   /** Every compiled file, by its path in the addon. */
   files: Record<string, { sha256: string; bytes: number }>
   pack: { file: string; sha256: string; bytes: number }
+  /** The build stamp written into the layouts (`stamp.ts`): what a client's card shows. */
+  stamp?: string
 }
 
 export const MANIFEST = 'manifest.json'
@@ -53,7 +57,13 @@ export function verifyDist(hudDir: string): string[] {
   const manifestPath = join(dist, MANIFEST)
   if (!existsSync(manifestPath)) return ['hud/dist/manifest.json is missing: run `pnpm hud:build`']
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as DistManifest
-  const problems: string[] = []
+  const problems: string[] = stampProblems(hudDir)
+  if (manifest.stamp === undefined)
+    problems.push('hud/dist/manifest.json names no stamp: run `pnpm hud:build`')
+  else if (problems.length === 0 && manifest.stamp !== stampOf(hudDir))
+    problems.push(
+      `hud/dist/manifest.json is stamped ${manifest.stamp}, the sources stamp ${stampOf(hudDir)}: run \`pnpm hud:build\``,
+    )
 
   const now = sourceHashes(hudDir)
   for (const [source, hash] of Object.entries(now))

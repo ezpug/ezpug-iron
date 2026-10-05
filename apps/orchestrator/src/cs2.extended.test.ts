@@ -1517,7 +1517,7 @@ const CASES: LaneCase[] = [
         )?.[1],
       )
       const freezeEnd = call + left
-      const rolls = at(/hud: the unboxing for \d+ rolls to landing [1-4]$/)
+      const rolls = at(/hud: the unboxing for \d+ rolls to landing [1-4] \(29 steps\)$/)
       const prize = at(/hud: the unboxing for \d+ shows its prize \(legendary\) and says its line$/)
       const away = at(/hud: the unboxing for \d+ is put away: its prize was shown$/)
       expect(beats.filter(entry => entry.line.includes('without its reel'))).toEqual([])
@@ -1552,6 +1552,30 @@ const CASES: LaneCase[] = [
       expect(everybody('unbox_slot_33')).toContain('+tier-legendary')
       expect(everybody('unbox_slot_33')).toContain('+art-big-jersey')
       expect(everybody('unbox')).toContain('+tier-legendary')
+      // The reel is the server's motion (PRD-09 T8, decision 36): 5 s into the round
+      // is 3 s into the reel, past its twentieth step (`Moments.Steps`: 2,045 ms is the
+      // twentieth), and exactly one step class is on; after the freeze, none.
+      const stepsOn = (state: string[]) =>
+        [
+          ...(state.find(line => line.startsWith('hud:   everybody, unbox:')) ?? '').matchAll(
+            /\+at-(\d+)/g,
+          ),
+        ].map(match => Number(match[1]))
+      expect(stepsOn(during).length, `steps on inside the reel: ${everybody('unbox')}`).toBe(1)
+      expect(stepsOn(during)[0]).toBeGreaterThanOrEqual(18)
+      expect(stepsOn(during)[0]).toBeLessThanOrEqual(29)
+      expect(stepsOn(unbox?.after ?? [])).toEqual([])
+      // The server says which reel it plays and the stamp it was built beside, which is
+      // the stamp the addon in hud/dist/ carries: what a client's card must show.
+      const stamp = (
+        JSON.parse(readFileSync(`${REPO}hud/dist/manifest.json`, 'utf8')) as { stamp: string }
+      ).stamp
+      expect(during).toContain(
+        `hud: reel steps, 29 steps over 4989 ms of 6000, 150 ms a step, on screens now at step ${stepsOn(during)[0]} (steps); stamp ${stamp} expected on a client's card`,
+      )
+      expect(unbox?.after ?? []).toContain(
+        `hud: reel steps, 29 steps over 4989 ms of 6000, 150 ms a step; stamp ${stamp} expected on a client's card`,
+      )
       expect(everybody('unbox_name')).toMatch(/\{s:text\}="[^"]+"/)
       const reel = during.filter(line => /^hud: {3}everybody, unbox_slot_\d+:/.test(line))
       expect(reel.length, 'the reel is not laid out slot by slot').toBe(36)

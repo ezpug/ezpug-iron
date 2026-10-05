@@ -107,9 +107,17 @@ public class UnboxingTests
 
     /// <summary>The beats on this player's screen, in the order the stylesheet reads them.</summary>
     private static string Beats(GamemodeTestHost host, ulong steamId64) =>
-        string.Join(' ', new[] { Moments.Shown, Moments.Rolling, Moments.Revealed }
+        string.Join(' ', new[] { Moments.Shown, Moments.Slide, Moments.Revealed }
             .Concat(Enumerable.Range(1, Moments.ReelLandings).Select(Moments.Landing))
             .Where(className => On(host, steamId64, className)));
+
+    /// <summary>The reel's step on everybody's screen, read off the layout: 0 at rest.</summary>
+    private static int StepOn(GamemodeTestHost host) =>
+        Enumerable.Range(1, Moments.ReelSteps).Where(step => Layout(host).Classes.GetValueOrDefault((Moments.Unbox, Moments.StepClass(step)))).DefaultIfEmpty(0).Max();
+
+    /// <summary>How many step classes are on at once: never more than one.</summary>
+    private static int StepsOn(GamemodeTestHost host) =>
+        Enumerable.Range(1, Moments.ReelSteps).Count(step => Layout(host).Classes.GetValueOrDefault((Moments.Unbox, Moments.StepClass(step))));
 
     private static bool CardUp(GamemodeTestHost host, ulong steamId64) =>
         host.World.HudLayouts.Count > 0 && Layout(host).Has(Player(host, steamId64).Slot, Moments.Card, Moments.Shown);
@@ -169,22 +177,28 @@ public class UnboxingTests
         Assert.False(CardUp(host, Ada));
         Assert.Empty(host.World.Sounds);
 
-        // The reel, with one landing.
+        // The reel, with one landing, and the strip at rest until its first step.
         host.Clock.Advance(Moments.CallMs - 1);
         Assert.Equal(Moments.Shown, Beats(host, Ben));
+        Assert.Equal(0, StepOn(host));
         host.Clock.Advance(1);
         var rolling = Beats(host, Ben);
-        Assert.Matches($"^{Moments.Shown} {Moments.Rolling} land-[1-{Moments.ReelLandings}]$", rolling);
+        Assert.Matches($"^{Moments.Shown} land-[1-{Moments.ReelLandings}]$", rolling);
         Assert.Equal(rolling, Beats(host, Ada));
+        Assert.Equal(0, StepOn(host));
+        host.Clock.Advance(Moments.Steps[0]);
+        Assert.Equal(1, StepOn(host));
 
-        // The reveal, at the contract's instant: the landing settles, the sound, the line.
-        host.Clock.Advance(Moments.ReelMs - 1);
+        // The reveal, at the contract's instant: the strip stands on the prize, the landing settles, the sound, the line.
+        host.Clock.Advance(Moments.ReelMs - Moments.Steps[0] - 1);
         Assert.Equal(rolling, Beats(host, Ada));
+        Assert.Equal(Moments.ReelSteps, StepOn(host));
         Assert.Equal(0, Read(host, Ben, AdaWinsEnglish));
         host.Clock.Advance(1);
         Assert.Equal(ProtocolConstants.MomentUnboxingRevealMs, Moments.RevealMs);
-        Assert.Equal($"{Moments.Shown} {Moments.Rolling} {Moments.Revealed}", Beats(host, Ada));
-        Assert.Equal($"{Moments.Shown} {Moments.Rolling} {Moments.Revealed}", Beats(host, Ben));
+        Assert.Equal($"{Moments.Shown} {Moments.Revealed}", Beats(host, Ada));
+        Assert.Equal($"{Moments.Shown} {Moments.Revealed}", Beats(host, Ben));
+        Assert.Equal(Moments.ReelSteps, StepOn(host));
         Assert.Equal(YouWin, layout.Variable(Player(host, Ada).Slot, Moments.UnboxLine, Moments.Text));
         Assert.Equal(AdaWinsEnglish, layout.Variable(Player(host, Ben).Slot, Moments.UnboxLine, Moments.Text));
         Assert.Equal(1, Read(host, Ada, YouWin));
@@ -194,13 +208,18 @@ public class UnboxingTests
         Assert.True(layout.Classes[(Moments.Unbox, "tier-rare")]);
         Assert.True(layout.Classes[(Moments.Unbox, "art-big-jersey")]);
 
-        // Gone, with the freeze still running: it never needed the freeze to end.
+        // Gone, with the freeze still running: it never needed the freeze to end. The
+        // strip goes back once the panel has faded, unseen.
         host.Clock.Advance(Moments.PrizeMs - 1);
-        Assert.Equal($"{Moments.Shown} {Moments.Rolling} {Moments.Revealed}", Beats(host, Ben));
+        Assert.Equal($"{Moments.Shown} {Moments.Revealed}", Beats(host, Ben));
         host.Clock.Advance(1);
         Assert.Equal("", Beats(host, Ada));
         Assert.Equal("", Beats(host, Ben));
         Assert.False(host.Runtime.Moments.Unboxing);
+        Assert.Equal(Moments.ReelSteps, StepOn(host));
+        host.Clock.Advance(Moments.StripBackMs);
+        Assert.Equal(0, StepOn(host));
+        Assert.Equal(0, host.Runtime.Moments.ReelStep);
         Assert.True(host.Runtime.Hud.Quiet is { Reason: QuietReason.FreezeTime, LeftMs: >= Moments.UnboxSpareMs });
 
         // In place of the toast and the card, to the end: said once, drawn once.
@@ -213,16 +232,15 @@ public class UnboxingTests
     }
 
     /// <summary>
-    /// The reel is the client's own transition, started by one class: whatever the server
-    /// wrote to the layout while it slides could make a client restyle it mid-slide. So
-    /// from the instant it starts to the reveal the server writes nothing to any layout,
-    /// only the ticks, even where it is likeliest to: everybody spawned at the round start
-    /// the unboxing began at, so the slot's second telling (<see cref="Hud.ResendDelayMs"/>,
-    /// as long as the call) falls on the instant the reel starts. Asked after the playtest
-    /// of 2026-10-04, whose reel looked stuck: the server was not touching it.
+    /// The reel is the server's motion (decision 36): from the instant it starts to the
+    /// reveal the server writes exactly the step classes for everybody, the new one before
+    /// the old one comes off, and plays a tick in the same frame, and nothing else to any
+    /// layout, even where it is likeliest to: everybody spawned at the round start the
+    /// unboxing began at, so the slot's second telling (<see cref="Hud.ResendDelayMs"/>,
+    /// as long as the call) falls on the instant the reel starts.
     /// </summary>
     [Fact]
-    public void NothingTouchesTheLayoutWhileTheReelSlides_OnlyTheTicksAreHeard()
+    public void OnlyTheStepsTouchTheLayoutWhileTheReelRuns_EachWithItsTick()
     {
         Assert.Equal(Hud.ResendDelayMs, Moments.CallMs);
         using var host = Assigned();
@@ -232,16 +250,28 @@ public class UnboxingTests
         host.Link.Command(Drop("m1"));
         host.Clock.Advance(Moments.CallMs);
         var rolling = Beats(host, Ben);
-        Assert.Matches($"^{Moments.Shown} {Moments.Rolling} land-[1-{Moments.ReelLandings}]$", rolling);
+        Assert.Matches($"^{Moments.Shown} land-[1-{Moments.ReelLandings}]$", rolling);
         Assert.Equal(rolling, Beats(host, Ada));
 
         var from = host.World.Actions.Count;
+        var expected = new List<string>();
+        for (var step = 1; step <= Moments.ReelSteps; step++)
+        {
+            expected.Add($"hud_class {Moments.Layout} {Moments.Unbox} +{Moments.StepClass(step)}");
+            if (step > 1)
+            {
+                expected.Add($"hud_class {Moments.Layout} {Moments.Unbox} -{Moments.StepClass(step - 1)}");
+            }
+
+            expected.Add($"sound {Ada} {Moments.TickSound} {Moments.TickVolume}");
+            expected.Add($"sound {Ben} {Moments.TickSound} {Moments.TickVolume}");
+        }
+
         host.Clock.Advance(Moments.ReelMs - 1);
-        var during = host.World.Actions.Skip(from).ToList();
-        Assert.DoesNotContain(during, action => action.Verb.StartsWith("hud_", StringComparison.Ordinal));
-        Assert.All(during, action => Assert.Equal("sound", action.Verb));
-        Assert.NotEmpty(during);
+        var during = host.World.Actions.Skip(from).Select(action => action.ToString()).ToList();
+        Assert.Equal(expected, during.Select(line => Regex.Replace(line, @"(sound \d+ \S+) .*", "$1 " + Moments.TickVolume.ToString(CultureInfo.InvariantCulture))));
         Assert.Equal(rolling, Beats(host, Ben));
+        Assert.Equal(1, StepsOn(host));
     }
 
     /// <summary>The beats of the unboxing as the server's console says them, which is all a lane on a server of puppets can time (PRD-08 T6): a bot has no screen.</summary>
@@ -257,7 +287,7 @@ public class UnboxingTests
         Assert.Equal([$"info: hud: unboxing for {Ada} (FreezeTime, 18000 ms left), 2 watching; the prize shows in {Moments.RevealMs} ms"], Said(host));
 
         host.Clock.Advance(Moments.CallMs);
-        Assert.Matches($"^info: hud: the unboxing for {Ada} rolls to landing [1-{Moments.ReelLandings}]$", Said(host)[1]);
+        Assert.Matches($"^info: hud: the unboxing for {Ada} rolls to landing [1-{Moments.ReelLandings}] \\({Moments.ReelSteps} steps\\)$", Said(host)[1]);
         host.Clock.Advance(Moments.ReelMs);
         Assert.Equal($"info: hud: the unboxing for {Ada} shows its prize (rare) and says its line", Said(host)[2]);
         host.Clock.Advance(Moments.PrizeMs - 1);
@@ -479,7 +509,8 @@ public class UnboxingTests
         Freeze(host);
         host.Link.Command(Drop("m1"));
         host.Clock.Advance(Moments.CallMs + 3_000);
-        Assert.StartsWith($"{Moments.Shown} {Moments.Rolling}", Beats(host, Ben), StringComparison.Ordinal);
+        Assert.Matches($"^{Moments.Shown} land-[1-{Moments.ReelLandings}]$", Beats(host, Ben));
+        Assert.True(StepOn(host) > 0);
 
         // Somebody unpaused, or the cvar was wrong: the freeze is over early.
         var ticked = Ticks(host, Ben);
@@ -650,7 +681,7 @@ public class UnboxingTests
     // ------------------------------------------------------------------ the sound
 
     [Fact]
-    public void TheReelTicksAsEachSlotPassesTheMarker_SlowingWithIt_ForEverybodyWatching()
+    public void TheReelTicksAtEachStep_SlowingWithIt_ForEverybodyWatching()
     {
         using var host = Assigned();
         Freeze(host);
@@ -658,28 +689,27 @@ public class UnboxingTests
         host.Clock.Advance(Moments.CallMs - 1);
         Assert.Equal(0, Ticks(host, Ben));
         host.Clock.Advance(1);
-        var landing = int.Parse(Regex.Match(Beats(host, Ben), @"land-(\d)").Groups[1].Value, CultureInfo.InvariantCulture);
 
-        // Each instant a tick is heard, on the fake clock, from the reel's start.
+        // Each instant a tick is heard, on the fake clock, from the reel's start, and the
+        // step on everybody's screen in that same instant.
         var heard = new List<long>();
+        var stepped = new List<int>();
         for (var ms = 0L; ms < Moments.ReelMs; ms++)
         {
             var before = Ticks(host, Ben);
             host.Clock.Advance(1);
-            heard.AddRange(Enumerable.Repeat(ms + 1, Ticks(host, Ben) - before));
+            if (Ticks(host, Ben) > before)
+            {
+                heard.AddRange(Enumerable.Repeat(ms + 1, Ticks(host, Ben) - before));
+                stepped.Add(StepOn(host));
+                Assert.Equal(1, StepsOn(host));
+            }
         }
 
-        Assert.Equal(Moments.TicksOf(landing), heard);
+        Assert.Equal(Moments.Steps, heard);
+        Assert.Equal(Enumerable.Range(1, Moments.ReelSteps), stepped);
         Assert.Equal(Ticks(host, Ben), Ticks(host, Ada));
         Assert.All(host.World.Sounds[Ben].Where(sound => sound.Event == Moments.TickSound), sound => Assert.Equal(Moments.TickVolume, sound.Volume));
-
-        // Fast, then slower: never closer than the least gap, each gap from the first one
-        // longer than the one before (the reel slows all the way, and no tick is skipped
-        // to make a gap uneven), and the last with most of a second left before the reveal.
-        var gaps = heard.Zip(heard.Skip(1), (a, b) => b - a).ToList();
-        Assert.All(gaps, gap => Assert.True(gap >= Moments.TickGapMinMs));
-        Assert.Equal(gaps.Order(), gaps);
-        Assert.True(heard[^1] <= Moments.ReelMs - 750);
 
         // The reveal is no tick, and none follows it.
         Assert.Single(Reveals(host, Ben));
@@ -688,34 +718,48 @@ public class UnboxingTests
         Assert.Equal(ticks, Ticks(host, Ben));
     }
 
+    /// <summary>
+    /// The schedule's shape (decision 36): a step a slot from the resting slot to the
+    /// prize's, fast, then slower all the way, never closer than the least gap the server
+    /// can play a tick at, and the last with most of a second to stand before the reveal.
+    /// </summary>
     [Fact]
-    public void EveryReelPassesTheSameSlots_AndTicksForEachOfThem()
+    public void TheStepsSlowAllTheWay_StartAtTheGamesOwnFastestTick_AndStandBeforeTheReveal()
     {
-        for (var landing = 1; landing <= Moments.ReelLandings; landing++)
-        {
-            var ticks = Moments.TicksOf(landing);
-            // A slot's edge for each slot between the resting one and the prize's, every one
-            // heard: the curve starts at a slot every 64 ms, slower than the least gap.
-            Assert.Equal(Moments.ReelStopSlot - Moments.ReelRestSlot, ticks.Count);
-            Assert.True(ticks[0] > 0);
-            Assert.Equal(ticks.Order(), ticks);
-        }
+        var steps = Moments.Steps;
+        Assert.Equal(Moments.ReelStopSlot - Moments.ReelRestSlot, steps.Count);
+        Assert.Equal(Moments.ReelSteps, steps.Count);
+        Assert.True(steps[0] > 0);
+        var gaps = steps.Zip(steps.Skip(1), (a, b) => b - a).ToList();
+        Assert.All(gaps, gap => Assert.True(gap >= Moments.TickGapMinMs));
+        // The game's own case opening ticks at most 16 times a second; so does this, from the first step.
+        Assert.InRange(gaps[0], Moments.TickGapMinMs, 70);
+        Assert.Equal(gaps.Order(), gaps);
+        // A blur at the start (ten or more steps in the first second), readable at the end
+        // (the last five gaps each over a quarter of a second), and a stand before the prize.
+        Assert.True(steps.Count(at => at <= 1_000) >= 10);
+        Assert.All(gaps.TakeLast(5), gap => Assert.True(gap > 250));
+        Assert.InRange(Moments.ReelMs - steps[^1] - Moments.StepMs, 750, 1_250);
+        // A step's slide is over before the next step at the end, so the strip never lags
+        // its tick: shorter than the slowest gap; and the strip is home again inside the
+        // rest between two unboxings.
+        Assert.True(Moments.StepMs < gaps[^1]);
+        Assert.True(Moments.StripBackMs + Moments.StepMs < Moments.UnboxRestMs);
     }
 
     /// <summary>
-    /// The schedule itself, pinned, so a change to the curve (which is the stylesheet's
-    /// too, and ships in the addon while this ships in the plugin) is a change somebody
-    /// sees in a diff. Before the playtest of 2026-10-04 it was 21 or 22 ticks from 14 ms,
-    /// the last at 3,883 to 4,910 ms; <c>docs/hud.md</c>, "The unboxing, played".
+    /// The schedule itself, pinned, so a change to the curve is a change somebody sees in
+    /// a diff. Before the steps (PRD-09 T1) the ticks followed the stylesheet's slide,
+    /// 29 of them from 32 ms to 4.4–5.2 s by landing; <c>docs/hud.md</c>, "The unboxing,
+    /// played".
     /// </summary>
     [Fact]
-    public void TheTicksAreTheCurvesOwn_FirstAndLastPinnedForEachLanding()
+    public void TheStepsAreTheCurvesOwn_Pinned()
     {
-        Assert.Equal([0.2, 0.65, 0.4, 1], Moments.ReelCurve);
+        Assert.Equal([0.2, 0.65, 0.55, 1], Moments.ReelCurve);
         Assert.Equal(
-            [(32L, 4406L), (32L, 4574L), (32L, 4887L), (32L, 5194L)],
-            Enumerable.Range(1, Moments.ReelLandings).Select(landing => (Moments.TicksOf(landing)[0], Moments.TicksOf(landing)[^1])));
-        Assert.Equal([32L, 96, 161, 228, 296, 366, 438, 512, 588, 668], Moments.TicksOf(1).Take(10));
+            [32L, 99, 168, 240, 316, 395, 478, 565, 656, 751, 851, 956, 1066, 1182, 1305, 1435, 1573, 1720, 1877, 2045, 2226, 2423, 2639, 2877, 3146, 3454, 3820, 4286, 4989],
+            Moments.Steps);
     }
 
     [Fact]
@@ -751,7 +795,7 @@ public class UnboxingTests
         host.Clock.Advance(1_000);
 
         var cleo = host.World.Connect(Cleo, "Cleo");
-        var beats = new[] { Moments.Shown, Moments.Rolling, Moments.Revealed }.Concat(Enumerable.Range(1, Moments.ReelLandings).Select(Moments.Landing)).ToList();
+        var beats = new[] { Moments.Shown, Moments.Slide, Moments.Revealed }.Concat(Enumerable.Range(1, Moments.ReelLandings).Select(Moments.Landing)).ToList();
         for (var ms = 0L; ms < Moments.UnboxMs; ms += 500)
         {
             Assert.All(beats, className => Assert.False(Layout(host).Has(cleo.Slot, Moments.Unbox, className)));
@@ -762,7 +806,7 @@ public class UnboxingTests
         Assert.False(host.World.Sounds.ContainsKey(Cleo));
         // Everybody who was there saw and heard all of it.
         Assert.Single(Reveals(host, Ben));
-        Assert.Contains(Ticks(host, Ben), Enumerable.Range(1, Moments.ReelLandings).Select(landing => Moments.TicksOf(landing).Count));
+        Assert.Equal(Moments.ReelSteps, Ticks(host, Ben));
     }
 
     [Fact]
@@ -780,7 +824,7 @@ public class UnboxingTests
 
         Assert.False(Layout(host).Has(slot, Moments.Unbox, Moments.Shown));
         Assert.False(Layout(host).Has(slot, Moments.Unbox, Moments.Revealed));
-        Assert.Equal($"{Moments.Shown} {Moments.Rolling} {Moments.Revealed}", Beats(host, Ada));
+        Assert.Equal($"{Moments.Shown} {Moments.Revealed}", Beats(host, Ada));
     }
 
     [Fact]
@@ -903,6 +947,156 @@ public class UnboxingTests
         Assert.Empty(host.World.Sounds);
     }
 
+    // ------------------------------------------------------------------ the switch, and the diagnostic
+
+    [Fact]
+    public void TheSwitchOffMakesADropItsLineToastAndCard_AndOnAgainTheReel()
+    {
+        using var host = Assigned();
+        Freeze(host);
+        Assert.True(host.Runtime.Moments.ReelOn);
+        host.Runtime.Moments.SwitchReel(false);
+        Assert.False(host.Runtime.Moments.ReelOn);
+        Assert.StartsWith("off (ezpug_unbox_reel 0", host.Runtime.Moments.ReelReport(), StringComparison.Ordinal);
+
+        host.Link.Command(Drop("m1"));
+
+        // PRD-07's moment, at once, and nothing written to the reel.
+        Assert.False(host.Runtime.Moments.Unboxing);
+        Assert.Equal("", Beats(host, Ada));
+        Assert.Equal(1, Read(host, Ada, YouWin));
+        Assert.Equal(AdaWinsEnglish, ToastOn(host, Ben));
+        Assert.DoesNotContain(host.World.HudActions, action => action.Detail.Contains(Moments.ReelSlot(1), StringComparison.Ordinal));
+        Assert.Contains($"info: hud: the reel is off (ezpug_unbox_reel 0); the drop for {Ada} is its line, its toast and its card", host.Logged);
+
+        host.Runtime.Moments.SwitchReel(true);
+        Assert.StartsWith("steps, ", host.Runtime.Moments.ReelReport(), StringComparison.Ordinal);
+        host.Link.Command(Drop("m2"));
+        Assert.True(host.Runtime.Moments.Unboxing);
+        Assert.Equal(Moments.Shown, Beats(host, Ada));
+    }
+
+    [Fact]
+    public void TheStatusLineSaysTheModeTheScheduleAndTheStampThisBuildWasMadeBeside()
+    {
+        using var host = Assigned();
+        var line = host.Runtime.Moments.ReelReport();
+        Assert.Equal($"steps, {Moments.ReelSteps} steps over {Moments.Steps[^1]} ms of {Moments.ReelMs}, {Moments.StepMs} ms a step; stamp {HudStamp.Expected} expected on a client's card", line);
+        Freeze(host);
+        host.Link.Command(Drop("m1"));
+        host.Clock.Advance(Moments.CallMs + Moments.Steps[2]);
+        Assert.Contains(", on screens now at step 3 (steps); stamp ", host.Runtime.Moments.ReelReport(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheDiagnosticPlaysTheReelNow_InAnyStretchOrNone_ForWhoeverIsHere()
+    {
+        using var host = Assigned();
+        Freeze(host);
+        host.World.EndFreeze();
+        // A round is being played: no drop would be unboxed here, and the test plays anyway.
+        Assert.Null(host.Runtime.Hud.Quiet);
+
+        var answer = host.Runtime.Moments.PlayTest(ReelMode.Steps);
+
+        Assert.StartsWith("unbox test: playing the stepped reel for Ada to 2 watching, no stretch; the prize shows in 8000 ms. This server was built beside addon stamp ", answer, StringComparison.Ordinal);
+        Assert.Contains(HudStamp.Expected, answer, StringComparison.Ordinal);
+        Assert.True(host.Runtime.Moments.Unboxing);
+        Assert.Equal(Moments.Shown, Beats(host, Ada));
+        Assert.Equal(Moments.Shown, Beats(host, Ben));
+        Assert.Equal("Ada", Layout(host).Variables[(Moments.UnboxName, Moments.Text)]);
+        Assert.Equal("art-big-jersey tier-legendary", Reel(host)[Moments.ReelStopSlot - 1]);
+        Assert.Equal(1, Read(host, Ada, $"Ada {CallGerman}"));
+        Assert.Contains($"info: hud: unboxing for {Ada} (no stretch), 2 watching; the prize shows in {Moments.RevealMs} ms (ezpug_unbox_test steps)", host.Logged);
+
+        host.Clock.Advance(Moments.CallMs + Moments.Steps[^1]);
+        Assert.Equal(Moments.ReelSteps, StepOn(host));
+        Assert.Equal(Moments.ReelSteps, Ticks(host, Ben));
+        host.Clock.Advance(Moments.ReelMs - Moments.Steps[^1]);
+        Assert.Equal($"{Moments.Shown} {Moments.Revealed}", Beats(host, Ben));
+        Assert.Equal(1, Read(host, Ada, "Du ziehst: BIG Trikot (Testlauf 1)"));
+        Assert.Equal(1, Read(host, Ben, "Ada wins: BIG jersey (test run 1)"));
+
+        // A second run is another reel (another landing may come up), told apart by its number.
+        host.Clock.Advance(Moments.PrizeMs + Moments.UnboxRestMs);
+        Assert.StartsWith("unbox test: playing the stepped reel", host.Runtime.Moments.PlayTest(ReelMode.Steps), StringComparison.Ordinal);
+        host.Clock.Advance(Moments.RevealMs);
+        Assert.Equal(1, Read(host, Ben, "Ada wins: BIG jersey (test run 2)"));
+    }
+
+    [Fact]
+    public void TheDiagnosticCanPlayTheOldSlide_WhichNoMatchEverSets()
+    {
+        using var host = Assigned();
+        Warmup(host);
+
+        Assert.StartsWith("unbox test: playing the old slide for Ada", host.Runtime.Moments.PlayTest(ReelMode.Slide), StringComparison.Ordinal);
+        host.Clock.Advance(Moments.CallMs);
+        Assert.Matches($"^{Moments.Shown} {Moments.Slide} land-[1-{Moments.ReelLandings}]$", Beats(host, Ben));
+        Assert.Contains($"info: hud: the unboxing for {Ada} rolls to landing {Regex.Match(Beats(host, Ben), @"land-(\d)").Groups[1].Value} (the old slide)", host.Logged);
+        // The slide is the client's: no step class, and the ticks on the same schedule.
+        host.Clock.Advance(Moments.ReelMs - 1);
+        Assert.Equal(0, StepOn(host));
+        Assert.Equal(Moments.ReelSteps, Ticks(host, Ben));
+        Assert.DoesNotContain(host.World.HudActions, action => action.Detail.Contains(" +at-", StringComparison.Ordinal));
+        host.Clock.Advance(1);
+        // The slide stays to the end, so the prize stands under the marker; the landing settles.
+        Assert.Equal($"{Moments.Shown} {Moments.Slide} {Moments.Revealed}", Beats(host, Ben));
+        host.Clock.Advance(Moments.PrizeMs);
+        Assert.Equal("", Beats(host, Ben));
+
+        // A match's own drop never slides.
+        host.Clock.Advance(Moments.UnboxRestMs);
+        host.Link.Command(Drop("m1"));
+        host.Clock.Advance(Moments.CallMs + Moments.Steps[0]);
+        Assert.DoesNotContain(Moments.Slide, Beats(host, Ben), StringComparison.Ordinal);
+        Assert.Equal(1, StepOn(host));
+    }
+
+    [Theory]
+    [InlineData("no addon", "unbox test: the HUD is off on this server: it booted without an addon id (EZPUG_HUD_ADDON)")]
+    [InlineData("not asked", "unbox test: the HUD is off on this server: the match did not ask for a HUD (branding.hud)")]
+    [InlineData("no round", "unbox test: the layouts are not in the world yet: no round has started on this map")]
+    [InlineData("busy", "unbox test: an unboxing is on screens now (step 0); wait for it to be put away")]
+    public void TheDiagnosticSaysWhyWhenItCannot(string situation, string answer)
+    {
+        using var host = situation switch
+        {
+            "no addon" => Assigned(addon: null),
+            "not asked" => Assigned(hud: false),
+            _ => Assigned(),
+        };
+        if (situation == "busy")
+        {
+            Warmup(host);
+            host.Link.Command(Drop("m1"));
+        }
+
+        Assert.Equal(answer, host.Runtime.Moments.PlayTest(ReelMode.Steps));
+        if (situation != "busy")
+        {
+            Assert.False(host.Runtime.Moments.Unboxing);
+            Assert.Empty(host.World.HudActions);
+        }
+    }
+
+    [Fact]
+    public void TheDiagnosticOnAServerOfPuppetsCallsAPuppetsSeat_AndOnAnEmptyOneTheRoster()
+    {
+        using var host = new GamemodeTestHost(hudAddon: Addon);
+        host.Start(GamemodeTestHost.AssignmentFor(
+            Manifest("pug"),
+            teamA: [GamemodeTestHost.Player(Ada, "Ada")],
+            teamB: [GamemodeTestHost.Player(Ben, "Ben", Locale.En)],
+            hud: true));
+        Warmup(host);
+        Assert.StartsWith("unbox test: playing the stepped reel for Ada to 0 watching", host.Runtime.Moments.PlayTest(ReelMode.Steps), StringComparison.Ordinal);
+        host.Clock.Advance(Moments.UnboxMs + Moments.UnboxRestMs);
+
+        host.World.Connect(Ben, "Ben", PlayerTeam.Terrorist, bot: true);
+        Assert.StartsWith("unbox test: playing the stepped reel for Ben to 0 watching", host.Runtime.Moments.PlayTest(ReelMode.Steps), StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------------ the layout agrees
 
     private static string Strip(string text, string comments) => Regex.Replace(text, comments, "");
@@ -927,48 +1121,78 @@ public class UnboxingTests
         }
 
         Assert.Contains($".ezpug-unbox.{Moments.Shown}\n", css, StringComparison.Ordinal);
-        Assert.Contains($".ezpug-unbox.{Moments.Rolling} .ezpug-unbox-strip\n", css, StringComparison.Ordinal);
         Assert.Contains($".ezpug-unbox.{Moments.Revealed} .ezpug-unbox-prize\n", css, StringComparison.Ordinal);
         Assert.Contains($".ezpug-unbox.{Moments.SideCt} ", css, StringComparison.Ordinal);
         Assert.Contains($".ezpug-unbox.{Moments.SideT} ", css, StringComparison.Ordinal);
-        for (var landing = 1; landing <= Moments.ReelLandings; landing++)
-        {
-            Assert.Contains($".ezpug-unbox.{Moments.Rolling}.{Moments.Landing(landing)} .ezpug-unbox-land\n", css, StringComparison.Ordinal);
-        }
-
-        Assert.Equal(Moments.ReelLandings, Regex.Matches(css, @"\.land-\d+ ").Count);
         foreach (var tier in Enum.GetValues<MomentTier>())
         {
             Assert.Contains($".ezpug-unbox-slot.{Moments.TierClassOf(tier)}\n", css, StringComparison.Ordinal);
             Assert.Contains($".ezpug-unbox.{Moments.Revealed}.{Moments.TierClassOf(tier)} .ezpug-unbox-burst\n", css, StringComparison.Ordinal);
         }
 
-        // The reel slides for as long as the server waits before it reveals, and stops on
-        // the slot the prize is put in: 140 a slot, the marker at 430 (the stylesheet's header).
-        var strip = Regex.Match(css, @"\.ezpug-unbox\.rolling \.ezpug-unbox-strip\s*\{([^}]*)\}").Groups[1].Value;
+        // The strip stands with the resting slot under the marker (140 a slot, the marker
+        // at 430, the stylesheet's header), and step k puts slot rest + k there, the last
+        // one the prize's; a step's own slide is the strip's rule, as long as StepMs.
+        var strip = Regex.Match(css, @"\.ezpug-unbox-strip\s*\{([^}]*)\}").Groups[1].Value;
+        var resting = long.Parse(Regex.Match(strip, @"translate3d\( (-?\d+)px").Groups[1].Value, CultureInfo.InvariantCulture);
+        Assert.Equal(430, resting + Moments.ReelPitchPx * (Moments.ReelRestSlot - 1) + Moments.ReelPitchPx / 2);
+        Assert.Contains("transition-property: transform;", strip, StringComparison.Ordinal);
         var seconds = double.Parse(Regex.Match(strip, @"transition-duration: ([0-9.]+)s;").Groups[1].Value, CultureInfo.InvariantCulture);
-        Assert.Equal(Moments.ReelMs, (long)Math.Round(seconds * 1_000));
-        var rolled = long.Parse(Regex.Match(strip, @"translate3d\( (-?\d+)px").Groups[1].Value, CultureInfo.InvariantCulture);
-        Assert.Equal(430, rolled + 140 * (Moments.ReelStopSlot - 1) + 70);
-
-        // The ticks are timed on the stylesheet's slide: its resting slot, its curve, its landings.
-        var resting = Regex.Match(css, @"\.ezpug-unbox-strip\s*\{[^}]*translate3d\( (-?\d+)px").Groups[1].Value;
-        Assert.Equal(430, long.Parse(resting, CultureInfo.InvariantCulture) + Moments.ReelPitchPx * (Moments.ReelRestSlot - 1) + Moments.ReelPitchPx / 2);
-        Assert.Contains($"transition-timing-function: cubic-bezier( {string.Join(", ", Moments.ReelCurve.Select(n => n.ToString(CultureInfo.InvariantCulture)))} );", strip, StringComparison.Ordinal);
-        for (var landing = 1; landing <= Moments.ReelLandings; landing++)
+        Assert.Equal(Moments.StepMs, (long)Math.Round(seconds * 1_000));
+        Assert.Contains("transition-delay: 0s;", strip, StringComparison.Ordinal);
+        for (var step = 1; step <= Moments.ReelSteps; step++)
         {
-            var rule = Regex.Match(css, $@"\.ezpug-unbox\.rolling\.land-{landing} \.ezpug-unbox-land\s*\{{([^}}]*)\}}").Groups[1].Value;
-            Assert.Contains($"translate3d( {Moments.LandingPx[landing - 1]}px, 0px, 0px )", rule, StringComparison.Ordinal);
-            Assert.Contains($"cubic-bezier( {string.Join(", ", Moments.ReelCurve.Select(n => n.ToString(CultureInfo.InvariantCulture)))} )", rule, StringComparison.Ordinal);
+            var rule = Regex.Match(css, $@"\.ezpug-unbox\.{Moments.StepClass(step)} \.ezpug-unbox-strip\s*\{{([^}}]*)\}}").Groups[1].Value;
+            var at = long.Parse(Regex.Match(rule, @"translate3d\( (-?\d+)px").Groups[1].Value, CultureInfo.InvariantCulture);
+            Assert.Equal(430, at + Moments.ReelPitchPx * (Moments.ReelRestSlot + step - 1) + Moments.ReelPitchPx / 2);
+            Assert.DoesNotContain("transition", rule, StringComparison.Ordinal);
         }
 
+        Assert.Equal(Moments.ReelSteps, Regex.Matches(css, @"\.ezpug-unbox\.at-\d+ ").Count);
+        var last = Regex.Match(css, $@"\.ezpug-unbox\.{Moments.StepClass(Moments.ReelSteps)} \.ezpug-unbox-strip\s*\{{([^}}]*)\}}").Groups[1].Value;
+        Assert.Equal(430, long.Parse(Regex.Match(last, @"translate3d\( (-?\d+)px").Groups[1].Value, CultureInfo.InvariantCulture) + 140 * (Moments.ReelStopSlot - 1) + 70);
+
+        // The landings: a few pixels on the second panel, and the panel's own settle.
+        for (var landing = 1; landing <= Moments.ReelLandings; landing++)
+        {
+            var rule = Regex.Match(css, $@"\.ezpug-unbox\.{Moments.Landing(landing)} \.ezpug-unbox-land\s*\{{([^}}]*)\}}").Groups[1].Value;
+            Assert.Contains($"translate3d( {Moments.LandingPx[landing - 1]}px, 0px, 0px )", rule, StringComparison.Ordinal);
+            Assert.DoesNotContain("transition", rule, StringComparison.Ordinal);
+        }
+
+        Assert.Equal(Moments.ReelLandings, Regex.Matches(css, @"\.ezpug-unbox\.land-\d+ ").Count);
+
+        // The old slide, the diagnostic's: started by `slide`, as long as the reel.
+        var slide = Regex.Match(css, $@"\.ezpug-unbox\.{Moments.Slide} \.ezpug-unbox-strip\s*\{{([^}}]*)\}}").Groups[1].Value;
+        Assert.Equal(Moments.ReelMs, (long)Math.Round(double.Parse(Regex.Match(slide, @"transition-duration: ([0-9.]+)s;").Groups[1].Value, CultureInfo.InvariantCulture) * 1_000));
+
         // Put away at once is the stylesheet's: the panel fades in an eighth of a second,
-        // and the strip is back at its start before the next unboxing may begin.
+        // and the step class comes off only after that, so the strip goes home unseen.
         var panel = Regex.Match(css, @"\.ezpug-unbox\s*\{([^}]*)\}").Groups[1].Value;
-        Assert.Contains("transition-duration: 0.12s;", panel, StringComparison.Ordinal);
-        var back = Regex.Match(css, @"\.ezpug-unbox-strip\s*\{([^}]*)\}").Groups[1].Value;
-        var delay = double.Parse(Regex.Match(back, @"transition-delay: ([0-9.]+)s;").Groups[1].Value, CultureInfo.InvariantCulture);
-        Assert.True(delay * 1_000 <= Moments.UnboxRestMs);
+        var fade = double.Parse(Regex.Match(panel, @"transition-duration: ([0-9.]+)s;").Groups[1].Value, CultureInfo.InvariantCulture) * 1_000;
+        Assert.True(fade <= 150);
+        Assert.True(Moments.StripBackMs > fade);
+    }
+
+    /// <summary>
+    /// The stamp (PRD-09 T8): what the layouts carry is what the manifest says and what
+    /// this build embeds, so a client's card and <c>ezpug_status</c> speak of the same
+    /// revision. Seven hex characters, never the placeholder.
+    /// </summary>
+    [Fact]
+    public void TheStampThisBuildEmbedsIsTheOneTheLayoutsCarry()
+    {
+        Assert.Matches("^[0-9a-f]{7}$", HudStamp.Expected);
+        Assert.NotEqual("0000000", HudStamp.Expected);
+        using var manifest = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Repo.Path("hud", "dist", "manifest.json")));
+        Assert.Equal(HudStamp.Expected, manifest.RootElement.GetProperty("stamp").GetString());
+        foreach (var layout in new[] { "ezpug_moment.xml", "ezpug_welcome.xml" })
+        {
+            var xml = File.ReadAllText(Repo.Path("hud", "layout", layout));
+            var stamp = Regex.Match(xml, "<Label class=\"ezpug-[a-z-]+-stamp\" hittest=\"false\" text=\"([0-9a-f]{7})\" />");
+            Assert.True(stamp.Success, $"{layout} carries no stamp label");
+            Assert.Equal(HudStamp.Expected, stamp.Groups[1].Value);
+        }
     }
 
     [Fact]

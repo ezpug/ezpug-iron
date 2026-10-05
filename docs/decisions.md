@@ -786,6 +786,54 @@ it here.
     and taken down when it closes it: the HUD shows a state the server holds and never
     decides one, and with the HUD off the two lines at its edges say the same.
 
+36. **The reel is the server's motion, in steps the client is known to draw.** (PRD-09 T8,
+    2026-10-05, after a second playtest the same evening.) The unboxing's reel was one 6 s `transform`
+    transition on the client, started by a class, and on two playtests (2026-10-04, and
+    2026-10-05 after T1 had changed its curve) it did not move: the strip jumped to the
+    prize and stood while the ticks played. The server was blameless both times (it wrote
+    nothing to the layout while the reel ran) and could not know: a transition the client
+    declines to play leaves no trace anywhere a server can read. **The cause, as far as a
+    server can tell it**: the only motion that never played was the one whose transition
+    parameters lived in the state rule that started it (`.rolling …` said 6 s, the panel's
+    own rule said 0 s); the same panel's settle, 0.3 s on its own rule, played both times,
+    and so did every transition whose rule never changes. Valve's own case opening
+    declares its 6 s on the reel panel's own rule and changes only the target, and so do
+    the kit examples known to move (the probe's 0.8 s flip, the toasts' glitch); a state
+    rule that carries its own parameters exists in both (Valve's lootlist's `.hidden`,
+    the kit's `.toast.on .toast-white`) with no record of whether it plays in a
+    `custom_hud_layout`. Whether Panorama reads the parameters from before the change or
+    ignores a state rule's is written nowhere, and the design no longer asks.
+    **Three rules.** First, a transition's four longhands sit on the panel's own rule and
+    a state class changes only the target; `hud/test/unbox.test.ts` fails a sheet that
+    does otherwise (one named exception, below). Second, **the reel's motion is the
+    server's**: 29 steps on the plugin's schedule (`Moments.Steps`, a slot every 67 ms at
+    first and slowing all the way, the last with a second to stand before the reveal),
+    each a class for everybody (`at-<k>`, slot 4 + k under the marker) that the strip's
+    own 0.15 s slide animates, with the tick played in the same frame. Sight and sound are
+    one clock by construction; a client that animates nothing still sees the slot change
+    under the marker at every tick, a flicker of tier-coloured decoys that settles, which
+    is the degrade and is still a show; and a plugin at this decision driving an addon
+    before it is told apart by the stamp. Third, **a look must be able to say what it saw
+    of which revision**: a build stamp (`hud/src/stamp.ts`, seven characters of a hash
+    over the sources with the stamp's own characters held at a placeholder, written into
+    the layouts by `hud:build`, embedded in the SDK from `hud/dist/manifest.json`, drawn
+    on the welcome card and in the reel's window, named by `ezpug_status`), a diagnostic
+    (`ezpug_unbox_test [steps|slide]` on the server console: a reel now, for whoever is
+    here, in any stretch or none, with the old slide kept under `.slide` as the one state
+    rule allowed a transition so a client can show both and settle the cause), and a
+    switch (`ezpug_unbox_reel 0`: a drop is PRD-07's toast and card, flipped without a
+    deploy). What stays: the call, the decoys, the slowing ticks, the near-miss landing on
+    its own panel, the reveal by tier, the place above the buy menu, the put-away at once
+    (the step class follows 0.2 s later, unseen). Not chosen: a window of recycled slots
+    (the 36-slot strip costs at most five textures, the decoys and the prize, while
+    re-dressing a window every step is W × 2 writes a step for everybody against 2);
+    per-player steps (the strip is everybody's, only `shown` is a person's, and a slot
+    told 29 classes would be told them again at every spawn); a shorter reel (the game's
+    own is 6 s and the reveal's instant is the contract's); removing the old slide now (it
+    is the control for the one look that can settle the cause, and goes after it);
+    `transition-high-framerate` (not on the client property list the tests hold, untried).
+    `docs/hud.md` ("The unboxing, drawn", "What the playtests saw") holds the rest.
+
 ## How the rounds run
 
 24. **Spine first, then two loops in parallel.** `ralph/PRD-01-spine.md` (this repo, ~10

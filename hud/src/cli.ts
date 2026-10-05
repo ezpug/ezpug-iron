@@ -3,7 +3,7 @@
  * package for any of this: Wine, Xvfb and SteamCMD live in the build image
  * (`docker/hud/`), and this file decides what it is handed.
  *
- *   pnpm hud:build              compile hud/ into hud/dist/, pack, verify, read back
+ *   pnpm hud:build              stamp the layouts, compile hud/ into hud/dist/, pack, verify, read back
  *   pnpm hud:build --tools      fetch or update the Windows depots first (about 10 GB)
  *   pnpm hud:verify             is hud/dist/ honest? (no compiler, no network)
  *   pnpm hud:publish            upload hud/dist/'s pack to the Workshop item, then fetch it anonymously
@@ -32,6 +32,7 @@ import {
 } from './dist.ts'
 import { DEFAULT_ART, DEFAULT_BANNER, hudKeys, KEYS_MODULE, renderKeysModule } from './keys.ts'
 import { readBack } from './readback.ts'
+import { stampLayouts } from './stamp.ts'
 import { writeVpk } from './vpk.ts'
 import { itemVdf, parseWorkshopItem, publishedIdFromVdf, uploadVerdict } from './workshop.ts'
 
@@ -153,6 +154,9 @@ function build(args: string[]) {
     run('docker', ['volume', 'create', BUILD_VOLUME], { quiet: true })
   if (args.includes('--tools') || !hasTools()) tools()
 
+  // The stamp first, into the layouts, so what compiles carries it (stamp.ts).
+  const stamp = stampLayouts(HUD)
+  log(`build stamp ${stamp}, written into the layouts' stamp labels`)
   const src = join(CACHE, 'src')
   const out = join(CACHE, 'out')
   stage(src)
@@ -187,9 +191,12 @@ function build(args: string[]) {
     sources: sourceHashes(HUD),
     files,
     pack: { file: VPK_NAME, sha256: sha256(pack), bytes: pack.length },
+    stamp,
   }
   writeFileSync(join(DIST, MANIFEST), serializeManifest(manifest))
-  log(`hud/dist/: ${Object.keys(files).length} compiled files, ${VPK_NAME} ${pack.length} bytes`)
+  log(
+    `hud/dist/: ${Object.keys(files).length} compiled files, ${VPK_NAME} ${pack.length} bytes, stamp ${stamp}`,
+  )
 
   verify()
   log('reading the compiled files back with ValveResourceFormat…')
@@ -262,7 +269,7 @@ async function publish(args: string[]) {
   }
   const { verdict } = upload(`${item.publishedFileId}.vpk`)
   if (!verdict.ok) die(`Steam refused the upload: ${verdict.reason}`)
-  log(`uploaded ${VPK_NAME} as ${item.publishedFileId}.vpk`)
+  log(`uploaded ${VPK_NAME} as ${item.publishedFileId}.vpk (stamp ${manifest().stamp ?? 'none'})`)
   await check(item.publishedFileId)
 }
 
@@ -288,7 +295,7 @@ async function check(id: string) {
   mkdirSync(out, { recursive: true })
   container(['fetch', id], [`${out}:/out`])
   const fetched = join(out, 'fetch', `${id}.vpk`)
-  const want = (JSON.parse(readFileSync(join(DIST, MANIFEST), 'utf8')) as DistManifest).pack.sha256
+  const want = manifest().pack.sha256
   if (!existsSync(fetched)) {
     const said = existsSync(join(out, 'fetch', 'steamcmd.txt'))
       ? readFileSync(join(out, 'fetch', 'steamcmd.txt'), 'utf8')
@@ -301,8 +308,13 @@ async function check(id: string) {
   }
   if (sha256(readFileSync(fetched)) !== want)
     die(`the anonymous download of ${id} is not hud/dist/${VPK_NAME}`)
-  log(`an anonymous SteamCMD fetched ${id} by id, byte for byte hud/dist/${VPK_NAME}`)
+  log(
+    `an anonymous SteamCMD fetched ${id} by id, byte for byte hud/dist/${VPK_NAME} (stamp ${manifest().stamp ?? 'none'}: a client that mounted this revision shows it on its card)`,
+  )
 }
+
+/** `hud/dist/manifest.json` as it is now. */
+const manifest = () => JSON.parse(readFileSync(join(DIST, MANIFEST), 'utf8')) as DistManifest
 
 /**
  * The contract's two key lists, the welcome's banner stylesheet and the
