@@ -104,7 +104,7 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
 
 ## Tasks
 
-- [ ] **T1 (effort: medium): The reel, shipped.** Merge `fix/unbox-reel-spin` (`3dd4a6a`,
+- [x] **T1 (effort: medium): The reel, shipped.** Merge `fix/unbox-reel-spin` (`3dd4a6a`,
   `ae9fdff`) into `main` (the worktree goes afterwards), `pnpm hud:build` + `pnpm hud:publish`
   (the Workshop revision check every five minutes until the pack reads back byte for byte;
   the wait goes in the progress line), `cs2:build` + `dathost:image` + `--check`,
