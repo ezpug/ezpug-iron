@@ -111,7 +111,7 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
   `./scripts/deploy.sh all`, smoke green. The lane's `unbox` row on the dev node reads the
   console's beats as PRD-08 T6 did, and the owner's look is the reel on a real client.
   `docs/hud.md` → Shipping the roll records the day's two halves and their shas.
-- [ ] **T2 (effort: high): Rush seats its people.** A `flow: none` mode with `teams: 2`
+- [x] **T2 (effort: high): Rush seats its people.** A `flow: none` mode with `teams: 2`
   seats a person the way it seats a puppet: on connect and on every team change, a rostered
   person is put on their roster's side (`SetTeam`, the same side logic as `Puppeteer.SideOf`),
   with one chat line saying so; a person is counted present for the warmup hold only on
