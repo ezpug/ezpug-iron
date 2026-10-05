@@ -178,7 +178,7 @@ Read `docs/hud.md` (all of it) and `docs/decisions.md` 34 first. Then:
   back over the freeze (`ezpug_status`, the entity read-back of PRD-07 T9): the beats in
   order, their instants, everything cleared before `round_freeze_end`. The same with a
   freeze too short, and with the HUD off (the line only). The extended tier green.
-- [ ] **T8 (effort: medium): the books.** (0.32.0 shipped in T1a; a 0.32.1 only if
+- [x] **T8 (effort: medium): the books.** (Closed inside PRD-09 T7; the avatar's finding, its debug layout and its look-list step stay with T2, parked.) (0.32.0 shipped in T1a; a 0.32.1 only if
   something changed.) `docs/hud.md`: the unboxing section, the
   avatar's finding, the timing table, and **the look list's new steps**: the unboxing at
   16:9 and 4:3 in both languages, with the buy menu open, as a spectator, a freeze too

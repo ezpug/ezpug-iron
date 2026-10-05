@@ -155,7 +155,7 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
   **Rebase only if** the fork's patches apply clean and the lane's `queue` row is green on
   the rebuilt image; otherwise the note says why not, and the pin stays. Never the week of
   the LAN if the lane is not green by Thursday.
-- [ ] **T7 (effort: medium): Release and the books.** `@ezpug/match-api` 0.34.0 to Verdaccio
+- [x] **T7 (effort: medium): Release and the books.** `@ezpug/match-api` 0.34.0 to Verdaccio
   (changelog: the side, the voice field and fact, naming PRD-20 T17); `cs2:build` +
   `dathost:image` + `--check`; `./scripts/deploy.sh all`, smoke green; the lane's `rush`,
   `ingame`, `queue` and `unbox` rows green on the dev node at this sha. PRD-08 T8's books
