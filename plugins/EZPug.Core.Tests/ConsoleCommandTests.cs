@@ -28,6 +28,7 @@ public class ConsoleCommandTests
         Assert.Contains("match: none", unlinked);
         Assert.Contains("mode: none attached", unlinked);
         Assert.Contains("scoreboard: no match", unlinked);
+        Assert.Contains("seating: no match", unlinked);
         Assert.Contains("plugins enabled: none", unlinked);
         Assert.Contains("plugins installed: EZPug.Core, MatchZy", unlinked);
 
@@ -46,6 +47,8 @@ public class ConsoleCommandTests
         // The one line an operator reads to know EZ Rating reached the scoreboard: read
         // back off the players, not off what the assignment asked for (PRD-02 T27).
         Assert.Contains("scoreboard: 1 rated: tk 1820", linked);
+        // MatchZy seats a pug (PRD-09 T2): the SDK's seating says so and keeps out of it.
+        Assert.Contains("seating: not the SDK's for this mode", linked);
         Assert.Contains("plugins enabled: MatchZy", linked);
         Assert.DoesNotContain("never-here", linked);
         Assert.DoesNotContain("token", linked, StringComparison.OrdinalIgnoreCase);

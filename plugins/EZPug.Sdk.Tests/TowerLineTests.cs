@@ -109,6 +109,9 @@ public class TowerLineTests
         host.Start(GamemodeTestHost.AssignmentFor(
             manifest,
             map: "rush_001",
+            // Rostered, because the roster is Rush's guest list (PRD-09 T2): team A opens on CT.
+            teamA: [.. Enumerable.Range(0, 3).Select(index => GamemodeTestHost.Player(100UL + (ulong)index, $"ct{index}"))],
+            teamB: [.. Enumerable.Range(0, 3).Select(index => GamemodeTestHost.Player(200UL + (ulong)index, $"t{index}"))],
             maps: [new MapPlan { Map = "rush_001", Sides = MapPlanSides.Ct }]));
         var ct = Enumerable.Range(0, 3).Select(index => host.World.Connect(100UL + (ulong)index, $"ct{index}", PlayerTeam.CounterTerrorist)).ToList();
         var t = Enumerable.Range(0, 3).Select(index => host.World.Connect(200UL + (ulong)index, $"t{index}", PlayerTeam.Terrorist)).ToList();

@@ -88,4 +88,10 @@
   <data name="flow.everybody_here" xml:space="preserve">
     <value>Everybody is here – going live in {0} seconds. Good luck!</value>
   </data>
+  <data name="seating.placed" xml:space="preserve">
+    <value>You play for {0}, so you are on {1} now.</value>
+  </data>
+  <data name="door.not_rostered" xml:space="preserve">
+    <value>You are not on this match's roster</value>
+  </data>
 </root>

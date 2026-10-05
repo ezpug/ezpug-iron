@@ -60,7 +60,9 @@ namespace EZPug.Sdk;
 /// so a real Rush match that went live on the delay alone started one against three.
 /// When the roster holds people — every entry the request does not leave to a puppet, so
 /// the whole roster of a real match — warmup holds until each of them is connected and on
-/// a team. Then the server says so, in every player's own language and the platform's
+/// their own side (in a two-team mode; on either side in a one-team one), which
+/// <see cref="Seating"/> puts them on (PRD-09 T2): a whole roster that clicked CT is not a
+/// match about to start. Then the server says so, in every player's own language and the platform's
 /// voice, and ends warmup <see cref="CountdownMs"/> later (never before
 /// <see cref="GoLiveDelayMs"/> after the map). Somebody who leaves during the countdown
 /// stops it, and it starts over when they are back. Once warmup has been ended for them
@@ -141,11 +143,14 @@ public sealed class GenericFlow
     public bool Live => _live;
 
     /// <summary>
-    /// Whether warmup is being held for a rostered person who is not yet connected and on a
-    /// team. <c>false</c> once everybody is here (the countdown runs), once warmup has been
+    /// Whether warmup is being held for a rostered person who is not yet connected and on
+    /// their side. <c>false</c> once everybody is here (the countdown runs), once warmup has been
     /// ended for them, and for a roster with nobody but puppets on it.
     /// </summary>
     public bool WaitingForPeople => Active && _mapUp && !_released && _people.Length > 0 && _everybodyHereAtMs is null;
+
+    /// <summary>Whether the gamerules flagged a swap at the next round reset and the <c>side_swap</c> for it has not been said yet: the stretch in which the engine's sides and the runtime's disagree on purpose.</summary>
+    internal bool SwapPending => _pendingSwap;
 
     /// <summary>This map's score so far, in team order.</summary>
     public (long TeamA, long TeamB) Score => (_teamA, _teamB);
@@ -408,7 +413,7 @@ public sealed class GenericFlow
     }
 
     /// <summary>
-    /// Whether every rostered person is connected and on a team, and has been for the
+    /// Whether every rostered person is connected and on their side, and has been for the
     /// countdown — saying so the moment the last of them arrives, and starting over when
     /// one of them leaves before it ran out. Always yes for a roster with no people on it.
     /// </summary>
@@ -420,8 +425,7 @@ public sealed class GenericFlow
         }
 
         var missing = _people.Count(steamId64 => !_world.Players.Any(player =>
-            player.SteamId64 == steamId64 && !player.IsBot
-            && player.Team is PlayerTeam.Terrorist or PlayerTeam.CounterTerrorist));
+            player.SteamId64 == steamId64 && !player.IsBot && Here(player)));
         if (missing > 0)
         {
             if (_everybodyHereAtMs is not null)
@@ -444,6 +448,16 @@ public sealed class GenericFlow
 
         return true;
     }
+
+    /// <summary>
+    /// Where a rostered person counts as here: on the side their team plays in a two-team
+    /// mode (PRD-09 T2), on either side in a one-team one. Spectators and the team menu are
+    /// nowhere.
+    /// </summary>
+    private bool Here(IGamePlayer player) =>
+        _runtime.Assignment is { Gamemode.Slots.Teams: 2 } assignment && assignment.RosteredTeamOf(player.SteamId64) is { } team
+            ? player.Team == _runtime.Match.SideOf(team)
+            : player.Team is PlayerTeam.Terrorist or PlayerTeam.CounterTerrorist;
 
     /// <summary>The countdown's line, to every person on the server in their own language, behind the match's prefix.</summary>
     private void Announce(long seconds)

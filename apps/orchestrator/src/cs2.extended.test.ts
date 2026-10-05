@@ -299,6 +299,8 @@ type Summary = {
     during?: { afterMs: number; hud: string[] | null }
     after?: string[] | null
   } | null
+  /** The `seating:` line of `ezpug_status` once the map was live (PRD-09 T2); `null` when it could not be read. */
+  seating?: string | null
   /** The HUD as the server itself accounts for it (PRD-07 T9); `null` when the run told no moment. */
   hud?: {
     /** What the server said it can do when it dialled in; `null` when the orchestrator wrote no trace. */
@@ -1225,6 +1227,11 @@ const CASES: LaneCase[] = [
       ).toBeGreaterThanOrEqual(6)
       expect(summary.maps?.ready, 'the server did not load rush_001').toEqual(['rush_001'])
       expect(summary.maps?.live).toEqual(['rush_001'])
+      // **Both sides after the hold** (PRD-09 T2): read back off the engine's teams by the
+      // SDK that seats them, so a roster that ended up on one side fails here, not at a LAN.
+      expect(summary.seating, 'the server did not say who stands where').toBe(
+        '3 on CT, 3 on T; 6 of 6 rostered on their side; the roster is the guest list',
+      )
       // **Rush's own engine game** (`gamemodes.txt`: classic, mode 6), on both facts, and
       // no format: Rush is neither of the two a request can ask for.
       expect(summary.engine?.ready, 'the map did not load under game_mode 6').toEqual([

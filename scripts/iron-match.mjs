@@ -2124,7 +2124,9 @@ async function run() {
    * slot's. A server that cannot draw says nothing about a HUD, and that
    * silence is the answer. `null` rather than a failure at every step.
    */
-  const readHud = async id => {
+  const readHud = id => readStatus(id, 'hud:')
+  /** The lines of `ezpug_status` that start with `prefix`, the prefix kept; `null` when there is no report to read. */
+  const readStatus = async (id, prefix) => {
     try {
       const rows = await api('GET', '/v1/fleet/servers')
       const row = rows.servers.find(server => server.matchId === id)
@@ -2139,7 +2141,7 @@ async function run() {
         ? null
         : lines
             .slice(from)
-            .filter(line => line.startsWith('[status] hud:'))
+            .filter(line => line.startsWith(`[status] ${prefix}`))
             .map(line => line.slice('[status] '.length))
     } catch {
       return null
@@ -2495,6 +2497,8 @@ async function run() {
   let momentAt = 0
   /** The `hud:` lines of the server's status once both moments were due (PRD-07 T9): `undefined` until asked, `null` when it could not be read. */
   let hud
+  /** The `seating:` line of the server's status once the map is live (PRD-09 T2): `undefined` until asked, `null` when it could not be read. */
+  let seating
   /** `meta list` and MultiAddonManager's client list over the fleet's RCON, read with {@link hud} (PRD-07 T9a). */
   let engine = null
   /** What `--walk` measured: the same bodies moved by the engine and by a teleport (T12). */
@@ -2539,6 +2543,17 @@ async function run() {
       continue
     }
     if (now.state !== 'ready' && now.state !== 'live') continue
+
+    // **Who stands where** (PRD-09 T2), once the map is live and the warmup hold is
+    // behind it: the SDK's own reading of the engine's teams, through the fleet's
+    // console like the HUD's. Never in front of an unboxing, which waits for the next
+    // round start and must not be the beat late.
+    if (seating === undefined && liveAt > 0 && (!UNBOX || unbox !== null)) {
+      const lines = await readStatus(matchId, 'seating:')
+      seating = lines?.[0]?.slice('seating: '.length) ?? null
+      say(`the server on its seating: ${seating ?? 'no status report'}`)
+      continue
+    }
 
     // **The movement spike** (PRD-03 T12), once, on a live match: whatever the
     // mode was going to do with these bodies it is doing by now, so the engine
@@ -3151,6 +3166,7 @@ async function run() {
     moment,
     unbox,
     hud: hud ?? null,
+    seating: seating ?? null,
     engine,
     console: consoleKept,
     walked,
@@ -3489,6 +3505,13 @@ function write(result) {
      * reel and after the freeze. `null` when the run told none.
      */
     unbox: result.unbox ?? null,
+    /**
+     * **Who stands where** (PRD-09 T2): the `seating:` line of `ezpug_status`
+     * once the map was live, the engine's teams as the SDK reads them back
+     * (`3 on CT, 3 on T; 6 of 6 rostered on their side; …`), or why the SDK
+     * seats nobody here. `null` when it could not be read.
+     */
+    seating: result.seating ?? null,
     /**
      * **The HUD, as the server itself accounts for it** (PRD-07 T9), or `null`
      * when the run told no moment. `hello` is what the server said it can do

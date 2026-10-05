@@ -67,6 +67,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Brand = new Branding(world, () => Localizer, Match, Welcome);
         Moments = new Moments(world, Hud, Brand, () => Localizer, _log);
         Ratings = new RatingBoard(world, () => Localizer, Brand);
+        Seating = new Seating(world, this, _log);
         Warmup = new WarmupChat(world, Match);
         link.Handler = this;
         world.MapStarted += OnMapStarted;
@@ -124,6 +125,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>The roster played by bots, when the assignment asks for <c>simulation</c> and MatchZy is not the one seating them (PRD-03 T7).</summary>
     public Puppeteer Puppets { get; }
+
+    /// <summary>The rostered on their sides and strangers kept out, for the modes no match plugin seats (PRD-09 T2, decision 35).</summary>
+    public Seating Seating { get; }
 
     public Assignment? Assignment { get; private set; }
     public CommandTable? Commands { get; private set; }
@@ -384,6 +388,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Ratings.OnAssigned(assignment);
         Warmup.OnAssigned(assignment);
         Puppets.OnAssigned(assignment);
+        Seating.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
         {
@@ -452,6 +457,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Ratings.OnReleased();
             Warmup.OnReleased();
             Puppets.OnReleased();
+            Seating.OnReleased();
             Brand.OnReleased();
             Welcome.OnReleased();
             Moments.OnReleased();
@@ -670,7 +676,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     private void OnPlayerConnected(IGamePlayer player)
     {
-        if (Assignment is null)
+        if (Assignment is null || !Seating.Admit(player))
         {
             return;
         }
@@ -691,7 +697,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     private void OnPlayerDisconnected(IGamePlayer player)
     {
-        if (Assignment is null)
+        // A stranger turned away at the door was never announced, so is not seen out.
+        if (Assignment is null || Seating.OnPlayerDisconnected(player))
         {
             return;
         }
@@ -901,6 +908,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         CancelSettle();
         Warmup.Stop();
         Puppets.OnReleased();
+        Seating.OnReleased();
         Welcome.OnReleased();
         Moments.Stop();
         // The layouts outlive the plugin that made them; an unload takes them along.

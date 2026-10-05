@@ -46,6 +46,10 @@ public sealed class MatchContext
             _ => null,
         };
 
+    /// <summary>The engine side <paramref name="team"/> plays on, by the sides in effect: where a puppet is added and a person is seated (PRD-09 T2).</summary>
+    public PlayerTeam SideOf(MatchTeam team) =>
+        (team == MatchTeam.TeamA) == (TeamASide == TeamSide.Ct) ? PlayerTeam.CounterTerrorist : PlayerTeam.Terrorist;
+
     internal void Reset(string matchId, TeamSide teamASide)
     {
         MatchId = matchId;

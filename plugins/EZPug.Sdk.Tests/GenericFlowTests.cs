@@ -166,7 +166,7 @@ public class GenericFlowTests
     }
 
     [Fact]
-    public void ARushWithPeopleOnTheRosterHoldsWarmupUntilEveryOneOfThemIsOnATeam()
+    public void ARushWithPeopleOnTheRosterHoldsWarmupUntilEveryOneOfThemIsOnTheirSide()
     {
         using var host = Rush();
         Assert.True(host.Runtime.Flow.WaitingForPeople);
@@ -175,17 +175,19 @@ public class GenericFlowTests
         host.World.Elapse(5 * GenericFlow.GoLiveDelayMs);
         Assert.Equal(0, WarmupEnds(host));
 
-        // Connected is not enough; on a team is.
-        host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist);
-        var ben = host.World.Connect(Ben, "Ben");
-        host.World.Elapse(10 * GenericFlow.PollIntervalMs);
+        // Connected is not enough, and on a team is not either (PRD-09 T2): the whole
+        // roster clicked CT, which is Ada's side and not Ben's. The flow's beat comes
+        // first and counts Ben missing; seating's, right behind it, puts him on T.
+        host.World.Connect(Ada, "Ada", PlayerTeam.CounterTerrorist);
+        var ben = host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        host.World.Elapse(GenericFlow.PollIntervalMs);
         Assert.Equal(0, WarmupEnds(host));
         Assert.True(host.Runtime.Flow.WaitingForPeople);
         Assert.DoesNotContain(host.World.Said.GetValueOrDefault(Ada) ?? [], line => line.Contains("Alle sind da"));
+        Assert.Equal(PlayerTeam.Terrorist, ben.Team);
 
-        // The last of them picks a side: the server says so to each in their own language,
+        // On their sides, both of them: the server says so to each in their own language,
         // in its own voice, and ends warmup when the countdown has run.
-        ben.Team = PlayerTeam.CounterTerrorist;
         host.World.Elapse(GenericFlow.PollIntervalMs);
         Assert.False(host.Runtime.Flow.WaitingForPeople);
         Assert.Contains(host.Runtime.Brand.Line("Alle sind da – in 10 Sekunden geht es los. Viel Glück!"), host.World.Said[Ada]);
@@ -208,8 +210,8 @@ public class GenericFlowTests
     {
         using var host = Rush();
         host.World.Elapse(GenericFlow.GoLiveDelayMs);
-        host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist);
-        var ben = host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        host.World.Connect(Ada, "Ada", PlayerTeam.CounterTerrorist);
+        var ben = host.World.Connect(Ben, "Ben", PlayerTeam.Terrorist);
         host.World.Elapse(GenericFlow.PollIntervalMs);
         host.World.Elapse(GenericFlow.CountdownMs / 2);
 
@@ -219,7 +221,7 @@ public class GenericFlowTests
         Assert.True(host.Runtime.Flow.WaitingForPeople);
 
         // Back, and the countdown starts over from the beginning, said again.
-        ben = host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        ben = host.World.Connect(Ben, "Ben", PlayerTeam.Terrorist);
         host.World.Elapse(GenericFlow.PollIntervalMs);
         Assert.Equal(2, host.World.Said[Ada].Count(line => line.Contains("Alle sind da")));
         host.World.Elapse(GenericFlow.CountdownMs - GenericFlow.PollIntervalMs);
@@ -237,8 +239,8 @@ public class GenericFlowTests
     public void PeopleWhoAreQuickerThanTheDelayStillGetTheDelay()
     {
         using var host = Rush();
-        host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist);
-        host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        host.World.Connect(Ada, "Ada", PlayerTeam.CounterTerrorist);
+        host.World.Connect(Ben, "Ben", PlayerTeam.Terrorist);
         host.World.Elapse(GenericFlow.PollIntervalMs);
         // The line counts down to the delay, not to a countdown that would end it sooner.
         Assert.Contains(host.Runtime.Brand.Line("Alle sind da – in 20 Sekunden geht es los. Viel Glück!"), host.World.Said[Ada]);
@@ -267,12 +269,12 @@ public class GenericFlowTests
     {
         // Ada is a puppet; Ben is a person, and the one warmup waits for.
         using var host = Rush(new MatchSimulation { Puppets = [Ada.ToString()] });
-        var ada = host.World.Connect(Ada, "Ada", PlayerTeam.Terrorist, bot: true);
+        var ada = host.World.Connect(Ada, "Ada", PlayerTeam.CounterTerrorist, bot: true);
         ada.IsPuppet = true;
         host.World.Elapse(3 * GenericFlow.GoLiveDelayMs);
         Assert.Equal(0, WarmupEnds(host));
 
-        host.World.Connect(Ben, "Ben", PlayerTeam.CounterTerrorist);
+        host.World.Connect(Ben, "Ben", PlayerTeam.Terrorist);
         host.World.Elapse(GenericFlow.PollIntervalMs);
         Assert.Contains(host.Runtime.Brand.Line("Everybody is here – going live in 10 seconds. Good luck!"), host.World.Said[Ben]);
         // A puppet has no client to read it.

@@ -354,7 +354,7 @@ because the engine re-enters it after an early one. When:
 | Roster | Warmup ends |
 | ------ | ----------- |
 | nobody rostered, or every entry a puppet | `GoLiveDelayMs` (20 s) after the map is up — what the bots and puppets connect in |
-| people on it (every entry `simulation.puppets` does not name; the whole roster of a real match) | once every rostered person is connected **and on a team**: the server says so in chat, to each person in their own language behind the match's prefix ("Alle sind da – in 10 Sekunden geht es los. Viel Glück!" / "Everybody is here – going live in 10 seconds. Good luck!"), and ends warmup `CountdownMs` (10 s) later, never sooner than the 20 s |
+| people on it (every entry `simulation.puppets` does not name; the whole roster of a real match) | once every rostered person is connected **and on their own side** (either side in a one-team mode; the SDK puts them there, decision 35): the server says so in chat, to each person in their own language behind the match's prefix ("Alle sind da – in 10 Sekunden geht es los. Viel Glück!" / "Everybody is here – going live in 10 seconds. Good luck!"), and ends warmup `CountdownMs` (10 s) later, never sooner than the 20 s |
 
 Somebody who leaves during the countdown stops it; it starts over, said again, when they
 are back. Once warmup has been ended for them, nobody holds anything up. The server keeps

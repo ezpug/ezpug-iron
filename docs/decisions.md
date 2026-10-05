@@ -152,6 +152,35 @@ it here.
     thin `plugin` mode (it would own nothing the script does not); reading the script's
     state for the arena ids (the SDK only listens, and `ralph/OPEN-POINTS.md` §11 holds
     the id question); a `rush` format of `pug` (the rounds are not MatchZy's to play).
+35. **The SDK seats the modes MatchZy does not run.** (PRD-09 T2, 2026-10-05, after the
+    playtest of 2026-10-04: "it doesn't automatically assign teams properly".) **Could
+    MatchZy run Rush, so that it seats Rush the way it seats a pug?** No. Rush's rules are
+    the map's `cs_script` (decision 33): it switches the engine's win conditions off,
+    decides every round itself and ends the match by moving `mp_maxrounds`. MatchZy plays a
+    match by owning exactly those things (its knife round, its halves, its own count of the
+    rounds to a win), so under MatchZy the two would fight over every round end. Upstream
+    MatchZy 0.9.1 (2026-10-03) adds a ready-up time limit, a join-ready mode and technical
+    pauses, and nothing that hands the rounds to a map. So Rush stays a `none` flow and the
+    SDK does what MatchZy does for a pug: it puts people on their side. **The rule**, in
+    `Seating`: for a `flow: none` mode with `slots.teams: 2` (Rush, `flying-scoutsman`),
+    every rostered body, person or puppet, is put on its team's side by the rule the
+    puppeteer adds a puppet by (`MatchContext.SideOf`, which follows every `side_swap`),
+    checked every 250 ms, so somebody who connects is placed before the team menu matters
+    and somebody who switches is put back. A person is told once in chat, in their language.
+    Seating holds still from the gamerules' swap flag until the `side_swap` the round start
+    brings, because at halftime the engine's sides and the roster's disagree on purpose. A
+    plain bot, a one-team mode and a community plugin's flow are left alone (`retakes`
+    splits its group every round, decision 27), and so is a mode that owns its flow. **The
+    warmup hold counts a person only on their own side** (PRD-08 T1b counted any side, so
+    a whole roster on CT started the countdown). **The door**: with `openJoin: false` and
+    any flow but `matchzy`, whose plugin keeps its own, a SteamID off the roster is kicked
+    with the reason in both languages, and a stranger turned away on arrival is never
+    announced, so nothing reports them leaving either. `ezpug_status` says who stands where
+    (`seating: 3 on CT, 3 on T; 6 of 6 rostered on their side`), which is what the lane's
+    `rush` row asserts. Not chosen: blocking `jointeam` (a listener only refuses a choice
+    and does not place somebody who never makes one); a `PlayerTeamChanged` hook on
+    `IGameWorld` (the poll catches the same change one beat later without growing the
+    seam); MatchZy for Rush, above.
 
 ## Inside the server
 

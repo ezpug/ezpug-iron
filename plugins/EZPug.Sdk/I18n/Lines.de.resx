@@ -91,4 +91,10 @@
   <data name="flow.everybody_here" xml:space="preserve">
     <value>Alle sind da – in {0} Sekunden geht es los. Viel Glück!</value>
   </data>
+  <data name="seating.placed" xml:space="preserve">
+    <value>Du spielst für {0}, deshalb bist du jetzt {1}.</value>
+  </data>
+  <data name="door.not_rostered" xml:space="preserve">
+    <value>Du stehst nicht auf der Liste dieses Matches</value>
+  </data>
 </root>

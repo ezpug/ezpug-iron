@@ -224,18 +224,9 @@ public sealed class Puppeteer
         _world.AddBot(SideOf(empty));
     }
 
-    /// <summary>A two-team mode puts a puppet on its team's side; a one-team mode lets the engine (or the mode's own balancer) choose.</summary>
-    private PlayerTeam? SideOf(Seat seat)
-    {
-        if (_assignment?.Gamemode.Slots.Teams != 2)
-        {
-            return null;
-        }
-
-        var teamASide = _match.TeamASide == TeamSide.Ct ? PlayerTeam.CounterTerrorist : PlayerTeam.Terrorist;
-        var teamBSide = _match.TeamASide == TeamSide.Ct ? PlayerTeam.Terrorist : PlayerTeam.CounterTerrorist;
-        return seat.Team == MatchTeam.TeamA ? teamASide : teamBSide;
-    }
+    /// <summary>A two-team mode puts a puppet on its team's side; a one-team mode lets the engine (or the mode's own balancer) choose. A person is seated by the same rule (<see cref="Seating"/>).</summary>
+    private PlayerTeam? SideOf(Seat seat) =>
+        _assignment?.Gamemode.Slots.Teams == 2 ? _match.SideOf(seat.Team) : null;
 
     private PuppetRole? Cast(BotArrival arrival)
     {

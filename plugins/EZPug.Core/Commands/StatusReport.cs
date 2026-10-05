@@ -44,6 +44,9 @@ public static class StatusReport
         // Read back off the controllers, not off what was asked for: this line is how a
         // real server proves EZ Rating reached the scoreboard (PRD-02 T27).
         lines.AppendLine($"scoreboard: {Ratings(runtime)}");
+        // Read back off the engine's teams: how a lane proves a two-team mode the SDK seats
+        // put everybody on their side (PRD-09 T2).
+        lines.AppendLine($"seating: {runtime.Seating.Report()}");
         // Only on a server that can draw one: without the addon this report is what it
         // was before the HUD existed (decision 34).
         if (runtime.Hud.Addon is { } addon)
