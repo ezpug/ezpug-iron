@@ -1104,6 +1104,18 @@ reveal at 8 s are the same on both sides. `UnboxingTests` pins the schedule and 
 and a test there reads the curve back out of `ezpug_unbox.css`, so the two cannot differ in
 one commit.
 
+Shipped on 2026-10-05 (PRD-09 T1), both halves from the merge `72c248c` of `3dd4a6a` and
+`ae9fdff`. **The addon:** `pnpm hud:build` gave `hud/dist/` back byte for byte as the fix
+had committed it, and `pnpm hud:publish` uploaded it at 12:21 CEST. Its own check failed,
+as it always does right after an upload, and `node hud/src/cli.ts check 3811574606`
+fetched the new pack anonymously, byte for byte, the next time it ran, at 12:32. That is
+11 minutes at most, against the 47 and 66 minutes of 2026-10-02. **The plugin:**
+`pnpm cs2:build`, then `pnpm dathost:image`, which uploaded 9 files (the SDK, the core
+plugin and the two disabled plugins built beside them), and `--check` green, then
+`./scripts/deploy.sh all`. The lane's `unbox` row on the dev node, with the addon, timed
+the same beats as PRD-08 T6: the call with 17,871 ms of freeze left, the reel 2 s later,
+the prize at 8 s and the put-away at 12 s.
+
 ## Deleting it
 
 ```
