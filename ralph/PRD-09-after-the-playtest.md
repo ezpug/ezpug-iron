@@ -146,7 +146,7 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
   an optional `side: 'ct' | 't'` (and the SDK emitter sends it, `Facts.cs:166-188`; the
   simulator too), additive in `packages/match-api` with its JSON schema and fixtures. The
   platform reads it in PRD-20 T17 and keeps its fallbacks for an older server.
-- [ ] **T6 (effort: medium): Upstream MatchZy 0.9.1, weighed.** The owner asked for updates
+- [x] **T6 (effort: medium): Upstream MatchZy 0.9.1, weighed.** The owner asked for updates
   on the MatchZy-Enhanced fork. Diff upstream `0.9.0`/`0.9.1` (ready-up time limit, join-ready
   mode, technical pauses, Get5 live events, same-map loading) against the fork at
   `1.4.32-ezpug.1` (`docs/pins.md:81`, OPEN-POINTS §7/§8); write what each would give the

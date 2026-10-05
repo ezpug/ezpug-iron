@@ -315,6 +315,56 @@ it here.
     with its own tests and release, and a patch series on a tag is what makes a rebase
     cheap). The series sits on a public branch of a public fork, so upstream can take it
     whenever it likes. It has not been offered as a PR yet.*
+    *Note, PRD-09 T6, 2026-10-05 (the owner asked for updates on the fork): **upstream
+    MatchZy 0.9.0 and 0.9.1, weighed, and the pin stays at `1.4.32-ezpug.1`.** "Upstream"
+    here is two different projects. Stock MatchZy (`shobhit-pathak/MatchZy`) shipped 0.9.0
+    on 2026-10-01 and 0.9.1 on 2026-10-03. Our fork's base is MatchZy-Enhanced `v1.4.32`,
+    which shares stock's history only up to 0.8.15 (`ef289d5`) and is 257 commits past it.
+    MatchZy-Enhanced has taken none of 0.9.x: not in its releases (`v1.4.35` is the last
+    1.x, 2026-09-24; `v2.0.0` was the Auto Tournament rename, which its `dev` branch reverted
+    on 2026-09-30), and not on `dev` at `c403c7e` (2026-10-05). So there is no tag the series
+    could be rebased onto. Taking 0.9.1 would mean porting eleven stock commits (79 files,
+    +5514/−1061) across that divergence ourselves. A trial merge of `0.9.1` into
+    `v1.4.32-ezpug.1` stops on 46 conflicted files, among them `ReadySystem.cs`,
+    `Utility.cs` and `MatchZy.cs`, which the series patches too. That is not a clean apply,
+    it would turn our four-commit series into a second MatchZy-Enhanced, and it would land
+    in the week of the SaarLAN. **What each piece would give the platform**, for the day
+    MatchZy-Enhanced takes them and the series rebases the ordinary way (`docs/operations.md`,
+    "MatchZy-Enhanced, our fork"):
+    the **ready-up time limit** (`matchzy_time_to_start`, `.addreadytime`) forfeits a
+    team that is not ready in time, or ties the series. That is a result the Match API
+    cannot record, the same reason `.gg` and forfeit-on-disconnect stay off, and it would
+    take over from the platform's join deadline, which is the only thing that gives up on a
+    missing player. It stays off until the API has a forfeit, and then it is the box's
+    switch, not the request's.
+    **Join-ready** (`matchzy_ready_mode 1`) counts a player as ready once they are on their
+    side and starts the match on its own after `matchzy_join_start_delay`. Under `matchzy`
+    the only `.ready` handling is the fork's own. The core plugin types nothing and
+    translates the fork's ready events, and `autoReady: true` already readies a player who
+    has picked a side. So join-ready would replace a fork feature with a stock one rather
+    than retire anything of ours. It would be worth it only if it kept saying
+    `player_ready` / `team_ready`, which a client draws (the 2026-09-18 lesson), and
+    `autoReady: false`, which the platform's PRD-20 T5 sends for a cup, still has to mean
+    "type `.ready`".
+    **Technical pauses** add a per-team, per-map limit and let one team `.unpause` after
+    `matchzy_tech_pause_time`. MatchZy-Enhanced's own limit
+    (`matchzy_max_tech_pauses_allowed`) is commented out in `Pausing.cs`, and stock removes
+    that cvar. The useful half is the new `game_paused` event, which names the team behind a
+    technical pause. The core plugin reads a technical timeout off the gamerules with no
+    team (`MatchZyFlow.Describe`), so `match_paused.pausedBy` stays empty for one. With the
+    event, the orchestrator could fill `team_a` / `team_b` without changing the contract.
+    **The Get5 live events** (`round_start`, `player_death`, `bomb_planted`,
+    `bomb_defused`, `backup_loaded`, `player_disconnect`) all say things the core plugin
+    already says. Each goes on the translator's drop list, and the classification test
+    would demand that. `game_unpaused` gets the same treatment.
+    **Same-map loading** moves players already on the server onto their match team and
+    clears stale ready flags. A platform server is assigned before anybody joins, so this
+    gives little, but it is harmless.
+    And one change in 0.9.1 **breaks a reader**: `round_end.round_number` becomes the rounds
+    played when the round started, one lower than before. The translator takes round
+    numbers from the score, not from that field, so it would survive. 0.9.0's match-config
+    hardening (a `cvars` entry that is a console command is ignored) has to be checked
+    against PRD-09 T3's prefix, which rides in the file's cvars, before any port.*
 20. **Skins travel over the link, no exposed MySQL.** The platform owns loadouts; a match
     request's roster entries carry them; a **data-layer fork of cs2-WeaponPaints** takes
     the in-memory loadout the core plugin hands it instead of querying MySQL. No public
