@@ -134,6 +134,8 @@ public class GamemodeLoaderTests
                 "cvar matchzy_reset_cvars_on_series_end true",
                 // The hostname format before the load as well as in the file (#8).
                 "cvar matchzy_hostname_format EZPug · pug · Mirage",
+                // The chat's prefix the same way, in MatchZy's own spelling (PRD-09 T3).
+                "cvar matchzy_chat_prefix [{Green}EZPug{Default}]",
                 "command matchzy_loadmatch cfg/ezpug/match.json",
                 // The remote log after loadmatch (loading replaces MatchZy's config object), the token last.
                 // Quoted, because `//` is a console comment (MatchZyRemoteLog).
@@ -146,18 +148,22 @@ public class GamemodeLoaderTests
         // The file is the orchestrator's config plus the hostname format MatchZy rewrites the hostname from; no token in it.
         var written = JsonNode.Parse(File.ReadAllText(rig.MatchConfigPath))!.AsObject();
         Assert.Equal("EZPug · pug · Mirage", written["cvars"]!["matchzy_hostname_format"]!.GetValue<string>());
+        Assert.Equal("[{Green}EZPug{Default}]", written["cvars"]!["matchzy_chat_prefix"]!.GetValue<string>());
         Assert.DoesNotContain("not-a-secret", File.ReadAllText(rig.MatchConfigPath));
         written["cvars"]!.AsObject().Remove("matchzy_hostname_format");
+        written["cvars"]!.AsObject().Remove("matchzy_chat_prefix");
         Assert.Equal(config.ToJsonString(ProtocolJson.Options), written.ToJsonString(ProtocolJson.Options));
 
-        // Release: unload in reverse, the config gone, back to the lobby, idle.
+        // Release: EZPug's prefix back while MatchZy can still hear it, unload in reverse,
+        // the config gone, back to the lobby, idle.
         rig.Link.Release("ended: completed");
         Assert.Equal(
             [
+                "cvar matchzy_chat_prefix [{Green}EZPug{Default}]",
                 "command css_plugins unload plugins/disabled/MatchZy/MatchZy.dll",
                 "changelevel de_dust2",
             ],
-            rig.Actions.Skip(14));
+            rig.Actions.Skip(15));
         Assert.False(File.Exists(rig.MatchConfigPath));
         Assert.Empty(rig.Loader.Enabled);
         Assert.Equal(LinkServerState.Idle, rig.Link.States[^1].State);
@@ -186,6 +192,46 @@ public class GamemodeLoaderTests
         rig.StartMap();
 
         Assert.Equal("EZPug · Drop Night · pug · Nuke", HostnameAfterMatchZy(rig, config));
+    }
+
+    /// <summary>
+    /// <b>MatchZy speaks for the event, and only for its match</b> (PRD-09 T3, the playtest of
+    /// 2026-10-04: every MatchZy line said <c>[MatchZy]</c>). The prefix is the event's
+    /// before the load and in the file, so MatchZy says it again after <c>live.cfg</c>; it
+    /// is EZPug's again on release, because MatchZy persists the last value it was given and
+    /// loads it over its config.cfg the next time it loads, and <c>matchzy_reset_cvars_on_series_end</c>
+    /// never touches it (the prefix is a console command, not a ConVar MatchZy can read back).
+    /// </summary>
+    [Fact]
+    public void MatchZySaysTheEventsPrefixForItsMatchAndEZPugsAfterIt()
+    {
+        using var rig = new Rig("MatchZy");
+        var config = JsonNode.Parse("""{"matchid":"6f1a2b3c","num_maps":1,"maplist":["de_nuke"],"cvars":{}}""")!.AsObject();
+        rig.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("pug"), map: "de_nuke") with
+        {
+            MatchzyConfig = config,
+            // A name that tries to paint itself keeps its words and loses the colour.
+            Branding = new MatchBranding { EventName = "SaarLAN {Red}2026" },
+        });
+        rig.StartMap();
+
+        var actions = rig.Actions.ToList();
+        var loads = actions.IndexOf($"command matchzy_loadmatch {GamemodeLoader.MatchConfigFile}");
+        Assert.Equal("cvar matchzy_chat_prefix [{Green}SaarLAN Red2026{Default}]", actions[loads - 1]);
+        var written = JsonNode.Parse(File.ReadAllText(rig.MatchConfigPath))!.AsObject();
+        Assert.Equal("[{Green}SaarLAN Red2026{Default}]", written["cvars"]!["matchzy_chat_prefix"]!.GetValue<string>());
+
+        rig.Link.Release("ended: completed");
+        actions = rig.Actions.ToList();
+        var unloads = actions.IndexOf("command css_plugins unload plugins/disabled/MatchZy/MatchZy.dll");
+        Assert.Equal("cvar matchzy_chat_prefix [{Green}EZPug{Default}]", actions[unloads - 1]);
+
+        // A mode MatchZy never ran has nothing to put back.
+        using var other = new Rig();
+        other.Link.Assign(GamemodeTestHost.AssignmentFor(Manifest("flying-scoutsman"), map: "de_inferno"));
+        other.StartMap();
+        other.Link.Release("ended: completed");
+        Assert.DoesNotContain(other.Actions, action => action.Contains("matchzy_chat_prefix"));
     }
 
     /// <summary>The console buffer as MatchZy-Enhanced loads a match into it; the <c>hostname</c> once it has drained.</summary>

@@ -70,6 +70,7 @@ public sealed class GamemodeLoader
     private readonly List<string> _writtenConfigs = [];
     private GamemodeRuntime? _runtime;
     private bool _matchLoaded;
+    private bool _prefixSaid;
 
     public GamemodeLoader(IGameWorld world, PluginCatalog catalog, string csgoDirectory, string lobbyMap, ILinkLog? log = null, MatchZyRemoteLog? remoteLog = null)
     {
@@ -204,13 +205,19 @@ public sealed class GamemodeLoader
         // name for a workshop map is not one the client ever sent.
         var planned = MapFor(assignment);
         var hostname = Branding.HostnameFor(assignment, planned);
-        var file = WithLoadedMap(WithHostnameFormat(config, hostname), planned, map);
+        var prefix = Branding.MatchZyPrefixFor(assignment.Branding);
+        var file = WithLoadedMap(WithChatPrefix(WithHostnameFormat(config, hostname), prefix), planned, map);
         File.WriteAllText(path, file.ToJsonString(ProtocolJson.Options));
         // The format before the load as well as in the file (ezpug/ezpug-iron#8): MatchZy's
         // LoadMatch queues the file's cvars and then rewrites the hostname at once from the
         // format it holds *now*, so a format only in the file arrives a line after its own
         // `hostname {TEAM1} vs {TEAM2}` and warmup reads the team names until the first round.
         _world.SetCvar(MatchZyHostnameFormatCvar, hostname);
+        // The prefix the same way (PRD-09 T3), and for one more reason: MatchZy persists it in
+        // its database and loads that over its config.cfg when the plugin loads, so the last
+        // match's event would otherwise speak until the file's cvars land.
+        _world.SetCvar(MatchZyChatPrefixCvar, prefix);
+        _prefixSaid = true;
         _world.ExecCommand($"matchzy_loadmatch {MatchConfigFile}");
         _matchLoaded = true;
 
@@ -312,6 +319,27 @@ public sealed class GamemodeLoader
         return copy;
     }
 
+    /// <summary>MatchZy's console command for the prefix in front of every line it says; its default is <c>[{Green}MatchZy{Default}]</c>.</summary>
+    public const string MatchZyChatPrefixCvar = "matchzy_chat_prefix";
+
+    /// <summary>
+    /// The config with <c>matchzy_chat_prefix</c> in its <c>cvars</c>, so MatchZy says it
+    /// again when it re-applies them after <c>live.cfg</c> and when a backup restores the
+    /// config. The original is not touched.
+    /// </summary>
+    public static JsonObject WithChatPrefix(JsonObject config, string prefix)
+    {
+        var copy = (JsonObject)config.DeepClone();
+        if (copy["cvars"] is not JsonObject cvars)
+        {
+            cvars = new JsonObject();
+            copy["cvars"] = cvars;
+        }
+
+        cvars[MatchZyChatPrefixCvar] = prefix;
+        return copy;
+    }
+
     /// <summary>
     /// <b>The config with the engine's name for the map that is up in <c>maplist[0]</c></b>,
     /// when that entry is the workshop id this loader just hosted (PRD-05 T1). The
@@ -393,6 +421,16 @@ public sealed class GamemodeLoader
 
     private void OnReleased(string? reason)
     {
+        // EZPug's own prefix back while MatchZy is still loaded to hear it: the value it
+        // persists is the one it wakes up with, and an event's name is not the server's.
+        // `matchzy_reset_cvars_on_series_end` never puts it back, because MatchZy keeps
+        // only what `ConVar.Find` finds and the prefix is a console command.
+        if (_prefixSaid)
+        {
+            _world.SetCvar(MatchZyChatPrefixCvar, Branding.MatchZyPrefixFor(null));
+            _prefixSaid = false;
+        }
+
         for (var at = _enabled.Count - 1; at >= 0; at--)
         {
             _world.ExecCommand($"css_plugins unload {_enabled[at].RelativeDllPath}");

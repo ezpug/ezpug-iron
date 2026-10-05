@@ -320,6 +320,10 @@ describe('the CS2 server image', () => {
         // said on this console and offered nowhere else, so the verbose log is
         // an invariant of the image and not a debugging convenience.
         'matchzy_debug_console true',
+        // PRD-09 T3: the server speaks as EZPug before its first match; the
+        // loader says the match's own prefix on every load.
+        'matchzy_chat_prefix [{Green}EZPug{Default}]',
+        'matchzy_admin_chat_prefix [{Red}EZPug Admin{Default}]',
       ])
         expect(repo('docker/cs2/cfg/MatchZy/ezpug.cfg')).toContain(name)
     })
@@ -369,6 +373,13 @@ describe('the CS2 server image', () => {
       const quiet = run(scratch('config.cfg', `${base}\nmatchzy_debug_console false\n`))
       expect(quiet.status).toBe(1)
       expect(quiet.stdout).toContain('leaves matchzy_debug_console at "false"')
+      // A release that says its own name in front of every line is the
+      // playtest of 2026-10-04 again (PRD-09 T3).
+      const named = run(
+        scratch('config.cfg', `${base}\nmatchzy_chat_prefix [{Green}MatchZy{Default}]\n`),
+      )
+      expect(named.status).toBe(1)
+      expect(named.stdout).toContain('leaves matchzy_chat_prefix at "[{green}matchzy{default}]"')
       // The stats database is the SQLite file beside the plugin, never MySQL.
       const mysql = run(ours, scratch('database.json', '{ "DatabaseType": "MySQL" }'))
       expect(mysql.status).toBe(1)

@@ -2125,6 +2125,29 @@ async function run() {
    * silence is the answer. `null` rather than a failure at every step.
    */
   const readHud = id => readStatus(id, 'hud:')
+  /**
+   * **MatchZy's prefix, in MatchZy's own line** (PRD-09 T3): `matchzy_chat_prefix`
+   * with no value is MatchZy's getter, and its answer (`matchzy_chat_prefix = […]`)
+   * comes back as the reply of the fleet's RCON. The colour bytes are stripped,
+   * so `[iron-match]` is what an event named `iron-match` reads as. `null` when
+   * it cannot be read.
+   */
+  const readChatPrefix = async id => {
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      if (!row) return null
+      const { output } = await api('POST', `/v1/fleet/servers/${row.id}/rcon`, {
+        command: 'matchzy_chat_prefix',
+      })
+      // The chat colours are control bytes (0x01–0x10); a newline is one too.
+      const plain = [...String(output ?? '')].filter(char => char.charCodeAt(0) >= 0x20).join('')
+      const answer = /matchzy_chat_prefix = (\[[^\]]*\])/.exec(plain)
+      return answer ? answer[1].trim() : null
+    } catch {
+      return null
+    }
+  }
   /** The lines of `ezpug_status` that start with `prefix`, the prefix kept; `null` when there is no report to read. */
   const readStatus = async (id, prefix) => {
     try {
@@ -2499,6 +2522,8 @@ async function run() {
   let hud
   /** The `seating:` line of the server's status once the map is live (PRD-09 T2): `undefined` until asked, `null` when it could not be read. */
   let seating
+  /** MatchZy's own answer for its chat prefix once the map is live, colours stripped (PRD-09 T3): `undefined` until asked, `null` when it could not be read. */
+  let chatPrefix
   /** `meta list` and MultiAddonManager's client list over the fleet's RCON, read with {@link hud} (PRD-07 T9a). */
   let engine = null
   /** What `--walk` measured: the same bodies moved by the engine and by a teleport (T12). */
@@ -2552,6 +2577,19 @@ async function run() {
       const lines = await readStatus(matchId, 'seating:')
       seating = lines?.[0]?.slice('seating: '.length) ?? null
       say(`the server on its seating: ${seating ?? 'no status report'}`)
+      continue
+    }
+
+    // **Whose name MatchZy speaks in** (PRD-09 T3), once live under a `matchzy` flow:
+    // the playtest of 2026-10-04 read `[MatchZy]` in front of every one of its lines.
+    if (
+      chatPrefix === undefined &&
+      FLOW === 'matchzy' &&
+      liveAt > 0 &&
+      (!UNBOX || unbox !== null)
+    ) {
+      chatPrefix = await readChatPrefix(matchId)
+      say(`MatchZy speaks as: ${chatPrefix ?? 'not readable'}`)
       continue
     }
 
@@ -3167,6 +3205,7 @@ async function run() {
     unbox,
     hud: hud ?? null,
     seating: seating ?? null,
+    chatPrefix: chatPrefix ?? null,
     engine,
     console: consoleKept,
     walked,
@@ -3512,6 +3551,12 @@ function write(result) {
      * seats nobody here. `null` when it could not be read.
      */
     seating: result.seating ?? null,
+    /**
+     * **Whose name MatchZy speaks in** (PRD-09 T3): its answer to
+     * `matchzy_chat_prefix` once live, colours stripped — `[iron-match]` for
+     * this run's event. `null` off a `matchzy` flow or when it could not be read.
+     */
+    chatPrefix: result.chatPrefix ?? null,
     /**
      * **The HUD, as the server itself accounts for it** (PRD-07 T9), or `null`
      * when the run told no moment. `hello` is what the server said it can do

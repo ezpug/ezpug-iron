@@ -57,6 +57,12 @@ awk '
     # of anonymous bots — nothing announced, no `kick` that can find one.
     must["matchzy_debug_console"] = "true"
 
+    # The server speaks as EZPug (PRD-09 T3): the default MatchZy prefix is its
+    # own name, in front of every line it says. Compared lower-cased, like
+    # every value here.
+    must["matchzy_chat_prefix"] = "[{green}ezpug{default}]"
+    must["matchzy_admin_chat_prefix"] = "[{red}ezpug admin{default}]"
+
     # Console commands, not cvars: each one *persists* a value in matchzy.db and
     # starts a fetch or a timer with it, so off means never given one. The
     # pinned release writes five of them with `""`, which every one of these

@@ -121,7 +121,7 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
   sides after the hold. A new decision (35) records it and answers the owner's question in
   one paragraph: MatchZy cannot run Rush (decision 33, the map's script owns the rounds;
   upstream 0.9.1 changes nothing there), so the SDK seats.
-- [ ] **T3 (effort: medium): The chat says EZPug.** `docker/cs2/cfg/MatchZy/ezpug.cfg` sets
+- [x] **T3 (effort: medium): The chat says EZPug.** `docker/cs2/cfg/MatchZy/ezpug.cfg` sets
   `matchzy_chat_prefix [{Green}EZPug{Default}]` and the admin prefix beside it, pinned by
   `matchzy-cfg-check.sh`; the loader sets the prefix per match from the branding the request
   carries (the event's name when there is one, `EZPug` otherwise), the way `WithHostnameFormat`

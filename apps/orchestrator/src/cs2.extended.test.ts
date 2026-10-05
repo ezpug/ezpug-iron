@@ -301,6 +301,8 @@ type Summary = {
   } | null
   /** The `seating:` line of `ezpug_status` once the map was live (PRD-09 T2); `null` when it could not be read. */
   seating?: string | null
+  /** MatchZy's answer to `matchzy_chat_prefix` once live, colours stripped (PRD-09 T3); `null` off a `matchzy` flow. */
+  chatPrefix?: string | null
   /** The HUD as the server itself accounts for it (PRD-07 T9); `null` when the run told no moment. */
   hud?: {
     /** What the server said it can do when it dialled in; `null` when the orchestrator wrote no trace. */
@@ -546,7 +548,13 @@ const CASES: LaneCase[] = [
     what: 'plays an uneven 2v1, which one number for both teams could not',
     puppets: 3,
     args: [],
-    facts: summary => readiedUp(summary, 3),
+    facts: summary => {
+      readiedUp(summary, 3)
+      // **MatchZy speaks for the event** (PRD-09 T3): the playtest of 2026-10-04
+      // read `[MatchZy]` in front of every one of its lines. The run names its
+      // event `iron-match`, and the loader hands MatchZy that name.
+      expect(summary.chatPrefix, 'MatchZy does not speak for the event').toBe('[iron-match]')
+    },
   },
   {
     // **A workshop map, spelled the way the wire spells it** (PRD-05 T1). It

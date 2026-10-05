@@ -113,6 +113,11 @@ public class BrandingTests
         var loud = Branding.PrefixFor(new MatchBranding { EventName = $"{ChatColor.Red}LAN {new string('x', 40)}" });
         Assert.Equal($"[{ChatColor.Green}LAN {new string('x', Branding.PrefixNameMax - 4)}{ChatColor.Default}]", loud);
 
+        // MatchZy's spelling of the same prefix (PRD-09 T3): its colour names in braces, and
+        // an event that writes one of its own keeps the word and loses the colour.
+        Assert.Equal("[{Green}EZPug{Default}]", Branding.MatchZyPrefixFor(null));
+        Assert.Equal("[{Green}LAN Red{Default}]", Branding.MatchZyPrefixFor(new MatchBranding { EventName = "LAN {Red}" }));
+
         // The same rule wherever a name from outside lands: a hostname carries no colour either.
         var assignment = new Assignment(GamemodeTestHost.AssignmentFor(
             Manifest("pug"),

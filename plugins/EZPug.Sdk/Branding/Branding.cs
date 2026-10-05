@@ -24,7 +24,8 @@ namespace EZPug.Sdk;
 /// brackets. Every line the SDK says to a player carries it — the rating greeting, a
 /// refused player command, a mode's own lines through <see cref="Gamemode.Say"/> — so the
 /// server has one voice. A client's <c>announce</c> does not: those are the client's
-/// words, relayed, and the platform brands them itself.</item>
+/// words, relayed, and the platform brands them itself. MatchZy's own lines carry it
+/// too: the loader hands it over as <c>matchzy_chat_prefix</c> (<see cref="MatchZyPrefixFor"/>).</item>
 /// <item><b>A team name</b> is painted in the colour of the side it is on right now
 /// (<see cref="MatchContext.TeamASide"/>, which a <c>side_swap</c> moves), so the names
 /// in chat and the players on the scoreboard agree after halftime.</item>
@@ -135,13 +136,21 @@ public sealed class Branding
             : null;
 
     /// <summary>The bracketed green prefix for a match branded like this: the event's name, or <c>EZPug</c>.</summary>
-    public static string PrefixFor(MatchBranding? branding)
-    {
-        var name = EventNameOf(branding) is { } eventName
+    public static string PrefixFor(MatchBranding? branding) => $"[{ChatColor.Paint(ChatColor.Green, PrefixNameOf(branding))}]";
+
+    /// <summary>
+    /// The same prefix in MatchZy-Enhanced's spelling, for <c>matchzy_chat_prefix</c>:
+    /// colour names in braces, which MatchZy turns into the control characters itself
+    /// (PRD-09 T3). Braces in an event's name are dropped, so a name can never say a
+    /// colour of its own.
+    /// </summary>
+    public static string MatchZyPrefixFor(MatchBranding? branding) =>
+        $"[{{Green}}{PrefixNameOf(branding).Replace("{", "").Replace("}", "")}{{Default}}]";
+
+    private static string PrefixNameOf(MatchBranding? branding) =>
+        EventNameOf(branding) is { } eventName
             ? eventName.Length > PrefixNameMax ? eventName[..PrefixNameMax].TrimEnd() : eventName
             : PlatformName;
-        return $"[{ChatColor.Paint(ChatColor.Green, name)}]";
-    }
 
     /// <summary><paramref name="text"/> behind the prefix — the shape of every line the server says.</summary>
     public static string Prefixed(string text, MatchBranding? branding = null) => $"{PrefixFor(branding)} {text}";

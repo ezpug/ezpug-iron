@@ -1579,11 +1579,12 @@ where stock had neither, and one switch of the four is the request's:
 | `matchzy_side_selection_enabled` / `_time` (60 s) | the server's, `docker/cs2/cfg/MatchZy/ezpug.cfg` | a knife winner who never types `.stay` held the box for ever; the timer picks a side at random and goes live |
 | `matchzy_autoready_enabled` | the **match's**, from `rules.warmup.autoReady` (default on) | nobody types `.ready`; the builder writes it into every match config and MatchZy puts it back at series end, so a LAN admin asks for manual ready per match |
 | `matchzy_gg_enabled`, `matchzy_ffw_enabled` | the server's, off | a surrender vote and a walkover; the Match API has no result for either, so a server using one would end a match the platform cannot record |
+| `matchzy_chat_prefix`, `matchzy_admin_chat_prefix` | the server's `[EZPug]` / `[EZPug Admin]`, and the **match's** prefix from `branding.eventName` | MatchZy said `[MatchZy]` in front of every line (PRD-09 T3). The loader says the match's before `matchzy_loadmatch` and in the file, and EZPug's again on release: MatchZy persists the last value in its database and loads it over `config.cfg`, and `matchzy_reset_cvars_on_series_end` never restores it (a console command, not a ConVar) |
 
 Auto-ready readies bodies, it does not start matches: the roster must still be connected
 and on its sides and the gate must still pass, so the platform's join deadline stays the
 only thing that gives up on a missing player. `docker/cs2/matchzy-cfg-check.sh` holds all
-four — with the timer as the one line that has to be *on* — and the image build fails over
+of them — with the timer as the one line that has to be *on* — and the image build fails over
 the cfg as it ships.
 
 Answers: `200` with `{ accepted, statuses }` for anything the door could read, dropped
