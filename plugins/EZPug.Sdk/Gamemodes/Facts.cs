@@ -168,7 +168,7 @@ public sealed class Facts
         new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, RoundNumber = Math.Max(Context.RoundNumber, 1), Site = SiteOf(site), RoundTimeMs = roundTimeMs };
 
     /// <summary>
-    /// A position tick: every living player's position and, when the caller sampled the
+    /// A position tick: every living player's position and side and, when the caller sampled the
     /// utility layer (ezpug/ezpug-iron#5), the grenades and the bomb beside them.
     /// <paramref name="grenades"/> travels as a list even when empty, because a missing
     /// list tells the client nothing was sampled; <paramref name="bomb"/> is simply absent
@@ -192,6 +192,12 @@ public sealed class Facts
                     X = player.Position!.Value.X,
                     Y = player.Position!.Value.Y,
                     Z = player.Position!.Value.Z,
+                    Side = player.Team switch
+                    {
+                        PlayerTeam.CounterTerrorist => TeamSide.Ct,
+                        PlayerTeam.Terrorist => TeamSide.T,
+                        _ => null,
+                    },
                 })
                 .ToList(),
             Grenades = grenades?.Select(Grenade).ToList(),

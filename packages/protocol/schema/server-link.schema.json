@@ -1586,6 +1586,9 @@
                   },
                   "yaw": {
                     "type": "number"
+                  },
+                  "side": {
+                    "$ref": "#/$defs/TeamSide"
                   }
                 },
                 "required": [

@@ -669,6 +669,12 @@ export const positionTickEventSchema = mapScoped.extend({
       z: z.number(),
       /** View direction in degrees, where sampled. */
       yaw: z.number().optional(),
+      /**
+       * The side the player stands on at that instant (0.34.0, PRD-09 T5), so a
+       * minimap colours a dot without folding `side_swap` itself. Absent from an
+       * older server, and from a body on no side; a client keeps its own guess then.
+       */
+      side: teamSideSchema.optional(),
     }),
   ),
   grenades: z.array(liveGrenadeSchema).optional(),

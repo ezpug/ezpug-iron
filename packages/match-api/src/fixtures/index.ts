@@ -145,7 +145,7 @@ export const GAMESERVER_EVENT_FIXTURES: {
     ...base,
     mapNumber: 1,
     roundNumber: 14,
-    positions: [{ steamId64: tk.steamId64, x: -412.5, y: 1180, z: 64, yaw: 92.5 }],
+    positions: [{ steamId64: tk.steamId64, x: -412.5, y: 1180, z: 64, yaw: 92.5, side: 'ct' }],
     // The utility layer (0.26.0, #5): a smoke standing, a flash in the air, a
     // fire with no thrower known, and the bomb planted on B.
     grenades: [

@@ -142,7 +142,7 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
   fact `halftime_started` (sides, the stretch's start) leaves the translator's drop list
   (`translate.ts:388`) so the platform can draw its own band. A test on the fake clock for
   every edge; the lane's `queue` row reads the two cvars at half time and after it.
-- [ ] **T5 (effort: medium): A position carries its side.** `position_tick`'s positions gain
+- [x] **T5 (effort: medium): A position carries its side.** `position_tick`'s positions gain
   an optional `side: 'ct' | 't'` (and the SDK emitter sends it, `Facts.cs:166-188`; the
   simulator too), additive in `packages/match-api` with its JSON schema and fixtures. The
   platform reads it in PRD-20 T17 and keeps its fallbacks for an older server.

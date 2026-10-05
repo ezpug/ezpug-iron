@@ -54,6 +54,15 @@ describe('the normalized gameserver event union', () => {
     expect(gameserverEventSchema.safeParse(sideless).success).toBe(false)
   })
 
+  it('says the side a position stands on, and parses a tick from a server that does not (PRD-09 T5)', () => {
+    const tick = fixtures.position_tick
+    expect(gameserverEventSchema.parse(tick)).toEqual(tick)
+    const sideless = { ...tick, positions: tick.positions.map(({ side: _side, ...rest }) => rest) }
+    expect(gameserverEventSchema.parse(sideless)).toEqual(sideless)
+    const spectator = { ...tick, positions: [{ ...tick.positions[0], side: 'spec' }] }
+    expect(gameserverEventSchema.safeParse(spectator).success).toBe(false)
+  })
+
   it('rejects a type outside the closed set', () => {
     expect(() => gameserverEventSchema.parse({ type: 'knife_round_won', ...base })).toThrow()
   })

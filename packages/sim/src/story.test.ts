@@ -372,6 +372,28 @@ describe('buildMatchStory', () => {
     expect(ofType(silent, 'position_tick')).toHaveLength(0)
   })
 
+  it('says the side of every position, and follows the swap (PRD-09 T5)', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'])
+    const { teamA, teamB } = fixtureAssignment()
+    const teamOf = new Map([
+      ...teamA.players.map(p => [p.steamId64, 'team_a'] as const),
+      ...teamB.players.map(p => [p.steamId64, 'team_b'] as const),
+    ])
+    const sidesByHalf = new Set<string>()
+    for (const tick of ofType(story, 'position_tick')) {
+      const teamASides = new Set<string>()
+      for (const position of tick.positions) {
+        expect(position.side).toBeDefined()
+        const team = teamOf.get(position.steamId64)
+        teamASides.add(team === 'team_a' ? `${position.side}` : position.side === 'ct' ? 't' : 'ct')
+      }
+      // Both teams on opposite sides in every tick, never one body on the wrong one.
+      expect(teamASides.size).toBe(1)
+      sidesByHalf.add([...teamASides][0] as string)
+    }
+    expect([...sidesByHalf].sort()).toEqual(['ct', 't'])
+  })
+
   it('throws utility and carries the bomb on the live tier (#5)', () => {
     const story = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'utility', {}, 500)
     const ticks = ofType(story, 'position_tick')

@@ -20,6 +20,15 @@ request, a manifest or an event written against 0.33.0 parses and means what it 
   halves, before the `side_swap` it leads to; the stretch ends with the next
   `round_start`. The simulator and the fake say it too, so the recorded fixtures carry it.
 
+**A position carries its side** (PRD-09 T5, for the platform's PRD-20 T17). Additive: a
+tick written against 0.33.0 parses and means what it did.
+
+- **`position_tick`'s `positions[].side`** (`ct` | `t`, optional): the side the player
+  stands on at the instant of the tick, read off the engine, so a minimap colours a dot
+  without folding `side_swap` itself. The core plugin and the simulator send it on every
+  position of a body on a side; an older server sends none, and a client keeps its own
+  fallback then. The recorded fixtures carry it.
+
 ## 0.33.0 — 2026-10-04
 
 **An empty PUG ends itself** (decision 26 as amended, 2026-10-04; for the platform's next

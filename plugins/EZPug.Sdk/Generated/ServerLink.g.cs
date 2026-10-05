@@ -1524,6 +1524,11 @@ public sealed record PositionTickEventPosition
     [JsonPropertyOrder(4)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? Yaw { get; init; }
+
+    [JsonPropertyName("side")]
+    [JsonPropertyOrder(5)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TeamSide? Side { get; init; }
 }
 
 /// <summary>The <c>grenade</c> block of <see cref="PositionTickEvent"/>.</summary>

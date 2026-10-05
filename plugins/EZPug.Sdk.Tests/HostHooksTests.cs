@@ -106,11 +106,17 @@ public class HostHooksTests
         Assert.Null(tick.Seq);
         Assert.Equal([Tk.ToString(), "90000000000000001"], tick.Positions.Select(position => position.SteamId64));
         Assert.Equal((10f, 20f, 30f), ((float)tick.Positions[0].X, (float)tick.Positions[0].Y, (float)tick.Positions[0].Z));
+        Assert.Equal([TeamSide.T, TeamSide.T], tick.Positions.Select(position => position.Side));
+
+        // The side is read at the tick, so a body that changed sides is drawn on its new one (PRD-09 T5).
+        ((FakePlayer)bot).Team = PlayerTeam.CounterTerrorist;
+        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs);
+        Assert.Equal([TeamSide.T, TeamSide.Ct], host.Link.Ticks[^1].Positions.Select(position => position.Side));
 
         // Ticks are apart from the story; the durable events do not see them.
         Assert.Equal(["server_ready", "player_connected"], host.Link.EventTypes);
 
-        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs * 3);
+        host.World.Elapse(GamemodeRuntime.PositionTickIntervalMs * 2);
         Assert.Equal(4, host.Link.Ticks.Count);
 
         host.Link.Release();

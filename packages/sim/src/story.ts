@@ -1511,6 +1511,7 @@ function playRound(options: RoundOptions): {
           steamId64: p.player.steamId64,
           ...ground.world(point),
           yaw: prng.int(0, 360),
+          side: p.team === 'team_a' ? teamASide : flip(teamASide),
         }
       })
       if (bombPlan && atMs >= bombPlan.atMs && !plantedAt)
@@ -1859,7 +1860,12 @@ function playTowerRound(options: TowerRoundOptions): {
         .map(p => {
           const point = positions.get(p.player.steamId64) as WanderPoint
           ground.step(point)
-          return { steamId64: p.player.steamId64, ...ground.world(point), yaw: prng.int(0, 360) }
+          return {
+            steamId64: p.player.steamId64,
+            ...ground.world(point),
+            yaw: prng.int(0, 360),
+            side: sideOf(p),
+          }
         })
       emit(tStart + atMs, {
         type: 'position_tick',
@@ -2069,6 +2075,7 @@ function playLength(options: LengthOptions): { endAtMs: number; reason: MatchEnd
             steamId64: state.player.steamId64,
             ...ground.world(point),
             yaw: prng.int(0, 360),
+            side: sideOf(state),
           }
         }),
       })

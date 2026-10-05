@@ -303,6 +303,8 @@ type Summary = {
   seating?: string | null
   /** MatchZy's answer to `matchzy_chat_prefix` once live, colours stripped (PRD-09 T3); `null` off a `matchzy` flow. */
   chatPrefix?: string | null
+  /** Every position the ticks carried, how many said a side, each rostered body's sides in order (PRD-09 T5). */
+  tickSides?: { positions: number; sided: number; bodies: Record<string, string[]> }
   /** The voice when the stream said `halftime_started` and at the `round_start` after it (PRD-09 T4); empty without a break. */
   halftimeVoice?: {
     when: 'halftime' | 'after'
@@ -589,6 +591,17 @@ const CASES: LaneCase[] = [
         sv_talk_enemy_dead: '0',
       })
       expect(after?.status).toMatch(/^voice: half time is all-talk, closed now /)
+      // **A position carries its side** (PRD-09 T5): every position the ticks
+      // carried says one (the fork's own bots too), and each of the three
+      // rostered bodies stood on one side, then on the other once the half
+      // swapped them (a knife round may add a swap).
+      const { tickSides } = summary
+      expect(tickSides?.positions, 'the run saw no position').toBeGreaterThan(0)
+      expect(tickSides?.sided, 'a position without its side').toBe(tickSides?.positions)
+      const bodies = Object.values(tickSides?.bodies ?? {})
+      expect(bodies, 'not three rostered bodies on the ticks').toHaveLength(3)
+      for (const sides of bodies)
+        expect(new Set(sides), 'a body never changed sides').toEqual(new Set(['ct', 't']))
     },
   },
   {

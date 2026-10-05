@@ -3327,6 +3327,34 @@ function rewoundRounds(rewind, envelopes) {
 }
 
 /**
+ * **The side on a position** (PRD-09 T5): how many positions the ticks carried,
+ * how many said a side, and for each body the sides it was drawn on, in the
+ * order it stood on them, for the rostered bodies only: the fork's own bots
+ * stand on the ticks too while it maps its puppets. A pug that reached its
+ * half shows every rostered body on both, which is the side following the
+ * swap rather than the roster.
+ */
+function tickSidesOf(frames, request) {
+  const rostered = new Set(
+    [...request.teams.teamA.players, ...request.teams.teamB.players].map(p => p.steamId64),
+  )
+  const ticks = frames.filter(frame => frame.type === 'tick').flatMap(frame => frame.ticks)
+  const positions = ticks.flatMap(tick => tick.positions)
+  const bodies = {}
+  for (const position of positions) {
+    if (!rostered.has(position.steamId64)) continue
+    const sides = bodies[position.steamId64] ?? []
+    if (position.side && sides.at(-1) !== position.side) sides.push(position.side)
+    bodies[position.steamId64] = sides
+  }
+  return {
+    positions: positions.length,
+    sided: positions.filter(position => position.side === 'ct' || position.side === 't').length,
+    bodies,
+  }
+}
+
+/**
  * **The utility layer, off the stream** (PRD-05 T2c, ezpug/ezpug-iron#5): how
  * many ticks said they sampled it, how many grenades of each kind showed, how
  * many smokes lived a whole life on it (`flying`, then `active` with a radius,
@@ -3693,6 +3721,8 @@ function write(result) {
       : null,
     /** The grenades and the bomb on the position ticks (PRD-05 T2c). `null` when no tick sampled them. */
     utility: utilityOf(result.streamFrames),
+    /** The side on every position the ticks carried, and each rostered body's sides in order (PRD-09 T5). */
+    tickSides: tickSidesOf(result.streamFrames, result.request),
     ledger: {
       rows: rows.length,
       open: rows.filter(row => row.releasedAt === null).length,
