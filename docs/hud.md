@@ -920,7 +920,7 @@ when it began:
 | Beat | Classes | What is drawn |
 | ---- | ------- | ------------- |
 | the call | `shown` | a strip at the top: the cast's picture, the winner's name large and, under it, "hat einen Drop! Mal sehen…" / "got a drop! Let's see…"; below it the reel, standing still |
-| the reel | `rolling` and one `land-1` … `land-4` | 36 slots slide past a marker at the window's centre, fast, then slower, for 6 s (`cubic-bezier( 0.08, 0.6, 0.12, 1 )`), and stop with slot 33 under it, a little left or right of its centre |
+| the reel | `rolling` and one `land-1` … `land-4` | 36 slots slide past a marker at the window's centre, about 16 a second at first and slowing all the way, for 6 s (`cubic-bezier( 0.2, 0.65, 0.4, 1 )`, "The roll's curve" below), and stop with slot 33 under it, a little left or right of its centre |
 | the reveal | `revealed`, `land-*` off | the reel settles to the centre and dims, the prize grows out of it (the game's own overshoot curve) over a burst in the tier's colour, bigger the rarer, and the line comes under it |
 
 | Panel or label | What is set on it |
@@ -952,9 +952,50 @@ as the moment does.
 panel fades in 0.12 s whatever the reel is doing, and the strip jumps back to its start
 0.2 s later, unseen. `hud/test/unbox.test.ts` holds the geometry (the stop slot under the
 marker, a strip that covers the window standing and stopped, a landing that never leaves
-the prize's picture), the one curve and the fade.
+the prize's picture), the one curve, its shape and the fade.
 
-Nobody has seen it. It is look-list step 17.
+**The roll's curve.** The first playtest on a real client (production, a Dathost server,
+2026-10-04, two unboxings in a freeze) found the call, the ticks and the reveal right and
+the roll wrong: "sticky, laggy… mostly a stuck item, not animated", and smoother after the
+reveal. The curve was `cubic-bezier( 0.08, 0.6, 0.12, 1 )`. Its starting speed is 7.5
+times the average: 85 px a frame at 60 fps, more than half a slot, so the first half
+second, which covers half the way, is a jump. Then it
+crawls: from 1.75 s it is under four slots a second with five to go, from 3.7 s it is
+inside the prize's slot, and from 4.8 s it moves less than a pixel a frame, which a screen
+shows as a pixel step every few frames. For the last 3.5 s the prize stands in the window
+and barely moves. The game's own case opening has the same shape, even steeper
+(`popup_capability_decodable`: `cubic-bezier(0.075, 0.82, 0.165, 1)` over 6 s, 32 tiles of
+340 px), but its tiles are 2.4 times ours on a full screen, so its crawl still reads as
+motion. Ours is an 860 px strip at the top of a HUD. The reveal's motions (the landing
+settling in 0.3 s, the prize's overshoot) are short and smooth, which is the "smoother
+after".
+
+The server was ruled out: from the instant `rolling` is set to the reveal it writes
+nothing to any layout, only the ticks, even when the spawn's second telling falls on the
+reel's first instant (`UnboxingTests.NothingTouchesTheLayoutWhileTheReelSlides_OnlyTheTicksAreHeard`).
+Nothing in the stylesheet re-lays the strip out while it moves: it is one `transform`
+transition on the strip and one on the landing, and the slots' widths, margins and
+`flow-children` never change.
+
+So the curve is `cubic-bezier( 0.2, 0.65, 0.4, 1 )`, still 6 s (the game's own reel is 6 s,
+and the reveal at 8 s is the contract's), still slowing all the way to a soft stop:
+
+| | Before | Now |
+| - | ------ | --- |
+| speed at the start | 85 px a frame, 36 slots a second | 37 px a frame, 16 slots a second (the game's fastest tick, so each slot gets one) |
+| of the way after 0.5 s, 1 s, 2 s | 48 %, 68 %, 85 % | 25 %, 45 %, 72 % |
+| under four slots a second | from 1.75 s, five slots to go | from 2.6 s, five slots to go |
+| inside the prize's slot | from 3.7 s (2.3 s) | from 4.3 s (1.7 s) |
+| under a pixel a frame | from 4.8 s (1.2 s) | from 5.3 s (0.7 s) |
+
+`hud/test/unbox.test.ts` holds those properties, not just the numbers: a speed that never
+rises, a start between 12 and 16 slots a second, less than half the way in the first
+second, at least four slots still to pass once it is readable, less than two seconds in the
+prize's slot and less than one under a pixel a frame.
+
+The look-list's step 17 is how to tell whether that is enough. If the reel still looks
+stuck at its start on a client that runs well, the next suspect is the first sight of 36
+uncompressed pictures; compare the first unboxing of a session with the second.
 
 ### The unboxing, played
 
@@ -967,7 +1008,7 @@ the server (a puppet's seat counts) or the roster's.
 | After the moment is due | Constant | What happens |
 | ----------------------- | -------- | ------------ |
 | 0 s | | the call: `shown` for everybody here, the reel laid out, "Ada hat einen Drop! Mal sehen…" in chat |
-| 2 s | `Moments.CallMs` | the reel: `rolling` and the landing; a tick each time a slot passes the marker, 21 or 22 of them, the last before 7 s |
+| 2 s | `Moments.CallMs` | the reel: `rolling` and the landing; a tick each time a slot passes the marker, 29 of them, the last between 6.4 and 7.2 s |
 | 8 s | `Moments.RevealMs`, the contract's `MOMENT_UNBOXING_REVEAL_MS` | the reveal: `revealed`, the landing off, the tier's reveal sound for everybody watching, **and the line in chat** |
 | 12 s | `Moments.UnboxMs` | every class off |
 
@@ -1022,14 +1063,21 @@ the build volume's `reference/soundevents`, like the stylesheets), played throug
 
 The ticks are what the game's own case opening plays for every item its reel passes. The
 server times them on the stylesheet's slide: the marker passes a slot's edge 29 times
-between slot 4 and slot 33, at instants read off `cubic-bezier( 0.08, 0.6, 0.12, 1 )` for
+between slot 4 and slot 33, at instants read off `cubic-bezier( 0.2, 0.65, 0.4, 1 )` for
 the landing that was drawn (`Moments.TicksOf`; a test holds its resting slot, curve and
-landings to `ezpug_unbox.css`). In the first second the reel passes a slot every 28 to
-90 ms; a tick closer than 60 ms (`TickGapMinMs`) to the last one is skipped, because the
-server schedules on its 64 Hz frames and the event plays one instance at a time. That
-leaves 21 or 22 ticks from 14 ms to 3.9–4.9 s, each gap longer than the last after the
-first second. The reveal is Valve's "awarded" sound for the rarity of the same name and
-colour. Our four tiers are four of their six rarities; mythical and ancient are not ours.
+landings to `ezpug_unbox.css`). At its fastest the reel passes a slot every 64 ms, so every
+one of the 29 is ticked: 29 ticks from 32 ms to 4.4–5.2 s (`land-1` 4,406, `land-2` 4,574,
+`land-3` 4,887, `land-4` 5,194), each gap longer than the one before, and the last at least
+0.8 s before the reveal. A tick closer than 60 ms (`TickGapMinMs`) to the last one would be
+skipped, because the server schedules on its 64 Hz frames and the event plays one instance
+at a time; the curve never comes that close. The game's own case opening ticks at most 16
+times a second too, on a fixed list. Before the playtest of 2026-10-04 the curve was
+`( 0.08, 0.6, 0.12, 1 )` and the schedule 21 or 22 ticks from 14 ms to 3.9–4.9 s, with 8 of
+the first 20 slots unticked. **The schedule is the plugin's and the curve is also the
+addon's**: they ship by different roads ("Shipping the roll", below).
+
+The reveal is Valve's "awarded" sound for the rarity of the same name and colour. Our
+four tiers are four of their six rarities; mythical and ancient are not ours.
 
 **Whether the volume scales an event is still unknown**, so the tiers are four different
 sounds and do not depend on volume. `PlaySound` hands its volume to CounterStrikeSharp's
@@ -1044,6 +1092,17 @@ the end-of-match drop (one per rarity, but the end-of-match screen's sound, not 
 
 Played on the fake clock only: the dev node's row is PRD-08 T6, and the screen and the
 speakers are the look list's.
+
+**Shipping the roll.** The curve is in two places that reach a player by two roads: the
+stylesheet in the Workshop addon (`pnpm hud:build`, `pnpm hud:publish`, live for a client
+once Steam serves the revision and the client has restarted its game), and the tick
+schedule in the plugin (`pnpm cs2:build`, then `pnpm dathost:image` for the Dathost
+template, which the next match's server is cloned from). Neither can see the other, so a
+change to one is a change to both, published the same day, and in between a player hears
+ticks out of step with the picture. Nothing worse: the stop slot, the landings and the
+reveal at 8 s are the same on both sides. `UnboxingTests` pins the schedule and its curve,
+and a test there reads the curve back out of `ezpug_unbox.css`, so the two cannot differ in
+one commit.
 
 ## Deleting it
 
@@ -1174,7 +1233,12 @@ Restart your game before step 4 if it was running when the addon was last publis
     purchase working); a reel that seems to stop on one picture and reveals another (it
     must never); as somebody who connects while it runs (nothing, and the line in chat); cut
     by the freeze ending (gone at once, then the toast). Write down whether the side's half of the cast's picture reads as one
-    mascot, and whether the reel's speed looks like a case opening. **Listen** too: a
+    mascot, and whether the reel's speed looks like a case opening: from its first frame
+    the slots visibly run past (about 16 a second, no jump), by about 2.5 s each picture can
+    be read as it passes, the last one or two slots creep in over the final second and a
+    half, and it stands still a moment before the prize grows ("The roll's curve"). Watch
+    the first unboxing after a game start and a second one: if only the first stutters, it
+    is the pictures loading, not the curve. **Listen** too: a
     tick as each slot passes the marker, quick and then slower, in step with the picture
     (write down if they drift apart or rattle); the reveal, a different sound for each of
     the four tiers (send one of each); and whether ticks at 0.5 and the reveal at 0.7 sound

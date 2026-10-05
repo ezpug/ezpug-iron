@@ -21,6 +21,20 @@ there, not this file.
 
 ## Unreleased
 
+**The unboxing's reel spins and slows** (playtest of 2026-10-04, `docs/hud.md`, "The roll's
+curve"). On a real client the call, the ticks and the reveal were right and the roll was
+not: "sticky, laggy… mostly a stuck item". Its curve, `cubic-bezier( 0.08, 0.6, 0.12, 1 )`,
+started at 85 px a frame, covered half the way in the first half second and then crept
+through the prize's slot for 2.3 s, under a pixel a frame for the last 1.2. The server was
+not touching the layout while it rolled (a test now says so). The curve is now
+`cubic-bezier( 0.2, 0.65, 0.4, 1 )`, still 6 s, still stopping at 8 s: 16 slots a second at
+the start, readable from 2.6 s with five slots to go, 1.7 s in the prize's slot. The ticks
+follow it: **29**, one for every slot (before: 21 or 22, with 8 of the first 20 slots
+unticked), from 32 ms to 4.4–5.2 s into the roll. Ships in two halves that belong together: the
+addon (`pnpm hud:build`, `pnpm hud:publish`) and the plugin in the CS2 image and on the
+Dathost template (`pnpm cs2:build`, `pnpm dathost:image`); no orchestrator or contract
+change.
+
 **Skins with the right pattern** (playtest of 2026-10-04). The WeaponPaints fork goes from
 upstream `build-459` to **`build-463`**, which is `gamedata/weaponpaints.json` and nothing
 else: the CS2 update of 2026-09-22 moved `CAttributeList::SetOrAddAttributeValueByName`,

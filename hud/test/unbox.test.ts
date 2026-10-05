@@ -46,7 +46,7 @@ const SLOTS = 36
 const REST_SLOT = 4
 const STOP_SLOT = 33
 const REEL_MS = 6000
-const CURVE = 'cubic-bezier( 0.08, 0.6, 0.12, 1 )'
+const CURVE = 'cubic-bezier( 0.2, 0.65, 0.4, 1 )'
 const LANDINGS = 4
 
 describe('the unboxing’s reel', () => {
@@ -105,6 +105,58 @@ describe('the unboxing’s reel', () => {
     }
     const settle = rule('.ezpug-unbox-land')
     expect(seconds(settle['transition-duration'])).toBeLessThanOrEqual(300)
+  })
+
+  // The playtest of 2026-10-04 (docs/hud.md, "The unboxing, drawn"): the curve before,
+  // ( 0.08, 0.6, 0.12, 1 ), started at 85 px a frame, went half the way in the first half
+  // second and then crept through the prize's slot for 2.3 s, under a pixel a frame for
+  // the last 1.2. It read as a jump and then a stuck picture. These are the numbers a
+  // curve has to meet to read as a spin that slows.
+  it('reads as a spin that slows: never a blur, readable at the end, not a crawl', () => {
+    const [x1, y1, x2, y2] = CURVE.match(/[\d.]+/g)!.map(Number) as [number, number, number, number]
+    const bezier = (s: number, a: number, b: number) =>
+      3 * (1 - s) ** 2 * s * a + 3 * (1 - s) * s ** 2 * b + s ** 3
+    /** The share of the way covered at the share of the time t, by bisection on the curve's parameter. */
+    const way = (t: number) => {
+      let low = 0
+      let high = 1
+      for (let i = 0; i < 60; i++) {
+        const middle = (low + high) / 2
+        if (bezier(middle, x1, x2) < t) low = middle
+        else high = middle
+      }
+      return bezier((low + high) / 2, y1, y2)
+    }
+    const distance = (STOP_SLOT - REST_SLOT) * pitch
+    const frame = 1000 / 60
+    const at = (ms: number) => way(Math.min(1, ms / REEL_MS)) * distance
+    const speeds = Array.from(
+      { length: Math.ceil(REEL_MS / frame) },
+      (_, i) => at((i + 1) * frame) - at(i * frame),
+    )
+    const from = (test: (ms: number) => boolean) => {
+      for (let ms = 0; ms <= REEL_MS; ms += 10) if (test(ms)) return ms
+      return REEL_MS
+    }
+
+    // It stops softly, and slows all the way there.
+    expect(y2).toBe(1)
+    for (let i = 1; i < speeds.length; i++)
+      expect(speeds[i]!).toBeLessThanOrEqual(speeds[i - 1]! + 1e-9)
+    // A spin from the first frame, but at most a slot every 62.5 ms, the game's own
+    // fastest tick (popup_capability_decodable), so the server can tick every slot.
+    const start = (y1 / x1) * (distance / REEL_MS) * 1000
+    expect(start / pitch).toBeGreaterThan(12)
+    expect(start / pitch).toBeLessThanOrEqual(16)
+    // Not half the way in the first second: the old curve was two thirds there.
+    expect(at(1000) / distance).toBeLessThan(0.5)
+    // Readable as it slows: under four slots a second with at least four still to pass.
+    const readable = from(ms => at(ms + frame) - at(ms) < (4 * pitch) / 60)
+    expect((distance - at(readable)) / pitch).toBeGreaterThanOrEqual(4)
+    // And not a crawl: in the prize's slot for less than two seconds, under a pixel a
+    // frame for less than one.
+    expect(REEL_MS - from(ms => distance - at(ms) < pitch)).toBeLessThan(2000)
+    expect(REEL_MS - from(ms => at(ms + frame) - at(ms) < 1)).toBeLessThan(1000)
   })
 
   it('is put away at once, and the strip goes back only once nobody sees it', () => {

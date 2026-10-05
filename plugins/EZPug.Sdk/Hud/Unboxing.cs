@@ -121,7 +121,7 @@ public sealed partial class Moments
     /// <summary>How loud a tick plays: under the freeze's own sounds, the buying and the footsteps.</summary>
     public const float TickVolume = 0.5f;
 
-    /// <summary>The least time between two ticks: early on the reel passes a slot every 28 ms, close to the server's 64 Hz frames and too fast for an event that plays one instance at a time; one closer than this to the last is skipped.</summary>
+    /// <summary>The least time between two ticks: the server schedules on its 64 Hz frames and the event plays one instance at a time, so one closer than this to the last is skipped. The reel's curve starts slow enough (a slot every 64 ms) that none is; this guards a later curve.</summary>
     public const long TickGapMinMs = 60;
 
     /// <summary>How loud the reveal plays for everybody but the winner, who hears it at the event's own volume.</summary>
@@ -133,8 +133,14 @@ public sealed partial class Moments
     /// <summary>How far apart two slots' centres are, in the layout's pixels.</summary>
     public const int ReelPitchPx = 140;
 
-    /// <summary>The reel's curve, the stylesheet's <c>cubic-bezier( 0.08, 0.6, 0.12, 1 )</c>: fast, then a long slow end.</summary>
-    public static readonly IReadOnlyList<double> ReelCurve = [0.08, 0.6, 0.12, 1];
+    /// <summary>
+    /// The reel's curve, the stylesheet's <c>cubic-bezier( 0.2, 0.65, 0.4, 1 )</c>: about 16
+    /// slots a second at the start, the game's own fastest tick, then slowing all the way to
+    /// a soft stop. It replaced <c>( 0.08, 0.6, 0.12, 1 )</c>, which went half the way in the
+    /// first half second and crept through the prize's slot for the last 2.3 s
+    /// (<c>docs/hud.md</c>, "The unboxing, drawn").
+    /// </summary>
+    public static readonly IReadOnlyList<double> ReelCurve = [0.2, 0.65, 0.4, 1];
 
     /// <summary>Where in its slot the reel stops for each landing, from <c>land-1</c>: the stylesheet's second slide, in pixels.</summary>
     public static readonly IReadOnlyList<int> LandingPx = [-46, -20, 18, 44];
@@ -162,7 +168,8 @@ public sealed partial class Moments
     /// slot's edge passes the marker, read off the curve, without one closer than
     /// <see cref="TickGapMinMs"/> to the last. The strip and the landing slide together, so
     /// the marker moves over <c>(stop − rest) × pitch − landing</c> pixels; every reel
-    /// passes the same edges, and the last comes well before the reveal.
+    /// passes the same 29 edges, each one ticked, and the last, into the prize's slot, comes
+    /// with most of a second left for the reel to settle before the reveal.
     /// </summary>
     public static IReadOnlyList<long> TicksOf(int landing) => Ticking[landing - 1];
 

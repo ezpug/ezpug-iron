@@ -7,7 +7,7 @@
   Three beats, each a class the plugin sets on #unbox for everybody:
     shown              the call: the winner's name and "hat einen Drop! Mal sehen…" over a
                        reel standing still
-    rolling + land-<n> the reel: the strip slides 29 slots in 6 s and slows to a stop with
+    rolling + land-<n> the reel: the strip slides 29 slots in 6 s, slowing all the way, to a stop with
                        slot 33 under the marker, n (1 to 4) a little left or right of its
                        centre, the way a real reel never stops dead in the middle
     revealed, land off the reveal: the reel settles to the centre and dims, the prize grows
@@ -28,8 +28,14 @@
     (from 1) has its centre 70 + 140 (k - 1) from the strip's left edge, and the marker is
     at the window's centre, 430;
     standing still the strip is at -60 (slot 4 under the marker), rolled at -4120 (slot 33);
-    the slide is cubic-bezier( 0.08, 0.6, 0.12, 1 ) over 6 s: fast, then a long slow end,
-    which is the curve the server follows to tick as a slot passes the marker.
+    the slide is cubic-bezier( 0.2, 0.65, 0.4, 1 ) over 6 s, which is the curve the server
+    follows to tick as a slot passes the marker. It starts at about 16 slots a second (37 px
+    a frame at 60 fps), the game's own fastest tick, so every slot gets its tick; it is
+    under four a second from 2.6 s with five slots to go, in the prize's slot from 4.3 s,
+    and under a pixel a frame only from 5.3 s. The curve before (0.08, 0.6, 0.12, 1) started
+    at 85 px a frame, went half the way in the first half second and then crept through
+    the prize's slot for 2.3 s, under a pixel a frame for the last 1.2: a jump, then a
+    stuck picture (the playtest of 2026-10-04, docs/hud.md "The unboxing, drawn").
   The landing is a second panel around the strip, moved by the same curve in the same time,
   so the two add up to one slide; taking land-<n> off settles it back in 0.3 s.
 
@@ -251,7 +257,7 @@
 	transform: translate3d( -46px, 0px, 0px );
 	transition-property: transform;
 	transition-duration: 6s;
-	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-timing-function: cubic-bezier( 0.2, 0.65, 0.4, 1 );
 	transition-delay: 0s;
 }
 
@@ -260,7 +266,7 @@
 	transform: translate3d( -20px, 0px, 0px );
 	transition-property: transform;
 	transition-duration: 6s;
-	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-timing-function: cubic-bezier( 0.2, 0.65, 0.4, 1 );
 	transition-delay: 0s;
 }
 
@@ -269,7 +275,7 @@
 	transform: translate3d( 18px, 0px, 0px );
 	transition-property: transform;
 	transition-duration: 6s;
-	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-timing-function: cubic-bezier( 0.2, 0.65, 0.4, 1 );
 	transition-delay: 0s;
 }
 
@@ -278,7 +284,7 @@
 	transform: translate3d( 44px, 0px, 0px );
 	transition-property: transform;
 	transition-duration: 6s;
-	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-timing-function: cubic-bezier( 0.2, 0.65, 0.4, 1 );
 	transition-delay: 0s;
 }
 
@@ -300,7 +306,7 @@
 	transform: translate3d( -4120px, 0px, 0px );
 	transition-property: transform;
 	transition-duration: 6s;
-	transition-timing-function: cubic-bezier( 0.08, 0.6, 0.12, 1 );
+	transition-timing-function: cubic-bezier( 0.2, 0.65, 0.4, 1 );
 	transition-delay: 0s;
 }
 
