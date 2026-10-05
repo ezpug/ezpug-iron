@@ -162,7 +162,7 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
   Rush's seating and the voice capability, `docs/match-api.md` the two new fields, decisions
   35 and the 19 note). `ralph/OPEN-POINTS.md`: whatever T4 found CS2 will not do.
 
-- [ ] **T8 (fable): The reel turns, on a real client.** (The owner, 2026-10-05,
+- [x] **T8 (fable): The reel turns, on a real client.** (The owner, 2026-10-05,
   evening: a tester on production said the drop's case opening "is still not spinning", in a
   match from 22:23 CEST, after T1's publish at 12:21 and the `79c7810` deploy; then: "come up
   with a smart, elegant and polished solution that still keeps the fun of the case opening".)
