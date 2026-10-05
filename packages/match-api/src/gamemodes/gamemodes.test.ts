@@ -64,6 +64,7 @@ function sdkManifest(overrides: Partial<GamemodeManifestInput> = {}): GamemodeMa
       scoreboardRating: false,
       simulation: false,
       mixedRoster: false,
+      halftimeVoice: false,
     },
     commands: [{ name: 'tap', title: { de: 'Tippen', en: 'Tap' } }],
     widget: { entry: 'widget/test-mode.js', needs: ['tokens', 'locale', 'playerToken'] },
@@ -274,6 +275,21 @@ describe('what the tier allows', () => {
     expect(
       gamemodeManifestSchema.parse(sdkManifest({ capabilities: withoutTheField })).capabilities
         .mixedRoster,
+    ).toBe(false)
+    // Half time is a break between two sides' halves of rounds the request
+    // decides (PRD-09 T4): a free-for-all has none, and nor does Rush, whose
+    // map's script owns the rounds.
+    const voice = { ...sdkManifest().capabilities, halftimeVoice: true }
+    expect(issuesOf(sdkManifest({ capabilities: voice }))).toEqual([])
+    const freeForAll = { teamSize: 10, teams: 1, openJoin: true }
+    expect(issuesOf(sdkManifest({ capabilities: voice, slots: freeForAll }))).toEqual([
+      'capabilities',
+    ])
+    expect(issuesOf(sdkManifest({ capabilities: voice, rules: 'mode' }))).toEqual(['capabilities'])
+    const { halftimeVoice: _unsaidVoice, ...beforeTheVoice } = sdkManifest().capabilities
+    expect(
+      gamemodeManifestSchema.parse(sdkManifest({ capabilities: beforeTheVoice })).capabilities
+        .halftimeVoice,
     ).toBe(false)
   })
 

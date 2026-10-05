@@ -97,4 +97,13 @@
   <data name="door.not_rostered" xml:space="preserve">
     <value>Du stehst nicht auf der Liste dieses Matches</value>
   </data>
+  <data name="halftime.voice_open" xml:space="preserve">
+    <value>Halbzeit: Alle hören alle, bis die nächste Runde beginnt.</value>
+  </data>
+  <data name="halftime.voice_closed" xml:space="preserve">
+    <value>Die Halbzeit ist vorbei: Ab jetzt hört dich nur dein Team.</value>
+  </data>
+  <data name="hud.halftime.band" xml:space="preserve">
+    <value>Halbzeit, alle hören alle</value>
+  </data>
 </root>

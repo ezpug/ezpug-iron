@@ -1,4 +1,10 @@
-import type { GamemodeManifest, MatchRequest, MatchTeams, RosterEntry } from '@ezpug/match-api'
+import {
+  type GamemodeManifest,
+  halftimeVoiceOf,
+  type MatchRequest,
+  type MatchTeams,
+  type RosterEntry,
+} from '@ezpug/match-api'
 import {
   type AssignedGamemode,
   assignedGamemodeSchema,
@@ -138,5 +144,6 @@ export function composeAssign(input: AssignInput): OrchestratorFrameOf<'assign'>
     ...(request.simulation && { simulation: request.simulation }),
     ...(script && { puppets: script }),
     ...(hud === true && { hud: true }),
+    ...(halftimeVoiceOf(request, manifest) && { halftimeVoice: true }),
   })
 }

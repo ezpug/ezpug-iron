@@ -1116,6 +1116,33 @@ plugin and the two disabled plugins built beside them), and `--check` green, the
 the same beats as PRD-08 T6: the call with 17,871 ms of freeze left, the reel 2 s later,
 the prize at 8 s and the put-away at 12 s.
 
+### The half-time band
+
+Half time is all-talk on a mode that claims `halftimeVoice` (`pug`) unless the request's
+`voice.halftime` says `false` (`docs/gamemodes.md`, Capabilities). `EZPug.Sdk.Halftime`
+(`Runtime.Halftime`) opens the voice the instant the gamerules' phase turns to half time,
+which the engine does as the half's last round ends, and closes it as the next round's
+freeze time begins. `plugins/EZPug.Sdk.Tests/HalftimeTests.cs` holds every edge.
+
+**The line, always.** Everybody reads one line as the break begins ("Halbzeit: Alle hören
+alle, bis die nächste Runde beginnt." / "Half time: everyone can talk until the next round
+starts.") and one as it ends, each in their roster's language behind the match's prefix.
+
+**The band**, with the HUD on: `#halftime_band` in `hud/layout/ezpug_moment.xml`, styled by
+`hud/styles/ezpug_halftime.css`. It sits top centre under the team counter, in
+the house accent (the chat prefix's green, `#57d364`; a request carries no colour of its
+own), and names nobody. `shown` is everybody's class, set when the voice opens and taken
+off when it closes, so the band is the server's state drawn and never a decision of its
+own. Its words (`halftime_band_text`, "Halbzeit, alle hören alle" / "Half time, everyone
+can talk") are each player's, and somebody who connects during the break is told theirs
+over the reset their slot gets. The scoreboard and the end of the match win, as for the
+moment. A server that keeps the teams apart, or a mode without the capability, never
+touches the band or a voice cvar.
+
+On the dev node the lane's `pug-2v1` row reads the two cvars over RCON while the break
+stands and after it, and `hud-on` reads the band's class back off the entity. Nobody has
+seen the band on a screen yet: that is the look list's.
+
 ## Deleting it
 
 ```

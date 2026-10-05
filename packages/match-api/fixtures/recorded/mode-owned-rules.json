@@ -60,7 +60,8 @@
           "backups": false,
           "scoreboardRating": false,
           "simulation": true,
-          "mixedRoster": true
+          "mixedRoster": true,
+          "halftimeVoice": false
         },
         "commands": [],
         "sdkVersion": "0.1.0"
@@ -155,6 +156,71 @@
         "items": [],
         "nextCursor": null
       }
+    },
+    {
+      "route": "matches.create",
+      "input": {
+        "body": {
+          "clientMatchId": "conformance-mode-owned-rules-voice",
+          "game": "cs2",
+          "gamemode": "rush",
+          "teams": {
+            "teamA": {
+              "name": "Team hunzR",
+              "players": [
+                {
+                  "steamId64": "76561198000000000",
+                  "name": "hunzR"
+                },
+                {
+                  "steamId64": "76561198000000001",
+                  "name": "maex"
+                },
+                {
+                  "steamId64": "76561198000000002",
+                  "name": "Zerberus"
+                }
+              ]
+            },
+            "teamB": {
+              "name": "Team wickeD",
+              "players": [
+                {
+                  "steamId64": "76561198000000100",
+                  "name": "wickeD"
+                },
+                {
+                  "steamId64": "76561198000000101",
+                  "name": "Jörg"
+                },
+                {
+                  "steamId64": "76561198000000102",
+                  "name": "schnitzL"
+                }
+              ]
+            }
+          },
+          "maps": [
+            {
+              "map": "rush_001",
+              "sides": "ct"
+            }
+          ],
+          "callbacks": {
+            "webhookUrl": "https://platform.invalid/hooks/ezpug",
+            "webhookSecretId": "whsec-conformance",
+            "demoUploadUrl": "https://bucket.invalid/demos/conformance.dem?signed=1"
+          },
+          "ttlMinutes": 120,
+          "voice": {
+            "halftime": true
+          }
+        }
+      },
+      "ok": false,
+      "status": 400,
+      "code": "validation_failed",
+      "message": "rush has no half time to open the voice in"
     }
   ],
   "envelopes": [],

@@ -47,6 +47,9 @@ public static class StatusReport
         // Read back off the engine's teams: how a lane proves a two-team mode the SDK seats
         // put everybody on their side (PRD-09 T2).
         lines.AppendLine($"seating: {runtime.Seating.Report()}");
+        // Whether this match opens the voice at half time, and the cvars as the engine holds
+        // them: how a lane proves the break was all-talk and nothing after it (PRD-09 T4).
+        lines.AppendLine($"voice: {runtime.Halftime.Report()}");
         // Only on a server that can draw one: without the addon this report is what it
         // was before the HUD existed (decision 34).
         if (runtime.Hud.Addon is { } addon)

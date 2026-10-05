@@ -4,7 +4,21 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
-_Nothing yet._
+**Half time is all-talk, and a client hears when it starts** (PRD-09 T4). Additive: a
+request, a manifest or an event written against 0.33.0 parses and means what it did.
+
+- **`capabilities.halftimeVoice`** (default `false`): from the instant the half's last
+  round ends until the next round's freeze time begins, the server lets both sides hear
+  each other, says so in chat and draws a band where there is a HUD. Needs `slots.teams: 2`
+  and `rules: "request"`; `pug` (manifest 0.5.0) claims it, Rush never does.
+- **`voice: { halftime }`** on the request (`matchVoiceSchema`): unsaid is the mode's own
+  answer (on wherever the capability is), `false` keeps the teams apart, `true` on a mode
+  without the capability is `validation_failed` on `voice.halftime` (`matchVoiceProblem`).
+  `halftimeVoiceOf` is the one reading of it.
+- **`halftime_started`** joins the vocabulary: `sides` (each team's side after the break)
+  and `allTalk` (whether the server opened the voice for it). Said at every break between
+  halves, before the `side_swap` it leads to; the stretch ends with the next
+  `round_start`. The simulator and the fake say it too, so the recorded fixtures carry it.
 
 ## 0.33.0 — 2026-10-04
 

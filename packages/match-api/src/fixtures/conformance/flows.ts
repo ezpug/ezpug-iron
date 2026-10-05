@@ -333,6 +333,21 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         'going_live precedes the first round',
         order.indexOf('going_live') < order.indexOf('round_start'),
       )
+      // PRD-09 T4: the break between halves is said before the swap it leads
+      // to, with the sides after it, and a pug opens the voice for it.
+      const halftime = payload(envelopes, 'halftime_started')
+      const swap = payload(envelopes, 'side_swap')
+      ctx.check(
+        'halftime_started precedes the side_swap',
+        order.indexOf('halftime_started') >= 0 &&
+          order.indexOf('halftime_started') < order.indexOf('side_swap'),
+        order.join(','),
+      )
+      ctx.check(
+        'halftime_started names the sides the swap brings, and the voice open',
+        halftime?.allTalk === true && halftime.sides.teamA === swap?.sides.teamA,
+        JSON.stringify(halftime),
+      )
       const wentLive = payload(envelopes, 'going_live')
       ctx.check(
         'going_live says the engine plays the five-a-side game',
@@ -1061,6 +1076,31 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
         'a refused request left no match behind',
         listed.items.length === 0,
         `${listed.items.length} matches`,
+      )
+
+      // PRD-09 T4: nor does Rush have a half time to open the voice in. Asking
+      // for it is refused on the field; keeping the teams apart needs nothing.
+      const { rules: _rules, ...withoutRules } = body
+      ctx.check(
+        'rush does not claim halftimeVoice',
+        manifest.capabilities.halftimeVoice === false,
+        String(manifest.capabilities.halftimeVoice),
+      )
+      const voice = await refusal(
+        ctx,
+        'a rush request that opens the voice at half time is refused',
+        ctx.api.matches.create({
+          body: {
+            ...withoutRules,
+            clientMatchId: 'conformance-mode-owned-rules-voice',
+            voice: { halftime: true },
+          },
+        }),
+      )
+      ctx.check(
+        'the refusal is validation_failed on voice.halftime',
+        voice.code === 'validation_failed' && voice.details?.field === 'voice.halftime',
+        `${voice.code} ${JSON.stringify(voice.details)}`,
       )
     },
   },

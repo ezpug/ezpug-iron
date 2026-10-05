@@ -94,4 +94,13 @@
   <data name="door.not_rostered" xml:space="preserve">
     <value>You are not on this match's roster</value>
   </data>
+  <data name="halftime.voice_open" xml:space="preserve">
+    <value>Half time: everyone can talk until the next round starts.</value>
+  </data>
+  <data name="halftime.voice_closed" xml:space="preserve">
+    <value>Half time is over: only your team can hear you now.</value>
+  </data>
+  <data name="hud.halftime.band" xml:space="preserve">
+    <value>Half time, everyone can talk</value>
+  </data>
 </root>

@@ -607,6 +607,17 @@ export const assignOrchestratorFrameSchema = z.object({
    * `true`.
    */
   hud: z.boolean().optional(),
+  /**
+   * **Half time is all-talk** (PRD-09 T4): the mode claims
+   * `capabilities.halftimeVoice` and the request's `voice.halftime` did not
+   * say `false` (`halftimeVoiceOf`), resolved once by the orchestrator so the
+   * server reads one word. `true` and the SDK opens the voice between the
+   * sides from the half's last round end to the next freeze time, says so in
+   * chat and on the HUD, and says `allTalk: true` on its `halftime_started`;
+   * absent, and the server never touches a voice cvar. Present only when
+   * `true`, so every other match composes the frame it always did.
+   */
+  halftimeVoice: z.boolean().optional(),
 })
 
 /** A command for the server, answered by a `command_result` (or a `console` frame) with its `correlationId`. */

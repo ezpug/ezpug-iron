@@ -152,6 +152,28 @@ describe('buildMatchStory', () => {
     expect(swapAt).toBeLessThan(round13Start)
   })
 
+  it('says half time the instant the half ends, before the swap and with its sides (PRD-09 T4)', () => {
+    const story = storyFor(SIMULATOR_SCENARIOS['happy-path'])
+    const beats = story.beats
+    const at = beats.findIndex(beat => beat.event.type === 'halftime_started')
+    const round12End = beats.findIndex(
+      beat => beat.event.type === 'round_end' && beat.event.roundNumber === 12,
+    )
+    const swapAt = beats.findIndex(beat => beat.event.type === 'side_swap')
+    expect(at).toBeGreaterThan(round12End)
+    expect(at).toBeLessThan(swapAt)
+    expect(beats[at]?.atMs).toBe(beats[round12End]?.atMs)
+    const [halftime] = ofType(story, 'halftime_started')
+    const [swap] = ofType(story, 'side_swap')
+    expect(halftime?.sides).toEqual(swap?.sides)
+    // The fixture asks nothing of the voice, so the break keeps the teams apart…
+    expect(halftime?.allTalk).toBe(false)
+    expect(ofType(story, 'halftime_started')).toHaveLength(ofType(story, 'side_swap').length)
+    // …and a match that opens it says so on every break.
+    const open = storyFor(SIMULATOR_SCENARIOS['happy-path'], 'story-test', { halftimeVoice: true })
+    expect(ofType(open, 'halftime_started').every(event => event.allTalk)).toBe(true)
+  })
+
   it('shows every kill it counts: the final summary matches the kill feed', () => {
     const story = storyFor(SIMULATOR_SCENARIOS['happy-path'])
     const kills = ofType(story, 'player_death')
@@ -1079,6 +1101,7 @@ describe('Rush: a tower map (PRD-06 T2)', () => {
       'bomb_exploded',
       'backup_written',
       'side_swap',
+      'halftime_started',
       'demo_available',
     ] as const)
       expect(ofType(story, type), type).toHaveLength(0)

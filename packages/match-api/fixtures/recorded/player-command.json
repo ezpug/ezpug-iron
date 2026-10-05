@@ -73,7 +73,8 @@
           "backups": false,
           "scoreboardRating": false,
           "simulation": true,
-          "mixedRoster": true
+          "mixedRoster": true,
+          "halftimeVoice": false
         },
         "commands": [
           {

@@ -1549,9 +1549,9 @@ rule, and `MATCHZY_DROPPED_EVENTS` in `translate.ts` carries a reason per name):
 | `going_live`, `round_started`, `round_end`, `map_result`, `series_end` | `going_live`, `round_start`, `round_end`, `map_end`, `series_end` |
 | `player_ready`, `player_unready`, `team_ready`, `all_players_ready` | `player_ready`, `player_unready`, `team_ready`, `all_ready` |
 | `knife_round_started`, `knife_round_ended` | `knife_start`, `knife_end` |
-| `player_connect`, `player_disconnect`, `side_swap`, `match_paused`, `match_unpaused`, `pause_requested`, `unpause_requested` | nothing — the core plugin speaks all of these from the engine |
+| `player_connect`, `player_disconnect`, `side_swap`, `halftime_started`, `match_paused`, `match_unpaused`, `pause_requested`, `unpause_requested` | nothing — the core plugin speaks all of these from the engine (`halftime_started` since PRD-09 T4, with the sides after the break and whether it opened the voice) |
 | `server_configured`, `server_health`, `test_event`, `cs2_update_required` | nothing — server-level, read for the log; a database that is not the local SQLite and a CS2 update notice each get a `warn` |
-| `warmup_ended`, `halftime_started`, `overtime_started`, the demo pair, the four `demo_upload_*`, the veto trio, `series_start` | nothing — said better by the next event, by `side_swap`, by the round numbers, or owned by the core plugin (decision 10) |
+| `warmup_ended`, `overtime_started`, the demo pair, the four `demo_upload_*`, the veto trio, `series_start` | nothing — said better by the next event, by `side_swap`, by the round numbers, or owned by the core plugin (decision 10) |
 | `backup_loaded` | nothing on the stream — the core plugin says the restore — but the door forgets the map's last start and score, so a rewound round's start and end are not dropped as repeats (PRD-04 T8) |
 
 Two of those are worth knowing about as an operator. **A `pug` had no `round_start` at

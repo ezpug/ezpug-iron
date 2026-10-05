@@ -237,7 +237,7 @@ const plan: Plan[] = [
     file: '11-halftime-started.json',
     source: 'recorded',
     from: RECORDING_PATH,
-    note: 'New in the fork. side_swap says halftime, and the core plugin’s MatchZyFlow is what emits side_swap.',
+    note: 'New in the fork, and dropped: the core plugin says halftime_started itself, with the sides after the break and whether the voice is open (PRD-09 T4). Decision 19 — neither double-speaks.',
     payload: at('halftime_started'),
   },
   {

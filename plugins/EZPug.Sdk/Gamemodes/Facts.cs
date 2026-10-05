@@ -116,6 +116,17 @@ public sealed class Facts
             Sides = new SideSwapEventSides { TeamA = teamA, TeamB = teamA == TeamSide.Ct ? TeamSide.T : TeamSide.Ct },
         };
 
+    /// <summary>Half time began (PRD-09 T4): <paramref name="teamA"/> is the side team A plays after the break, <paramref name="allTalk"/> whether the voice is open for it.</summary>
+    public HalftimeStartedEvent HalftimeStarted(TeamSide teamA, bool allTalk) =>
+        new()
+        {
+            MatchId = MatchId,
+            Source = Source,
+            MapNumber = Context.MapNumber,
+            Sides = new HalftimeStartedEventSides { TeamA = teamA, TeamB = teamA == TeamSide.Ct ? TeamSide.T : TeamSide.Ct },
+            AllTalk = allTalk,
+        };
+
     public MapEndEvent MapEnd(TeamScore score, MatchTeam? winner, string? map = null, MatchEndReason? reason = null, MapTower? tower = null) =>
         new() { MatchId = MatchId, Source = Source, MapNumber = Context.MapNumber, Map = map, Score = score, Winner = winner, Reason = reason, Tower = tower };
 

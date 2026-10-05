@@ -128,7 +128,7 @@
             "records": "demo",
             "rules": "request",
             "ranked": false,
-            "version": "0.4.0",
+            "version": "0.5.0",
             "maps": "any",
             "plugins": [
               "MatchZy"
@@ -151,7 +151,8 @@
               "backups": true,
               "scoreboardRating": true,
               "simulation": true,
-              "mixedRoster": true
+              "mixedRoster": true,
+              "halftimeVoice": true
             },
             "commands": [],
             "sdkVersion": "0.1.0"
@@ -198,7 +199,8 @@
               "backups": false,
               "scoreboardRating": false,
               "simulation": true,
-              "mixedRoster": true
+              "mixedRoster": true,
+              "halftimeVoice": false
             },
             "commands": [],
             "sdkVersion": "0.1.0"
@@ -264,7 +266,8 @@
               "backups": false,
               "scoreboardRating": true,
               "simulation": true,
-              "mixedRoster": true
+              "mixedRoster": true,
+              "halftimeVoice": false
             },
             "commands": [],
             "sdkVersion": "0.1.0"
@@ -333,7 +336,8 @@
               "backups": false,
               "scoreboardRating": false,
               "simulation": true,
-              "mixedRoster": true
+              "mixedRoster": true,
+              "halftimeVoice": false
             },
             "commands": [
               {
@@ -428,7 +432,8 @@
               "backups": false,
               "scoreboardRating": false,
               "simulation": true,
-              "mixedRoster": true
+              "mixedRoster": true,
+              "halftimeVoice": false
             },
             "commands": [],
             "sdkVersion": "0.1.0"
@@ -1126,14 +1131,14 @@
       },
       "ok": true,
       "response": {
-        "id": "28df7473-4731-4d58-af19-c3b10e54bb4e",
+        "id": "931a7457-c507-4ca7-95d5-a3ffa01025b3",
         "clientMatchId": "conformance-simulation-switch",
         "state": "allocating",
         "game": "cs2",
         "gamemode": "pug",
         "provider": null,
         "serverId": null,
-        "fleetServerId": "931a7457-c507-4ca7-95d5-a3ffa01025b3",
+        "fleetServerId": "f2d56aec-90d9-4c5d-b4a7-550b88daf667",
         "connect": null,
         "tv": null,
         "seq": 0,
@@ -1489,7 +1494,7 @@
     },
     {
       "seq": 46,
-      "type": "heartbeat"
+      "type": "halftime_started"
     },
     {
       "seq": 47,
@@ -1497,23 +1502,23 @@
     },
     {
       "seq": 48,
-      "type": "side_swap"
+      "type": "heartbeat"
     },
     {
       "seq": 49,
-      "type": "heartbeat"
+      "type": "side_swap"
     },
     {
       "seq": 50,
-      "type": "backup_written"
+      "type": "heartbeat"
     },
     {
       "seq": 51,
-      "type": "round_start"
+      "type": "backup_written"
     },
     {
       "seq": 52,
-      "type": "heartbeat"
+      "type": "round_start"
     },
     {
       "seq": 53,
@@ -1521,7 +1526,7 @@
     },
     {
       "seq": 54,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 55,
@@ -1529,7 +1534,7 @@
     },
     {
       "seq": 56,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 57,
@@ -1537,15 +1542,15 @@
     },
     {
       "seq": 58,
-      "type": "player_death"
-    },
-    {
-      "seq": 59,
       "type": "heartbeat"
     },
     {
-      "seq": 60,
+      "seq": 59,
       "type": "player_death"
+    },
+    {
+      "seq": 60,
+      "type": "heartbeat"
     },
     {
       "seq": 61,
@@ -1561,26 +1566,30 @@
     },
     {
       "seq": 64,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 65,
-      "type": "round_end"
+      "type": "heartbeat"
     },
     {
       "seq": 66,
-      "type": "chat_message"
+      "type": "round_end"
     },
     {
       "seq": 67,
-      "type": "map_end"
+      "type": "chat_message"
     },
     {
       "seq": 68,
-      "type": "series_end"
+      "type": "map_end"
     },
     {
       "seq": 69,
+      "type": "series_end"
+    },
+    {
+      "seq": 70,
       "type": "match.ended"
     },
     {
@@ -1621,31 +1630,31 @@
     },
     {
       "seq": 10,
-      "type": "heartbeat"
+      "type": "player_connected"
     },
     {
       "seq": 11,
-      "type": "player_connected"
+      "type": "player.joined"
     },
     {
       "seq": 12,
-      "type": "player.joined"
+      "type": "player_connected"
     },
     {
       "seq": 13,
-      "type": "player_connected"
+      "type": "player.joined"
     },
     {
       "seq": 14,
-      "type": "player.joined"
-    },
-    {
-      "seq": 15,
       "type": "player_connected"
     },
     {
-      "seq": 16,
+      "seq": 15,
       "type": "player.joined"
+    },
+    {
+      "seq": 16,
+      "type": "heartbeat"
     },
     {
       "seq": 17,
@@ -1689,15 +1698,15 @@
     },
     {
       "seq": 27,
-      "type": "chat_message"
+      "type": "heartbeat"
     },
     {
       "seq": 28,
-      "type": "going_live"
+      "type": "chat_message"
     },
     {
       "seq": 29,
-      "type": "heartbeat"
+      "type": "going_live"
     },
     {
       "seq": 30,
@@ -1717,7 +1726,7 @@
     },
     {
       "seq": 34,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 35,
@@ -1725,27 +1734,27 @@
     },
     {
       "seq": 36,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 37,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 38,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 39,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 40,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 41,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 42,
@@ -1753,7 +1762,7 @@
     },
     {
       "seq": 43,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 44,
@@ -1781,43 +1790,43 @@
     },
     {
       "seq": 50,
-      "type": "heartbeat"
+      "type": "halftime_started"
     },
     {
       "seq": 51,
-      "type": "side_swap"
+      "type": "heartbeat"
     },
     {
       "seq": 52,
-      "type": "heartbeat"
+      "type": "side_swap"
     },
     {
       "seq": 53,
-      "type": "backup_written"
+      "type": "heartbeat"
     },
     {
       "seq": 54,
-      "type": "round_start"
+      "type": "backup_written"
     },
     {
       "seq": 55,
-      "type": "heartbeat"
+      "type": "round_start"
     },
     {
       "seq": 56,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 57,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 58,
       "type": "player_death"
     },
     {
-      "seq": 59,
+      "seq": 58,
       "type": "heartbeat"
+    },
+    {
+      "seq": 59,
+      "type": "player_death"
     },
     {
       "seq": 60,
@@ -1825,11 +1834,11 @@
     },
     {
       "seq": 61,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 62,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 63,
@@ -1841,54 +1850,46 @@
     },
     {
       "seq": 65,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 66,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 67,
       "type": "player_death"
     },
     {
+      "seq": 67,
+      "type": "heartbeat"
+    },
+    {
       "seq": 68,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 69,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 70,
       "type": "round_end"
     },
     {
-      "seq": 71,
+      "seq": 69,
       "type": "chat_message"
     },
     {
-      "seq": 72,
+      "seq": 70,
       "type": "map_end"
     },
     {
-      "seq": 73,
-      "type": "demo_available"
-    },
-    {
-      "seq": 74,
-      "type": "demo.uploaded"
-    },
-    {
-      "seq": 75,
+      "seq": 71,
       "type": "heartbeat"
     },
     {
-      "seq": 76,
+      "seq": 72,
+      "type": "demo_available"
+    },
+    {
+      "seq": 73,
+      "type": "demo.uploaded"
+    },
+    {
+      "seq": 74,
       "type": "series_end"
     },
     {
-      "seq": 77,
+      "seq": 75,
       "type": "match.ended"
     }
   ],

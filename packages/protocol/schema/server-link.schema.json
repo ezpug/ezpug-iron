@@ -1072,6 +1072,61 @@
             },
             "type": {
               "type": "string",
+              "const": "halftime_started"
+            },
+            "sides": {
+              "type": "object",
+              "properties": {
+                "teamA": {
+                  "$ref": "#/$defs/TeamSide"
+                },
+                "teamB": {
+                  "$ref": "#/$defs/TeamSide"
+                }
+              },
+              "required": [
+                "teamA",
+                "teamB"
+              ],
+              "additionalProperties": false
+            },
+            "allTalk": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "matchId",
+            "source",
+            "mapNumber",
+            "type",
+            "sides",
+            "allTalk"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "source": {
+              "$ref": "#/$defs/GameserverSource"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "mapNumber": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
               "const": "map_end"
             },
             "map": {
@@ -2536,6 +2591,10 @@
         "mixedRoster": {
           "default": false,
           "type": "boolean"
+        },
+        "halftimeVoice": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "required": [
@@ -2546,7 +2605,8 @@
         "backups",
         "scoreboardRating",
         "simulation",
-        "mixedRoster"
+        "mixedRoster",
+        "halftimeVoice"
       ],
       "additionalProperties": false
     },
@@ -2646,6 +2706,7 @@
         "scoreboardRating",
         "simulation",
         "mixedRoster",
+        "halftimeVoice",
         "hud"
       ]
     },
@@ -3760,6 +3821,9 @@
               "$ref": "#/$defs/PuppetScript"
             },
             "hud": {
+              "type": "boolean"
+            },
+            "halftimeVoice": {
               "type": "boolean"
             }
           },

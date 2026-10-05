@@ -35,6 +35,7 @@ import {
   matchRequestScopes,
   matchRulesProblem,
   matchSimulationProblem,
+  matchVoiceProblem,
   SERVER_READY_DEADLINE_MS,
   STREAM_CLOSE_CODES,
   scopeAllows,
@@ -353,6 +354,16 @@ function assertFormatIsPlayable(request: MatchRequest, manifest: GamemodeManifes
  */
 function assertRulesArePlayable(request: MatchRequest, manifest: GamemodeManifest): void {
   const problem = matchRulesProblem(request, manifest)
+  if (problem) throw refuse('validation_failed', problem.message, { field: problem.field })
+}
+
+/**
+ * **Half time opened on a mode that has none is a refusal** (PRD-09 T4):
+ * `voice.halftime: true` needs `capabilities.halftimeVoice`, by the
+ * package's one rule ({@link matchVoiceProblem}) so the fake answers the same.
+ */
+function assertVoiceIsPlayable(request: MatchRequest, manifest: GamemodeManifest): void {
+  const problem = matchVoiceProblem(request, manifest)
   if (problem) throw refuse('validation_failed', problem.message, { field: problem.field })
 }
 
@@ -1599,6 +1610,7 @@ export function createMatches(options: MatchesOptions): Matches {
       throw refuse('game_unsupported', `${manifest.id} plays ${manifest.game}, not ${request.game}`)
     assertFormatIsPlayable(request, manifest)
     assertRulesArePlayable(request, manifest)
+    assertVoiceIsPlayable(request, manifest)
     assertSimulationIsPlayable(request, manifest)
     for (const plan of request.maps) {
       if (!gamemodeAllowsMap(manifest.maps, plan.map))

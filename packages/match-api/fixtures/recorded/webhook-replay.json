@@ -775,7 +775,7 @@
             "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
             "clientMatchId": "conformance-webhook-replay",
             "seq": 50,
-            "occurredAt": "2026-09-05T18:02:55.000Z",
+            "occurredAt": "2026-09-05T18:02:46.305Z",
             "payload": {
               "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
               "source": {
@@ -783,8 +783,13 @@
                 "serverId": "sim-1"
               },
               "seq": 60,
-              "type": "heartbeat",
-              "playerCount": 10
+              "mapNumber": 1,
+              "type": "halftime_started",
+              "sides": {
+                "teamA": "t",
+                "teamB": "ct"
+              },
+              "allTalk": true
             }
           },
           {
@@ -792,7 +797,7 @@
             "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
             "clientMatchId": "conformance-webhook-replay",
             "seq": 51,
-            "occurredAt": "2026-09-05T18:03:01.305Z",
+            "occurredAt": "2026-09-05T18:02:55.000Z",
             "payload": {
               "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
               "source": {
@@ -800,6 +805,23 @@
                 "serverId": "sim-1"
               },
               "seq": 61,
+              "type": "heartbeat",
+              "playerCount": 10
+            }
+          },
+          {
+            "deliveryId": "c876604e-f8cc-44e8-851e-bf3171d47dde",
+            "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+            "clientMatchId": "conformance-webhook-replay",
+            "seq": 52,
+            "occurredAt": "2026-09-05T18:03:01.305Z",
+            "payload": {
+              "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+              "source": {
+                "provider": "sim",
+                "serverId": "sim-1"
+              },
+              "seq": 62,
               "mapNumber": 1,
               "type": "side_swap",
               "sides": {
@@ -809,10 +831,10 @@
             }
           },
           {
-            "deliveryId": "c876604e-f8cc-44e8-851e-bf3171d47dde",
+            "deliveryId": "53130c4e-2509-4901-8d3a-30c58bbf5bf4",
             "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
             "clientMatchId": "conformance-webhook-replay",
-            "seq": 52,
+            "seq": 53,
             "occurredAt": "2026-09-05T18:03:05.000Z",
             "payload": {
               "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -820,28 +842,9 @@
                 "provider": "sim",
                 "serverId": "sim-1"
               },
-              "seq": 62,
+              "seq": 63,
               "type": "heartbeat",
               "playerCount": 10
-            }
-          },
-          {
-            "deliveryId": "53130c4e-2509-4901-8d3a-30c58bbf5bf4",
-            "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-            "clientMatchId": "conformance-webhook-replay",
-            "seq": 53,
-            "occurredAt": "2026-09-05T18:03:08.305Z",
-            "payload": {
-              "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-              "source": {
-                "provider": "sim",
-                "serverId": "sim-1"
-              },
-              "seq": 63,
-              "mapNumber": 1,
-              "type": "backup_written",
-              "roundNumber": 2,
-              "filename": "matchzy_backup_map1_round02.cfg"
             }
           }
         ],
@@ -855,7 +858,7 @@
           "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7"
         },
         "query": {
-          "cursor": "76",
+          "cursor": "77",
           "limit": 25
         }
       },
@@ -2052,7 +2055,7 @@
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
       "seq": 50,
-      "occurredAt": "2026-09-05T18:02:55.000Z",
+      "occurredAt": "2026-09-05T18:02:46.305Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
         "source": {
@@ -2060,8 +2063,13 @@
           "serverId": "sim-1"
         },
         "seq": 60,
-        "type": "heartbeat",
-        "playerCount": 10
+        "mapNumber": 1,
+        "type": "halftime_started",
+        "sides": {
+          "teamA": "t",
+          "teamB": "ct"
+        },
+        "allTalk": true
       }
     },
     {
@@ -2069,7 +2077,7 @@
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
       "seq": 51,
-      "occurredAt": "2026-09-05T18:03:01.305Z",
+      "occurredAt": "2026-09-05T18:02:55.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
         "source": {
@@ -2077,6 +2085,23 @@
           "serverId": "sim-1"
         },
         "seq": 61,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "c876604e-f8cc-44e8-851e-bf3171d47dde",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-webhook-replay",
+      "seq": 52,
+      "occurredAt": "2026-09-05T18:03:01.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 62,
         "mapNumber": 1,
         "type": "side_swap",
         "sides": {
@@ -2086,10 +2111,10 @@
       }
     },
     {
-      "deliveryId": "c876604e-f8cc-44e8-851e-bf3171d47dde",
+      "deliveryId": "53130c4e-2509-4901-8d3a-30c58bbf5bf4",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 52,
+      "seq": 53,
       "occurredAt": "2026-09-05T18:03:05.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2097,28 +2122,9 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 62,
+        "seq": 63,
         "type": "heartbeat",
         "playerCount": 10
-      }
-    },
-    {
-      "deliveryId": "53130c4e-2509-4901-8d3a-30c58bbf5bf4",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-webhook-replay",
-      "seq": 53,
-      "occurredAt": "2026-09-05T18:03:08.305Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 63,
-        "mapNumber": 1,
-        "type": "backup_written",
-        "roundNumber": 2,
-        "filename": "matchzy_backup_map1_round02.cfg"
       }
     },
     {
@@ -2135,6 +2141,25 @@
         },
         "seq": 64,
         "mapNumber": 1,
+        "type": "backup_written",
+        "roundNumber": 2,
+        "filename": "matchzy_backup_map1_round02.cfg"
+      }
+    },
+    {
+      "deliveryId": "6d03e7b3-12cd-48de-987e-731e6c1d5adc",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-webhook-replay",
+      "seq": 55,
+      "occurredAt": "2026-09-05T18:03:08.305Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 65,
+        "mapNumber": 1,
         "roundNumber": 2,
         "type": "round_start",
         "score": {
@@ -2144,10 +2169,10 @@
       }
     },
     {
-      "deliveryId": "6d03e7b3-12cd-48de-987e-731e6c1d5adc",
+      "deliveryId": "a1868b71-dfe4-4c64-8bdb-146ed7b7c414",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 55,
+      "seq": 56,
       "occurredAt": "2026-09-05T18:03:15.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2155,24 +2180,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 66,
-        "type": "heartbeat",
-        "playerCount": 10
-      }
-    },
-    {
-      "deliveryId": "a1868b71-dfe4-4c64-8bdb-146ed7b7c414",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-webhook-replay",
-      "seq": 56,
-      "occurredAt": "2026-09-05T18:03:25.000Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 69,
+        "seq": 67,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -2182,7 +2190,7 @@
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
       "seq": 57,
-      "occurredAt": "2026-09-05T18:03:26.956Z",
+      "occurredAt": "2026-09-05T18:03:25.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
         "source": {
@@ -2190,6 +2198,23 @@
           "serverId": "sim-1"
         },
         "seq": 70,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "4287a91f-775c-4a87-bf4f-dee4bda357f0",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-webhook-replay",
+      "seq": 58,
+      "occurredAt": "2026-09-05T18:03:26.956Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 71,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "player_death",
@@ -2210,10 +2235,10 @@
       }
     },
     {
-      "deliveryId": "4287a91f-775c-4a87-bf4f-dee4bda357f0",
+      "deliveryId": "335ce3ef-b290-4aa1-94fb-b9b841737ad1",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 58,
+      "seq": 59,
       "occurredAt": "2026-09-05T18:03:31.419Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2221,7 +2246,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 72,
+        "seq": 73,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "player_death",
@@ -2251,10 +2276,10 @@
       }
     },
     {
-      "deliveryId": "335ce3ef-b290-4aa1-94fb-b9b841737ad1",
+      "deliveryId": "d1bc758a-bf01-4598-9346-efff31a351ce",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 59,
+      "seq": 60,
       "occurredAt": "2026-09-05T18:03:35.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2262,16 +2287,16 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 74,
+        "seq": 75,
         "type": "heartbeat",
         "playerCount": 10
       }
     },
     {
-      "deliveryId": "d1bc758a-bf01-4598-9346-efff31a351ce",
+      "deliveryId": "cfedc27a-ad70-4288-8d3f-8e9726541b74",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 60,
+      "seq": 61,
       "occurredAt": "2026-09-05T18:03:40.762Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2279,7 +2304,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 76,
+        "seq": 77,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "player_death",
@@ -2300,10 +2325,10 @@
       }
     },
     {
-      "deliveryId": "cfedc27a-ad70-4288-8d3f-8e9726541b74",
+      "deliveryId": "8431308a-7e08-42f0-9859-731c9bd77615",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 61,
+      "seq": 62,
       "occurredAt": "2026-09-05T18:03:45.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2311,16 +2336,16 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 78,
+        "seq": 79,
         "type": "heartbeat",
         "playerCount": 10
       }
     },
     {
-      "deliveryId": "8431308a-7e08-42f0-9859-731c9bd77615",
+      "deliveryId": "ad34b63e-907c-4dfe-ae11-a664e8acba95",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 62,
+      "seq": 63,
       "occurredAt": "2026-09-05T18:03:46.439Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2328,7 +2353,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 79,
+        "seq": 80,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "bomb_planted",
@@ -2342,10 +2367,10 @@
       }
     },
     {
-      "deliveryId": "ad34b63e-907c-4dfe-ae11-a664e8acba95",
+      "deliveryId": "48c09253-da80-499c-bcd3-ed825607de8d",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 63,
+      "seq": 64,
       "occurredAt": "2026-09-05T18:03:55.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2353,24 +2378,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 82,
-        "type": "heartbeat",
-        "playerCount": 10
-      }
-    },
-    {
-      "deliveryId": "48c09253-da80-499c-bcd3-ed825607de8d",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-webhook-replay",
-      "seq": 64,
-      "occurredAt": "2026-09-05T18:04:05.000Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 85,
+        "seq": 83,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -2380,6 +2388,23 @@
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
       "seq": 65,
+      "occurredAt": "2026-09-05T18:04:05.000Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 86,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "2caf2b71-305f-42fd-9ed7-20397de75f05",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-webhook-replay",
+      "seq": 66,
       "occurredAt": "2026-09-05T18:04:12.043Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2387,7 +2412,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 87,
+        "seq": 88,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "player_death",
@@ -2408,10 +2433,10 @@
       }
     },
     {
-      "deliveryId": "2caf2b71-305f-42fd-9ed7-20397de75f05",
+      "deliveryId": "589c278c-eecb-426c-8b43-ef980e8a9aae",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 66,
+      "seq": 67,
       "occurredAt": "2026-09-05T18:04:15.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2419,24 +2444,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 89,
-        "type": "heartbeat",
-        "playerCount": 10
-      }
-    },
-    {
-      "deliveryId": "589c278c-eecb-426c-8b43-ef980e8a9aae",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-webhook-replay",
-      "seq": 67,
-      "occurredAt": "2026-09-05T18:04:25.000Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 92,
+        "seq": 90,
         "type": "heartbeat",
         "playerCount": 10
       }
@@ -2446,7 +2454,7 @@
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
       "seq": 68,
-      "occurredAt": "2026-09-05T18:04:26.439Z",
+      "occurredAt": "2026-09-05T18:04:25.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
         "source": {
@@ -2454,6 +2462,23 @@
           "serverId": "sim-1"
         },
         "seq": 93,
+        "type": "heartbeat",
+        "playerCount": 10
+      }
+    },
+    {
+      "deliveryId": "5853c6e5-7b83-4da6-ac9e-53f600a0ed7c",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-webhook-replay",
+      "seq": 69,
+      "occurredAt": "2026-09-05T18:04:26.439Z",
+      "payload": {
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 94,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "bomb_exploded",
@@ -2462,10 +2487,10 @@
       }
     },
     {
-      "deliveryId": "5853c6e5-7b83-4da6-ac9e-53f600a0ed7c",
+      "deliveryId": "7a7acdc9-47ab-4c7f-a609-fba5117e20a6",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 69,
+      "seq": 70,
       "occurredAt": "2026-09-05T18:04:27.439Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2473,7 +2498,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 94,
+        "seq": 95,
         "mapNumber": 1,
         "roundNumber": 2,
         "type": "round_end",
@@ -2662,10 +2687,10 @@
       }
     },
     {
-      "deliveryId": "7a7acdc9-47ab-4c7f-a609-fba5117e20a6",
+      "deliveryId": "88fe9470-86a3-46a5-a3c0-3c40c0b2be7a",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 70,
+      "seq": 71,
       "occurredAt": "2026-09-05T18:04:27.439Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2673,7 +2698,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 95,
+        "seq": 96,
         "type": "chat_message",
         "player": {
           "steamId64": "76561198000000004",
@@ -2685,10 +2710,10 @@
       }
     },
     {
-      "deliveryId": "88fe9470-86a3-46a5-a3c0-3c40c0b2be7a",
+      "deliveryId": "635cb83c-f7b6-4655-8551-1d0fb0d11b76",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 71,
+      "seq": 72,
       "occurredAt": "2026-09-05T18:04:29.439Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2696,7 +2721,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 96,
+        "seq": 97,
         "mapNumber": 1,
         "type": "map_end",
         "map": "de_mirage",
@@ -2708,10 +2733,10 @@
       }
     },
     {
-      "deliveryId": "635cb83c-f7b6-4655-8551-1d0fb0d11b76",
+      "deliveryId": "bc327f8d-accb-4385-b8a2-a5342a40fe51",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 72,
+      "seq": 73,
       "occurredAt": "2026-09-05T18:04:35.000Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2719,28 +2744,9 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 97,
+        "seq": 98,
         "type": "heartbeat",
         "playerCount": 10
-      }
-    },
-    {
-      "deliveryId": "bc327f8d-accb-4385-b8a2-a5342a40fe51",
-      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-      "clientMatchId": "conformance-webhook-replay",
-      "seq": 73,
-      "occurredAt": "2026-09-05T18:04:35.439Z",
-      "payload": {
-        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
-        "source": {
-          "provider": "sim",
-          "serverId": "sim-1"
-        },
-        "seq": 98,
-        "mapNumber": 1,
-        "type": "demo_available",
-        "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_mirage.ezpug-sim.json",
-        "sizeBytes": 11139
       }
     },
     {
@@ -2750,12 +2756,16 @@
       "seq": 74,
       "occurredAt": "2026-09-05T18:04:35.439Z",
       "payload": {
-        "type": "demo.uploaded",
+        "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+        "source": {
+          "provider": "sim",
+          "serverId": "sim-1"
+        },
+        "seq": 99,
         "mapNumber": 1,
-        "key": "demos/conformance.dem",
-        "size": 11139,
-        "sha256": "18a935780e3a81c72e0c29411ae6d507e39d11e1e3e222773791a7f95611a9de",
-        "contentType": "application/json; charset=utf-8"
+        "type": "demo_available",
+        "filename": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7_map1_de_mirage.ezpug-sim.json",
+        "sizeBytes": 11327
       }
     },
     {
@@ -2763,6 +2773,21 @@
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
       "seq": 75,
+      "occurredAt": "2026-09-05T18:04:35.439Z",
+      "payload": {
+        "type": "demo.uploaded",
+        "mapNumber": 1,
+        "key": "demos/conformance.dem",
+        "size": 11327,
+        "sha256": "99f980bb33cfe87165a7ebea9e99a34181ce72a94b5a2634492a98e83eb3f1f7",
+        "contentType": "application/json; charset=utf-8"
+      }
+    },
+    {
+      "deliveryId": "af9dabf6-c88e-451b-b87c-1805fe888889",
+      "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
+      "clientMatchId": "conformance-webhook-replay",
+      "seq": 76,
       "occurredAt": "2026-09-05T18:04:37.439Z",
       "payload": {
         "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
@@ -2770,7 +2795,7 @@
           "provider": "sim",
           "serverId": "sim-1"
         },
-        "seq": 99,
+        "seq": 100,
         "type": "series_end",
         "seriesScore": {
           "teamA": 1,
@@ -2780,10 +2805,10 @@
       }
     },
     {
-      "deliveryId": "af9dabf6-c88e-451b-b87c-1805fe888889",
+      "deliveryId": "658658bd-b755-4a4b-83f7-f26add43344f",
       "matchId": "4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7",
       "clientMatchId": "conformance-webhook-replay",
-      "seq": 76,
+      "seq": 77,
       "occurredAt": "2026-09-05T18:04:37.439Z",
       "payload": {
         "type": "match.ended",
@@ -2996,27 +3021,27 @@
     },
     {
       "seq": 50,
-      "type": "heartbeat"
+      "type": "halftime_started"
     },
     {
       "seq": 51,
-      "type": "side_swap"
+      "type": "heartbeat"
     },
     {
       "seq": 52,
-      "type": "heartbeat"
+      "type": "side_swap"
     },
     {
       "seq": 53,
-      "type": "backup_written"
+      "type": "heartbeat"
     },
     {
       "seq": 54,
-      "type": "round_start"
+      "type": "backup_written"
     },
     {
       "seq": 55,
-      "type": "heartbeat"
+      "type": "round_start"
     },
     {
       "seq": 56,
@@ -3024,7 +3049,7 @@
     },
     {
       "seq": 57,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 58,
@@ -3032,23 +3057,23 @@
     },
     {
       "seq": 59,
-      "type": "heartbeat"
-    },
-    {
-      "seq": 60,
       "type": "player_death"
     },
     {
-      "seq": 61,
+      "seq": 60,
       "type": "heartbeat"
+    },
+    {
+      "seq": 61,
+      "type": "player_death"
     },
     {
       "seq": 62,
-      "type": "bomb_planted"
+      "type": "heartbeat"
     },
     {
       "seq": 63,
-      "type": "heartbeat"
+      "type": "bomb_planted"
     },
     {
       "seq": 64,
@@ -3056,11 +3081,11 @@
     },
     {
       "seq": 65,
-      "type": "player_death"
+      "type": "heartbeat"
     },
     {
       "seq": 66,
-      "type": "heartbeat"
+      "type": "player_death"
     },
     {
       "seq": 67,
@@ -3068,38 +3093,42 @@
     },
     {
       "seq": 68,
-      "type": "bomb_exploded"
-    },
-    {
-      "seq": 69,
-      "type": "round_end"
-    },
-    {
-      "seq": 70,
-      "type": "chat_message"
-    },
-    {
-      "seq": 71,
-      "type": "map_end"
-    },
-    {
-      "seq": 72,
       "type": "heartbeat"
     },
     {
+      "seq": 69,
+      "type": "bomb_exploded"
+    },
+    {
+      "seq": 70,
+      "type": "round_end"
+    },
+    {
+      "seq": 71,
+      "type": "chat_message"
+    },
+    {
+      "seq": 72,
+      "type": "map_end"
+    },
+    {
       "seq": 73,
-      "type": "demo_available"
+      "type": "heartbeat"
     },
     {
       "seq": 74,
-      "type": "demo.uploaded"
+      "type": "demo_available"
     },
     {
       "seq": 75,
-      "type": "series_end"
+      "type": "demo.uploaded"
     },
     {
       "seq": 76,
+      "type": "series_end"
+    },
+    {
+      "seq": 77,
       "type": "match.ended"
     }
   ],

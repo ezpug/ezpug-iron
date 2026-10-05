@@ -31,9 +31,10 @@
     "backups": true,
     "scoreboardRating": true,
     "simulation": true,
-    "mixedRoster": true
+    "mixedRoster": true,
+    "halftimeVoice": true
   },
   "commands": [],
-  "version": "0.4.0",
+  "version": "0.5.0",
   "sdkVersion": "0.1.0"
 }

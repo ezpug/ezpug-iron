@@ -1001,6 +1001,17 @@ export function buildMatchStory(options: StoryOptions): MatchStory {
         overtimeMaxRounds,
       )
       if (teamASide !== previousSide) {
+        // The break starts the instant the half's last round ends, and the
+        // server says so before anything else (PRD-09 T4): with the sides
+        // after it and whether the voice is open for it.
+        emit(t, {
+          type: 'halftime_started',
+          matchId,
+          source,
+          mapNumber,
+          sides: { teamA: teamASide, teamB: flip(teamASide) },
+          allTalk: assignment.halftimeVoice === true,
+        })
         t += HALFTIME_MS
         emit(t, {
           type: 'side_swap',

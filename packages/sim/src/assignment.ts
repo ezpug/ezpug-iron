@@ -144,6 +144,14 @@ export interface MatchAssignment {
    * keyboard. Absent or empty: everybody rostered is played.
    */
   humans?: readonly string[]
+  /**
+   * **Half time is all-talk** (PRD-09 T4): the mode claims
+   * `capabilities.halftimeVoice` and the request did not turn it off
+   * (`halftimeVoiceOf`). Every `halftime_started` the story tells says it as
+   * `allTalk`, as the SDK's does on a real server. Absent: the voice stays as
+   * it is, which is what a match config read off a MatchZy handoff says.
+   */
+  halftimeVoice?: boolean
 }
 
 /**
@@ -275,6 +283,8 @@ export interface MatchRequestHandoff {
   warmupLines?: readonly string[]
   /** The roster entries left to people by `simulation.puppets` (`matchHumans`), whose seats the story never fills (PRD-04 T2). */
   humans?: readonly string[]
+  /** Half time is all-talk (`halftimeVoiceOf`, PRD-09 T4): what each `halftime_started` says as `allTalk`. */
+  halftimeVoice?: boolean
 }
 
 /**
@@ -311,5 +321,6 @@ export function assignmentFromMatchRequest(handoff: MatchRequestHandoff): MatchA
     ...(handoff.warmupLines !== undefined && { warmupLines: [...handoff.warmupLines] }),
     ...(handoff.humans !== undefined &&
       handoff.humans.length > 0 && { humans: [...handoff.humans] }),
+    ...(handoff.halftimeVoice === true && { halftimeVoice: true }),
   })
 }

@@ -131,3 +131,17 @@ describe('the assignment and the HUD', () => {
     expect(frame.hud).toBe(true)
   })
 })
+
+describe('the assignment and the voice at half time (PRD-09 T4)', () => {
+  it('opens it for a pug that says nothing, and for one that asks', () => {
+    expect(compose('pug').halftimeVoice).toBe(true)
+    expect(compose('pug', { voice: {} }).halftimeVoice).toBe(true)
+    expect(compose('pug', { voice: { halftime: true } }).halftimeVoice).toBe(true)
+  })
+
+  it('leaves the frame as it was where the request or the mode keeps the teams apart', () => {
+    expect('halftimeVoice' in compose('pug', { voice: { halftime: false } })).toBe(false)
+    for (const id of ['powerup-dm', 'flying-scoutsman', 'retakes'] as const)
+      expect('halftimeVoice' in compose(id), id).toBe(false)
+  })
+})

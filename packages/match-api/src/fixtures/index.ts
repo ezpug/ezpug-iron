@@ -10,7 +10,7 @@ import type {
  * **One valid event per type** — the platform's own fixture table from
  * `gameserver.test.ts` on 2026-09-05, exported so a consumer (the platform's
  * translator, a C# round-trip test, a gamemode test in the SDK harness) can
- * prove itself against the same twenty-eight shapes this package proves itself
+ * prove itself against the same twenty-nine shapes this package proves itself
  * against. The union is a closed set, so the table is exhaustive by
  * construction: a type without a fixture does not type-check.
  *
@@ -80,6 +80,13 @@ export const GAMESERVER_EVENT_FIXTURES: {
     roundTimeMs: 51_434,
   },
   side_swap: { type: 'side_swap', ...base, mapNumber: 1, sides: { teamA: 't', teamB: 'ct' } },
+  halftime_started: {
+    type: 'halftime_started',
+    ...base,
+    mapNumber: 1,
+    sides: { teamA: 't', teamB: 'ct' },
+    allTalk: true,
+  },
   map_end: {
     type: 'map_end',
     ...base,

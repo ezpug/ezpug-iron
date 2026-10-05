@@ -54,6 +54,9 @@ public sealed class Assignment
     /// <summary>The match asks for the HUD (decision 34). What a server without the addon does with that is nothing at all: <see cref="EZPug.Sdk.Hud"/>.</summary>
     public bool Hud => Frame.Hud == true;
 
+    /// <summary>Half time is all-talk for this match (PRD-09 T4): the manifest claims <c>halftimeVoice</c> and the request did not turn it off. Absent, and <see cref="Halftime"/> never touches a voice cvar.</summary>
+    public bool HalftimeVoice => Frame.HalftimeVoice == true;
+
     /// <summary>One presigned PUT per map of a series (PRD-02 T38a); <see cref="DemoUploadUrlFor"/> is how to read it.</summary>
     public IReadOnlyList<AssignOrchestratorFrameDemoUploadUrl>? DemoUploadUrls => Frame.DemoUploadUrls;
 

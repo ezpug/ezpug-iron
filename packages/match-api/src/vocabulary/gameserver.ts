@@ -476,6 +476,27 @@ export const sideSwapEventSchema = mapScoped.extend({
 })
 
 /**
+ * **Half time has begun** (PRD-09 T4): the half's last round is over and the
+ * break before the next half is on. Said the instant it starts, so its arrival
+ * is the stretch's start (no server clock travels, as everywhere in this
+ * union); the stretch ends with the next `round_start`, whose freeze time is
+ * the next half's. Said for every break between halves, an overtime's too,
+ * and before the `side_swap` that follows it.
+ *
+ * `sides` are the sides each team plays **after** the break, which is what a
+ * client drawing the break wants to say. `allTalk` is whether this server let
+ * both sides hear each other for the stretch (the request's `voice.halftime`
+ * on a mode that claims `capabilities.halftimeVoice`): a server fact, so a
+ * client draws its own "everyone can talk" band off this and never off what
+ * it asked for.
+ */
+export const halftimeStartedEventSchema = mapScoped.extend({
+  type: z.literal('halftime_started'),
+  sides: z.object({ teamA: teamSideSchema, teamB: teamSideSchema }),
+  allTalk: z.boolean(),
+})
+
+/**
  * The recorded result of one map. `winner: null` is a drawn map — impossible
  * in a ranked context (overtime is always on, Queue.md §1), legal in the
  * contract because casual contexts may allow it.
@@ -813,6 +834,7 @@ export const gameserverEventSchema = z.discriminatedUnion('type', [
   roundStartEventSchema,
   roundEndEventSchema,
   sideSwapEventSchema,
+  halftimeStartedEventSchema,
   mapEndEventSchema,
   seriesEndEventSchema,
   matchPausedEventSchema,
@@ -849,6 +871,7 @@ export const GAMESERVER_EVENT_TYPES = [
   'round_start',
   'round_end',
   'side_swap',
+  'halftime_started',
   'map_end',
   'series_end',
   'match_paused',

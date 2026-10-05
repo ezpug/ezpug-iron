@@ -161,7 +161,7 @@
           "seed": "ezpug-fake#4c0bbe6f-0cca-4b70-b35b-1ca22a60cfe7#sim-1",
           "mode": "auto",
           "timeScale": 2,
-          "remainingBeats": 65,
+          "remainingBeats": 66,
           "finished": false,
           "outcome": "completed",
           "chaos": null

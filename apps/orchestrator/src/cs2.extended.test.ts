@@ -303,6 +303,21 @@ type Summary = {
   seating?: string | null
   /** MatchZy's answer to `matchzy_chat_prefix` once live, colours stripped (PRD-09 T3); `null` off a `matchzy` flow. */
   chatPrefix?: string | null
+  /** The voice when the stream said `halftime_started` and at the `round_start` after it (PRD-09 T4); empty without a break. */
+  halftimeVoice?: {
+    when: 'halftime' | 'after'
+    fact: {
+      sides?: { teamA: string; teamB: string }
+      allTalk?: boolean
+      roundNumber?: number
+    } | null
+    cvars: { sv_talk_enemy_living: string | null; sv_talk_enemy_dead: string | null } | null
+    status: string | null
+    band: string | null
+    readMs?: number
+  }[]
+  /** The sides of the first `side_swap` after the first break (PRD-09 T4). */
+  halftimeSwap?: { teamA: string; teamB: string } | null
   /** The HUD as the server itself accounts for it (PRD-07 T9); `null` when the run told no moment. */
   hud?: {
     /** What the server said it can do when it dialled in; `null` when the orchestrator wrote no trace. */
@@ -554,6 +569,26 @@ const CASES: LaneCase[] = [
       // read `[MatchZy]` in front of every one of its lines. The run names its
       // event `iron-match`, and the loader hands MatchZy that name.
       expect(summary.chatPrefix, 'MatchZy does not speak for the event').toBe('[iron-match]')
+      // **Half time is all-talk** (PRD-09 T4): four rounds break after the
+      // second. The two cvars the owner named, over the fleet's RCON while the
+      // break stands, and again once the next round's freeze has begun.
+      const [during, after] = summary.halftimeVoice ?? []
+      expect(during?.when, 'the run never saw halftime_started').toBe('halftime')
+      expect(during?.fact?.allTalk, 'the pug did not open the voice').toBe(true)
+      expect(during?.fact?.sides, 'halftime_started promised other sides than the swap').toEqual(
+        summary.halftimeSwap,
+      )
+      expect(during?.cvars, 'the voice was not open at half time').toEqual({
+        sv_talk_enemy_living: '1',
+        sv_talk_enemy_dead: '1',
+      })
+      expect(during?.status).toMatch(/^voice: half time is all-talk, open for \d+ ms /)
+      expect(after?.when, 'no round started after the break').toBe('after')
+      expect(after?.cvars, 'the voice stayed open after half time').toEqual({
+        sv_talk_enemy_living: '0',
+        sv_talk_enemy_dead: '0',
+      })
+      expect(after?.status).toMatch(/^voice: half time is all-talk, closed now /)
     },
   },
   {
@@ -1405,6 +1440,16 @@ const CASES: LaneCase[] = [
       for (const line of untold)
         expect(line).toMatch(/^hud: {3}(\d+) of \1 slot\(s\) hold nothing$/)
       expect(status.join('\n')).not.toContain('TAKES THE MOUSE')
+      // **The half-time band** (PRD-09 T4), read back off the entity while the
+      // break stands and once the next round has started: shown for everybody,
+      // then put away with the voice.
+      const [during, after] = summary.halftimeVoice ?? []
+      expect(during?.band, 'the band was not up at half time').toMatch(
+        /^hud: {3}everybody, halftime_band: \+shown$/,
+      )
+      expect(after?.band, 'the band stayed up after half time').toMatch(
+        /^hud: {3}everybody, halftime_band: -shown$/,
+      )
     },
   },
   {

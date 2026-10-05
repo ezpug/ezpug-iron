@@ -128,7 +128,7 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
   sets the hostname, and it survives `matchzy_reset_cvars_on_series_end` and MatchZy's
   persisted value (`Utility.cs:3847`). `cs2:build` + `dathost:image`. The lane's `ingame` row
   reads the prefix back off a MatchZy line (7-bit, #7: no `·` in it).
-- [ ] **T4 (effort: high): Half time is all-talk, and the HUD says so.** For the `pug`
+- [x] **T4 (effort: high): Half time is all-talk, and the HUD says so.** For the `pug`
   manifest (a capability `halftimeVoice`, never Rush): when the half's last round ends
   (`round_end` with the half over, the phase about to be `Halftime`) the SDK sets
   `sv_talk_enemy_living 1` and `sv_talk_enemy_dead 1` (and whatever else CS2 needs for

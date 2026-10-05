@@ -1792,6 +1792,15 @@ async function run() {
 
   // 5. The stream, from the moment the match exists.
   const streamFrames = []
+  /**
+   * **The voice at half time and after it** (PRD-09 T4): one read when the
+   * stream carries `halftime_started`, one when it carries the `round_start`
+   * that ends the break, each the two cvars the owner named over the fleet's
+   * RCON and the server's own `voice:` line. Only the first break is read.
+   */
+  const halftimeVoice = []
+  /** Set once the fleet's doors are defined below; the stream calls it. */
+  let voiceReader = null
   /** `--unbox`: when the round's facts arrived on this box's clock, the one the orchestrator stamps console lines with. */
   const roundArrivals = []
   /**
@@ -1812,6 +1821,11 @@ async function run() {
       const frame = JSON.parse(data.toString())
       streamFrames.push(frame)
       const type = frame.type === 'event' ? frame.envelope?.payload?.type : null
+      // **Half time, read while it stands** (PRD-09 T4): the break is the
+      // engine's 15 s, far shorter than the watch loop's beat, so the fact
+      // itself starts the read, and the round start after it the second one.
+      if (type === 'halftime_started' || (type === 'round_start' && halftimeVoice.length === 1))
+        voiceReader?.(type === 'halftime_started' ? 'halftime' : 'after', frame.envelope.payload)
       if (UNBOX && type === 'round_start')
         roundArrivals.push({
           type,
@@ -2169,6 +2183,45 @@ async function run() {
     } catch {
       return null
     }
+  }
+  /**
+   * **One cvar, in the engine's own answer** over the fleet's RCON
+   * (`sv_talk_enemy_living = 0`, or `false` for a bool). Normalized to `1`/`0`
+   * where it is a bool; `null` when it cannot be read.
+   */
+  const readCvar = async (id, name) => {
+    try {
+      const rows = await api('GET', '/v1/fleet/servers')
+      const row = rows.servers.find(server => server.matchId === id)
+      if (!row) return null
+      const { output } = await api('POST', `/v1/fleet/servers/${row.id}/rcon`, { command: name })
+      const plain = [...String(output ?? '')].filter(char => char.charCodeAt(0) >= 0x20).join('')
+      const answer = new RegExp(`${name}\\s*=\\s*(\\S+)`).exec(plain)?.[1] ?? null
+      return answer === 'true' ? '1' : answer === 'false' ? '0' : answer
+    } catch {
+      return null
+    }
+  }
+  voiceReader = (when, fact) => {
+    halftimeVoice.push({ when, at: wall.now(), fact: null, cvars: null, status: null, band: null })
+    const entry = halftimeVoice.at(-1)
+    if (when === 'halftime') entry.fact = { sides: fact.sides, allTalk: fact.allTalk }
+    else entry.fact = { roundNumber: fact.roundNumber }
+    entry.done = (async () => {
+      entry.cvars = {
+        sv_talk_enemy_living: await readCvar(matchId, 'sv_talk_enemy_living'),
+        sv_talk_enemy_dead: await readCvar(matchId, 'sv_talk_enemy_dead'),
+      }
+      // One report for both: the voice line, and on a server that draws a HUD the
+      // band's own state for everybody, read back off the entity.
+      const report = await readStatus(matchId, '')
+      entry.status = report?.find(line => line.startsWith('voice:')) ?? null
+      entry.band = report?.find(line => line.startsWith('hud:   everybody, halftime_band:')) ?? null
+      entry.readMs = wall.now() - entry.at
+      say(
+        `voice ${when === 'halftime' ? 'at half time' : 'after it'}: ${JSON.stringify(entry.cvars)} in ${entry.readMs} ms; ${entry.status ?? 'no status'}`,
+      )
+    })()
   }
   /**
    * **The unboxing, played and read back** (`--unbox`, PRD-08 T6). Waits for the
@@ -3206,6 +3259,10 @@ async function run() {
     hud: hud ?? null,
     seating: seating ?? null,
     chatPrefix: chatPrefix ?? null,
+    halftimeVoice: await Promise.all(halftimeVoice.map(entry => entry.done)).then(() =>
+      halftimeVoice.map(({ done: _done, ...entry }) => entry),
+    ),
+    halftimeSwap: swapAfterHalftime(streamFrames),
     engine,
     console: consoleKept,
     walked,
@@ -3215,6 +3272,18 @@ async function run() {
 // ---------------------------------------------------------------------------
 // Writing it down
 // ---------------------------------------------------------------------------
+
+/**
+ * **The swap the first break led to** (PRD-09 T4): the sides of the first
+ * `side_swap` the stream carried after the first `halftime_started`, which
+ * named them in advance. `null` without a break, or without a swap after it.
+ */
+function swapAfterHalftime(frames) {
+  const facts = frames.filter(frame => frame.type === 'event').map(frame => frame.envelope.payload)
+  const at = facts.findIndex(fact => fact.type === 'halftime_started')
+  if (at < 0) return null
+  return facts.slice(at).find(fact => fact.type === 'side_swap')?.sides ?? null
+}
 
 /**
  * The link exchange, **without the ephemeral tier**. `position_tick` is
@@ -3557,6 +3626,15 @@ function write(result) {
      * this run's event. `null` off a `matchzy` flow or when it could not be read.
      */
     chatPrefix: result.chatPrefix ?? null,
+    /**
+     * **The voice at half time and after it** (PRD-09 T4): the two cvars the
+     * owner named and the server's `voice:` line, read when the stream carried
+     * `halftime_started` and again at the `round_start` that ended the break.
+     * Empty when the run never reached half time.
+     */
+    halftimeVoice: result.halftimeVoice ?? [],
+    /** The sides of the first `side_swap` after the first break: what its `halftime_started` promised. */
+    halftimeSwap: result.halftimeSwap ?? null,
     /**
      * **The HUD, as the server itself accounts for it** (PRD-07 T9), or `null`
      * when the run told no moment. `hello` is what the server said it can do

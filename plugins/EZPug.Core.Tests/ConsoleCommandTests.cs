@@ -29,6 +29,7 @@ public class ConsoleCommandTests
         Assert.Contains("mode: none attached", unlinked);
         Assert.Contains("scoreboard: no match", unlinked);
         Assert.Contains("seating: no match", unlinked);
+        Assert.Contains("voice: no match", unlinked);
         Assert.Contains("plugins enabled: none", unlinked);
         Assert.Contains("plugins installed: EZPug.Core, MatchZy", unlinked);
 
@@ -49,6 +50,8 @@ public class ConsoleCommandTests
         Assert.Contains("scoreboard: 1 rated: tk 1820", linked);
         // MatchZy seats a pug (PRD-09 T2): the SDK's seating says so and keeps out of it.
         Assert.Contains("seating: not the SDK's for this mode", linked);
+        // The assignment as this fixture composes it says nothing about the voice (PRD-09 T4).
+        Assert.Contains("voice: half time keeps the teams apart in this match", linked);
         Assert.Contains("plugins enabled: MatchZy", linked);
         Assert.DoesNotContain("never-here", linked);
         Assert.DoesNotContain("token", linked, StringComparison.OrdinalIgnoreCase);
@@ -64,7 +67,7 @@ public class ConsoleCommandTests
         Assert.Equal(SdkInfo.CounterStrikeSharpApiVersion, hello.Versions.CounterStrikeSharp);
         Assert.Equal(SdkInfo.Version, hello.Versions.Matchzy);
         Assert.Null(hello.Versions.Metamod);
-        Assert.Equal([HelloCapability.Positions, HelloCapability.Chat, HelloCapability.PlayerCommands, HelloCapability.Widget, HelloCapability.Backups, HelloCapability.ScoreboardRating], hello.Capabilities);
+        Assert.Equal([HelloCapability.Positions, HelloCapability.Chat, HelloCapability.PlayerCommands, HelloCapability.Widget, HelloCapability.Backups, HelloCapability.ScoreboardRating, HelloCapability.HalftimeVoice], hello.Capabilities);
         Assert.Equal(["EZPug.Core", "MatchZy", "RetakesPlugin"], hello.Plugins);
         Assert.Equal("EZPug · pug · Mirage", hello.Hostname);
         Assert.Equal("ezpug", HelloFactsBuilder.Build(image.Catalog(), " ").Hostname);

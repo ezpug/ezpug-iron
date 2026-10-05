@@ -66,6 +66,7 @@ import {
   CONSOLE_LINES_MAX,
   demoUploadUrlFor,
   gamemodeAllowsMap,
+  halftimeVoiceOf,
   hasDemoUploadUrl,
   isTerminalMatchState,
   matchDemoOutcome,
@@ -73,6 +74,7 @@ import {
   matchHumans,
   matchRulesProblem,
   matchSimulationProblem,
+  matchVoiceProblem,
 } from '../resources'
 import { matchRequestScopes, scopeAllows } from '../scopes'
 import type { StreamCloseCode, StreamFrame } from '../stream/frames'
@@ -940,6 +942,10 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     const rulesProblem = matchRulesProblem(request, manifest)
     if (rulesProblem)
       throw refuse('validation_failed', rulesProblem.message, { field: rulesProblem.field })
+    // Half-time voice on a mode with no half time (PRD-09 T4), by the same rule.
+    const voiceProblem = matchVoiceProblem(request, manifest)
+    if (voiceProblem)
+      throw refuse('validation_failed', voiceProblem.message, { field: voiceProblem.field })
     // Puppets, by the same rule the orchestrator uses (PRD-03 T4).
     const simulationProblem = matchSimulationProblem(request, manifest)
     if (simulationProblem)
@@ -1068,6 +1074,8 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       // The seats `simulation.puppets` left to people, which this server has
       // no door for (PRD-04 T2): held open or played around, as a real one would.
       humans: matchHumans(request),
+      // Whether the break between halves is all-talk, which `halftime_started` says (PRD-09 T4).
+      halftimeVoice: halftimeVoiceOf(request, record.manifest),
     })
 
     matches.set(matchId, record)

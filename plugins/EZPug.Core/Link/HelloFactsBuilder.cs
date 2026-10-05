@@ -19,7 +19,8 @@ public static class HelloFactsBuilder
     /// The capabilities this build of the plugin can honour. <c>backups</c> since PRD-02 T9
     /// (MatchZy's round backups cross the link; the restore is T14); <c>scoreboardRating</c>
     /// since T27, where the SDK's <see cref="RatingBoard"/> made it true — claiming one
-    /// before it exists would be a lie the fleet console repeats.
+    /// before it exists would be a lie the fleet console repeats. <c>halftimeVoice</c> since
+    /// PRD-09 T4, where the SDK's <see cref="Halftime"/> opens the voice at half time.
     /// </summary>
     public static readonly IReadOnlyList<HelloCapability> Capabilities =
     [
@@ -29,6 +30,7 @@ public static class HelloFactsBuilder
         HelloCapability.Widget,
         HelloCapability.Backups,
         HelloCapability.ScoreboardRating,
+        HelloCapability.HalftimeVoice,
     ];
 
     public const string MatchZyPlugin = "MatchZy";

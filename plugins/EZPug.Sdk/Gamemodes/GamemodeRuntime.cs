@@ -68,6 +68,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Moments = new Moments(world, Hud, Brand, () => Localizer, _log);
         Ratings = new RatingBoard(world, () => Localizer, Brand);
         Seating = new Seating(world, this, _log);
+        Halftime = new Halftime(world, this, _log);
         Warmup = new WarmupChat(world, Match);
         link.Handler = this;
         world.MapStarted += OnMapStarted;
@@ -128,6 +129,9 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
 
     /// <summary>The rostered on their sides and strangers kept out, for the modes no match plugin seats (PRD-09 T2, decision 35).</summary>
     public Seating Seating { get; }
+
+    /// <summary>The break between halves: said as <c>halftime_started</c>, and all-talk with a band and a line at each edge where the assignment says <c>halftimeVoice</c> (PRD-09 T4).</summary>
+    public Halftime Halftime { get; }
 
     public Assignment? Assignment { get; private set; }
     public CommandTable? Commands { get; private set; }
@@ -389,6 +393,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Warmup.OnAssigned(assignment);
         Puppets.OnAssigned(assignment);
         Seating.OnAssigned(assignment);
+        Halftime.OnAssigned(assignment);
         Assigned?.Invoke(assignment);
         if (_mode is { } mode)
         {
@@ -458,6 +463,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
             Warmup.OnReleased();
             Puppets.OnReleased();
             Seating.OnReleased();
+            Halftime.OnReleased();
             Brand.OnReleased();
             Welcome.OnReleased();
             Moments.OnReleased();
@@ -586,6 +592,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         // not that level is this match's.
         Hud.OnMapStarted(start);
         Moments.OnMapStarted();
+        Halftime.OnMapStarted();
         if (_mapAskedAtMs is { } asked && start.StartedAtMs < asked)
         {
             // The map was already standing when the host asked for the change; the world
@@ -691,6 +698,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Ratings.OnPlayerConnected(player);
         // The slot is cleaned of its last occupant before anything greets the new one.
         Hud.OnPlayerConnected(player);
+        Halftime.OnPlayerConnected(player);
         Brand.OnPlayerConnected(player);
         Active?.OnPlayerJoined(player);
     }
@@ -758,6 +766,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         // The first round start of a map is the first moment an entity may be touched,
         // so it is where the HUD's layouts are made.
         Hud.OnRoundStarted();
+        // The next half's freeze time has begun: the voice closes before anything else of the round.
+        Halftime.OnRoundStarted();
         Welcome.OnRoundStarted();
         Moments.OnRoundStarted();
         // `going_live` and a `side_swap` belong before round 1 exists, and emitting
@@ -786,6 +796,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Hud.OnRoundEnded();
         Moments.OnRoundEnded();
         Flow.OnRoundEnded(roundEnd);
+        // After the round's own facts: half time begins once the half's last round is said.
+        Halftime.OnRoundEnded();
         Active?.OnRoundEnd(roundEnd);
     }
 
@@ -805,6 +817,7 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         {
             Hud.OnMapEnded();
             Moments.OnMapEnded();
+            Halftime.OnMapEnded();
             Flow.OnMapEnded();
         }
     }
@@ -909,6 +922,8 @@ public sealed class GamemodeRuntime : IPlatformLinkHandler, IDisposable
         Warmup.Stop();
         Puppets.OnReleased();
         Seating.OnReleased();
+        // A server is never left open: an unload puts the voice back.
+        Halftime.Stop();
         Welcome.OnReleased();
         Moments.Stop();
         // The layouts outlive the plugin that made them; an unload takes them along.

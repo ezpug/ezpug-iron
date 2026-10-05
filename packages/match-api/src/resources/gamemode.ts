@@ -278,6 +278,15 @@ export type GamemodeCvars = z.infer<typeof gamemodeCvarsSchema>
  * flow it seats; MatchZy-Enhanced's simulation mode does not (it fills every
  * configured seat and force-starts without anybody), so `pug` says `false`
  * and a partial list to it is `validation_failed` on `simulation.puppets`.
+ * `halftimeVoice` — half time is all-talk (PRD-09 T4): from the instant the
+ * half's last round ends until the next round's freeze time begins, the
+ * server lets both sides hear each other, says so in chat and draws a band on
+ * the HUD where there is one. On for a request that says nothing about it, off
+ * where `voice.halftime` is `false` ({@link matchVoiceProblem}). Needs two
+ * sides and rounds the request decides, so a mode whose own script owns its
+ * rounds (`rules: "mode"`, Rush) never claims it. `false`, the default, is what
+ * every manifest written before the field said: the server never touches a
+ * voice cvar.
  */
 export const gamemodeCapabilitiesSchema = z.object({
   positions: z.boolean(),
@@ -288,6 +297,7 @@ export const gamemodeCapabilitiesSchema = z.object({
   scoreboardRating: z.boolean(),
   simulation: z.boolean().default(false),
   mixedRoster: z.boolean().default(false),
+  halftimeVoice: z.boolean().default(false),
 })
 export type GamemodeCapabilities = z.infer<typeof gamemodeCapabilitiesSchema>
 export type GamemodeCapability = keyof GamemodeCapabilities
@@ -300,6 +310,7 @@ export const GAMEMODE_CAPABILITIES = [
   'scoreboardRating',
   'simulation',
   'mixedRoster',
+  'halftimeVoice',
 ] as const satisfies readonly GamemodeCapability[]
 
 /**
@@ -460,6 +471,8 @@ function checkManifestConsistency(
     commands: unknown[]
     widget?: unknown
     length?: unknown
+    rules: GamemodeRulesOwner
+    slots: { teams: number }
     capabilities: GamemodeCapabilities
   },
   ctx: z.RefinementCtx,
@@ -504,6 +517,11 @@ function checkManifestConsistency(
     refuse(
       'capabilities',
       'a mixed roster is some puppets among people: `mixedRoster` needs `simulation`',
+    )
+  if (capabilities.halftimeVoice && (manifest.slots.teams !== 2 || manifest.rules === 'mode'))
+    refuse(
+      'capabilities',
+      'half time is the break between two sides’ halves of rounds the request decides: `halftimeVoice` needs `slots.teams: 2` and `rules: "request"`',
     )
 }
 

@@ -42,6 +42,7 @@ import {
   BRANDING_TAGLINE_MAX,
   DEMO_UPLOAD_URLS_MAX,
   demoUploadUrlFor,
+  halftimeVoiceOf,
   hasDemoUploadUrl,
   MATCH_TTL_MINUTES_MAX,
   type MatchRequestInput,
@@ -51,6 +52,7 @@ import {
   matchRequestSchema,
   matchRulesProblem,
   matchSimulationProblem,
+  matchVoiceProblem,
   rosterEntrySchema,
   SIMULATION_PUPPETS_MAX,
   SIMULATION_TIME_SCALE_MAX,
@@ -104,6 +106,31 @@ describe('MatchRequest', () => {
     })
     expect(matchRulesProblem(without, { id: 'rush', rules: 'mode' })).toBeUndefined()
     expect(matchRulesProblem(withRules, { id: 'pug', rules: 'request' })).toBeUndefined()
+  })
+
+  it('opens the voice at half time where the mode can, unless the request says no (PRD-09 T4)', () => {
+    const pug = { id: 'pug', capabilities: { halftimeVoice: true } }
+    const rush = { id: 'rush', capabilities: { halftimeVoice: false } }
+    const unsaid = matchRequestSchema.parse(pugRequest())
+    const open = matchRequestSchema.parse(pugRequest({ voice: { halftime: true } }))
+    const apart = matchRequestSchema.parse(pugRequest({ voice: { halftime: false } }))
+    expect(unsaid.voice).toBeUndefined()
+    expect(halftimeVoiceOf(unsaid, pug)).toBe(true)
+    expect(halftimeVoiceOf(open, pug)).toBe(true)
+    expect(halftimeVoiceOf(apart, pug)).toBe(false)
+    expect(halftimeVoiceOf(unsaid, rush)).toBe(false)
+    expect(halftimeVoiceOf(unsaid, { capabilities: {} })).toBe(false)
+    // Asking for a half time a mode does not have is refused on the field;
+    // keeping the teams apart needs nothing of a mode.
+    expect(matchVoiceProblem(open, rush)).toEqual({
+      message: 'rush has no half time to open the voice in',
+      field: 'voice.halftime',
+    })
+    expect(matchVoiceProblem(apart, rush)).toBeUndefined()
+    expect(matchVoiceProblem(unsaid, rush)).toBeUndefined()
+    expect(matchVoiceProblem(open, pug)).toBeUndefined()
+    const unsure = { halftime: 'yes' } as unknown as { halftime: boolean }
+    expect(matchRequestSchema.safeParse(pugRequest({ voice: unsure })).success).toBe(false)
   })
 
   it('rejects a player rostered twice, across teams', () => {

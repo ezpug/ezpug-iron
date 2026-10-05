@@ -1,7 +1,7 @@
 {
   "source": "recorded",
   "from": "packages/protocol/fixtures/recorded/real-pug-matchzy.json",
-  "note": "New in the fork. side_swap says halftime, and the core plugin’s MatchZyFlow is what emits side_swap.",
+  "note": "New in the fork, and dropped: the core plugin says halftime_started itself, with the sides after the break and whether the voice is open (PRD-09 T4). Decision 19 — neither double-speaks.",
   "payload": {
     "team1_score": 2,
     "team2_score": 0,
@@ -10,6 +10,6 @@
     "event": "halftime_started"
   },
   "expect": {
-    "dropped": "side_swap says it, and the core plugin owns side_swap"
+    "dropped": "the core plugin’s halftime emits halftime_started, with the sides after the break and whether the voice is open"
   }
 }

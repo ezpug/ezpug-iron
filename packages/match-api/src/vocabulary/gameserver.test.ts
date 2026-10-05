@@ -38,11 +38,20 @@ describe('the normalized gameserver event union', () => {
   })
 
   it('keeps the published type list and the union in lockstep, in Match.md §5 order', () => {
-    expect(GAMESERVER_EVENT_TYPES).toHaveLength(28)
+    expect(GAMESERVER_EVENT_TYPES).toHaveLength(29)
     expect(new Set(GAMESERVER_EVENT_TYPES).size).toBe(GAMESERVER_EVENT_TYPES.length)
     expect(gameserverEventSchema.options.map(option => option.shape.type.value)).toEqual([
       ...GAMESERVER_EVENT_TYPES,
     ])
+  })
+
+  it('says half time with the sides after it and whether the voice is open (PRD-09 T4)', () => {
+    const halftime = fixtures.halftime_started
+    expect(gameserverEventSchema.parse(halftime)).toEqual(halftime)
+    const { allTalk: _allTalk, ...unsaid } = halftime
+    expect(gameserverEventSchema.safeParse(unsaid).success).toBe(false)
+    const { sides: _sides, ...sideless } = halftime
+    expect(gameserverEventSchema.safeParse(sideless).success).toBe(false)
   })
 
   it('rejects a type outside the closed set', () => {

@@ -8,7 +8,7 @@ import type {
   RosterEntry,
   SimStatus,
 } from '@ezpug/match-api'
-import { demoUploadUrlFor, matchHumans } from '@ezpug/match-api'
+import { demoUploadUrlFor, halftimeVoiceOf, matchHumans } from '@ezpug/match-api'
 import type { MatchAssignment, SimPlan, SimulatedServer, SimulatorScenario } from '@ezpug/sim'
 import {
   assignmentFromMatchRequest,
@@ -166,6 +166,8 @@ export function simAssignmentFor(
       // The seats `simulation.puppets` left to people, which this server has
       // no door for (PRD-04 T2): held open or played around, as a real one would.
       humans: matchHumans(request),
+      // Whether the break between halves is all-talk, which `halftime_started` says (PRD-09 T4).
+      halftimeVoice: halftimeVoiceOf(request, gamemode),
     }),
     invented,
   }

@@ -8,10 +8,11 @@
   },
   "sources": {
     "addoninfo.txt": "9d98fed61a289196f6b887705240846a41dda0833363bf5cfcc32a61d66ace58",
-    "layout/ezpug_moment.xml": "3d3bcd70f5661c99e29d27b018ac79c74645c7aff61d5dd002ab6a2cd8daf345",
+    "layout/ezpug_moment.xml": "f11c72854f2831ff7f9adb1f1c6abf65ebf7a4e8a6b1b8f7949bea88ff7c2434",
     "layout/ezpug_welcome.xml": "76637d9e04885b997da3c2f42196335022c425c5195d0663ea56fafe740f4e0a",
     "styles/ezpug_art.css": "acea3e7729ca19d62be95e4e37570a92483ec5af558206a798b432bf70beaabe",
     "styles/ezpug_banners.css": "2e7898eef86c52953eec3e92dde22664220f19df7aa69dc97c65c5a1d19fde8a",
+    "styles/ezpug_halftime.css": "3897920165dc8c8d3e4118cec7f3e5a8e191bcc5133356542d57fbd97b33015b",
     "styles/ezpug_moment.css": "60935610a7950d8996421d609ad9998d4eab046b7f5d810bd38ba7fcf2934ef6",
     "styles/ezpug_unbox.css": "9048ef315ed8bfcddc209475f028c871ef4f87196d958a6bf2118c43e3664e52",
     "styles/ezpug_welcome.css": "6d05847e94fde985bc2b25769284f30f233a067ffb6fb10daf976187e8bcfbee",
@@ -158,8 +159,8 @@
       "bytes": 405251
     },
     "panorama/layout/custom_game/ezpug_moment.vxml_c": {
-      "sha256": "464dff9d9907b02df518a37dab21d186cf205b22b320f2a09afe5a2e1133756d",
-      "bytes": 3231
+      "sha256": "cd447a206998b8f9acc93f8a2e4f67861df2609c6cce4af3eaddac01e985b232",
+      "bytes": 3340
     },
     "panorama/layout/custom_game/ezpug_welcome.vxml_c": {
       "sha256": "5245edde2bde75169b9c67fc15b6b9faa770a75192d385d29797fedad1dd28f2",
@@ -172,6 +173,10 @@
     "panorama/styles/custom_game/ezpug_banners.vcss_c": {
       "sha256": "5d21d55bdd4da7ad10aa9152eb3b9ec1d8689eb1634b368523737fc0d3c73d01",
       "bytes": 1287
+    },
+    "panorama/styles/custom_game/ezpug_halftime.vcss_c": {
+      "sha256": "d83073c9bde6db3d7758725baaa4c3638c7f309ac7ad12721dabf633ec7a3b6a",
+      "bytes": 2979
     },
     "panorama/styles/custom_game/ezpug_moment.vcss_c": {
       "sha256": "9e21e1ab736e5ba9212628ec181c33d756db7b83c9ef8827b992fcd007a9cb14",
@@ -188,7 +193,7 @@
   },
   "pack": {
     "file": "ezpug_hud.vpk",
-    "sha256": "db2031a9fce0a488b33bd4505bfe2ba259ca7a5826f8ae70aa3bde82cc8de344",
-    "bytes": 8454212
+    "sha256": "58b02800b31f38926d6515fbf3a24047e9833479fc3638ea87b3c9716bdde034",
+    "bytes": 8457333
   }
 }

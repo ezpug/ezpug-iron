@@ -1,0 +1,72 @@
+/*
+  Half time (PRD-09 T4): a band at the top of the screen for everybody while both sides can
+  hear each other, from the half's last round end to the next freeze time. Panorama, with
+  the rules of ezpug_moment.css: no flex, no calc, no var, hex colours, a transition a
+  class starts, written as the four longhands.
+
+  The state, a class the plugin sets for everybody (EZPug.Sdk.Halftime):
+    #halftime_band.shown   on screen; taken off in the frame the voice closes
+  and its words, #halftime_band_text's {s:text}, set for each player in their language.
+
+  Where it sits, against the game's own HUD at 1080 lines: top centre from 128 to 172,
+  under the team counter (to about 120). The unboxing starts at 140 there, and never at the
+  same time: a break between halves is no freeze. The house accent, the chat prefix's green
+  (#57d364), as a bar at the leading edge; nobody is named on it. The scoreboard and the end
+  of the match win, as for the moment.
+*/
+
+.ezpug-halftime
+{
+	width: fit-children;
+	height: 44px;
+	flow-children: right;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 128px;
+	background-color: #171512e6;
+	border: 1px solid #f0ece326;
+	border-radius: 6px;
+	opacity: 0;
+	transform: translate3d( 0px, -12px, 0px );
+	transition-property: opacity, transform;
+	transition-duration: 0.25s;
+	transition-timing-function: ease-out;
+	transition-delay: 0s;
+}
+
+.ezpug-halftime.shown
+{
+	opacity: 1;
+	transform: translate3d( 0px, 0px, 0px );
+}
+
+.HUD_SCOREBOARD_VISIBLE .ezpug-halftime
+{
+	opacity: 0;
+}
+
+.HUD_ENDOFMATCH_VISIBLE .ezpug-halftime
+{
+	opacity: 0;
+}
+
+.ezpug-halftime-accent
+{
+	width: 6px;
+	height: 100%;
+	background-color: #57d364;
+}
+
+.ezpug-halftime-text
+{
+	max-width: 640px;
+	vertical-align: center;
+	margin-left: 16px;
+	margin-right: 20px;
+	color: #f0ece3;
+	font-size: 22px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}

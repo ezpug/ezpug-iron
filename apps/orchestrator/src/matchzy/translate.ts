@@ -111,8 +111,13 @@ import { z } from 'zod'
  *   that says the same thing better — `knife_round_started` on a knifed map,
  *   `going_live` on every other. Two facts a millisecond apart for one moment
  *   is what the durable log must not hold.
- * - **Nor is `halftime_started` or `overtime_started`:** `side_swap` says the
- *   first and the round numbers say the second. Nor `demo_recording_start` /
+ * - **Nor is MatchZy's `halftime_started` or `overtime_started`.** The
+ *   vocabulary has a `halftime_started` since PRD-09 T4, and the core plugin
+ *   says it: it is the one that opens the voice at half time, so it is the
+ *   one that can say `allTalk`, and it knows the sides after the break, which
+ *   MatchZy's event never carries (its two scores race its own `side_swap`
+ *   on separate tasks). Decision 19 — neither double-speaks. The round
+ *   numbers say an overtime. Nor `demo_recording_start` /
  *   `_stop` or the four `demo_upload_*`, because the core plugin owns the
  *   demo (decision 10) and MatchZy's own upload URL is never set.
  * - **`backup_loaded` is not vocabulary either, but it is not nothing**
@@ -385,7 +390,8 @@ export const MATCHZY_DROPPED_EVENTS: Readonly<Record<string, string>> = {
   map_picked: 'the platform runs the veto',
   map_vetoed: 'the platform runs the veto',
   side_picked: 'the platform runs the veto',
-  halftime_started: 'side_swap says it, and the core plugin owns side_swap',
+  halftime_started:
+    'the core plugin’s halftime emits halftime_started, with the sides after the break and whether the voice is open',
   overtime_started: 'the round numbers say it',
   backup_loaded:
     'the core plugin says the restore (the command’s answer and backup_restored); this only rewinds what the door remembers of the map',

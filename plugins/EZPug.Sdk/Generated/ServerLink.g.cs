@@ -999,6 +999,57 @@ public sealed record SideSwapEventSides
     public required TeamSide TeamB { get; init; }
 }
 
+/// <summary><c>halftime_started</c> — one branch of <see cref="GameserverEvent"/>.</summary>
+public sealed record HalftimeStartedEvent : GameserverEvent
+{
+    /// <summary>The discriminator this branch carries.</summary>
+    public const string TypeName = "halftime_started";
+
+    [JsonIgnore]
+    public override string Discriminator => TypeName;
+
+    [JsonPropertyName("matchId")]
+    [JsonPropertyOrder(0)]
+    public required string MatchId { get; init; }
+
+    [JsonPropertyName("source")]
+    [JsonPropertyOrder(1)]
+    public required GameserverSource Source { get; init; }
+
+    [JsonPropertyName("seq")]
+    [JsonPropertyOrder(2)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; init; }
+
+    [JsonPropertyName("mapNumber")]
+    [JsonPropertyOrder(3)]
+    public required long MapNumber { get; init; }
+
+    [JsonPropertyName("type")]
+    [JsonPropertyOrder(4)]
+    public string Type => TypeName;
+
+    [JsonPropertyName("sides")]
+    [JsonPropertyOrder(5)]
+    public required HalftimeStartedEventSides Sides { get; init; }
+
+    [JsonPropertyName("allTalk")]
+    [JsonPropertyOrder(6)]
+    public required bool AllTalk { get; init; }
+}
+
+/// <summary>The <c>sides</c> block of <see cref="HalftimeStartedEvent"/>.</summary>
+public sealed record HalftimeStartedEventSides
+{
+    [JsonPropertyName("teamA")]
+    [JsonPropertyOrder(0)]
+    public required TeamSide TeamA { get; init; }
+
+    [JsonPropertyName("teamB")]
+    [JsonPropertyOrder(1)]
+    public required TeamSide TeamB { get; init; }
+}
+
 /// <summary><c>map_end</c> — one branch of <see cref="GameserverEvent"/>.</summary>
 public sealed record MapEndEvent : GameserverEvent
 {
@@ -2316,6 +2367,10 @@ public sealed record GamemodeCapabilities
     [JsonPropertyName("mixedRoster")]
     [JsonPropertyOrder(7)]
     public bool MixedRoster { get; init; } = false;
+
+    [JsonPropertyName("halftimeVoice")]
+    [JsonPropertyOrder(8)]
+    public bool HalftimeVoice { get; init; } = false;
 }
 
 /// <summary>What a charge is counted against.</summary>
@@ -2409,6 +2464,8 @@ public enum HelloCapability
     Simulation,
     [JsonStringEnumMemberName("mixedRoster")]
     MixedRoster,
+    [JsonStringEnumMemberName("halftimeVoice")]
+    HalftimeVoice,
     [JsonStringEnumMemberName("hud")]
     Hud,
 }
@@ -3369,6 +3426,11 @@ public sealed record AssignOrchestratorFrame : OrchestratorFrame
     [JsonPropertyOrder(19)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Hud { get; init; }
+
+    [JsonPropertyName("halftimeVoice")]
+    [JsonPropertyOrder(20)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? HalftimeVoice { get; init; }
 }
 
 /// <summary>The <c>demoUploadUrl</c> block of <see cref="AssignOrchestratorFrame"/>.</summary>
@@ -3711,6 +3773,7 @@ internal sealed class GameserverEventConverter : DiscriminatedUnionConverter<Gam
             "round_start" => typeof(RoundStartEvent),
             "round_end" => typeof(RoundEndEvent),
             "side_swap" => typeof(SideSwapEvent),
+            "halftime_started" => typeof(HalftimeStartedEvent),
             "map_end" => typeof(MapEndEvent),
             "series_end" => typeof(SeriesEndEvent),
             "match_paused" => typeof(MatchPausedEvent),

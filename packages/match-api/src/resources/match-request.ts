@@ -543,6 +543,55 @@ export function matchRulesProblem(
   }
 }
 
+/**
+ * **What the server does with voice** (PRD-09 T4). Today one switch:
+ * `halftime`, whether half time is all-talk — both sides hear each other from
+ * the instant the half's last round ends until the next round's freeze time
+ * begins, on a mode whose manifest claims `capabilities.halftimeVoice` (`pug`).
+ * Unsaid is the mode's own answer, which is on wherever the capability is;
+ * `false` keeps the teams apart through the break, the way MatchZy's own
+ * config does. The fact {@link halftimeVoiceOf} decides travels as the
+ * `allTalk` of the match's `halftime_started`.
+ */
+export const matchVoiceSchema = z.object({
+  /** Half time is all-talk. Unsaid: on where the mode claims `halftimeVoice`. */
+  halftime: z
+    .boolean()
+    .optional()
+    .describe('half time is all-talk; unsaid is on where the mode can'),
+})
+export type MatchVoice = z.infer<typeof matchVoiceSchema>
+
+/**
+ * **Whether half time is all-talk for this request on this mode**: the mode
+ * claims `capabilities.halftimeVoice` and the request did not say `false`.
+ * The one reading of the field, so the orchestrator's assignment, the fake
+ * and the simulator's `halftime_started` never disagree.
+ */
+export function halftimeVoiceOf(
+  request: Pick<MatchRequest, 'voice'>,
+  mode: { capabilities: { halftimeVoice?: boolean } },
+): boolean {
+  return mode.capabilities.halftimeVoice === true && request.voice?.halftime !== false
+}
+
+/**
+ * **Whether a gamemode can do what a request asks of its voice**, decided
+ * once here so an orchestrator and the fake refuse the same requests
+ * (PRD-09 T4). `undefined` means play it. One refusal: `voice.halftime: true`
+ * on a mode that does not claim `capabilities.halftimeVoice` (Rush, a
+ * free-for-all), which has no half time to open, and a match that quietly
+ * kept the teams apart would leave the client believing otherwise. `false`
+ * is never refused: keeping voice as it is needs nothing of a mode.
+ */
+export function matchVoiceProblem(
+  request: Pick<MatchRequest, 'voice'>,
+  mode: { id: string; capabilities: { halftimeVoice?: boolean } },
+): { message: string; field: string } | undefined {
+  if (request.voice?.halftime !== true || mode.capabilities.halftimeVoice === true) return undefined
+  return { message: `${mode.id} has no half time to open the voice in`, field: 'voice.halftime' }
+}
+
 /** The longest a match may hold a server. The key's own ceiling may be lower. */
 export const MATCH_TTL_MINUTES_MAX = 24 * 60
 
@@ -561,6 +610,8 @@ export const matchRequestSchema = z.object({
   /** Lines the plugin prints during warmup, in order, each bilingual-or-not as the client chose. */
   warmupLines: z.array(z.string().min(1).max(SERVER_CHAT_TEXT_MAX)).max(20).optional(),
   branding: matchBrandingSchema.optional(),
+  /** What the server does with voice ({@link matchVoiceSchema}); unsaid is the mode's own answer. */
+  voice: matchVoiceSchema.optional(),
   sim: matchSimOptionsSchema.optional(),
   /**
    * Play it with puppets ({@link matchSimulationSchema}). Needs the
