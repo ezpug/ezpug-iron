@@ -11,8 +11,7 @@ wire never sends, so a position tick should carry one. Runs beside the platform'
 `/root/ezpug/ralph/PRD-20-after-the-playtest.md`, whose T3 reads the side, T5 sends
 `autoReady: false` for a cup, and T17 consumes this round's release.
 
-**Branch:** `main`. **Surface:** the whole repo. **Model:** `claude-opus-5-5` for every task,
-nothing tagged `(fable)`; effort as tagged. **Order:** T1 (the reel, shipped) first because it
+**Branch:** `main`. **Surface:** the whole repo. **Model:** `claude-opus-5-5` for T1–T7; T8 is `(fable)` (the owner, 2026-10-05); effort as tagged. **Order:** T1 (the reel, shipped) first because it
 is a merge and a publish; then T2, T3, T4, T5, T6, T7. PRD-08's open T8 (the books) closes
 inside T7 here; its T2 (the avatar) stays parked.
 
@@ -162,6 +161,52 @@ Traced 2026-10-05 at `5e82630`. Trust the file over this note.
   folded in (`docs/hud.md` the unboxing's sections and the reel's curve, `docs/gamemodes.md`
   Rush's seating and the voice capability, `docs/match-api.md` the two new fields, decisions
   35 and the 19 note). `ralph/OPEN-POINTS.md`: whatever T4 found CS2 will not do.
+
+- [ ] **T8 (fable): The reel turns, on a real client.** (The owner, 2026-10-05,
+  evening: a tester on production said the drop's case opening "is still not spinning", in a
+  match from 22:23 CEST, after T1's publish at 12:21 and the `79c7810` deploy; then: "come up
+  with a smart, elegant and polished solution that still keeps the fun of the case opening".)
+  T1 changed only the curve, on the theory that the reel jumped and crawled; a reel that does
+  not move at all says the theory was wrong. What is known: the reel is one 5,040 px strip
+  slid by a single 6 s `transform` transition inside a second panel (`.ezpug-unbox-land`) that
+  slides at the same time (`hud/styles/ezpug_unbox.css:243-305`, markup
+  `hud/layout/ezpug_moment.xml:87-89`); the reveal's short transitions do play ("smoother after
+  the reveal", 2026-10-04); `custom_hud_layout` already has one silent no-op on record
+  (`@keyframes` on `transform`, the platform's
+  `references/cs2-custom-hud/cs2-ui-kit/docs/GOTCHAS.md:270-282`, which also says a
+  transition and an animation on one property of one panel do not coexist); the plugin writes
+  nothing to the layout while the reel slides (`UnboxingTests.NothingTouchesTheLayoutWhileTheReelSlides_OnlyTheTicksAreHeard`)
+  but already ticks once per slot on the curve (29 ticks, `Unboxing.cs`); and nothing on
+  screen says which addon revision a client mounted, so a cached copy of yesterday's pack is
+  not ruled out (`references/cs2-custom-hud.md` → Why a first join takes longer,
+  `mm_cache_clients_with_addons`). The lane has only puppets, so no row has ever seen the
+  picture. **Find the cause, then design the reel so it cannot happen again**, keeping
+  everything that makes it fun: the call, the blur of decoys, the slowing ticks heard in
+  step with what is seen, the near-miss landing a little off centre, the reveal's burst by
+  tier, all inside a PUG's freeze and out of the buy menu's way (decision 34, "The unboxing,
+  drawn"). Read the clones in the platform's `references/cs2-custom-hud/` (Valve's own reel
+  in `valve-gametracking`, cs2-ui-kit, CustomHudProbeSW2, panorama-hud's skill) for what
+  provably moves in a HUD layout before choosing. Likely shapes, the choice is yours and is
+  argued in a decision (36): motion the server drives in steps the client is known to
+  animate (short class-started transitions, one per tick, so sight and sound are one
+  clock), a strip small enough to be cheap (a window of slots recycled rather than 36
+  pictures in a 5,040 px panel), and a degrade that is still a show (a tier-coloured flicker
+  of decoys that settles) if a client cannot. Ship with: **a build stamp** a person can read
+  off the card (the pack's short hash, small and quiet), so a look says which revision a
+  client runs; **a diagnostic moment** (`ezpug_unbox_test` on the console, admin-only, plays
+  the reel for whoever is on the server outside a match's freeze, and can play the old slide
+  beside the new one) so the owner's look answers in one join; and an `ezpug_status` line for
+  the reel's mode. Tests on the fake clock for the step schedule and the stamp; the
+  stylesheet test holds what may and may not animate; `docs/hud.md` → The unboxing rewritten
+  to what ships, the gotcha added to its list. `hud:build` + `hud:publish` (check the
+  revision reads back) and `cs2:build` + `dathost:image` + `./scripts/deploy.sh all` the same
+  day, smoke green; the lane's `unbox` row green. **The proof is the owner's**: the progress
+  line ends with the exact steps for the look (which server, which command, what to watch
+  for, the stamp to expect), and the box is ticked only once the work is shipped, with
+  "seen on a client: pending the owner" written plainly. If the clock runs past Thursday
+  2026-10-08 without a look, the platform's `ingame.hud` stays on and the plugin's
+  fallback is PRD-07's toast and card for a drop, behind one switch an admin can flip
+  without a deploy, named in the line.
 
 ## Working rules
 
