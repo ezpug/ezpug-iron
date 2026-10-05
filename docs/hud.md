@@ -1283,6 +1283,22 @@ Restart your game before step 4 if it was running when the addon was last publis
     the four tiers (send one of each); and whether ticks at 0.5 and the reveal at 0.7 sound
     any different from the winner's 1.0. If they do not, the volume argument does not scale an event
     (the open question of step 8). Neither should drown the footsteps and buying around you.
+    Two more, each with a screenshot: **as a spectator** (die in warmup or a deathmatch round
+    of a second match and watch a team-mate while an unboxing about somebody else plays:
+    the reel as they see it, `observable`), and **a freeze too short**: the same drop in a
+    Rush match (13 s of freeze never fits 13.5), where nothing slides and you get the line,
+    a toast tinted by the tier and, if it is about you, the card at the next stretch.
+18. **The half-time band, and the voice.** Two people with real clients on opposite teams
+    of a `pug` (a second rostered SteamID, the other two seats puppets), the request's
+    `voice` left out. At the half's last round end: one line in chat ("Halbzeit: Alle hören
+    alle, …"), the band top centre under the team counter in the house green with "Halbzeit,
+    alle hören alle" / "Half time, everyone can talk", and **each of you hears the other**
+    while both are alive (and once one is dead). At the next round's freeze time: the band
+    gone, the second line, and the other side silent again. Screenshot the band at 16:9 and
+    4:3. Then the same with `voice: { "halftime": false }`: no band, no line, nobody hears
+    the other side. If the two of you cannot hear each other with the band up, the cvars
+    are not enough for CS2's voice (`ralph/OPEN-POINTS.md`), and the band must come off
+    until they are.
 
 ### Not for a client, but open
 

@@ -763,6 +763,29 @@ it here.
     countdown as a toast (it is rewritten every half second and a toast holds a row for six:
     the centre panel is the place for a line that is rewritten).
 
+    **The whole server watches a drop** (PRD-08, 2026-10-04; amended here in PRD-09 T7).
+    A card is the person's, and a toast is a strip at the edge. A drop with a `reel`
+    (`@ezpug/match-api` 0.32.0: `moment.reel`, `isUnboxing`, `MOMENT_UNBOXING_REVEAL_MS`) is
+    a case opening, and a case opening is something a room watches: so it is played for
+    **everybody on the server**, at the top centre, call, reel and reveal, and the tier's
+    reveal sound is played to everybody watching (louder for the winner). The rules above
+    still bind it, and some bind it harder. **It never covers a fight**: it plays only in a
+    stretch of nobody playing long enough for all of it (13.5 s: a PUG's freeze fits, Rush's
+    and flying-scoutsman's never do, and there it is PRD-07's moment), and it is put away the
+    instant somebody plays. **Everything it shows is a chat line too**, but **the line waits
+    for the reveal** where the reel plays, because chat is on every screen and would open the
+    box before the reel stops; the call is said at once. The reveal's instant is the
+    contract's constant (8 s after the moment is due), so a client can time its own reveal
+    against it without asking the server. `docs/hud.md` ("The unboxing, drawn", "The
+    unboxing, played") holds the rest. Not chosen: the unboxing for the winner alone (the
+    whole point is the room); the reel's slots chosen by the server (the platform knows what
+    a case holds, the server knows nothing about items).
+
+    **A band is a server state drawn** (PRD-09 T4, 2026-10-05). The half-time band ("Half
+    time, everyone can talk") is put up when the server opens the voice between the sides
+    and taken down when it closes it: the HUD shows a state the server holds and never
+    decides one, and with the HUD off the two lines at its edges say the same.
+
 ## How the rounds run
 
 24. **Spine first, then two loops in parallel.** `ralph/PRD-01-spine.md` (this repo, ~10

@@ -4,6 +4,14 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.34.0 — 2026-10-05
+
+**After the playtest** (PRD-09, for the platform's PRD-20 T17, which reads the side on a
+tick and the half-time fact and keeps its fallbacks for an older server). Additive only: a
+0.33.0 client keeps working against a 0.34.0 server, and the other way round.
+
 **Half time is all-talk, and a client hears when it starts** (PRD-09 T4). Additive: a
 request, a manifest or an event written against 0.33.0 parses and means what it did.
 

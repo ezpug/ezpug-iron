@@ -22,7 +22,7 @@ lock") says. The lane lock's fairness (issue #1) is decision 31. §7 (a mixed ro
 a fork of our own, `ezpug/MatchZy-Enhanced`, and `pug` claims `capabilities.mixedRoster`
 (decisions 19 and 28 as amended). What only a person can show of it is §8.
 PRD-05 (workshop maps) took neither §3 nor §8. It found §9 and §10, and decision 32 records
-what it decided.
+what it decided. PRD-09 (after the playtest) found §12.
 
 ## §3 EZ Rating on a human's scoreboard has never been seen
 
@@ -119,3 +119,20 @@ the id.
 (a patch release, and the fixtures follow), or the arena is found from an engine fact without
 reading the script, for example where the spawns stand at a round start against each arena's
 known origin. That would be a measurement, and then a `TowerLine` input.
+
+## §12 Half time's voice has never been heard across the sides
+
+**What is known** (PRD-09 T4, 2026-10-05): at the break between halves the SDK sets
+`sv_talk_enemy_living 1`, `sv_talk_enemy_dead 1`, `sv_alltalk 1`, `sv_full_alltalk 1` and
+`sv_deadtalk 0`, each put back to what it was as the next freeze time begins. The lane's
+`pug-2v1` row read the two `sv_talk_enemy_*` back over RCON as `1` while the break stood and
+`0` after it, `halftime_started` arrived 218 ms after the half's `round_end`, and `hud-on` read
+the band's `shown` class on and off. The lane has puppets and no client, so **nobody has
+heard a living enemy over voice on these cvars**: whether CS2 carries it is a client's
+question, and the cvars are what the community's guides name, not something this repo
+measured. Two things are untested beside it: whether Dathost's servers accept all five
+(their cvar whitelist), and a full LAN room of twenty people talking at once.
+
+**What needs a decision.** If the owner's two clients (`docs/hud.md`, the look list's step 18)
+cannot hear each other with the band up, either another cvar is found and measured, or the
+capability comes off `pug` (a manifest patch; the band and the lines go with it) until one is.

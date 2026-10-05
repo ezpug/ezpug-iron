@@ -74,7 +74,7 @@ same data.
 | ----- | ------- |
 | `teamSize` | the most one team holds. The platform's room refuses an eleventh player for a `5` |
 | `teams` | `2` for a sided mode, `1` for everything else. A one-team request still sends `teamA` and `teamB`, with `teamB.players` empty. **`1` is not only a free-for-all**: `retakes` (T10) is one group of ten that the community plugin splits into an attacking and a defending side afresh every round, so a team of EZPug's never survives a round and no terminal fact names a winner — the same answer `powerup-dm` gets for a different reason |
-| `openJoin` | `true` means people may connect without being rostered: the server lets them in, the orchestrator relays `player.joined` with `rostered: false`, and the platform answers with a `profile` command so the server learns their name, locale, rating and loadout. `false` means the roster is the guest list and nobody else gets past the SteamID check |
+| `openJoin` | `true` means people may connect without being rostered: the server lets them in, the orchestrator relays `player.joined` with `rostered: false`, and the platform answers with a `profile` command so the server learns their name, locale, rating and loadout. `false` means the roster is the guest list and nobody else gets past the SteamID check: MatchZy's own under a `matchzy` flow, the SDK's everywhere else, which kicks a stranger with the reason in both languages and never announces them (decision 35) |
 
 ### Length
 
@@ -345,6 +345,17 @@ for a mode whose class says `OwnsFlow` — a mode that knows better is always ri
 
 **It emits no pause.** Nothing pauses a stock server but an admin, and answering that
 command is the mode's job.
+
+**It seats the roster** (PRD-09 T2, decision 35). In a `none` flow with `slots.teams: 2`
+(Rush, `flying-scoutsman`) nothing else puts a person on a team, so the SDK's `Seating`
+does, the way MatchZy does for a pug: every rostered body, person or puppet, goes to its
+team's side for this half (`MatchContext.SideOf`, the rule the puppeteer adds a puppet by),
+checked every 250 ms, so somebody who connects is placed before the team menu matters and
+somebody who switches is put back. A person reads one line saying so, in their language
+behind the match's prefix ("Du spielst für …, deshalb bist du jetzt CT." / "You play for …, so you are on CT now."). Between the
+gamerules' swap flag and the `side_swap` it brings, seating holds still. A plain bot, a
+one-team mode (`retakes`, `powerup-dm`) and a mode that owns its flow are left alone.
+`ezpug_status` prints a `seating:` line, which the lane's `rush` row asserts.
 
 **It starts the match, and waits for people first** (PRD-08 T1b). A `plugin` or `none`
 flow has no ready-up and CS2's warmup does not run down on a dedicated server, so the

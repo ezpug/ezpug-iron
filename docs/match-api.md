@@ -74,9 +74,9 @@ transient.
 ## Vocabulary
 
 **Gameserver events** began as the platform's `gameserver.ts` on 2026-09-05, verbatim —
-22 types — and are **28** since 0.12.0: `server_ready`, `heartbeat`, `player_connected`,
+22 types — were **28** from 0.12.0 and are **29** since 0.34.0: `server_ready`, `heartbeat`, `player_connected`,
 `player_disconnected`, `player_ready`, `player_unready`, `team_ready`, `all_ready`,
-`knife_start`, `knife_end`, `going_live`, `round_start`, `round_end`, `side_swap`,
+`knife_start`, `knife_end`, `going_live`, `round_start`, `round_end`, `halftime_started`, `side_swap`,
 `map_end`, `series_end`, `match_paused`, `match_unpaused`, `player_death`,
 `bomb_planted`, `bomb_defused`, `bomb_exploded`, `position_tick`, `backup_written`,
 `demo_available`, `chat_command`, `chat_message`, `plugin_event`.
@@ -169,6 +169,17 @@ generic flow does the same. A workshop map needs a provider that claims
 the side, `null` when the server could not attribute it, and the pick itself arrives as
 `side_swap` when they swap and as nothing at all when they stay.
 
+**Half time is said, and whether it is all-talk** (since 0.34.0, PRD-09 T4).
+`halftime_started` is said the instant a break between halves begins (an overtime's too),
+before the `side_swap` it leads to; its arrival is the stretch's start and the next
+`round_start` is its end. `sides` is where each team plays **after** the break, and
+`allTalk` whether this server let both sides hear each other for the stretch: the request's
+`voice.halftime` on a mode that claims `capabilities.halftimeVoice`. Draw an "everyone can
+talk" band off `allTalk`, never off what you asked for. MatchZy's own `halftime_started` is
+not this event and is still dropped: it names no sides and races its `side_swap`
+(decision 19); the core plugin says this one on every server, and the simulator and the
+fake say it too.
+
 Also in the vocabulary: `steamId64Schema` (a 17-digit string, never a number), `game`
 (`cs2 | csgo`), `locale` (`de | en`, German default), `mapRadar` (overview geometry, the
 platform's `map-pools.ts` shape, with its transforms `worldToRadar`, `radarToWorld`,
@@ -197,6 +208,7 @@ What `POST /v1/matches` takes. `maps` and `rules` are the platform's `mapPlanSch
 | `warmupLines?` | string[] ≤20                                           | printed in warmup, one every eight seconds, in order and cycling; rendered by the client (one line everybody reads cannot be four languages), relayed unbranded, sanitized to one chat line |
 | `branding?`    | `{ hostname?, eventName?, tagline?, banner?, hud }`    | how the server presents itself (decisions 22, 34). `eventName` is the chat prefix, MatchZy's lines included, `[EZPug]` without one. `tagline` ≤140 and `banner` (a key) are for the welcome; `hud` is the client's switch for the HUD, `false` unless said. See [The HUD, from a client's side](#the-hud-from-a-clients-side) |
 | `sim?`         | `{ scenario?, seed?, mode?, timeScale?, chaos?, knifePerk? }` | honoured on the `sim` provider only. `knifePerk: { round, killer? }` deals a knife kill and the killer's `get ezpug` (see below) |
+| `voice?`       | `{ halftime? }`                                        | since 0.34.0: `halftime: false` keeps the teams apart at half time; unsaid is on wherever the mode claims `capabilities.halftimeVoice` (`pug`), and `true` on a mode without it is `validation_failed` on `voice.halftime`. `halftimeVoiceOf(request, manifest)` is the one reading; the server's answer is `halftime_started.allTalk` |
 | `simulation?`  | `{ scenario?, timeScale? }`                            | **puppets**: every rostered player is played by a simulated one. Needs the `simulation` scope (else `forbidden`) and `capabilities.simulation` on the mode (else `validation_failed` on `simulation`); `scenario` is a name from `GET /v1/sim/scenarios`, `timeScale` the engine's `host_timescale`, 0.1…10. Absent is a real match |
 | `ttlMinutes`   | int, 1…1440                                            | the reaper's deadline; never above the key's ceiling |
 
@@ -1150,6 +1162,13 @@ Every message is one JSON frame with a `type`:
 | `tick`           | `ticks: position_tick[]` (1…64) | the ephemeral tier, batched |
 | `command_result` | `result: MatchCommandResult` | the late answer to a command acknowledged `accepted`, same `correlationId` |
 | `presence`       | `players: [{ steamId64, name, team? }]` | who is on the server, whole, every time it changes; spectators included |
+
+**A position carries its side** (since 0.34.0, PRD-09 T5). Each of a tick's `positions`
+may say `side: ct | t`, the side that body stands on at the instant of the tick, read off
+the engine, so a minimap colours a dot without folding `side_swap` itself. The core plugin
+and the simulator send it on every position of a body on a side and none for a body on no
+side; a server older than 0.34.0 sends none at all, so keep your own fallback for a
+position without it.
 
 **The utility layer rides on the tick** (since 0.26.0, ezpug/ezpug-iron#5). Beside
 `positions`, a `position_tick` may carry:
