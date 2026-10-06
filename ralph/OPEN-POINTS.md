@@ -157,3 +157,13 @@ cause goes into `docs/hud.md` as a fact. If it snaps but does not slide, the str
 transition is the next suspect (its duration, or `transition-high-framerate`, untried). If
 it does not move at all, `ezpug_unbox_reel 0` holds the evening and the panel's class
 changes themselves are in question, which no other beat has shown.
+
+**The owner's look** (2026-10-06, about 10:53 to 10:57 CEST, a Dathost 2v2 made straight on
+gs.ezpug.com as EZPUG, puppets beside, stamp 613853e). The stepped reel moves: "it works
+quite a bit better now, not super smooth, but pretty good", twice (a test at 8.2 s of
+freeze left, and round 2's at 16.0 s). The old slide (round 3's, `ezpug_unbox_test slide`)
+"barely moved, very laggy", as both playtests saw. So the cause stands as decision 36 read
+it, and the stepped reel is the shape. **Still open:** the smoothness. Whether a step glides
+or snaps was not said; the next knobs are the strip's 0.15 s slide and
+`transition-high-framerate`, then the step spacing. The old slide can come out once that is
+settled.
