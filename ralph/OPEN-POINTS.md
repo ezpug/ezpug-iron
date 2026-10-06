@@ -138,9 +138,13 @@ cannot hear each other with the band up, either another cvar is found and measur
 capability comes off `pug` (a manifest patch; the band and the lines go with it) until one is.
 
 **The owner's look** (2026-10-06, 10:56:52 to 10:57:07 CEST, the same test server with
-`mp_maxrounds 6` so the break came after round 3): the band showed and the chat line was said
-at both edges ("halftime message also worked"); the five cvars opened at the break and closed
-14.9 s later as round 4's freeze began. **Still open:** hearing the other side, which needs a
+`mp_maxrounds 6` so the break came after round 3): the chat line was said at both edges
+("halftime message also worked"), and **the band never showed** ("didn't see a band, only
+chat lines"); the five cvars opened at the break and closed 14.9 s later as round 4's freeze
+began, and the plugin set `shown` on `#halftime_band` (`Halftime.cs:239`). The likely cause is
+the band's own rule: CS2 holds the scoreboard open through the break between halves, and
+`hud/styles/ezpug_halftime.css` hides the band under `.HUD_SCOREBOARD_VISIBLE`, so it is
+hidden for exactly the stretch it exists for. Not yet proven on a client. **Still open:** hearing the other side, which needs a
 second person on the other team.
 
 ## §13 The unboxing's reel has never been seen moving on a client
