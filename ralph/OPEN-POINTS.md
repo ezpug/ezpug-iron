@@ -137,6 +137,12 @@ measured. Two things are untested beside it: whether Dathost's servers accept al
 cannot hear each other with the band up, either another cvar is found and measured, or the
 capability comes off `pug` (a manifest patch; the band and the lines go with it) until one is.
 
+**The owner's look** (2026-10-06, 10:56:52 to 10:57:07 CEST, the same test server with
+`mp_maxrounds 6` so the break came after round 3): the band showed and the chat line was said
+at both edges ("halftime message also worked"); the five cvars opened at the break and closed
+14.9 s later as round 4's freeze began. **Still open:** hearing the other side, which needs a
+second person on the other team.
+
 ## §13 The unboxing's reel has never been seen moving on a client
 
 **What is known** (PRD-09 T8, 2026-10-05): two playtests (2026-10-04, 2026-10-05 22:23) saw
@@ -165,5 +171,7 @@ freeze left, and round 2's at 16.0 s). The old slide (round 3's, `ezpug_unbox_te
 "barely moved, very laggy", as both playtests saw. So the cause stands as decision 36 read
 it, and the stepped reel is the shape. **Still open:** the smoothness. Whether a step glides
 or snaps was not said; the next knobs are the strip's 0.15 s slide and
-`transition-high-framerate`, then the step spacing. The old slide can come out once that is
-settled.
+`transition-high-framerate`, then the step spacing. The owner's verdict after a third
+stepped reel and a second look at the slide (round 4): "the old one is definitely laggy, the
+new one works pretty well". So the old slide (`.ezpug-unbox.slide` and `ezpug_unbox_test slide`)
+can come out; only the smoothness remains.
