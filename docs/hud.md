@@ -446,7 +446,7 @@ With the id set, the plugin loads at boot and reads
 | `mm_cache_clients_with_addons` | `1` | a player who has the addon is not sent through the download handshake again on a map change or a rejoin |
 | `mm_cache_clients_duration` | `0` | for the life of the server, which is one match |
 | `mm_block_disconnect_messages` | `0` | blocking it suppresses the `player_disconnect` **event** for the reason "loop shutdown", not just the chat line, so MatchZy, every CounterStrikeSharp plugin and our own vocabulary would stop seeing it. Upstream believes only the addon's reconnect uses that reason, but nobody has proved it. The HUD is decoration and must not change what a server says happened. The cost is one "left the game" line per player on a first join |
-| `mm_addon_connection_timeout` | `30` (upstream's) | see the next section |
+| `mm_addon_connection_timeout` | `0` (upstream's is `30`) | no download clock since 2026-10-10: with 30, a Steam account that once took longer than that was refused the reply on every later attempt, which kept the video side's live-cast spectator out of a match. See the next section |
 
 Two things change on a server that has the id, with or without a match asking for the
 HUD:
@@ -550,7 +550,8 @@ again, which is the "loop shutdown" disconnect. When it comes back and the engin
 admits it (`ClientConnect`), the plugin marks it *joined*, and the next addon goes out
 the same way.
 
-The only clock is `mm_addon_connection_timeout` (30 s). It is checked only **when the
+The only clock is `mm_addon_connection_timeout` (upstream's 30 s; ours is 0, off, since
+2026-10-10, and what follows is what 30 does). It is checked only **when the
 client comes back**. If a client returns more than 30 s after its first attempt and is
 still *connecting*, the plugin withholds the reply. On the next frame it disconnects the
 client with "Required Workshop addon download was not accepted in time", and forgets the
