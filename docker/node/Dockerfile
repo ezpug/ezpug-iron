@@ -14,7 +14,7 @@
 # the two stay one recipe.
 
 # ── Base ───────────────────────────────────────────────────────────────────
-FROM node:22.19.0-bookworm-slim AS base
+FROM node:22.23.4-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH \
     CI=1
