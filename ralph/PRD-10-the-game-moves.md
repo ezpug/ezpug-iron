@@ -368,7 +368,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   owner notification through its catalog on a red verdict and on `unproven` older than N
   hours (N is the platform's setting); `GET /v1/fleet/game` behind its admin door for the
   history; nothing else — no Steam, no GitHub, no plugin name over there.
-- [ ] **T8 (effort: medium): The LAN node states its build.** The node agent reads the
+- [x] **T8 (effort: medium): The LAN node states its build.** The node agent reads the
   volume's `appmanifest_730.acf` `buildid` and `steam.inf`'s `PatchVersion` at boot and before
   every `start`, and the image's `build.json` (the pins it was built with, the sha), and says
   all three in its `hello` (`packages/protocol` additive: `hello.game { build, patchVersion }`,
@@ -392,6 +392,13 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   > the node's build and image. Fold it into the `nodes` provider's `game.hud` here, and have
   > the nodes provider hand `EZPUG_HUD_ADDON` to a container only while that verdict is green
   > (today it hands it to every container: `providers/nodes/provider.ts`, `hudAddon`).
+- [ ] **T8a (effort: low): conformance's "passes every flow and skips none" outruns its 20 s.**
+  Found in T8 (2026-10-24): `apps/orchestrator/src/conformance.test.ts:258` runs the whole
+  suite against the in-process orchestrator under Vitest's default 20 s and took 14 s alone.
+  In T8's first `pnpm verify` the box was at load ~88 (a `cs2:build`, a lane row and other
+  projects' loops), and it timed out at 20.1 s; alone it passed 25/25. A flaky test is a P1
+  against the spine (CLAUDE.md). Give it a timeout sized to the work it does, or make the
+  work smaller, and say which in the test.
 - [ ] **T9 (effort: medium): The books, and the move rehearsed end to end.** `docs/pins.md`:
   the rows T1 wrote re-read once more, "Bumping one" rewritten as `pnpm game:follow` with the
   hand steps kept as what the verb does; `docs/operations.md`: a new section **"CS2 update
