@@ -73,6 +73,14 @@ export const DEFAULT_GSLT_POOL_MAX = 16
  */
 export const HUD_ADDON_VAR = 'EZPUG_IRON_HUD_ADDON'
 
+/**
+ * **Which nodes get the HUD's loader** (PRD-10 T8): `proven` (the default)
+ * only a node whose volume holds the build its image was proven on with the
+ * `hud-on` row; `always` every node — the operator's hand for the dev-node
+ * canary's own `hud-on` row, which is the run that writes that proof.
+ */
+export const HUD_ADDON_NODES_VAR = 'EZPUG_IRON_HUD_ADDON_NODES'
+
 /** The dev port, decided in `.env.example` against `ss -tlnp` on this box. */
 export const DEFAULT_PORT = 3430
 
@@ -227,6 +235,8 @@ export interface OrchestratorConfig {
   readonly gslt: GsltConfig
   /** The HUD's Workshop id for every server started here, or null ({@link HUD_ADDON_VAR}). */
   readonly hudAddon: string | null
+  /** Which nodes get it ({@link HUD_ADDON_NODES_VAR}). */
+  readonly hudAddonNodes: 'proven' | 'always'
   /** The build watcher's interval, token and feeds (PRD-10 T2). */
   readonly game: GameWatchConfig
 }
@@ -489,6 +499,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
         .string()
         .regex(WORKSHOP_ID_PATTERN, 'must be a Workshop id (digits only)')
         .nullable(),
+      hudAddonNodes: z.enum(['proven', 'always']),
     })
     .safeParse({
       // `EZPUG_IRON_PUBLIC_URL` is the name the dev contract other projects'
@@ -511,6 +522,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       gamemodesDir: env.EZPUG_IRON_GAMEMODES_DIR || null,
       nodeServerImage: env.EZPUG_IRON_NODE_SERVER_IMAGE || DEFAULT_NODE_SERVER_IMAGE,
       hudAddon: env[HUD_ADDON_VAR]?.trim() || null,
+      hudAddonNodes: env[HUD_ADDON_NODES_VAR]?.trim() || 'proven',
     })
   if (!parsed.success)
     fail(parsed.error.issues, {
@@ -528,6 +540,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
       gamemodesDir: 'EZPUG_IRON_GAMEMODES_DIR',
       nodeServerImage: 'EZPUG_IRON_NODE_SERVER_IMAGE',
       hudAddon: HUD_ADDON_VAR,
+      hudAddonNodes: HUD_ADDON_NODES_VAR,
     })
   const { rateLimitBurst, rateLimitPerSecond, ...rest } = parsed.data
   const production = env.NODE_ENV === 'production'

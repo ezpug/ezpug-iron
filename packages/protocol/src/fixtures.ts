@@ -326,6 +326,17 @@ export const NODE_FRAME_FIXTURES: {
     labels: { venue: 'saarlan', tickrate: '128', cores: '16' },
     capacity: { maxInstances: 4, warm: 1 },
     imageDigest: `sha256:${'0123456789abcdef'.repeat(4)}`,
+    game: { build: '26144732', patchVersion: '1.41.9.2', sourceRevision: '11162119' },
+    image: {
+      revision: '24be188',
+      pins: { counterStrikeSharp: '1.0.378', metamod: '2.0.0-git1483' },
+      proven: {
+        build: '1.41.9.2',
+        hud: true,
+        pins: { counterStrikeSharp: '1.0.378', metamod: '2.0.0-git1483' },
+        at: '2026-10-24T18:32:00.000Z',
+      },
+    },
     instances: [warmInstance],
   },
   heartbeat: { type: 'heartbeat' },

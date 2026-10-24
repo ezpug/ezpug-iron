@@ -60,6 +60,9 @@ import {
   instanceStateSchema,
   nodeCapacitySchema,
   nodeFrameSchema,
+  nodeGameSchema,
+  nodeImageProofSchema,
+  nodeImageSchema,
   nodeInstanceSchema,
   nodeTokenKindSchema,
   orchestratorNodeFrameSchema,
@@ -443,6 +446,21 @@ const NODE_LINK_NAMES: readonly Named[] = [
     description: 'How many containers, and how many warm.',
   },
   { schema: imageDigestSchema, id: 'ImageDigest', description: 'An OCI image digest.' },
+  {
+    schema: nodeGameSchema,
+    id: 'NodeGame',
+    description: 'The game build a node’s volume holds (PRD-10 T8).',
+  },
+  {
+    schema: nodeImageProofSchema,
+    id: 'NodeImageProof',
+    description: 'The build a server image’s pins were proven on by the dev-node canary.',
+  },
+  {
+    schema: nodeImageSchema,
+    id: 'NodeImage',
+    description: 'A node’s server image: its revision, pins and proof.',
+  },
   {
     schema: instanceSpecSchema,
     id: 'InstanceSpec',

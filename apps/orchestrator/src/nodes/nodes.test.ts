@@ -123,8 +123,19 @@ async function findRigPortBase(): Promise<number> {
 let rigPortBase: Promise<number> | undefined
 const rigPorts = (): Promise<number> => (rigPortBase ??= findRigPortBase())
 
+/** What a 0.2.0 agent says of its volume and image (PRD-10 T8). */
+const PINS = { counterStrikeSharp: '1.0.378', metamod: '2.0.0-git1483' }
+const stating = (patchVersion: string, provenOn: string | null = '1.41.9.2', hud = true) => ({
+  game: { build: '26144732', patchVersion, sourceRevision: '11162119' },
+  image: {
+    revision: '24be188',
+    pins: PINS,
+    proven: provenOn === null ? null : { build: provenOn, hud, pins: PINS },
+  },
+})
+
 async function createNodeRig(
-  options: { portBase?: number; hudAddon?: string } = {},
+  options: { portBase?: number; hudAddon?: string; hudAddonNodes?: 'proven' | 'always' } = {},
 ): Promise<NodeRig> {
   const portBase = options.portBase ?? (await rigPorts())
   const holder: { link?: NodeLink } = {}
@@ -162,6 +173,7 @@ async function createNodeRig(
     facts: { emit: (matchId, fact) => app.matches.emit(matchId, fact) },
     portBase,
     ...(options.hudAddon !== undefined && { hudAddon: options.hudAddon }),
+    ...(options.hudAddonNodes !== undefined && { hudAddonNodes: options.hudAddonNodes }),
   })
   app.providers.register(provider)
   const port = await new Promise<number>(resolve =>
@@ -553,9 +565,12 @@ describe('the HUD’s addon (PRD-07 T2a)', () => {
     }
   })
 
-  it('reaches every container this provider starts, warm or cold, as the image’s variable', async () => {
+  it('reaches every container this provider starts on a proven node, warm or cold, as the image’s variable', async () => {
     const rig = await createNodeRig({ hudAddon: '3811574606' })
-    const node = await rig.enrol('devbox', { capacity: { maxInstances: 3, warm: 1 } })
+    const node = await rig.enrol('devbox', {
+      capacity: { maxInstances: 3, warm: 1 },
+      ...stating('1.41.9.2'),
+    })
     await rig.app.matches.create(rig.key, request())
     await rig.app.matches.create(rig.key, request())
     await rig.settle()
@@ -572,6 +587,111 @@ describe('the HUD’s addon (PRD-07 T2a)', () => {
         'EZPUG_IRON_URL',
       ])
     }
+  })
+})
+
+describe('the game a node states (PRD-10 T8)', () => {
+  const nodesGame = async (rig: NodeRig) => {
+    const answer = await rig.app.request('/v1/fleet/providers', { key: rig.secret })
+    expect(answer.status).toBe(200)
+    const nodes = (answer.body.providers as { id: string; game: unknown }[]).find(
+      provider => provider.id === 'nodes',
+    )
+    return nodes?.game as {
+      build: { id: string } | null
+      stack: string | null
+      canary: { state: string; build: string | null; reason: string | null }
+      hud: { state: string; build: string | null; reason: string | null }
+    }
+  }
+
+  it('is green, hud too, when the volume holds the build its image was proven on', async () => {
+    const rig = await createNodeRig()
+    await rig.enrol('devbox', stating('1.41.9.2'))
+    const game = await nodesGame(rig)
+    expect(game.build?.id).toBe('1.41.9.2')
+    expect(game.stack).toBe('24be188')
+    expect(game.canary).toMatchObject({ state: 'green', build: '1.41.9.2', reason: null })
+    expect(game.hud).toMatchObject({ state: 'green', build: '1.41.9.2', reason: null })
+    const fleet = await rig.app.request('/v1/fleet/game', { key: rig.secret })
+    expect(fleet.body.providers).toContainEqual({
+      id: 'nodes',
+      game: expect.objectContaining({ canary: game.canary }),
+    })
+  })
+
+  it('is unproven, never red, with the node and both builds, on a build newer than the proof — and still serves', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', stating('1.41.9.3'))
+    const game = await nodesGame(rig)
+    expect(game.canary).toEqual({
+      state: 'unproven',
+      build: '1.41.9.3',
+      since: expect.any(String),
+      reason: 'node devbox runs CS2 1.41.9.3; its image 24be188 was proven on 1.41.9.2 only',
+    })
+    const providers = await rig.app.request('/v1/fleet/providers', { key: rig.secret })
+    expect(
+      (providers.body.providers as { id: string; healthy: boolean }[]).find(p => p.id === 'nodes')
+        ?.healthy,
+    ).toBe(true)
+    await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    expect(node.starts()).toHaveLength(1)
+  })
+
+  it('names cs2:install on the node whose volume fell behind, and follows a volume that moved', async () => {
+    const rig = await createNodeRig()
+    const node = await rig.enrol('devbox', stating('1.41.9.1'))
+    expect((await nodesGame(rig)).canary.reason).toBe(
+      'node devbox runs CS2 1.41.9.1, older than 1.41.9.2 its image 24be188 was proven on: run `cs2:install` on node devbox',
+    )
+    node.send({
+      type: 'instances',
+      instances: node.instances(),
+      game: { build: '26144732', patchVersion: '1.41.9.2', sourceRevision: '11162119' },
+    })
+    await rig.settle()
+    expect((await nodesGame(rig)).canary).toMatchObject({ state: 'green', build: '1.41.9.2' })
+  })
+
+  it('says an agent older than 0.2.0 does not state its build', async () => {
+    const rig = await createNodeRig()
+    await rig.enrol('devbox')
+    expect((await nodesGame(rig)).canary).toMatchObject({
+      state: 'unproven',
+      build: null,
+      reason: 'node devbox does not state its game build (an agent older than 0.2.0)',
+    })
+  })
+
+  it('withholds the HUD’s addon from a node whose hud verdict is not green, and hands it over once it is', async () => {
+    const rig = await createNodeRig({ hudAddon: '3811574606' })
+    // One container a node, so three matches land on all three.
+    const one = { capacity: { maxInstances: 1, warm: 0 } }
+    const behind = await rig.enrol('behind', { ...one, ...stating('1.41.9.3') })
+    const noHud = await rig.enrol('nohud', { ...one, ...stating('1.41.9.2', '1.41.9.2', false) })
+    const proven = await rig.enrol('proven', { ...one, ...stating('1.41.9.2') })
+    for (let match = 0; match < 3; match += 1) {
+      await rig.app.matches.create(rig.key, request())
+      await rig.settle()
+    }
+    const env = (node: FakeNode) => node.starts().map(spec => spec.env[HUD_ADDON_SERVER_VAR])
+    // Each node took one match; only the proven one's container has the addon.
+    expect(env(behind)).toEqual([undefined])
+    expect(env(noHud)).toEqual([undefined])
+    expect(env(proven)).toEqual(['3811574606'])
+    expect(rig.app.log.lines.join('\n')).toContain(
+      "node behind: its servers start without the HUD's addon: node behind runs CS2 1.41.9.3; its image 24be188 was proven on 1.41.9.2 only",
+    )
+  })
+
+  it('hands the addon to every node when the operator says always (the hud-on row that writes the proof)', async () => {
+    const rig = await createNodeRig({ hudAddon: '3811574606', hudAddonNodes: 'always' })
+    const node = await rig.enrol('devbox', stating('1.41.9.3', null))
+    await rig.app.matches.create(rig.key, request())
+    await rig.settle()
+    expect(node.starts().map(spec => spec.env[HUD_ADDON_SERVER_VAR])).toEqual(['3811574606'])
   })
 })
 

@@ -675,6 +675,13 @@ without a rental.
 curl -sS https://gs.ezpug.com/v1/fleet/game -H "authorization: Bearer $FLEET_KEY" | jq .build
 ```
 
+**The node pool states its own picture** (PRD-10 T8, decision 41). The watcher's stored
+picture is not what `nodes` reads while a node is connected: every node's `hello` says its
+volume's build and its image's proof, and the `nodes` provider's `game` is those, held
+against each other live (`docs/nodes.md`, "When the game updates"). It is green when every
+node's volume holds the build its image was proven on, and `unproven` otherwise with the
+node and both builds in the reason. It is never red and never unhealthy.
+
 ### The canary (PRD-10 T3)
 
 A build move is a question, and **the canary** (`apps/orchestrator/src/game/canary.ts`)

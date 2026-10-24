@@ -196,6 +196,8 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
       imageDigest: hello.imageDigest,
       version: hello.version,
       instances: hello.instances,
+      ...(hello.game !== undefined && { game: hello.game, gameSince: at.toISOString() }),
+      ...(hello.image !== undefined && { image: hello.image }),
       lastSeenAt: at.toISOString(),
       drained: row.drained,
       send: frame => {
@@ -227,7 +229,9 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
     log.info(
       `node ${row.id}: hello from agent ${hello.version} in ${hello.region}, ` +
         `${hello.instances.length}/${hello.capacity.maxInstances} instances` +
-        `${row.drained ? ', drained' : ''}`,
+        `${row.drained ? ', drained' : ''}` +
+        `${hello.game ? `, CS2 ${hello.game.patchVersion ?? '(no build)'}` : ''}` +
+        `${hello.image ? `, image ${hello.image.revision ?? '?'}${hello.image.proven ? ` proven on ${hello.image.proven.build}` : ', unproven'}` : ''}`,
     )
     // Attached last: a watcher that reacts by sending a `start` must find a
     // node it can already write to, and one that reads the snapshot must
@@ -275,6 +279,12 @@ export function attachNodeLink(options: NodeLinkOptions): NodeLink {
         case 'heartbeat':
           return
         case 'instances': {
+          if (frame.game !== undefined) {
+            log.info(
+              `node ${node.id}: its volume now holds ${frame.game.patchVersion ?? 'no game build'}`,
+            )
+            registry.setGame(node.id, frame.game, node.lastSeenAt)
+          }
           registry.setInstances(node.id, frame.instances, node.lastSeenAt)
           const inUse = frame.instances.filter(instance => instance.matchId !== undefined).length
           await store.updateNode(node.id, { capacityInUse: inUse, lastSeenAt: clock.date() })

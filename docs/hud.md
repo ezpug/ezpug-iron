@@ -80,11 +80,15 @@ canary has passed the build it runs`). Then, unattended:
    cent.
 
 A hud canary is refused (`invalid_state`) when no id is configured: there is no loader to
-prove. **Nodes are not under the fourth switch yet.** A node's game moves only when somebody
-runs `cs2:install` on it, and the proof for the image is the dev-node canary's `hud-on`
-row (`pnpm cs2:canary --rows hud-on`, which `pnpm game:follow` runs). The nodes provider
-still hands `EZPUG_HUD_ADDON` to every container. PRD-10 T8 carries a node's build into
-the orchestrator; the gate covers nodes from then on.
+prove. **On a node the fourth switch is the image's proof** (PRD-10 T8, decision 41). A
+node's game moves only when somebody runs `cs2:install` on it, and the proof for the image
+is the dev-node canary's `hud-on` row (`pnpm cs2:canary --rows retakes,pug-2v1,hud-on`,
+which writes `docker/cs2/proven.json` on green and which `pnpm game:follow` runs). A node's
+containers get `EZPUG_HUD_ADDON` only while its volume holds the build that proof names,
+and the proof had the `hud-on` row. `GET /v1/fleet/providers` says so in the `nodes`
+provider's `game.hud`, and the orchestrator logs a withheld addon once per node. The
+`hud-on` row itself is the run that writes the proof, so the dev orchestrator that plays it
+is started with `EZPUG_IRON_HUD_ADDON_NODES=always` as well as the id.
 
 **The third switch** is for one server, while a match is on it. The usual reason is somebody
 stuck in their loading screen because the addon will not download ("When the download

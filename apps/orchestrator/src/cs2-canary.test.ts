@@ -57,6 +57,7 @@ type CanaryModule = {
   installFailure: (output: string) => string
   verdictPath: (build: string, root?: string) => string
   verdictLine: (verdict: Verdict) => string
+  PROOF_PATH: string
   laneRowIds: (root?: string) => string[]
   bootRequest: (n: number) => Record<string, unknown>
   runCanary: (options: Options, deps: Record<string, unknown>) => Promise<{ verdict: Verdict }>
@@ -78,6 +79,7 @@ function box(overrides: Record<string, unknown> = {}) {
   let now = 1_764_000_000_000
   const calls: string[] = []
   const written: { path: string; verdict: Verdict }[] = []
+  const proofs: unknown[] = []
   const lines: string[] = []
   let lock: { token: string; holder: string; pid: number; host: string; since: string } | null =
     null
@@ -151,6 +153,7 @@ function box(overrides: Record<string, unknown> = {}) {
       calls.push('finish')
     },
     write: (path: string, verdict: Verdict) => written.push({ path, verdict }),
+    prove: (proof: unknown) => proofs.push(proof),
     ...overrides,
   }
   return {
@@ -158,6 +161,7 @@ function box(overrides: Record<string, unknown> = {}) {
     timers,
     calls,
     written,
+    proofs,
     lines,
     setLock: (entry: typeof lock) => {
       lock = entry
@@ -341,6 +345,34 @@ describe('pnpm cs2:canary', () => {
     expect(verdict.rows).toEqual({ retakes: 'skipped', 'pug-2v1': 'skipped' })
     expect(fake.calls.some(c => c.startsWith('row'))).toBe(false)
     expect(fake.written).toHaveLength(1)
+    // A red run proves nothing: the tree's proof stays what it was.
+    expect(fake.proofs).toEqual([])
+  })
+
+  it('leaves the proof of a green run for the image: the build, the pins by GAME_PINS keys, the hud-on row', async () => {
+    const plain = box()
+    await canary.runCanary(options({ boots: 2 }), plain.deps)
+    expect(canary.PROOF_PATH).toBe('docker/cs2/proven.json')
+    expect(plain.proofs).toEqual([
+      {
+        build: '1.41.9.2',
+        hud: false,
+        pins: {
+          counterStrikeSharp: '1.0.378',
+          metamod: '2.0.0-git1483',
+          multiAddonManager: '1.7',
+          matchzy: '0.8.15-ezpug.3',
+        },
+        rows: { retakes: 'green', 'pug-2v1': 'green' },
+        boots: 2,
+        image: 'a815c09',
+        at: expect.stringMatching(/^\d{4}-\d\d-\d\dT/),
+      },
+    ])
+
+    const hud = box()
+    await canary.runCanary(options({ boots: 1, rows: ['retakes', 'hud-on'] }), hud.deps)
+    expect(hud.proofs).toEqual([expect.objectContaining({ hud: true, build: '1.41.9.2' })])
   })
 
   it('is red on a red row, and plays the rows after it', async () => {

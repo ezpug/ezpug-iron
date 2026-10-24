@@ -80,4 +80,16 @@ export interface DockerPort {
   removeContainer: (id: string) => Promise<void>
   /** Null when docker no longer knows the id. */
   inspectContainer: (id: string) => Promise<ContainerInfo | null>
+  /**
+   * **Read files out of an image and the volumes bound into it, starting
+   * nothing** (PRD-10 T8): a container is created from `image` with
+   * `binds`, each path is copied out of it, and it is removed. A path that
+   * is not there is null. What the agent reads its game build with: the
+   * volume's `steam.inf` and the image's own pins, in one throwaway.
+   */
+  readFiles: (
+    image: string,
+    binds: readonly string[],
+    paths: readonly string[],
+  ) => Promise<Record<string, string | null>>
 }

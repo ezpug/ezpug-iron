@@ -904,7 +904,7 @@ describe('the run, on a faked box', () => {
     const { b, stop } = await stops({ codes: { 'pnpm verify': 1 } })
     expect(stop.phase).toBe('verify')
     expect(b.writes.length).toBeGreaterThan(0)
-    expect(b.calls).toContain('restore 4')
+    expect(b.calls).toContain(`restore ${follow.HOMES.length}`)
     expect(b.files.get('docker/cs2/Dockerfile')).toBe(TREE.dockerfile)
     expect(b.calls.find(c => c.startsWith('take '))).toBeUndefined()
   })
@@ -952,7 +952,7 @@ describe('the run, on a faked box', () => {
     expect(stop.message).toMatch(
       /the Dathost canary is red on build 1\.41\.9\.2 \(attempt 1\): the match ended: ttl_expired/,
     )
-    expect(b.calls).toContain('restore 4')
+    expect(b.calls).toContain(`restore ${follow.HOMES.length}`)
     expect(b.lines.join('\n')).toMatch(
       /the template was refreshed with the new pins before the stop/,
     )

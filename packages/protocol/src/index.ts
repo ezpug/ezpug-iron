@@ -14,6 +14,7 @@
  * shape disagreement between the two languages (PRD-02 working rules).
  */
 export * from './constants'
+export * from './node-game'
 export * from './node-link'
 export * from './schema'
 export * from './server-link'

@@ -96,6 +96,8 @@ export const HOMES = [
   'plugins/Directory.Build.props',
   'apps/orchestrator/src/game/pins.ts',
   'docs/pins.md',
+  // A green `pnpm cs2:canary` leaves its proof here (PRD-10 T8); the commit carries it with the pins it proves.
+  'docker/cs2/proven.json',
 ]
 /** How long one canary on the orchestrator may take to decide: the key's ten minutes, and a margin. */
 export const CANARY_WAIT_MS = 14 * 60_000

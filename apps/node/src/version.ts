@@ -3,4 +3,4 @@
  * than a read of `package.json`, because the bundle the image runs has no
  * `package.json` beside it; `version.test.ts` holds the two together.
  */
-export const NODE_AGENT_VERSION = '0.1.0'
+export const NODE_AGENT_VERSION = '0.2.0'

@@ -182,6 +182,34 @@ export function verdictPath(build, root = repo) {
   return join(root, '.verify', `cs2-canary-${String(build).replace(/[^\w.-]/g, '_')}.json`)
 }
 
+/**
+ * **The proof a green run leaves in the tree** (PRD-10 T8, decision 41):
+ * `docker/cs2/proven.json`, the build these pins went green on and whether
+ * the `hud-on` row was among the green ones. The next `pnpm cs2:build` bakes
+ * it into the image, a node agent states it in its `hello`, and the
+ * orchestrator holds every node's volume against it. `pnpm game:follow`
+ * commits it with the pins it proves.
+ */
+export const PROOF_PATH = 'docker/cs2/proven.json'
+
+export function proofOf(verdict, boots) {
+  return {
+    build: verdict.build,
+    hud: verdict.rows['hud-on'] === 'green',
+    // The keys `GAME_PINS` and the image's own `pins.json` use.
+    pins: {
+      counterStrikeSharp: verdict.pins.counterstrikesharp,
+      metamod: verdict.pins.metamod,
+      multiAddonManager: verdict.pins.multiaddonmanager,
+      matchzy: verdict.pins.matchzy,
+    },
+    rows: verdict.rows,
+    boots,
+    image: verdict.image,
+    at: verdict.at,
+  }
+}
+
 /** The one line a human (or T5's log) reads. */
 export function verdictLine(verdict) {
   const boots = verdict.boots.map(b =>
@@ -214,6 +242,7 @@ export function verdictLine(verdict) {
  * - `row(id, token)`: `{ ok, detail }`
  * - `finish()`: after the last boot or row, before the lane is given back
  * - `write(path, verdict)`, `say(line)`
+ * - `prove(proof)`: a green run's {@link PROOF_PATH}
  *
  * Resolves with `{ verdict }` or rejects with a `Refusal`.
  */
@@ -338,6 +367,7 @@ export async function runCanary(options, deps) {
       at: new Date(clock.now()).toISOString(),
     }
     deps.write(verdictPath(build), verdict)
+    if (verdict.state === 'green') deps.prove(proofOf(verdict, options.boots))
     return { verdict }
   } finally {
     // The run's key goes whatever happened, before the lane is given back.
@@ -642,6 +672,9 @@ function realDeps(options) {
     finish: async () => {
       if (admin && keyId) await admin('DELETE', `/v1/keys/${keyId}`).catch(() => {})
       if (admin && adminKeyId) await admin('DELETE', `/v1/keys/${adminKeyId}`).catch(() => {})
+    },
+    prove: proof => {
+      writeFileSync(join(repo, PROOF_PATH), `${JSON.stringify(proof, null, 2)}\n`)
     },
     write: (path, verdict) => {
       mkdirSync(dirname(path), { recursive: true })

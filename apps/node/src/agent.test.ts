@@ -4,6 +4,13 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createNodeAgent, type NodeAgent } from './agent'
 import { readNodeConfig } from './config'
 import { createFakeDocker, digestFor, type FakeDocker } from './docker/fake'
+import {
+  APP_MANIFEST_PATH,
+  BUILD_JSON_PATH,
+  PINS_JSON_PATH,
+  PROVEN_JSON_PATH,
+  STEAM_INF_PATH,
+} from './game'
 import { CONTAINER_ENV, INSTANCE_LABELS } from './instances'
 import { createMemoryLog } from './log'
 import { createMemoryStateStore, type NodeState } from './state'
@@ -13,6 +20,7 @@ import {
   type FakeNodeEndpoint,
   type FakeNodeEndpointOptions,
 } from './testing'
+import { NODE_AGENT_VERSION } from './version'
 
 const clock = useFakeClock()
 
@@ -109,7 +117,7 @@ describe('enrolling', () => {
     expect(hello).toMatchObject({
       token: ENROLMENT_TOKEN,
       tokenKind: 'enrolment',
-      version: '0.1.0',
+      version: NODE_AGENT_VERSION,
       region: 'eu-central',
       lan: true,
       labels: { cores: '16', venue: 'saarlan' },
@@ -296,5 +304,93 @@ describe('running', () => {
     expect(await outcome).toEqual({ fatal: { code: 4009, reason: 'node un-enrolled' } })
     await clock.advance(60_000)
     expect(rig.endpoint.sessions).toHaveLength(1)
+  })
+})
+
+describe('stating the game (PRD-10 T8)', () => {
+  const PINS = { counterStrikeSharp: '1.0.378', metamod: '2.0.0-git1483' }
+  const volumeOn = (docker: FakeDocker, patchVersion: string, buildId: string): void => {
+    docker.files.set(
+      STEAM_INF_PATH,
+      `ClientVersion=2000935\nPatchVersion=${patchVersion}\nSourceRevision=11162119\n`,
+    )
+    docker.files.set(
+      APP_MANIFEST_PATH,
+      `"AppState"\n{\n\t"appid"\t\t"730"\n\t"buildid"\t\t"${buildId}"\n}\n`,
+    )
+  }
+  const imageProvenOn = (docker: FakeDocker, build: string): void => {
+    docker.files.set(
+      BUILD_JSON_PATH,
+      '{"sdk":"0.1.0","counterStrikeSharp":"1.0.378","commit":"24be188"}',
+    )
+    docker.files.set(PINS_JSON_PATH, JSON.stringify(PINS))
+    docker.files.set(PROVEN_JSON_PATH, JSON.stringify({ build, hud: true, pins: PINS, rows: {} }))
+  }
+
+  it('says the volume and the image in its hello, and logs that they match', async () => {
+    const rig = await createRig()
+    volumeOn(rig.docker, '1.41.9.2', '26144732')
+    imageProvenOn(rig.docker, '1.41.9.2')
+    void rig.agent.run()
+    const hello = await rig.endpoint.next('hello')
+    expect(hello.game).toEqual({
+      build: '26144732',
+      patchVersion: '1.41.9.2',
+      sourceRevision: '11162119',
+    })
+    expect(hello.image).toEqual({
+      revision: '24be188',
+      pins: PINS,
+      proven: { build: '1.41.9.2', hud: true, pins: PINS },
+    })
+    // Read with the volume bound into the image, read-only, never started.
+    expect(rig.docker.calls).toContain(`readFiles ${IMAGE}`)
+    expect(rig.docker.calls.some(call => call.startsWith('startContainer'))).toBe(false)
+    expect(rig.log.lines).toContain(
+      'info game: CS2 1.41.9.2 (source revision 11162119, Steam build 26144732); image 24be188 proven on 1.41.9.2 with the HUD: matches',
+    )
+  })
+
+  it('compares and tells, never refuses: a volume behind the proof still runs what start says', async () => {
+    const rig = await createRig()
+    volumeOn(rig.docker, '1.41.9.1', '26100000')
+    imageProvenOn(rig.docker, '1.41.9.2')
+    void rig.agent.run()
+    const hello = await rig.endpoint.next('hello')
+    expect(hello.game?.patchVersion).toBe('1.41.9.1')
+    expect(rig.log.lines).toContain(
+      'warn game: CS2 1.41.9.1 (source revision 11162119, Steam build 26100000); image 24be188 proven on 1.41.9.2 with the HUD: unproven — this node runs CS2 1.41.9.1, older than 1.41.9.2 its image 24be188 was proven on: run `cs2:install` on this node',
+    )
+    rig.endpoint.current()?.send(startFrame('devbox-1-a', 27415))
+    await eventually(() => expect(rig.agent.snapshot()[0]?.state).toBe('running'))
+  })
+
+  it('reads again before a start, and says a volume that moved in an instances frame', async () => {
+    const rig = await createRig()
+    volumeOn(rig.docker, '1.41.9.1', '26100000')
+    imageProvenOn(rig.docker, '1.41.9.2')
+    void rig.agent.run()
+    await rig.endpoint.next('hello')
+    await eventually(() => expect(rig.agent.connected()).toBe(true))
+    volumeOn(rig.docker, '1.41.9.2', '26144732') // somebody ran cs2:install
+    rig.endpoint.current()?.send(startFrame('devbox-1-a', 27415))
+    const moved = await rig.endpoint.next('instances')
+    expect(moved.game).toEqual({
+      build: '26144732',
+      patchVersion: '1.41.9.2',
+      sourceRevision: '11162119',
+    })
+    expect(rig.log.lines).toContain('warn game: the volume moved from 1.41.9.1 to 1.41.9.2')
+    await eventually(() => expect(rig.agent.snapshot()[0]?.state).toBe('running'))
+  })
+
+  it('an empty volume and an image from before T8 are the honest nothing, not a refusal', async () => {
+    const rig = await createRig()
+    void rig.agent.run()
+    const hello = await rig.endpoint.next('hello')
+    expect(hello.game).toEqual({ build: null, patchVersion: null, sourceRevision: null })
+    expect(hello.image).toEqual({ revision: null, pins: {}, proven: null })
+    await eventually(() => expect(rig.agent.connected()).toBe(true))
   })
 })

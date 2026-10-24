@@ -49,6 +49,32 @@ function statusOf(state: string | undefined): ContainerStatus {
   }
 }
 
+/**
+ * The first regular file in a tar archive, as text — what docker's archive
+ * endpoint answers for one file. Plain ustar: a 512-byte header (the size in
+ * octal at 124), the content padded to 512; pax and GNU long-name headers
+ * (`x`, `g`, `L`) are skipped like any entry that is not a file.
+ */
+export function firstFileInTar(archive: Buffer): string | null {
+  let offset = 0
+  while (offset + 512 <= archive.length) {
+    const header = archive.subarray(offset, offset + 512)
+    if (header.every(byte => byte === 0)) return null
+    const size = Number.parseInt(header.subarray(124, 136).toString('ascii').trim() || '0', 8)
+    const type = String.fromCharCode(header[156] ?? 0)
+    const start = offset + 512
+    if (type === '0' || type === '\0') return archive.subarray(start, start + size).toString('utf8')
+    offset = start + Math.ceil(size / 512) * 512
+  }
+  return null
+}
+
+async function collect(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk as Buffer))
+  return Buffer.concat(chunks)
+}
+
 export function createDockerodeDocker(options: DockerodeOptions): DockerPort {
   const docker = new Docker({ socketPath: options.socketPath })
 
@@ -193,5 +219,35 @@ export function createDockerodeDocker(options: DockerodeOptions): DockerPort {
     },
 
     inspectContainer: inspect,
+
+    async readFiles(image, binds, paths) {
+      let container: Docker.Container
+      try {
+        // Never started: docker mounts the volumes for an archive read of a
+        // created container, so nothing boots and nothing listens.
+        container = await docker.createContainer({
+          Image: image,
+          Entrypoint: ['true'],
+          Cmd: [],
+          HostConfig: { NetworkMode: 'none', Binds: [...binds], AutoRemove: false },
+        })
+      } catch (error) {
+        throw toDockerError(error, `create a container to read ${image}`)
+      }
+      try {
+        const read: Record<string, string | null> = {}
+        for (const path of paths) {
+          try {
+            read[path] = firstFileInTar(await collect(await container.getArchive({ path })))
+          } catch (error) {
+            if ((error as DockerodeFailure).statusCode === 404) read[path] = null
+            else throw toDockerError(error, `read ${path} out of ${image}`)
+          }
+        }
+        return read
+      } finally {
+        await container.remove({ force: true, v: false }).catch(() => undefined)
+      }
+    },
   }
 }

@@ -211,11 +211,9 @@ it here.
     configured, since there is no loader to prove. While the `hud` canary is unproven or
     red, every Dathost clone is configured without the loader and without the id, so its
     `hello` truthfully lacks `hud` and the match plays without the HUD. That is the fourth
-    switch in `docs/hud.md`, the one nobody's hand is on. **Nodes are not gated yet.** A
-    node's game moves only by `cs2:install`, and the image's proof with the loader is the
-    dev-node canary's `hud-on` row, which `pnpm game:follow` plays. A node's `hud` verdict
-    is that row for the node's build and image, carried into the orchestrator by T8. Until
-    then the nodes provider honours the operator's switch alone. Not chosen:
+    switch in `docs/hud.md`, the one nobody's hand is on. A node's `hud` verdict is the
+    dev-node canary's `hud-on` row for the node's build and image, carried by the image's
+    own proof (decision 41). Not chosen:
     - Trusting the `hello` alone. The plugin says `hud` when the id and the file are there,
       which is before MultiAddonManager has woken the Steam API, and waking it is what killed
       the servers.
@@ -225,6 +223,41 @@ it here.
       or the build is to blame.
     - Refusing a match on a red `hud` canary. The match loses nothing it needs without the
       HUD (decision 38).
+
+41. **A node compares its game with its image's proof and tells; it never refuses and never
+    downloads.** (PRD-10 T8, 2026-10-24; the owner's brief "The game moves".) A LAN node's
+    game moves only when a human runs `cs2:install` on it, and its image moves only when a
+    new `cs2` tag is pulled, so the two can disagree for weeks at a venue with no internet.
+    The agent reads the volume's `steam.inf` (`PatchVersion`, `SourceRevision`) and
+    `appmanifest_730.acf` (`buildid`), and the image's commit, pins and **proof**, out of one
+    throwaway container that never starts. It does that at boot, at every dial and before
+    every `start`, logs the comparison by name and says all three in its `hello`
+    (`hello.game`, `hello.image`; a volume that moves under a running agent rides the next
+    `instances` frame). The proof is `docker/cs2/proven.json`: the build on which
+    `pnpm cs2:canary` last went green with exactly these pins, and whether its `hud-on` row
+    was among the green ones. A green run writes it, `pnpm game:follow` commits it with the
+    pins it proves, and every image built from that tree carries it. The orchestrator holds
+    each connected node against it in the same words the agent logs
+    (`@ezpug/protocol`'s `judgeNodeGame`). The `nodes` provider's `game.canary` is green when
+    every node's volume holds the build its image was proven on, and otherwise `unproven`
+    with the node and both builds in the reason. A volume that fell behind reads "run
+    `cs2:install` on <node>". It is never `red` and never `healthy: false`: a venue has only
+    the server it has (decision 38). `game.hud` is the same verdict with the `hud-on` row
+    required, and it is decision 40's gate made whole. A node's containers get
+    `EZPUG_HUD_ADDON` only while their node's `hud` verdict is green. The one exception is
+    `EZPUG_IRON_HUD_ADDON_NODES=always`, the operator's hand for the `hud-on` row that writes
+    the proof in the first place. Not chosen:
+    - A route in the Match API that carries the dev-node verdict into an orchestrator
+      (`POST …/canary`'s sibling). This round's contract is one release, `0.35.0`, already
+      cut. The image carries its own proof instead, which also reaches a venue orchestrator
+      that never saw the dev node.
+    - The orchestrator playing its own canary on a node. A bots match on a venue box at
+      night spends nothing, but it would prove the box and not the image. The dev node's
+      eight boots and lane rows are the image's proof.
+    - Refusing to start on a mismatch, or running `cs2:install` from the agent. A 67 GB
+      download at a LAN party is a decision for a human with the lane free.
+    - Steam's public build as the node's build. A venue box's volume is whatever it was
+      installed with, and the watcher's reading would make every LAN node look current.
 
 ## Gamemodes
 

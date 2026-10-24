@@ -25,6 +25,7 @@ import type {
   Game,
   GamemodeManifest,
   MatchRequest,
+  ProviderGame,
   ServerConnect,
   ServerTv,
   SimStatus,
@@ -215,6 +216,16 @@ export interface GameServerProvider {
    * — the `stack` a client reads. Names no plugin. `null` when unknown.
    */
   stack?: () => Promise<string | null>
+  /**
+   * **A provider that states its own game picture** (PRD-10 T8, decision
+   * 41): a node pool learns every node's volume and image from its `hello`,
+   * so its build and both verdicts are what its connected nodes say, held
+   * against their images' proofs — never played by the canary, never
+   * borrowed from Steam. Read live by `GET /v1/fleet/providers` and
+   * `GET /v1/fleet/game` in place of the watcher's stored picture. Null when
+   * there is nothing to state (no node connected): the stored one is read.
+   */
+  gamePicture?: () => ProviderGame | null
   /**
    * **The vendor updates this provider's game, not us** (PRD-10 T3): Dathost
    * moves its servers' CS2 the hour Valve ships, so a build move there is a

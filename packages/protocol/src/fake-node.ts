@@ -4,6 +4,8 @@ import type {
   InstanceSpec,
   NodeFrame,
   NodeFrameInput,
+  NodeGame,
+  NodeImage,
   NodeInstance,
   NodeTokenKind,
   OrchestratorNodeFrame,
@@ -42,6 +44,10 @@ export type FakeNodeHello = Partial<{
   labels: Record<string, string>
   capacity: { maxInstances: number; warm: number }
   imageDigest: string
+  /** The volume's game build (PRD-10 T8); absent, the hello is a 0.1.0 agent's. */
+  game: NodeGame
+  /** The server image's revision, pins and proof (PRD-10 T8). */
+  image: NodeImage
 }>
 
 export interface FakeNodeOptions {
@@ -100,7 +106,7 @@ export interface FakeNode {
   heartbeatIntervalMs: () => number
 }
 
-const DEFAULT_HELLO: Required<FakeNodeHello> = {
+const DEFAULT_HELLO: Required<Omit<FakeNodeHello, 'game' | 'image'>> = {
   version: '0.1.0',
   region: 'saarland',
   lan: true,
@@ -259,6 +265,8 @@ export function createFakeNode(options: FakeNodeOptions): FakeNode {
               labels: hello.labels,
               capacity: hello.capacity,
               imageDigest: hello.imageDigest,
+              ...(hello.game !== undefined && { game: hello.game }),
+              ...(hello.image !== undefined && { image: hello.image }),
               instances: snapshot(),
             }),
           )

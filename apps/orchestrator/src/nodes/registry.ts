@@ -1,4 +1,10 @@
-import type { NodeInstance, NodeLinkCapacity, OrchestratorNodeFrame } from '@ezpug/protocol'
+import type {
+  NodeGame,
+  NodeImage,
+  NodeInstance,
+  NodeLinkCapacity,
+  OrchestratorNodeFrame,
+} from '@ezpug/protocol'
 
 /**
  * **Which nodes are on the wire right now** — the one place the node link
@@ -26,6 +32,12 @@ export interface ConnectedNode {
   readonly version: string
   /** The containers the node last reported, whole. */
   instances: readonly NodeInstance[]
+  /** The game its volume holds, as it last said (PRD-10 T8); absent from an agent older than 0.2.0. */
+  game?: NodeGame
+  /** Its server image's revision, pins and proof, as the `hello` said (PRD-10 T8). */
+  readonly image?: NodeImage
+  /** ISO timestamp of the frame that last stated `game` — the `since` of the node's verdict. */
+  gameSince?: string
   /** ISO timestamp of the last frame from this node. */
   lastSeenAt: string
   /** The operator's drain (`nodes.drained`), as `welcome` and `drain` carry it. */
@@ -52,6 +64,8 @@ export interface NodeRegistry {
   all: () => ConnectedNode[]
   /** A fresh snapshot from a node. */
   setInstances: (nodeId: string, instances: readonly NodeInstance[], at: string) => void
+  /** The node's volume moved under it (an `instances` frame carrying `game`, PRD-10 T8). */
+  setGame: (nodeId: string, game: NodeGame, at: string) => void
   /** The operator drained or undrained it: tell the node and remember. */
   setDrained: (nodeId: string, drained: boolean) => void
   /** Watch the pool. Returns the unsubscribe. */
@@ -86,6 +100,12 @@ export function createNodeRegistry(): NodeRegistry {
       node.instances = [...instances]
       node.lastSeenAt = at
       announce(watcher => watcher.instances && (() => watcher.instances?.(node)))
+    },
+    setGame(nodeId, game, at) {
+      const node = nodes.get(nodeId)
+      if (!node) return
+      node.game = game
+      node.gameSince = at
     },
     setDrained(nodeId, drained) {
       const node = nodes.get(nodeId)

@@ -150,6 +150,131 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
+    "NodeGame": {
+      "description": "The game build a node’s volume holds (PRD-10 T8).",
+      "type": "object",
+      "properties": {
+        "build": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "patchVersion": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceRevision": {
+          "default": null,
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "build",
+        "patchVersion",
+        "sourceRevision"
+      ],
+      "additionalProperties": false
+    },
+    "NodeImageProof": {
+      "description": "The build a server image’s pins were proven on by the dev-node canary.",
+      "type": "object",
+      "properties": {
+        "build": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "hud": {
+          "type": "boolean"
+        },
+        "pins": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "at": {
+          "type": "string",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "build",
+        "hud",
+        "pins"
+      ],
+      "additionalProperties": false
+    },
+    "NodeImage": {
+      "description": "A node’s server image: its revision, pins and proof.",
+      "type": "object",
+      "properties": {
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pins": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "proven": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NodeImageProof"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "revision",
+        "pins",
+        "proven"
+      ],
+      "additionalProperties": false
+    },
     "InstanceSpec": {
       "description": "What `start` tells a node to run.",
       "type": "object",
@@ -262,6 +387,12 @@
             "imageDigest": {
               "$ref": "#/$defs/ImageDigest"
             },
+            "game": {
+              "$ref": "#/$defs/NodeGame"
+            },
+            "image": {
+              "$ref": "#/$defs/NodeImage"
+            },
             "instances": {
               "maxItems": 256,
               "type": "array",
@@ -311,6 +442,9 @@
               "items": {
                 "$ref": "#/$defs/NodeInstance"
               }
+            },
+            "game": {
+              "$ref": "#/$defs/NodeGame"
             }
           },
           "required": [

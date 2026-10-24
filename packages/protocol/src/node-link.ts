@@ -94,6 +94,50 @@ export const imageDigestSchema = z
   .regex(/^sha256:[0-9a-f]{64}$/, 'an image digest (`sha256:` and 64 hex characters)')
 
 /**
+ * **The game a node's volume holds** (PRD-10 T8, decision 41), read by the
+ * agent at boot and before every `start`: `steam.inf`'s `PatchVersion` (the
+ * build's id everywhere in this repo) and `SourceRevision`, and
+ * `appmanifest_730.acf`'s `buildid` (Steam's name for the same build). Each
+ * is null when the file could not be read — an empty volume says so rather
+ * than guessing.
+ */
+export const nodeGameSchema = z.object({
+  /** Steam's build id, `appmanifest_730.acf`'s `buildid` (`26144732`). */
+  build: z.string().max(64).nullable(),
+  /** `steam.inf`'s `PatchVersion` (`1.41.9.2`) — the build's id. */
+  patchVersion: z.string().max(64).nullable(),
+  /** `steam.inf`'s `SourceRevision` (`11162119`). */
+  sourceRevision: z.string().max(64).nullable().default(null),
+})
+export type NodeGame = z.infer<typeof nodeGameSchema>
+
+/**
+ * The proof a server image carries for its pins (PRD-10 T8): the build on
+ * which the dev-node canary (`pnpm cs2:canary`) last went green with exactly
+ * these pins, and whether its `hud-on` row was among the green ones.
+ */
+export const nodeImageProofSchema = z.object({
+  build: z.string().min(1).max(64),
+  hud: z.boolean(),
+  pins: z.record(z.string().max(64), z.string().max(128)),
+  at: z.string().max(64).optional(),
+})
+export type NodeImageProof = z.infer<typeof nodeImageProofSchema>
+
+/**
+ * **The server image a node runs, as the image says it** (PRD-10 T8): the
+ * commit it was built from, its pins (opaque — the orchestrator compares
+ * them, never reads one by name) and the proof it carries, or null for an
+ * image that carries none (built before T8, or never proven with its pins).
+ */
+export const nodeImageSchema = z.object({
+  revision: z.string().max(64).nullable(),
+  pins: z.record(z.string().max(64), z.string().max(128)),
+  proven: nodeImageProofSchema.nullable(),
+})
+export type NodeImage = z.infer<typeof nodeImageSchema>
+
+/**
  * What `start` tells a node to run: the image, the ports, the server token
  * the container will dial in with, and the environment (the orchestrator's
  * URL among it). `env` never carries anything the container should not
@@ -137,6 +181,10 @@ export const helloNodeFrameSchema = z.object({
   labels: z.record(z.string().max(64), z.string().max(256)).default({}),
   capacity: nodeCapacitySchema,
   imageDigest: imageDigestSchema,
+  /** The volume's game build (PRD-10 T8); absent from an agent older than 0.2.0. */
+  game: nodeGameSchema.optional(),
+  /** The server image's revision, pins and proof (PRD-10 T8); absent from an agent older than 0.2.0. */
+  image: nodeImageSchema.optional(),
   instances: z.array(nodeInstanceSchema).max(256),
 })
 
@@ -149,6 +197,8 @@ export const heartbeatNodeFrameSchema = z.object({
 export const instancesNodeFrameSchema = z.object({
   type: z.literal('instances'),
   instances: z.array(nodeInstanceSchema).max(256),
+  /** The volume's game build, when the read before a `start` found it moved since the `hello` (PRD-10 T8). */
+  game: nodeGameSchema.optional(),
 })
 
 export const nodeFrameSchema = z.discriminatedUnion('type', [

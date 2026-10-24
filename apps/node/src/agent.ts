@@ -3,6 +3,7 @@ import type { Clock } from '@ezpug/core'
 import type { NodeInstance, OrchestratorNodeFrameOf } from '@ezpug/protocol'
 import type { NodeConfig } from './config'
 import type { DockerPort } from './docker/port'
+import { type GameStatement, sameGame, stateGame } from './game'
 import { createInstanceManager, type InstanceManager } from './instances'
 import {
   createNodeLink,
@@ -85,6 +86,8 @@ export function createNodeAgent(options: NodeAgentOptions): NodeAgent {
   let identity: NodeState | null = null
   let link: NodeLink | undefined
   let imageDigest: string | null = null
+  /** What the volume and the image said last (PRD-10 T8); null until read or when unreadable. */
+  let statement: GameStatement | null = null
   let heartbeatIntervalMs = 0
   let welcomedDrained = false
   let closed = false
@@ -120,8 +123,42 @@ export function createNodeAgent(options: NodeAgentOptions): NodeAgent {
     labels: labels(),
     capacity: { maxInstances: config.maxInstances, warm: config.warm },
     imageDigest: imageDigest ?? '',
+    ...(statement !== null && { game: statement.game, image: statement.image }),
     instances: instances.snapshot(),
   })
+
+  /**
+   * Read the game again (PRD-10 T8): at every dial and before every `start`,
+   * because a volume can move under a running agent (`cs2:install`). A move
+   * is logged by name and, when the link is up, said in an `instances` frame.
+   * A `start` runs the image the orchestrator names, read here too; the
+   * image the `hello` states stays this node's own (`EZPUG_NODE_IMAGE`), and
+   * a start that names another is said once per image.
+   */
+  const differentImages = new Set<string>()
+  const restate = async (image = config.image): Promise<void> => {
+    const previous = statement
+    const fresh = await stateGame(docker, image, config.gameVolume, previous === null ? log : quiet)
+    if (fresh === null) return
+    statement = { game: fresh.game, image: previous?.image ?? fresh.image }
+    if (
+      image !== config.image &&
+      fresh.image.revision !== statement.image.revision &&
+      !differentImages.has(image)
+    ) {
+      differentImages.add(image)
+      log.warn(
+        `game: the orchestrator starts ${image} (${fresh.image.revision ?? 'unknown revision'}) but this node states ${config.image} (${statement.image.revision ?? 'unknown revision'}); point EZPUG_NODE_IMAGE and EZPUG_IRON_NODE_SERVER_IMAGE at the same tag`,
+      )
+    }
+    if (previous !== null && !sameGame(previous.game, fresh.game)) {
+      log.warn(
+        `game: the volume moved from ${previous.game.patchVersion ?? '(none)'} to ${fresh.game.patchVersion ?? '(none)'}`,
+      )
+      link?.send({ type: 'instances', instances: instances.snapshot(), game: fresh.game })
+    }
+  }
+  const quiet: Log = { ...log, info: () => undefined, warn: () => undefined }
 
   const writeHealth = (connected: boolean): void => {
     if (!identity) return
@@ -158,6 +195,7 @@ export function createNodeAgent(options: NodeAgentOptions): NodeAgent {
             `(${state.path}); run \`ezpug-node forget\` first if that identity was revoked`,
         )
       imageDigest = await ensureImage(docker, config.image, log)
+      statement = await stateGame(docker, config.image, config.gameVolume, log)
       const once = createNodeLink({
         url: config.linkUrl,
         clock,
@@ -208,6 +246,7 @@ export function createNodeAgent(options: NodeAgentOptions): NodeAgent {
             'point EZPUG_NODE_ORCHESTRATOR_URL back, or `ezpug-node forget` and enrol again',
         )
       imageDigest = await ensureImage(docker, config.image, log)
+      statement = await stateGame(docker, config.image, config.gameVolume, log)
       const adopted = await instances.adopt()
       if (adopted > 0) log.info(`adopted ${adopted} container(s) from a previous run`)
       instances.watch()
@@ -220,9 +259,15 @@ export function createNodeAgent(options: NodeAgentOptions): NodeAgent {
         log,
         credentials: () => ({ token: identity!.nodeToken, tokenKind: 'node' }),
         handler: {
-          hello,
+          hello: async () => {
+            await restate()
+            return hello()
+          },
           onWelcome,
-          onStart: spec => instances.start(spec),
+          onStart: async spec => {
+            await restate(spec.image)
+            await instances.start(spec)
+          },
           onStop: (instanceId, reason) => instances.stop(instanceId, reason),
           onDrain: () => {
             welcomedDrained = true

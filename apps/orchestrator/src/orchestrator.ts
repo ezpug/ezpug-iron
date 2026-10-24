@@ -322,6 +322,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
         image: config.nodeServerImage,
         baseUrl: config.baseUrl,
         ...(config.hudAddon !== null && { hudAddon: config.hudAddon }),
+        hudAddonNodes: config.hudAddonNodes,
         link: () => link,
         facts: {
           emit: (matchId, fact) => matches.emit(matchId, fact),

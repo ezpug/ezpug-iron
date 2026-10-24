@@ -194,6 +194,25 @@ are retried with backoff — one second doubling to thirty, reset by the next `w
 decisions: the agent stops and exits `2` saying what to do, because a revoked node
 hammering the orchestrator every second helps nobody.
 
+**State the game.** At boot, at every dial and before every `start`, the agent reads what
+it would run (PRD-10 T8, decision 41). That is one throwaway container from the server image
+with the game volume bound read-only, never started, removed at once. It reads the volume's
+`steam.inf` (`PatchVersion`, the build's id, and `SourceRevision`) and `appmanifest_730.acf`
+(`buildid`, Steam's name for it), the image's `build.json` (the commit it was built from)
+and the image's `pins.json` and `proven.json` under `/usr/local/share/ezpug/`. The last two
+are what it was built with and the build the dev-node canary last went green on with
+exactly those pins. All of it rides the `hello` as `game` and `image`, and the agent logs
+the comparison in one line:
+
+```
+game: CS2 1.41.9.2 (source revision 11162119, Steam build 26144732); image 24be188 proven on 1.41.9.2 with the HUD: matches
+game: CS2 1.41.9.1 (…); image 24be188 proven on 1.41.9.2 with the HUD: unproven — this node runs CS2 1.41.9.1, older than 1.41.9.2 its image 24be188 was proven on: run `cs2:install` on this node
+```
+
+It **compares and tells; it never refuses to start and never downloads.** A venue has only
+the server it has, and a 67 GB `cs2:install` is a human's call. A volume that moves under a
+running agent is logged and said in the next `instances` frame.
+
 **Start, stop, drain.** A `start` frame is an instance spec — id, purpose (`warm` or
 `match`), the image, the server id, **the server token**, the two ports, the environment
 (the orchestrator's URL among it), the match where there is one. The agent runs one
@@ -235,6 +254,44 @@ reads its containers back from their labels — the warm pool and the live match
 it left them — and carries them in its `hello`. A node that *dies* mid-match is a server
 that dies mid-match: the orchestrator's recovery flow (T14) moves the match to the next
 candidate with the newest backup, or ends it honestly.
+
+## When the game updates
+
+Valve ships a CS2 build and Dathost moves its servers within the hour; a node moves only
+when you move it. The orchestrator's watcher notices the build within fifteen minutes
+(`docs/operations.md`, "Health"), the build's GitHub issue says what is proven, and the
+`nodes` provider's `game` block on `GET /v1/fleet/providers` says what each node holds
+against its image's proof. It reads `green` when every connected node's volume holds the
+build its image was proven on. Otherwise it reads `unproven` with the node and both builds
+in the reason, never `red`: the node is still served, and only the HUD's addon is withheld
+from it (`docs/hud.md`, the fourth switch).
+
+1. **Pull the new `cs2` tag** once one is published for the build (`docs/pins.md`, "The
+   images we publish"). Its `proven.json` names the build it was proven on. Point both
+   `EZPUG_NODE_IMAGE` (the image the node holds and states) and the orchestrator's
+   `EZPUG_IRON_NODE_SERVER_IMAGE` (the image a `start` names) at it, and restart the agent;
+   the agent warns when a `start` names an image other than the one it states. Running
+   containers keep their image until their match ends.
+2. **Bring the volume to that build:** `pnpm cs2:install` on the node, with no server
+   container running (drain the node first, and on this box hold the lane,
+   `docs/operations.md`). It is a delta when the volume is close, and ~67 GB when Steam
+   will not serve one.
+3. **Restart the agent** (or just let the next `start` read again), and read its boot
+   line and the `nodes` provider's `game` block.
+
+What the `hello` says, before and after, for a node whose volume fell a build behind an
+image proven on 1.41.9.2:
+
+| | `hello.game.patchVersion` | `hello.image.proven.build` | `game.canary` |
+| --- | --- | --- | --- |
+| before | `1.41.9.1` | `1.41.9.2` | `unproven`: "node devbox runs CS2 1.41.9.1, older than 1.41.9.2 its image 24be188 was proven on: run `cs2:install` on node devbox" |
+| after `cs2:install` | `1.41.9.2` | `1.41.9.2` | `green` |
+
+A volume *newer* than the proof (Valve shipped, the image has not been proven on it yet)
+reads "its image … was proven on 1.41.9.2 only". The image waits for the dev-node canary
+(`pnpm cs2:canary`, or `pnpm game:follow` for a bump) and a new tag, and the node keeps
+serving matches meanwhile. An agent older than 0.2.0 states nothing and reads
+"does not state its game build".
 
 ## Configuration
 

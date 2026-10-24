@@ -24,6 +24,7 @@ export type DockerVerb =
   | 'stopContainer'
   | 'removeContainer'
   | 'inspectContainer'
+  | 'readFiles'
 
 export interface FakeDocker extends DockerPort {
   /** Images on this host: reference → digest. `addImage` puts one here. */
@@ -32,6 +33,11 @@ export interface FakeDocker extends DockerPort {
   readonly registry: Map<string, string>
   /** Every container docker knows, by id, running or not. */
   readonly containers: Map<string, FakeContainer>
+  /**
+   * What `readFiles` finds, by the path inside the container — the image's
+   * files and the bound volume's alike. A path that is not here reads null.
+   */
+  readonly files: Map<string, string>
   /** Every verb called, in order, with the id or reference it was given. */
   readonly calls: string[]
   addImage: (reference: string, digest?: string) => void
@@ -61,6 +67,7 @@ export function createFakeDocker(): FakeDocker {
   const images = new Map<string, string>()
   const registry = new Map<string, string>()
   const containers = new Map<string, FakeContainer>()
+  const files = new Map<string, string>()
   const calls: string[] = []
   const failures = new Map<DockerVerb, { message: string; statusCode?: number }>()
   let nextId = 1
@@ -83,6 +90,7 @@ export function createFakeDocker(): FakeDocker {
     images,
     registry,
     containers,
+    files,
     calls,
     addImage: (reference, digest = digestFor(reference)) => void images.set(reference, digest),
     failNext: (verb, message, statusCode) => void failures.set(verb, { message, statusCode }),
@@ -160,6 +168,11 @@ export function createFakeDocker(): FakeDocker {
     inspectContainer: id => {
       check('inspectContainer', id)
       return Promise.resolve(containers.get(id) ?? null)
+    },
+    readFiles: (image, _binds, paths) => {
+      check('readFiles', image)
+      if (!images.has(image)) return Promise.reject(new DockerError(`No such image: ${image}`, 404))
+      return Promise.resolve(Object.fromEntries(paths.map(path => [path, files.get(path) ?? null])))
     },
   }
   return fake

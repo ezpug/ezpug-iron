@@ -1,6 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import type { Clock, Timer } from '@ezpug/core'
-import type { InstancePorts, InstanceSpec, NodeInstance } from '@ezpug/protocol'
+import type { GameCanary, ProviderGame } from '@ezpug/match-api'
+import {
+  type InstancePorts,
+  type InstanceSpec,
+  judgeNodeGame,
+  type NodeGameVerdict,
+  type NodeInstance,
+} from '@ezpug/protocol'
 import type { ServerRef } from '../../link/channels'
 import type { Log } from '../../log'
 import type { MatchStore, NodeRow, ServerRow } from '../../match/store'
@@ -130,11 +137,21 @@ export interface NodesProviderOptions {
   /** What a container's plugin dials — the orchestrator's own public origin. */
   baseUrl: string
   /**
-   * The HUD's Workshop id (PRD-07 T2a). Set, every container this provider
+   * The HUD's Workshop id (PRD-07 T2a). Set, a container this provider
    * starts, warm or cold, carries it as `EZPUG_HUD_ADDON` and the image's
-   * entrypoint wakes MultiAddonManager. Absent, the spec is today's.
+   * entrypoint wakes MultiAddonManager — on a node {@link hudAddonNodes}
+   * lets have it. Absent, the spec is today's.
    */
   hudAddon?: string
+  /**
+   * **Who gets the HUD's loader** (PRD-10 T8, decision 40 made whole):
+   * `proven` (the default) hands `EZPUG_HUD_ADDON` only to a node whose
+   * `hud` verdict is green — its volume on the build its image was proven
+   * on with the `hud-on` row ({@link nodesGamePicture}). `always` is the
+   * operator's hand for the dev-node canary's own `hud-on` row, the one run
+   * that produces that proof (`EZPUG_IRON_HUD_ADDON_NODES`).
+   */
+  hudAddonNodes?: 'proven' | 'always'
   /** Resolved lazily: the link exists after the provider (the composition root's knot). */
   link: () => NodeAssignSeam | undefined
   /** Where `fleet.node_disconnected` goes; absent in a test that does not care. */
@@ -192,6 +209,59 @@ export interface NodesProvider extends GameServerProvider {
   instances: () => { id: string; nodeId: string; matchId?: string; warm: boolean }[]
   /** Stop watching the registry. */
   close: () => void
+}
+
+const REASON_MAX = 512
+
+/**
+ * **The `nodes` provider's game picture** (PRD-10 T8, decision 41): every
+ * connected node's volume held against its image's proof
+ * ({@link judgeNodeGame}). Green only when every node is; otherwise
+ * `unproven`, every unproven node's reason joined — never `red`, because a
+ * node is served whatever it holds. The build and the stack are the first
+ * node's (by id) that states one; a pool that disagrees says so in the
+ * reasons. Null with no node connected.
+ */
+export function nodesGamePicture(nodes: readonly ConnectedNode[]): ProviderGame | null {
+  if (nodes.length === 0) return null
+  const sorted = [...nodes].sort((a, b) => a.id.localeCompare(b.id))
+  const judged = sorted.map(node => ({
+    node,
+    verdict: judgeNodeGame(`node ${node.id}`, node.game, node.image),
+  }))
+  const since = (pick: (typeof judged)[number][]): string | null =>
+    pick
+      .map(entry => entry.node.gameSince ?? entry.node.lastSeenAt)
+      .sort()
+      .at(-1) ?? null
+  const fold = (which: 'canary' | 'hud'): GameCanary => {
+    const verdicts: NodeGameVerdict[] = judged.map(entry => entry.verdict[which])
+    const build = verdicts.find(verdict => verdict.build !== null)?.build ?? null
+    const reasons = verdicts.flatMap(verdict => (verdict.reason === null ? [] : [verdict.reason]))
+    const reason = reasons.join('; ')
+    return {
+      state: reasons.length === 0 ? 'green' : 'unproven',
+      build,
+      since: since(judged),
+      reason:
+        reasons.length === 0
+          ? null
+          : reason.length > REASON_MAX
+            ? `${reason.slice(0, REASON_MAX - 1)}…`
+            : reason,
+    }
+  }
+  const first = judged.find(entry => entry.node.game?.patchVersion != null)?.node
+  const patchVersion = first?.game?.patchVersion ?? null
+  return {
+    build:
+      first === undefined || patchVersion === null
+        ? null
+        : { id: patchVersion, since: first.gameSince ?? first.lastSeenAt },
+    stack: (first ?? sorted[0])?.image?.revision ?? null,
+    canary: fold('canary'),
+    hud: fold('hud'),
+  }
 }
 
 /** A container the node reports that is idle, warm and unclaimed — what a claim looks for. */
@@ -281,26 +351,52 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
     throw new Error(`nodes: could not mint an instance id on ${nodeId}`)
   }
 
+  /**
+   * May this node's containers carry the HUD's loader? Decision 40 for a
+   * node: only on a green `hud` verdict, unless the operator said `always`.
+   * A refusal is said once per node and reason, not once per container.
+   */
+  const hudWithheld = new Map<string, string>()
+  const hudFor = (nodeId: string): string | undefined => {
+    if (options.hudAddon === undefined) return undefined
+    if (options.hudAddonNodes === 'always') return options.hudAddon
+    const node = registry.get(nodeId)
+    const verdict = judgeNodeGame(`node ${nodeId}`, node?.game, node?.image).hud
+    if (verdict.state === 'green') {
+      hudWithheld.delete(nodeId)
+      return options.hudAddon
+    }
+    const reason = verdict.reason ?? 'its hud verdict is not green'
+    if (hudWithheld.get(nodeId) !== reason) {
+      hudWithheld.set(nodeId, reason)
+      log.info(`node ${nodeId}: its servers start without the HUD's addon: ${reason}`)
+    }
+    return undefined
+  }
+
   const specFor = (
     instance: Instance,
     serverToken: string,
     purpose: 'warm' | 'match',
-  ): InstanceSpec => ({
-    id: instance.id,
-    purpose,
-    image,
-    serverId: instance.id,
-    serverToken,
-    ports: instance.ports,
-    env: {
-      EZPUG_IRON_URL: baseUrl,
-      ...(instance.rconPassword !== undefined && {
-        [CS2_RCON_PASSWORD_VAR]: instance.rconPassword,
-      }),
-      ...(options.hudAddon !== undefined && { [HUD_ADDON_SERVER_VAR]: options.hudAddon }),
-    },
-    ...(instance.matchId !== undefined && { matchId: instance.matchId }),
-  })
+  ): InstanceSpec => {
+    const hudAddon = hudFor(instance.nodeId)
+    return {
+      id: instance.id,
+      purpose,
+      image,
+      serverId: instance.id,
+      serverToken,
+      ports: instance.ports,
+      env: {
+        EZPUG_IRON_URL: baseUrl,
+        ...(instance.rconPassword !== undefined && {
+          [CS2_RCON_PASSWORD_VAR]: instance.rconPassword,
+        }),
+        ...(hudAddon !== undefined && { [HUD_ADDON_SERVER_VAR]: hudAddon }),
+      },
+      ...(instance.matchId !== undefined && { matchId: instance.matchId }),
+    }
+  }
 
   /** How many containers a node may still take, from its own ceiling. */
   const freeCapacity = (node: ConnectedNode): number =>
@@ -602,6 +698,8 @@ export function createNodesProvider(options: NodesProviderOptions): NodesProvide
 
   return {
     id: NODES_PROVIDER_ID,
+
+    gamePicture: () => nodesGamePicture(registry.all()),
 
     /**
      * **The health probe** (T31): the venue side of the fleet, read through

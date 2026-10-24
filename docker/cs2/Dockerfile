@@ -217,6 +217,18 @@ COPY --from=vendorplugins /vendor-out/addons/ /out/addons/
 # The EZPug tree last, so it wins over anything a vendor put in `shared/`.
 COPY --from=plugins /out/addons/ /out/addons/
 
+# What the image says about itself to a node agent (PRD-10 T8, decision 41):
+# the pins it was built with, under the keys `GAME_PINS` uses, and the proof
+# it carries — `docker/cs2/proven.json`, the build on which `pnpm cs2:canary`
+# last went green with these pins (the canary writes it, `pnpm game:follow`
+# commits it). Kept outside `/out` so it is neither overlaid onto the volume
+# nor uploaded to the Dathost template; the agent reads it with the volume's
+# `steam.inf` and states all of it in its `hello`.
+COPY docker/cs2/proven.json /image-meta/proven.json
+RUN printf '{"counterStrikeSharp":"%s","metamod":"%s","multiAddonManager":"%s","matchzy":"%s"}\n' \
+      "${COUNTER_STRIKE_SHARP_VERSION}" "${METAMOD_VERSION}" "${MULTIADDONMANAGER_VERSION}" "${MATCHZY_VERSION}" \
+      > /image-meta/pins.json
+
 # ── The server ─────────────────────────────────────────────────────────────
 # The Steam Linux Runtime 3.0 "sniper" platform is the environment Valve builds
 # the CS2 dedicated server against; pinned by digest, because
@@ -293,6 +305,7 @@ COPY --from=vendor --chown=steam:steam /out/ ${EZPUG_CS2_IMAGE_DIR}/
 COPY --chown=steam:steam gamemodes/ ${EZPUG_CS2_IMAGE_DIR}/gamemodes/
 COPY --chown=steam:steam docker/cs2/entrypoint.sh docker/cs2/install-game.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/install-game.sh
+COPY --from=vendor /image-meta/ /usr/local/share/ezpug/
 
 ARG EZPUG_GIT_SHA=unknown
 LABEL org.opencontainers.image.revision=$EZPUG_GIT_SHA \

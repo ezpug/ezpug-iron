@@ -39,7 +39,12 @@ export function createGameReads(options: GameReadsOptions): GameReads {
   const pins = options.pins ?? GAME_PINS
   const upstreams = options.upstreams ?? GAME_UPSTREAMS
 
+  /** A provider that states its own picture (the node pool, PRD-10 T8) is read live. */
+  const stated = (id: string): ProviderGame | null => registry.get(id)?.gamePicture?.() ?? null
+
   const providerGame = async (id: string): Promise<ProviderGame> => {
+    const own = stated(id)
+    if (own) return own
     const state = (await store.listProviderStates()).find(row => row.provider === id)
     if (!state) return UNKNOWN_PROVIDER_GAME
     return {
@@ -63,6 +68,8 @@ export function createGameReads(options: GameReadsOptions): GameReads {
         store.listFacts(500, 'game.upstream_released'),
       ])
       const stateOf = (id: string): ProviderGame => {
+        const own = stated(id)
+        if (own) return own
         const state = states.find(row => row.provider === id)
         if (!state) return UNKNOWN_PROVIDER_GAME
         return {

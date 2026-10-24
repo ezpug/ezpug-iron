@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import Docker from 'dockerode'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CONTAINER_LOG, createDockerodeDocker } from './dockerode'
@@ -134,5 +136,33 @@ describe.skipIf(!available)('the dockerode adapter against the daemon', () => {
     expect(await docker.inspectContainer(id)).toBeNull()
     expect(await docker.listContainers({ [RUN_LABEL]: RUN_ID })).toEqual([])
     created.length = 0
+  })
+
+  it('reads files out of an image and a bound directory without starting anything, and leaves no container', async ctx => {
+    if ((await daemonReachable(docker)) !== null || (await docker.imageDigest(IMAGE)) === null) {
+      if (REQUIRED) throw new Error(`no daemon or no ${IMAGE} for the read`)
+      ctx.skip()
+      return
+    }
+    const dir = mkdtempSync(join(tmpdir(), 'ezpug-node-read-'))
+    try {
+      writeFileSync(join(dir, 'steam.inf'), 'PatchVersion=1.41.9.2\nSourceRevision=11162119\n')
+      const before = (await new Docker({ socketPath: SOCKET }).listContainers({ all: true })).length
+      const read = await docker.readFiles(
+        IMAGE,
+        [`${dir}:/serverdata/serverfiles/game/csgo:ro`],
+        ['/serverdata/serverfiles/game/csgo/steam.inf', '/etc/passwd', '/nowhere/build.json'],
+      )
+      expect(read['/serverdata/serverfiles/game/csgo/steam.inf']).toBe(
+        'PatchVersion=1.41.9.2\nSourceRevision=11162119\n',
+      )
+      expect(read['/etc/passwd']).toContain('root:')
+      expect(read['/nowhere/build.json']).toBeNull()
+      const after = (await new Docker({ socketPath: SOCKET }).listContainers({ all: true })).length
+      // Other projects share this daemon, so "no more than before" is the honest check.
+      expect(after).toBeLessThanOrEqual(before)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
