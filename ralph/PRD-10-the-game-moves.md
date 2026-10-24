@@ -270,7 +270,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   production for build 11162119 (≤ 10 ¢, named), green in the health read on gs.ezpug.com,
   the issue from T2 commented. Puppets stay out of it: a canary is bots and rules, so the
   production key's `simulation` scope is not what guards it.
-- [ ] **T4 (effort: medium): The dev-node canary, for the image.** `pnpm cs2:canary [--boots 8]
+- [x] **T4 (effort: medium): The dev-node canary, for the image.** `pnpm cs2:canary [--boots 8]
   [--rows retakes,pug-2v1]`: takes the lane lock (the protocol in `docs/operations.md`, a
   ticket like every row), refuses while a container runs, brings the volume to Steam's
   public build if it trails (`cs2:install`, the "no delta" failure named by its cause, not
