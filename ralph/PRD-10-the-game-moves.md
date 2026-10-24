@@ -203,7 +203,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   > `nice`, only while no deploy build runs on this box (check `pgrep -fa deploy.sh` first; 67 GB
   > against 132 GB free), because T4 and T8 need it anyway. Not a reversal of the 2026-10-19
   > cleanup: the volume is a build artefact and comes back when a round needs it.
-- [ ] **T2 (fable) (effort: high): The build watcher, and what a client reads of it.** One more
+- [x] **T2 (fable) (effort: high): The build watcher, and what a client reads of it.** One more
   loop in the orchestrator, on the clock, beside the probes: **why the orchestrator and not
   a cron** — it is the one process that is always up, holds the store, the clock, the
   registry and the health route the platform polls every 30 s, and a scheduled script on the
