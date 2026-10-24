@@ -42,7 +42,7 @@ orchestrator's rails (Drizzle, postgres.js, ioredis) are the versions the platfo
 | ---- | --- | ---- | ------------ |
 | CounterStrikeSharp.API | `1.0.378` | `plugins/Directory.Build.props`, `<CounterStrikeSharpApiVersion>` | the runtime `EZPug.Sdk` and the core plugin load into. `EZPug.Sdk.Tests` asserts the restored assembly carries this number, so a silent NuGet drift fails `pnpm verify` |
 | Target framework | `net10.0` | `plugins/Directory.Build.props` | CounterStrikeSharp moved to .NET 10 (LTS) on 2026-05-30; every API package from **1.0.369** on targets `net10.0` only (1.0.368 is the last `net8.0`). Decided in PRD-01 T1 |
-| Metamod:Source | `2.0.0-git1483` | `docker/cs2/Dockerfile`, `METAMOD_VERSION` (+ `METAMOD_SHA256`) | the loader CounterStrikeSharp itself needs, and **it moves with CounterStrikeSharp, never alone**: the build is the one the pinned release's `libraries/metamod-source` submodule names. For 1.0.378 that is commit `170058a2`, which is git1483 (the binary says `2.0.0-dev+1483` and `170058a`). CounterStrikeSharp 1.0.375 and later need Metamod plugin API 18, and git1411 has 17 ("Plugin requires newer Metamod version (18 > 17)", PRD-05 T2f). Before this, git1469 was commit `16d692c7`, one past the `fa6f80e4` (git1468) that 1.0.375 and 1.0.376 named, because git1468 hung in 6 of 9 boots on the dev node before CounterStrikeSharp printed a line: the main thread waited on a `pthread_rwlock_wrlock` while KHook's two worker threads slept. git1469 booted 12 of 12, in 4 to 8 s each. Boot a bump several times before you trust it: `pnpm cs2:canary` does (eight boots by default, PRD-10 T4). git1483 (with CounterStrikeSharp 1.0.378 and MultiAddonManager 1.7 asleep) is proven **on Dathost only**: on 2026-10-24 five clones of the refreshed template booted to `server_ready` 20 to 25 s after the request, and the fifth played a 2v2 of puppets to `series_end` (PRD-10 T1). On the dev node (LAN), `pnpm cs2:canary` booted the image eight times on 1.41.9.2 the same day: CounterStrikeSharp's first line 2.8 to 6.0 s and `server_ready` 13.0 to 16.3 s after the request, no hang, no `Failed to find signature`, then the `retakes` and `pug-2v1` rows green (PRD-10 T4). The image pins the exact build *and* its checksum, so a rebuild is the same rebuild and a changed artifact is a red build |
+| Metamod:Source | `2.0.0-git1483` | `docker/cs2/Dockerfile`, `METAMOD_VERSION` (+ `METAMOD_SHA256`) | the loader CounterStrikeSharp itself needs, and **it moves with CounterStrikeSharp, never alone**: the build is the one the pinned release's `libraries/metamod-source` submodule names. For 1.0.378 that is commit `170058a2`, which is git1483 (the binary says `2.0.0-dev+1483` and `170058a`). CounterStrikeSharp 1.0.375 and later need Metamod plugin API 18, and git1411 has 17 ("Plugin requires newer Metamod version (18 > 17)", PRD-05 T2f). Before this, git1469 was commit `16d692c7`, one past the `fa6f80e4` (git1468) that 1.0.375 and 1.0.376 named, because git1468 hung in 6 of 9 boots on the dev node before CounterStrikeSharp printed a line: the main thread waited on a `pthread_rwlock_wrlock` while KHook's two worker threads slept. git1469 booted 12 of 12, in 4 to 8 s each. Boot a bump several times before you trust it: `pnpm cs2:canary` does (eight boots by default, PRD-10 T4). git1483 (with CounterStrikeSharp 1.0.378) is proven **on both sides** for CS2 1.41.9.2. On Dathost first, because the dev node's volume was gone that morning: on 2026-10-24 five clones of the refreshed template booted to `server_ready` 20 to 25 s after the request, and the fifth played a 2v2 of puppets to `series_end` (PRD-10 T1). On the dev node (LAN) the same day, once the volume was back, `pnpm cs2:canary` booted the image eight times: CounterStrikeSharp's first line 2.8 to 6.0 s and `server_ready` 13.0 to 16.3 s after the request, no hang, no `Failed to find signature`, then the `retakes` and `pug-2v1` rows green (PRD-10 T4). The orchestrator's own canaries hold it since: the Dathost canary and its `hud` canary green on 1.41.9.2 (PRD-10 T3, T6). The image pins the exact build *and* its checksum, so a rebuild is the same rebuild and a changed artifact is a red build |
 | CounterStrikeSharp (the release) | `1.0.378`, `counterstrikesharp-with-runtime-linux` | `docker/cs2/Dockerfile`, `COUNTER_STRIKE_SHARP_VERSION` (+ `COUNTER_STRIKE_SHARP_SHA256`) | the same number as the NuGet row above — `check-pins` holds the two against each other, because a plugin compiled against one API and loaded by another is the failure mode this table exists to prevent. "with runtime" because the steamrt base ships no .NET. **It follows the game.** CounterStrikeSharp calls into CS2 through offsets and signatures that a game update can move, and the game in the volume updates on its own. 1.0.375 is upstream's fix for CS2 1.41.8.2 (2026-09-23). Under 1.0.373, that update moved `CBaseEntity_Teleport`, and every retakes server segfaulted at its first round (PRD-05 T2f). 1.0.376 (2026-09-27) carries #1434, without which every `{s:…}` dialog variable of a custom HUD layout stays blank once a player has taken the slot (PRD-07 T2), and the schema for CS2 1.41.8.4. 1.0.378 (2026-10-23 14:22 UTC, "fix: Game Update 1.41.9.2", with the schema for 1.41.9.2) is upstream's fix for CS2 1.41.9.2, which Valve shipped at 00:54 CEST that day. Under 1.0.376 and git1469, 1.41.9.2 killed every Dathost server on boot, one second after MultiAddonManager logged `[MultiAddonManager] Steam API Activated` (`Engine2PreBreakpadDumpFunction`, then `SERVER EXITED`). With the loader removed, the same servers died on the first human `SIGNONSTATE_SPAWN`. The template was fixed by hand that evening (issue #13), and this row caught up with it the day after (PRD-10 T1). A console that says `Failed to find signature` at boot is the early warning |
 | MultiAddonManager | `1.7.1`, `steamrt3` | `docker/cs2/Dockerfile`, `MULTIADDONMANAGER_VERSION` (+ `MULTIADDONMANAGER_SHA256`) | the Metamod plugin that hands the HUD's Workshop addon to a client while it connects (PRD-07 T2, `docs/hud.md`). Installed **asleep**: the image keeps its `.vdf` outside `addons/metamod/`, and the entrypoint puts it there only on a server that has `EZPUG_HUD_ADDON`, so Metamod loads it at boot there and nowhere else (a `meta load` after boot crashed the dev node 5 boots in 6). The `steamrt3` build because the base is sniper. **It breaks on CS2 updates**: its offsets are hard-coded, client addons stopped arriving after CS2 1.41.8.x until 1.6.1 (2026-09-23, upstream issue 75). 1.7 (2026-10-23 10:55 UTC) is "Rebuilt for the 22/10/2026 CS2 update", the 1.41.9.2 that killed 1.6.2 servers on boot one second after its `Steam API Activated` line (issue #13), and also retries an addon download that started before the server was logged on to Steam. 1.7 renamed the loader's alias to `MultiAddonManager`. A Dathost clone has no entrypoint, so the orchestrator uploads the loader itself (`HUD_ADDON_LOADER`, `apps/orchestrator/src/providers/hud-addon.ts`). `docker/cs2/multiaddonmanager.vdf` is the release's file byte for byte: the image build `cmp`s it against the release, and a test holds the constant to it. Nothing may depend on it, and a CS2 update means the HUD's drill before an evening that uses it (`docs/hud.md`, "The drill after a CS2 update"): a new release is a bump of this row. The cfg it reads is ours, `docker/cs2/cfg/multiaddonmanager/multiaddonmanager.cfg`. 1.7.1 (2026-10-23) is "Fixed regression where the plugin wouldn't mount addons in some cases.", followed by `pnpm game:follow` on 2026-10-24 — cs2:canary green on CS2 1.41.9.2 with image 24be188: 8 boots (server_ready 16.0–20.3 s); rows retakes green, pug-2v1 green, hud-on green; Dathost canary green on build 1.41.9.2 (attempt 4) |
 | steamrt sniper (the base image) | `latest-container-runtime-depot@sha256:8cd1bdfc` (truncated; the Dockerfile carries the whole digest) | `docker/cs2/Dockerfile` (`FROM registry.gitlab.steamos.cloud/…`) | the runtime Valve builds the CS2 dedicated server against. Pinned **by digest**: the tag moves, and a server that ran yesterday has to run today |
@@ -247,18 +247,43 @@ member of the orchestration union.
 
 ## Bumping one
 
-For a server-side pin, `pnpm game:follow css@<version> metamod@<build> [mam@<version>]` is
-all of the below in one verb, proven on the dev node and the template before it commits
-(PRD-10 T5, decision 39; `docs/operations.md`, "`pnpm game:follow`"). By hand, in order:
+**A server-side pin is one verb** (PRD-10 T5, decision 39):
 
-1. Edit the **home** — `Directory.Build.props`, `global.json`, the catalog, the image
-   script. For a server-side pin (CounterStrikeSharp, Metamod, MultiAddonManager,
-   MatchZy-Enhanced) the orchestrator's own copy, `apps/orchestrator/src/game/pins.ts`
-   (`GAME_PINS`, what a `game.build_moved` fact says the stack was pinned to; PRD-10 T2),
-   moves in the same commit — `check-pins` holds it to the Dockerfile. Never this file alone.
-2. Edit the row here in the same commit; `pnpm lint` fails otherwise.
-3. `pnpm verify`. For a CounterStrikeSharp bump that is also `EZPug.Sdk.Tests` proving the
-   restored assembly matches, and for a plugin bump it is the vendored source building
+```sh
+pnpm game:follow css@1.0.379 metamod@1483       # CounterStrikeSharp, Metamod with it
+pnpm game:follow mam@1.7.2                      # MultiAddonManager alone
+pnpm game:follow css@1.0.379 --dry-run          # the plan and the diff; touches nothing
+```
+
+It writes every home and this table together, proves the build on the dev node and on
+the template, and commits `chore(pins): …` only when both are green. It never pushes.
+Under `EZPUG_IRON_GAME_FOLLOW=patch` the box's timer runs it unattended for a patch
+(`--auto`); anything else waits for a human, and the build's issue says why
+(`docs/operations.md`, "CS2 update day"). MatchZy-Enhanced is never followed by the verb:
+a rebase of our fork is a person's work (`docs/operations.md`, "MatchZy-Enhanced, our
+fork").
+
+**What the verb does, which is also the hand procedure** for a pin it does not follow (the
+toolchain, a vendored plugin, the base image), in order:
+
+1. **The home.** `Directory.Build.props`, `global.json`, the catalog, the image script.
+   For a server-side pin (CounterStrikeSharp, Metamod, MultiAddonManager,
+   MatchZy-Enhanced) that is the Dockerfile's `ARG` and its `_SHA256`
+   (`curl -fsSL <url> | sha256sum`, and held to the release page's digest when GitHub
+   publishes one), plus the orchestrator's own copy, `apps/orchestrator/src/game/pins.ts`
+   (`GAME_PINS`, what a `game.build_moved` fact says the stack was pinned to). `check-pins`
+   holds that copy to the Dockerfile. Metamod moves only with CounterStrikeSharp: the build
+   its release's `libraries/metamod-source` submodule names, and the drop's binary must
+   say the same commit. Never this file alone.
+2. **The row here**, in the same commit, with the release's title and date and what it
+   fixed; the row's history stays. `pnpm lint` fails otherwise.
+3. **`pnpm verify`.** For a CounterStrikeSharp bump that is also `EZPug.Sdk.Tests` proving
+   the restored assembly matches, and for a plugin bump it is the vendored source building
    against the pinned API.
-4. A vendor bump that moves a wire shape (a MatchZy event field, a WeaponPaints column) is
+4. **The proof.** `pnpm cs2:build`, then `pnpm cs2:canary` inside a hold of the lane (eight
+   boots and the `retakes` and `pug-2v1` rows; `hud-on` too when MultiAddonManager moved).
+   A green run writes `docker/cs2/proven.json`, which goes into the same commit. Then
+   `pnpm dathost:image` and `--check` for the template, and `POST /v1/fleet/game/canary`
+   on production for the Dathost verdict.
+5. A vendor bump that moves a wire shape (a MatchZy event field, a WeaponPaints column) is
    a `@ezpug/match-api` release with a changelog line, not a silent edit (decision 24).

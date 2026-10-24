@@ -170,19 +170,16 @@ else in this repo downloads anything at runtime (decision 16).
 **The dev build and production's** (PRD-04 T11a). Dathost updates its servers' CS2 itself
 when Valve ships one. The `cs2-data` volume moves only when `pnpm cs2:install` runs, so the
 dev node falls behind without anybody noticing, and the lane stops seeing what production
-plays. T11's demo bug lived in exactly that gap. So the rule is: **when Valve ships a CS2
-update, run `pnpm cs2:canary` on this box** (below; it runs `cs2:install` itself when the
-volume trails), or `pnpm cs2:install` by hand with the lane free
-(`node scripts/cs2-lane-lock.mjs status`) and no `ezpug-iron-cs2` container running,
-because steamcmd writes into the files a running server has open. You can tell Valve
-has shipped from either of two signs: a Dathost server boots a newer version than the dev
-node, or the orchestrator logs MatchZy's `cs2_update_required` as a warn. `pnpm cs2:status`
-names the installed build (`steam.inf`'s `PatchVersion`). Steam's `public` branch is what
-a Dathost server updates to, and an up-to-date `pnpm cs2:install` lands on the same build.
-A server with the HUD's addon has a drill of its own after an update, in order
-(`docs/hud.md`, "The drill after a CS2 update"). The gap matters: on 2026-09-23 the volume was on 1.41.7.8 and production on a build that
-writes demos somewhere else (below, "Where the file lands"). After T11a brought it to
-1.41.8.2, the dev node wrote them where Dathost does.
+plays. T11's demo bug lived in exactly that gap: on 2026-09-23 the volume was on 1.41.7.8
+and production on a build that writes demos somewhere else (below, "Where the file
+lands"); after T11a brought it to 1.41.8.2, the dev node wrote them where Dathost does.
+Nobody has to notice any more: the orchestrator's watcher sees Valve ship within fifteen
+minutes and files the build's issue, and **`pnpm cs2:canary`** is the verb that brings the
+volume to Steam's public build (it runs `cs2:install` itself when the volume trails, with
+the lane held and no container running, because steamcmd writes into the files a running
+server has open) and proves the image on it. `pnpm game:follow` runs it as one of its
+phases. What happens on the day, and what still takes a hand, is "CS2 update day" (under
+Health); `pnpm cs2:status` names the installed build (`steam.inf`'s `PatchVersion`).
 
 **The build, by its three names** (PRD-10 T2; read off the Dathost template's `steam.inf`
 and Valve's two feeds on 2026-10-24, the dev node's volume being gone that day). A CS2
@@ -759,9 +756,9 @@ is set. The loader and the id go onto a clone only when the provider's `hud` can
 green on the build the clone runs, or when the match is itself the `hud` canary
 (`{ "hud": true }`). That is the one match allowed to find out. Every other server is
 configured without it, and the log says so per server. Its `hello` then truthfully lacks
-`hud`. The nodes provider still hands the id to every container: a node's build has no
-canary in the orchestrator. T4's `pnpm cs2:canary` judges the image on the dev node from
-outside it, T8 carries that verdict to a node, and T6 makes the gate whole.
+`hud`. The `hud` canary (PRD-10 T6, decision 40) follows a green plain one unattended. A
+node's containers are under the same gate through the image's own proof instead
+(`docker/cs2/proven.json`, decision 41; "The build watcher" above).
 
 ### `pnpm game:follow`, and the policy of a patch (PRD-10 T5)
 
@@ -800,8 +797,9 @@ then carries pins the tree does not, and `pnpm cs2:build && pnpm dathost:image` 
 tree puts the committed ones back. The verb never pushes: the loop or a human does, after
 reading the commit.
 
-**The policy.** `EZPUG_IRON_GAME_FOLLOW=off|patch`, default `off` (`.env.production` is
-where production's value lives; T9's rehearsal flips it to `patch`). Under `patch`,
+**The policy.** `EZPUG_IRON_GAME_FOLLOW=off|patch`, default `off`. `.env.production` is
+where production's value lives, and it is `patch` since 2026-10-25, after the rehearsal
+("CS2 update day", below) went green. Under `patch`,
 `--auto` reads `GET /v1/fleet/game` off the orchestrator the env file names
 (`EZPUG_IRON_PUBLIC_URL`, with `EZPUG_IRON_API_KEY`) and follows every upstream whose
 newest release is a **patch exactly as decision 39 says**: CounterStrikeSharp with the
@@ -911,6 +909,70 @@ is how one terminal does this to production while pointing at the dev world by d
 `pnpm iron providers gslt`. `0 of 0 leased` is no Steam key, a wrong one or a ceiling of
 zero; `n of n leased` is a saturated pool. "The GSLT pool" below is what to do about
 either.
+
+## CS2 update day
+
+Valve ships a CS2 update without warning, usually overnight, and Dathost moves every
+server it rents onto it within the hour. On 2026-10-23 that killed every match we started
+for a whole day, and players found out before anyone here did (#13). Since PRD-10 a
+build move is a fact with two possible outcomes: a loud, named refusal before a player
+sees it, or a verified pass.
+
+**What is automatic now.**
+
+1. **Detection, within fifteen minutes.** The build watcher ("The build watcher", under
+   Health) reads Valve's update check and writes `game.build_moved`. Every provider's
+   `game.canary` and `game.hud` read `unproven` on `GET /v1/fleet/providers`, which the
+   platform already renders. One GitHub issue is filed, `CS2 build <PatchVersion>`.
+   Every later verdict and upstream release is a comment on that issue.
+2. **The Dathost canary** ("The canary"): a bots-only pug on a clone of the template,
+   on the orchestrator's own `canary` key, about a cent. Green, or red with the crash
+   named, and a red one makes the provider `healthy: false`.
+3. **The `hud` canary**, after a green plain one. Until it is green, no clone gets
+   MultiAddonManager's loader (decision 40, the fourth switch in `docs/hud.md`). That is
+   the only thing the orchestrator refuses on its own. Matches keep being served on any
+   build (decision 38).
+4. **The upstream releases.** The same watcher reads CounterStrikeSharp's,
+   MultiAddonManager's, Metamod's and our MatchZy fork's releases, and comments each new
+   one on the build's issue.
+5. **The patch follow**, when `EZPUG_IRON_GAME_FOLLOW=patch` (production's value). The
+   box's timer runs `pnpm game:follow --auto` every 30 minutes ("`pnpm game:follow`").
+   A CounterStrikeSharp patch whose notes fix the game, or a MultiAddonManager third-number
+   release, is bumped, built, proven by the dev-node canary (`pnpm cs2:canary`: the volume
+   brought to the build, eight boots, the lane's rows) and by the Dathost canary, pushed
+   onto the template and committed as `chore(pins): …`. If the dev node cannot reach the
+   build, the follow goes onto the template alone and says so. Nothing is pushed to git;
+   the commit waits for the loop or a human.
+
+What to read first: the build's issue on GitHub, or
+
+```sh
+curl -sS https://gs.ezpug.com/v1/fleet/game -H "authorization: Bearer $FLEET_KEY" \
+  | jq '{build, providers: [.providers[] | {id, canary: .game.canary.state, hud: .game.hud.state}]}'
+```
+
+**What still takes a hand.**
+
+1. **A minor or major bump.** A CounterStrikeSharp `1.1.0`, a MultiAddonManager `1.8`,
+   or a release whose notes say "breaking" or "migration". The issue is commented
+   "Waiting for a human" with the reason. Read the release, then run
+   `pnpm game:follow css@<version> metamod@<build>` (or `mam@<version>`) yourself. The
+   verb's phases and stops are the same as an unattended run's.
+2. **A MatchZy-Enhanced rebase.** Our fork follows upstream MatchZy by hand ("MatchZy-Enhanced,
+   our fork", under the CS2 image). No timer touches it.
+3. **A look at a client.** No canary has a human in it. Before an evening that uses the
+   HUD, somebody joins one server and looks: the drill's step 3 and the look list in
+   `docs/hud.md`. What a canary cannot see is written down in `ralph/OPEN-POINTS.md` §14.
+
+**Rehearsed.** `pnpm game:rehearse` (`apps/orchestrator/src/game.extended.test.ts`, part of
+`pnpm verify:extended`) runs the whole day against the dev world on a fake clock, with no
+rental. A scripted Steam ships a fictional build. Within one watcher tick the fact is
+written, one issue is filed and every provider reads `unproven`. The Dathost canary plays
+on the fake vendor and goes green, the `hud` canary follows, and the issue gets two
+comments. A scripted release feed then offers a fictional CounterStrikeSharp patch titled
+"Game Update", and `game:follow --auto --dry-run` prints the plan it would run and names
+the policy that allowed it. A minor of CounterStrikeSharp and of MultiAddonManager print
+"waiting for a human".
 
 ## How it starts and stops
 

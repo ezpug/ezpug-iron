@@ -96,7 +96,12 @@ it here.
     `steam.inf`, every upstream fix's title — while Steam's `buildid` and the engine's
     source revision ride the fact as labels and decide nothing (`docs/operations.md`, "The
     build, by its three names"). A provider that can be asked for its servers' build follows
-    its own reading, not Steam's.
+    its own reading, not Steam's. **The issue's token** (open question 1, answered
+    2026-10-24): `EZPUG_IRON_GITHUB_TOKEN`, a fine-grained token with `issues: write` on this
+    repository alone once the owner mints one, and until then the box's own `gh auth token`,
+    which the deploy's preflight writes into `.env.production` when the line is absent,
+    announced and never printed, so detection files its issue from the first deploy. It is
+    in no log, no fact and no health read; without it the fact and the health still move.
 
     **The second paragraph: a game fact is state, not an envelope.** `orchestrationFactSchema`
     is a discriminated union every strict client parses, and a new member there is **not
@@ -172,8 +177,9 @@ it here.
     second clause. For MultiAddonManager: the third number alone (`1.6.1 → 1.6.2`;
     `1.6.2 → 1.7` is a minor and waits). Metamod only as the build CounterStrikeSharp
     names. MatchZy-Enhanced never: a fork rebase is PRD-09 T6's kind of work. **The policy
-    is a switch**, `EZPUG_IRON_GAME_FOLLOW=off|patch`, `off` until T9's rehearsal is green:
-    under `patch`, `pnpm game:follow --auto` under the box's timer (every 30 minutes,
+    is a switch**, `EZPUG_IRON_GAME_FOLLOW=off|patch` (open question 3): `off` until the
+    rehearsal walked a fictional build end to end (`pnpm game:rehearse`, PRD-10 T9), and
+    production's value is `patch` since that went green on 2026-10-25. Under `patch`, `pnpm game:follow --auto` under the box's timer (every 30 minutes,
     `docs/operations.md`) reads the watcher's picture off the orchestrator and follows what
     the rule allows; a minor, a major, a MatchZy release or any refusal above leaves the
     build's issue commented "waiting for a human: <why>", once, and the health unchanged.

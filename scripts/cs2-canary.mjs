@@ -21,8 +21,8 @@
 // image older than the tree, a volume Steam will not update) is not a verdict
 // about the build: it writes no file and exits 2, naming what stopped it.
 //
-// `pnpm game:follow` (T5) calls it, and the HUD drill's steps 2 and 3
-// (`docs/hud.md`) are it.
+// `pnpm game:follow` (T5) calls it, and the HUD drill's step 2
+// (`docs/hud.md`) is it.
 import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createWriteStream, mkdirSync, readFileSync, writeFileSync } from 'node:fs'

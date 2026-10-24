@@ -22,7 +22,8 @@ lock") says. The lane lock's fairness (issue #1) is decision 31. §7 (a mixed ro
 a fork of our own, `ezpug/MatchZy-Enhanced`, and `pug` claims `capabilities.mixedRoster`
 (decisions 19 and 28 as amended). What only a person can show of it is §8.
 PRD-05 (workshop maps) took neither §3 nor §8. It found §9 and §10, and decision 32 records
-what it decided. PRD-09 (after the playtest) found §12 and §13.
+what it decided. PRD-09 (after the playtest) found §12 and §13. PRD-10 (the game moves)
+wrote §14: what its canaries cannot see.
 
 ## §3 EZ Rating on a human's scoreboard has never been seen
 
@@ -179,3 +180,38 @@ or snaps was not said; the next knobs are the strip's 0.15 s slide and
 stepped reel and a second look at the slide (round 4): "the old one is definitely laggy, the
 new one works pretty well". So the old slide (`.ezpug-unbox.slide` and `ezpug_unbox_test slide`)
 can come out; only the smoothness remains.
+
+## §14 What no canary can see
+
+**What is known** (PRD-10, 2026-10-23 to 2026-10-25). CS2 1.41.9.2 killed our Dathost
+servers twice on 2026-10-23. First on boot, one second after MultiAddonManager woke the Steam
+API. Then, with the loader taken off the template, **on the first human
+`SIGNONSTATE_SPAWN`**: the server booted, a player connected and the server died as that
+player spawned (`docs/pins.md`, the CounterStrikeSharp row; #13). PRD-10's canaries catch
+the first kind: a bots-only pug on Dathost, the same with the loader on (decisions 38 and
+40), and eight boots plus lane rows on the dev node (`pnpm cs2:canary`). They are blind to
+these:
+
+- **A human client.** Engine bots are not clients. They never go through the
+  connect-and-spawn path a player does (no `SIGNONSTATE_*` sequence, no Steam ticket, no
+  addon mount), so a build that crashes only on a human's spawn plays a green canary. The
+  canary's console patterns quote `SIGNONSTATE_SPAWN` as context when it appears, but a
+  canary never produces one. The lane's puppets are bots too.
+- **A client's addon download.** The `hud` canary proves that MultiAddonManager loaded,
+  reached Steam and holds the id. It cannot prove that a client is handed the addon,
+  downloads it and draws the layout. 1.41.8.x broke exactly that while every server stayed
+  up (`docs/hud.md`, the drill's step 3 and the look list).
+- **Everything the canary does not play.** It plays `pug` on `de_dust2` on Dathost. Retakes,
+  the other gamemodes, workshop maps and Rush are played only by the dev node's lane rows,
+  which run when `pnpm cs2:canary` or `pnpm game:follow` runs, not on every build move.
+- **The window before the verdict.** Detection takes up to fifteen minutes and the canary
+  about one more. A match started in between runs on an unproven build, without the HUD's
+  loader but otherwise as normal (decision 38: there is no safe alternative to a match).
+
+**What needs a decision.** Whether a human-shaped canary is worth building: a real client
+on this box (a headless CS2 client logged in to a Steam account of our own) that joins
+the canary's server and spawns. That needs a client licence, a Steam login that can break,
+and a GPU-less client, which Valve does not ship. Until then the honest answer is the drill's step 3, a
+person joining one server before an evening, and the platform's red tile when a real
+match dies.
+

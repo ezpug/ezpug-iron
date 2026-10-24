@@ -33,7 +33,7 @@ import { createHash } from 'node:crypto'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { type Clock, systemClock } from '@ezpug/core'
-import { eq, inArray, like, TransactionRollbackError } from 'drizzle-orm'
+import { eq, inArray, like, or, TransactionRollbackError } from 'drizzle-orm'
 import type { Sql } from 'postgres'
 import { afterAll, beforeAll, beforeEach, expect } from 'vitest'
 import { type DatabaseConfig, readDatabaseConfig, TEST_DATABASE_URL_VAR } from '../config'
@@ -342,13 +342,16 @@ export async function sweepNamespace(db: IronDatabase, namespace: string): Promi
     .from(schema.apiKeys)
     .where(like(schema.apiKeys.name, `${namespace}-%`))
   const keyIds = keys.map(row => row.id)
-  if (keyIds.length === 0) return
+  // A key the orchestrator mints for itself carries no namespace — the
+  // canary's (`canary`, PRD-10 T3) is adopted by name across runs — so its
+  // matches and rows are this namespace's by their deployment stamp (T21c).
+  const ours = <T extends typeof schema.matches | typeof schema.servers>(table: T) =>
+    keyIds.length > 0
+      ? or(inArray(table.keyId, keyIds), eq(table.deployment, namespace))
+      : eq(table.deployment, namespace)
 
   const matchIds = (
-    await db
-      .select({ id: schema.matches.id })
-      .from(schema.matches)
-      .where(inArray(schema.matches.keyId, keyIds))
+    await db.select({ id: schema.matches.id }).from(schema.matches).where(ours(schema.matches))
   ).map(row => row.id)
   if (matchIds.length > 0) {
     await db
@@ -363,10 +366,7 @@ export async function sweepNamespace(db: IronDatabase, namespace: string): Promi
   }
 
   const serverIds = (
-    await db
-      .select({ id: schema.servers.id })
-      .from(schema.servers)
-      .where(inArray(schema.servers.keyId, keyIds))
+    await db.select({ id: schema.servers.id }).from(schema.servers).where(ours(schema.servers))
   ).map(row => row.id)
   if (serverIds.length > 0) {
     await db
@@ -379,8 +379,11 @@ export async function sweepNamespace(db: IronDatabase, namespace: string): Promi
       .set({ leasedByServerId: null })
       .where(inArray(schema.gsltTokens.leasedByServerId, serverIds))
   }
-  await db.delete(schema.servers).where(inArray(schema.servers.keyId, keyIds))
-  await db.delete(schema.matches).where(inArray(schema.matches.keyId, keyIds))
+  if (serverIds.length > 0)
+    await db.delete(schema.servers).where(inArray(schema.servers.id, serverIds))
+  if (matchIds.length > 0)
+    await db.delete(schema.matches).where(inArray(schema.matches.id, matchIds))
+  if (keyIds.length === 0) return
 
   // A node a swept key enrolled (T12) references it, so it goes with it.
   const nodeIds = (

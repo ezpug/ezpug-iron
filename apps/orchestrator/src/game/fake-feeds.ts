@@ -13,7 +13,9 @@ import type { FetchLike } from './feeds'
  *
  * What it models is exactly what the watcher reads: the two Steam bodies,
  * a release per repository, the drop's file name, and the two issue
- * writes. Nothing else.
+ * writes — plus the one read `pnpm game:follow` adds, a release by its tag
+ * (every release a repository was ever given, for T9's rehearsal). Nothing
+ * else.
  */
 
 export interface FakeRelease {
@@ -82,6 +84,8 @@ export function createFakeFeeds(options: FakeFeedsOptions): FakeFeeds {
     steamUpdatedAt: Math.floor(clock.now() / 1000),
     metamod: options.metamod ?? '2.0.0-git1483',
     releases: new Map(Object.entries(options.releases ?? {})),
+    /** Every release each repository was given, for the by-tag read. */
+    history: new Map(Object.entries(options.releases ?? {}).map(([repo, r]) => [repo, [r]])),
     silent: { valve: false, steamcmd: false, github: false },
     rateLimitedUntil: null as number | null,
   }
@@ -149,19 +153,31 @@ export function createFakeFeeds(options: FakeFeedsOptions): FakeFeeds {
     return null
   }
 
+  const releaseJson = (repo: string, release: FakeRelease) => ({
+    tag_name: release.tag,
+    name: release.name ?? release.tag,
+    published_at: release.publishedAt ?? null,
+    html_url: `https://github.com/${repo}/releases/tag/${release.tag}`,
+    body: release.body ?? '',
+    assets: [],
+  })
+
   app.get('/repos/:owner/:repo/releases/latest', c => {
     const refused = github(c)
     if (refused) return refused
     const repo = `${c.req.param('owner')}/${c.req.param('repo')}`
     const release = state.releases.get(repo)
     if (!release) return c.json({ message: 'Not Found' }, 404)
-    return c.json({
-      tag_name: release.tag,
-      name: release.name ?? release.tag,
-      published_at: release.publishedAt ?? null,
-      html_url: `https://github.com/${repo}/releases/tag/${release.tag}`,
-      body: release.body ?? '',
-    })
+    return c.json(releaseJson(repo, release))
+  })
+
+  app.get('/repos/:owner/:repo/releases/tags/:tag', c => {
+    const refused = github(c)
+    if (refused) return refused
+    const repo = `${c.req.param('owner')}/${c.req.param('repo')}`
+    const release = state.history.get(repo)?.findLast(r => r.tag === c.req.param('tag'))
+    if (!release) return c.json({ message: 'Not Found' }, 404)
+    return c.json(releaseJson(repo, release))
   })
 
   app.post('/repos/:owner/:repo/issues', async c => {
@@ -203,7 +219,10 @@ export function createFakeFeeds(options: FakeFeedsOptions): FakeFeeds {
     },
     setRelease(repo, release) {
       if (release === null) state.releases.delete(repo)
-      else state.releases.set(repo, release)
+      else {
+        state.releases.set(repo, release)
+        state.history.set(repo, [...(state.history.get(repo) ?? []), release])
+      }
     },
     setMetamod(version) {
       state.metamod = version

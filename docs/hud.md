@@ -33,7 +33,7 @@ nobody's:
 | `branding.hud` on the request (`false` unless said) | the platform | the HUD for that match: no `mm_add_client_addon`, no layout, no card, no toast | the next match created without it | a match already running keeps what its request said until it is released. Its moments are still said in chat |
 | `EZPUG_IRON_HUD_ADDON` on the orchestrator (unset in production) | an operator | MultiAddonManager on every server started afterwards: not loaded, nothing handed to anybody, the `hello` as before the HUD | the orchestrator's restart (`./scripts/deploy.sh up`, seconds), then each new server | servers already running keep the id they booted with until they are released. That includes **warm containers on a node**, which a later match would claim with the id still set (below) |
 | `mm_client_extra_addons ""` on one live server | an admin, from the platform's RCON panel | handing the addon to anybody who connects to that server from now on | at once: the list is empty in the same RCON call | everybody who already has the addon keeps drawing it until the match is released. The plugin still draws for them |
-| the provider's `hud` canary (`game.hud` in `GET /v1/fleet/providers`) not green on the build it runs | nobody: the orchestrator (decision 40) | MultiAddonManager's loader and the id on every Dathost clone configured while it is not green: no `.vdf`, no `hudAddon` in `ezpug.json`, so the `hello` lacks `hud` and the plugin hands nothing out | the moment the build moves (the watcher's tick, within 15 minutes): the build is new, so no canary has seen it | servers already running keep what they booted with. Nodes are not under it yet (below) |
+| the provider's `hud` canary (`game.hud` in `GET /v1/fleet/providers`) not green on the build it runs | nobody: the orchestrator (decision 40) | MultiAddonManager's loader and the id on every Dathost clone configured while it is not green: no `.vdf`, no `hudAddon` in `ezpug.json`, so the `hello` lacks `hud` and the plugin hands nothing out | the moment the build moves (the watcher's tick, within 15 minutes): the build is new, so no canary has seen it | servers already running keep what they booted with. A node's containers are under it through the image's proof (below) |
 
 **The first switch** is the platform's own (`docs/match-api.md`, "The HUD, from a client's
 side"). It is the normal way to turn the HUD off for an evening, because it needs nobody on
@@ -133,37 +133,35 @@ chat, and a card only ever plays while nobody is playing.
 
 Valve ships, Dathost updates its servers within hours, and the dev node does not move
 until somebody runs `pnpm cs2:install`. MultiAddonManager has broken on a CS2 update
-before (client addons stopped arriving after 1.41.8.x until its 1.6.1), and so has the
-template's `gameinfo.gi` (2026-09-30, `docs/operations.md`, "The template server"). Before
-an evening that uses the HUD, in this order:
+before (client addons stopped arriving after 1.41.8.x until its 1.6.1, and 1.6.2 servers
+died on boot under 1.41.9.2), and so has the template's `gameinfo.gi` (2026-09-30,
+`docs/operations.md`, "The template server"). Most of what this drill used to be is now
+the orchestrator's and two verbs' (`docs/operations.md`, "CS2 update day"). Before an
+evening that uses the HUD, in this order:
 
-1. **The rented side boots at all.** `pnpm dathost:image --check`. If it is red, run
-   `pnpm dathost:image` before anything else: a template whose clones cannot boot fails
-   every Dathost match after a three-minute deadline, with or without the HUD, and nothing
-   in the orchestrator's health notices.
-2. **The dev node is on the same game, and the image boots on it.** `pnpm cs2:canary`
-   (`docs/operations.md`, "The dev-node canary"). It brings the volume to Steam's public
-   build when it trails, boots the image eight times, and plays the lane's `retakes` row
-   (the canary for a CS2 update that outran CounterStrikeSharp; exit 139 is a segfault)
-   and `pug-2v1`, all inside one hold of the lane. Red or refused: read its one line, then
-   the verdict in `.verify/cs2-canary-<build>.json`.
-3. **The HUD's plugin loads.** `hud-off` from the matrix, then `hud-on` inside a hold of
-   the lane ("The lane, both ways", below). `hud-on` is the one that says
-   MultiAddonManager loaded and holds the id. With a hold already open, `pnpm cs2:canary
-   --lock-token <token> --rows hud-off,hud-on` plays both inside it.
-4. **MultiAddonManager upstream.** Read its releases and open issues for the build. A new
-   release is a pin bump — `pnpm game:follow mam@<version>` (PRD-10 T5), which rebuilds the
-   image, runs steps 1 and 2 itself and commits; by hand it is `docs/pins.md`'s "Bumping
-   one" (version and sha-256 in `docker/cs2/Dockerfile`, `node scripts/check-pins.mjs`),
-   a rebuilt image, and step 1 again.
-5. **The addon on a client.** Whether a client still downloads and draws the addon is a
+1. **Read the verdicts.** `GET /v1/fleet/providers` (or the build's GitHub issue):
+   Dathost's `game.canary` and `game.hud` green on the build the watcher reads, and the
+   `nodes` provider's `game.hud` green if a venue box plays. On Dathost the fourth switch
+   has already acted on these: a clone gets the loader only while `game.hud` is green.
+   Unproven for longer than an hour or two: `POST /v1/fleet/game/canary
+   {"provider":"dathost","hud":true}`. `pnpm dathost:image --check` red means somebody's
+   hand is on the template; run `pnpm dathost:image` before anything else.
+2. **The image, on the dev node.** `pnpm cs2:canary --rows retakes,pug-2v1,hud-on` inside
+   a hold of the lane (`docs/operations.md`, "The dev-node canary"). It brings the volume
+   to Steam's build, boots the image eight times, plays the rows, and on green writes the
+   proof a node's `game.hud` reads. `pnpm game:follow` runs it for every bump, so after a
+   followed patch this has already happened.
+3. **The addon on a client.** Whether a client still downloads and draws the addon is a
    person's to see: the look list's first two steps, on one server, before the evening.
-6. **If anything above is red or nobody could look:** leave the HUD off for the evening
-   (the platform's switch, or the second switch). A match without it loses nothing it needs.
-   On Dathost the fourth switch has already decided: `game.hud` in
-   `GET /v1/fleet/providers` says whether a clone gets the loader tonight.
+   No canary can see it (`ralph/OPEN-POINTS.md` §14).
+4. **A new MultiAddonManager.** A third-number release is followed by the timer when
+   `EZPUG_IRON_GAME_FOLLOW=patch`. A minor is "waiting for a human" on the build's issue:
+   read the release, then `pnpm game:follow mam@<version>`.
+5. **If anything above is red or nobody could look:** leave the HUD off for the evening
+   (the platform's switch, or the second switch). A match without it loses nothing it
+   needs.
 
-The addon itself does not have to be rebuilt after an update unless step 5 shows it broken.
+The addon itself does not have to be rebuilt after an update unless step 3 shows it broken.
 Then: `pnpm hud:build --tools` (new depots), `pnpm hud:build`, commit, `pnpm hud:publish`,
 and wait for the check ("Changing it", below).
 
