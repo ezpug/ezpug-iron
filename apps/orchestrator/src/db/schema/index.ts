@@ -5,5 +5,6 @@
  * (`../additive-safe.ts`).
  */
 export * from './api-keys'
+export * from './game'
 export * from './matches'
 export * from './servers'

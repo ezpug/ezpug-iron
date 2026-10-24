@@ -170,7 +170,11 @@ export function createFakeConformanceTarget(
       })),
     advance: ms => clock.advance(ms),
     settle: () => fake.playOut(),
-    faults: faults => fake.setFaults(faults.crash === undefined ? {} : { crash: faults.crash }),
+    faults: faults =>
+      fake.setFaults({
+        ...(faults.crash !== undefined && { crash: faults.crash }),
+        ...(faults.gameBuild !== undefined && { gameBuild: faults.gameBuild }),
+      }),
     playerCommand: command => fake.playerCommand(command),
     stream: (subscription, onFrame) =>
       fake.stream(

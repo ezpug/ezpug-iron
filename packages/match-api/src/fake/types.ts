@@ -115,6 +115,14 @@ export interface FakeFaults {
    * `fleet.provider_unreachable`. `providerDownFor(ms)` clears it on the clock.
    */
   providerDown: boolean
+  /**
+   * **Steam's public build moves to this id** (PRD-10 T2): the fake's watcher
+   * sees it at once — one `game.build_moved` fact, every provider's
+   * `game.build` the new id, both canaries `unproven` — and the same id seen
+   * again writes nothing. `null` is the build the fake was born on
+   * ({@link FAKE_GAME_BUILD}), which it proves green by construction.
+   */
+  gameBuild: string | null
 }
 
 /** One webhook POST as the fake would put it on the wire. */

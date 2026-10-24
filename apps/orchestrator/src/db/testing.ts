@@ -33,7 +33,7 @@ import { createHash } from 'node:crypto'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { type Clock, systemClock } from '@ezpug/core'
-import { inArray, like, TransactionRollbackError } from 'drizzle-orm'
+import { eq, inArray, like, TransactionRollbackError } from 'drizzle-orm'
 import type { Sql } from 'postgres'
 import { afterAll, beforeAll, beforeEach, expect } from 'vitest'
 import { type DatabaseConfig, readDatabaseConfig, TEST_DATABASE_URL_VAR } from '../config'
@@ -329,6 +329,14 @@ export function useTestDatabase(options: { applicationName?: string } = {}): Tes
  * pointer and not a reference).
  */
 export async function sweepNamespace(db: IronDatabase, namespace: string): Promise<void> {
+  // The game's tables hang off nothing but the deployment (PRD-10 T2), and
+  // the suites that stand a whole orchestrator name theirs after the
+  // namespace — so the namespace is the deployment here.
+  await db.delete(schema.gameFacts).where(eq(schema.gameFacts.deployment, namespace))
+  await db.delete(schema.gameBuilds).where(eq(schema.gameBuilds.deployment, namespace))
+  await db
+    .delete(schema.gameProviderStates)
+    .where(eq(schema.gameProviderStates.deployment, namespace))
   const keys = await db
     .select({ id: schema.apiKeys.id })
     .from(schema.apiKeys)

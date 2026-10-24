@@ -715,7 +715,25 @@ asOf }`. `available` is null where a provider cannot count.
   allocated | configured | running | released | failed, game, region, lan, address:
   { host, port } | null, tv, cost: { currency: EUR, hourlyCents, accruedCents, asOf },
   allocatedAt, releasedAt, expiresAt }`. Never a password.
-- **ProviderHealth**: `{ id, healthy, drained, lastCheckedAt, lastError, servers }`.
+- **ProviderHealth**: `{ id, healthy, drained, lastCheckedAt, lastError, servers, game? }`.
+  **`game`** (PRD-10 T2; optional, a server older than 0.35.0 says nothing here) is the
+  game as this provider's servers run it: `{ build: { id, since } | null, stack, canary,
+  hud }`. `build.id` is the game's own `PatchVersion` (`1.41.9.2`) — the one name Valve's
+  update check, every server's `steam.inf` and every upstream fix agree on; `stack` is one
+  opaque revision of the server stack and names nothing; `canary` and `hud` are each
+  `{ state: green | red | unproven, build, since, reason }` — the plain canary match and the
+  one with the HUD's addon loader on the server. `unproven` is the honest state of a build
+  nobody has played on yet: a server is still allocated on it, and the reading says so. A
+  client takes `build`, `state`, `since`, `reason` and `stack`, and learns no plugin's name.
+- **GameFact** (`gameFactSchema`, PRD-10 T2): what the build watcher writes, once each,
+  append-only — `game.build_moved { from, to, observedAt, steamBuildId, sourceRevision,
+  pins }` and `game.upstream_released { repo, version, publishedAt, pinned, observedAt }`.
+  **Never a member of `OrchestrationFact`**: a game fact is state a client *reads* off
+  `GET /v1/fleet/game`, not an envelope it must parse (0.16.0's `team: "unrostered"` broke
+  every strict client; decision 37).
+- **FleetGame**: `{ build: { id, since, steamBuildId, sourceRevision } | null, upstream:
+  [{ repo, pinned, latest, publishedAt }], providers: [{ id, game }], recent: GameFact[] }`,
+  `recent` newest first and at most 50.
 - **Node**: `{ id, labels, region, version, connected, lastSeenAt, drained, capacity:
   { total, inUse, warm }, currentMatches, enrolledAt }`. **NodeEnrolment**: `{ node,
   token }`, the token shown once.
@@ -853,7 +871,17 @@ Scope `fleet`. Body `{ command }`, answers `{ output }`. `command_unsupported` o
 
 ### `GET /v1/fleet/providers`
 
-Scope `fleet`. `{ providers: ProviderHealth[] }`.
+Scope `fleet`. `{ providers: ProviderHealth[] }`. Each carries `game` from 0.35.0 on — the
+build the provider's servers run and both canaries' verdicts for it — and a red verdict
+also makes the provider `healthy: false` with `lastError` naming the build and the reason,
+so a tile that only ever read `healthy` goes red without learning a word of it.
+
+### `GET /v1/fleet/game`
+
+Scope `fleet`. `FleetGame`: Steam's public build as the watcher last read it, the upstreams
+the server stack pins with the newest release seen of each, every provider's `game`
+picture, and the recent facts newest first. A read of what a timer keeps fresh — nothing
+here calls Steam or GitHub on the request.
 
 ### `POST /v1/fleet/providers/:providerId/drain`
 
@@ -1412,8 +1440,11 @@ delivery POSTed twice, same `deliveryId`), `webhookOutOfOrder` (even `seq`s wait
 odd ones overtake them), `webhookFailures: N` (the next N attempts fail with a synthetic 503
 before reaching the endpoint), `providerDown` (creates are `provider_unavailable`, capacity
 unhealthy, every open match hears `fleet.provider_unreachable`; `fake.providerDownFor(ms)`
-clears it on the clock). `fake.deliveries(matchId?)` lists every attempt with its status
-and outcome.
+clears it on the clock), `gameBuild` (Steam's public build moves to this id: one
+`game.build_moved` fact, the provider's `game.build` the new id, both canaries `unproven`;
+the same id again is nothing; `null` is the build the fake was born on, `FAKE_GAME_BUILD`,
+which it reads green). `fake.deliveries(matchId?)` lists every attempt with its status and
+outcome.
 
 **The widget door.** `fake.playerCommand({ token, command, args? })` takes a player token
 and a command the gamemode's manifest declares and answers with the `plugin_event` the
@@ -1478,9 +1509,12 @@ on the scoped key plays a Bo1 whose `Match.simulated` and every `source.simulate
 `true`), `budget-refused`, `moment` (a request with `branding.hud`, a tagline and a banner
 key nobody drew goes live like any other; a moment about a player, one with an unknown
 kind, an unknown picture and a time of its own, and a drop with a reel are all taken; a
-simulated server says each once, as told, the reel decoy for decoy), `webhook-replay` (the cursor walked to the end equals the tail)
-and `stream-hello` (the `hello.seq` agrees with the events route, and every `event` frame is
-an envelope the route also has).
+simulated server says each once, as told, the reel decoy for decoy), `webhook-replay` (the cursor walked to the end equals the tail),
+`stream-hello` (the `hello.seq` agrees with the events route, and every `event` frame is
+an envelope the route also has) and `game-build-moves` (Steam's public build moves through
+the `gameBuild` fault knob: one `game.build_moved` fact, every provider's `game.build` the
+new id with both canaries `unproven`, the provider still healthy, and the same build seen
+again writes nothing).
 
 **The report** is data, not a test framework: `{ ok, results, passed, failed, skipped }`
 with a named check list per flow. `formatConformanceReport` prints it, `assertConformance`

@@ -5,6 +5,7 @@ import { matchIdSchema, pageQuerySchema, pageSchema } from './resources/common'
 import {
   budgetSchema,
   consoleResponseSchema,
+  fleetGameSchema,
   fleetServerSchema,
   gsltPoolSchema,
   ledgerFilterSchema,
@@ -257,6 +258,19 @@ export const matchApiRoutes = {
         scope: 'fleet',
         params: providerParams,
         response: providerHealthSchema,
+      }),
+    },
+    game: {
+      /**
+       * The game's build as Steam reports it, the upstreams the server stack
+       * pins, every provider's picture and the recent facts (PRD-10 T2). A
+       * read of what the build watcher keeps fresh, never a call that waits.
+       */
+      get: defineRoute({
+        method: 'get',
+        path: '/v1/fleet/game',
+        scope: 'fleet',
+        response: fleetGameSchema,
       }),
     },
     nodes: {

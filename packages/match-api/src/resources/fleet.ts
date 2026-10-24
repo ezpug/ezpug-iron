@@ -134,6 +134,65 @@ export type ConsoleResponse = z.infer<typeof consoleResponseSchema>
 // Providers
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// The game's build, and what a canary made of it (PRD-10 T2)
+// ---------------------------------------------------------------------------
+
+/**
+ * **A build id is the game's own `PatchVersion`** — `1.41.9.2` — because it
+ * is the one name every side speaks: Valve's update check answers it with no
+ * key, every server carries it in its `steam.inf`, and the fixes upstream
+ * ships name it in their titles. The other numbers the same build goes by
+ * (Steam's `buildid`, the engine's source revision) ride a fact as labels and
+ * never decide anything.
+ */
+export const gameBuildIdSchema = z.string().min(1).max(64)
+export type GameBuildId = z.infer<typeof gameBuildIdSchema>
+
+/** What a canary has said about a build: a pass, a named failure, or nothing yet. */
+export const GAME_CANARY_STATES = ['green', 'red', 'unproven'] as const
+export const gameCanaryStateSchema = z.enum(GAME_CANARY_STATES)
+export type GameCanaryState = z.infer<typeof gameCanaryStateSchema>
+
+/**
+ * One verdict as a client reads it. `unproven` is the honest state of a
+ * build nobody has played on yet — a server is still allocated on it
+ * (there is no safe alternative to a match), and the reading says so.
+ */
+export const gameCanarySchema = z.object({
+  state: gameCanaryStateSchema,
+  /** The build the verdict is about; null before any build was seen. */
+  build: gameBuildIdSchema.nullable(),
+  /** When this state began; null before any build was seen. */
+  since: timestampSchema.nullable(),
+  /** One sentence: why red, or what the wait is for. Null when there is nothing to say. */
+  reason: z.string().max(512).nullable(),
+})
+export type GameCanary = z.infer<typeof gameCanarySchema>
+
+/**
+ * **The game as one provider's servers run it.** A build, one opaque
+ * revision of the server stack it was built with, and two verdicts: the
+ * plain canary and the one that carried the HUD's addon loader. Nothing
+ * here names a plugin — a client learns a build and a verdict, never what
+ * the stack is made of.
+ */
+export const providerGameSchema = z.object({
+  /** The build this provider's servers run, and since when; null before the first reading. */
+  build: z
+    .object({
+      id: gameBuildIdSchema,
+      since: timestampSchema,
+    })
+    .nullable(),
+  /** One opaque revision of the server stack (an image's, a template's). Null when unknown. */
+  stack: z.string().max(128).nullable(),
+  canary: gameCanarySchema,
+  /** The same match, with the HUD's addon loader on the server. */
+  hud: gameCanarySchema,
+})
+export type ProviderGame = z.infer<typeof providerGameSchema>
+
 export const providerHealthSchema = z.object({
   id: kebabNameSchema,
   healthy: z.boolean(),
@@ -143,8 +202,87 @@ export const providerHealthSchema = z.object({
   lastError: z.string().nullable(),
   /** Open ledger rows on this provider. */
   servers: z.number().int().nonnegative(),
+  /**
+   * The game's build and the canaries' verdicts for it (PRD-10 T2).
+   * Optional: a server older than 0.35.0 says nothing here, and a client
+   * that never asked reads what it always read.
+   */
+  game: providerGameSchema.optional(),
 })
 export type ProviderHealth = z.infer<typeof providerHealthSchema>
+
+/**
+ * **The game facts** — what the build watcher writes, append-only, once each.
+ * Deliberately **not** members of `orchestrationFactSchema`: that union is an
+ * envelope every strict client parses, and a new member there breaks every
+ * client that verifies strictly (0.16.0's `team: "unrostered"` did; so did
+ * October's highlights skew). A game fact is state a client *reads* off
+ * `GET /v1/fleet/game`, never an envelope it must parse.
+ */
+export const gameBuildMovedFactSchema = z.object({
+  type: z.literal('game.build_moved'),
+  /** The build before; null the first time a deployment ever saw one. */
+  from: gameBuildIdSchema.nullable(),
+  to: gameBuildIdSchema,
+  observedAt: timestampSchema,
+  /** Steam's own number for the same build (`appmanifest` `buildid`), when it was read. */
+  steamBuildId: z.string().max(64).nullable(),
+  /** The engine's source revision for the same build, when a server was asked. */
+  sourceRevision: z.string().max(64).nullable(),
+  /** The server stack's pins at the moment of the move — opaque names, opaque versions. */
+  pins: z.record(z.string(), z.string()),
+})
+export type GameBuildMovedFact = z.infer<typeof gameBuildMovedFactSchema>
+
+export const gameUpstreamReleasedFactSchema = z.object({
+  type: z.literal('game.upstream_released'),
+  /** The upstream, as its own name (`owner/repo`). */
+  repo: z.string().min(1).max(128),
+  version: z.string().min(1).max(64),
+  publishedAt: timestampSchema.nullable(),
+  /** What the server stack pins for this upstream at the time. */
+  pinned: z.string().min(1).max(64),
+  observedAt: timestampSchema,
+})
+export type GameUpstreamReleasedFact = z.infer<typeof gameUpstreamReleasedFactSchema>
+
+export const gameFactSchema = z.discriminatedUnion('type', [
+  gameBuildMovedFactSchema,
+  gameUpstreamReleasedFactSchema,
+])
+export type GameFact = z.infer<typeof gameFactSchema>
+export type GameFactType = GameFact['type']
+
+/** How many facts `GET /v1/fleet/game` answers at most, newest first. */
+export const GAME_FACTS_RECENT_MAX = 50
+
+/** One upstream the watcher follows: what is pinned, what was last released. */
+export const gameUpstreamSchema = z.object({
+  repo: z.string().min(1).max(128),
+  pinned: z.string().min(1).max(64),
+  /** The newest release seen; null until one is. */
+  latest: z.string().max(64).nullable(),
+  publishedAt: timestampSchema.nullable(),
+})
+export type GameUpstream = z.infer<typeof gameUpstreamSchema>
+
+/** The answer of `GET /v1/fleet/game`: the world's build, the upstreams, every provider's picture, the recent facts. */
+export const fleetGameSchema = z.object({
+  /** Steam's public build as last read; null before the first reading. */
+  build: z
+    .object({
+      id: gameBuildIdSchema,
+      since: timestampSchema,
+      steamBuildId: z.string().max(64).nullable(),
+      sourceRevision: z.string().max(64).nullable(),
+    })
+    .nullable(),
+  upstream: z.array(gameUpstreamSchema),
+  providers: z.array(z.object({ id: kebabNameSchema, game: providerGameSchema })),
+  /** Newest first. */
+  recent: z.array(gameFactSchema).max(GAME_FACTS_RECENT_MAX),
+})
+export type FleetGame = z.infer<typeof fleetGameSchema>
 
 // ---------------------------------------------------------------------------
 // Nodes

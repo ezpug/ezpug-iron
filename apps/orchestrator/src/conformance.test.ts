@@ -111,6 +111,10 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
     }
   }
 
+  // The watcher's first reading, so the world has a build before any flow
+  // asks for one (PRD-10 T2) — what production gets a quarter hour after boot.
+  await app.game.tick()
+
   return {
     app,
     client,
@@ -134,7 +138,14 @@ async function target(): Promise<ConformanceTarget & { app: TestApp }> {
         url: `https://bucket.invalid/demos/conformance/map-${index + 1}.dem?signed=${index + 1}`,
       })),
     clock: app.clock,
-    faults: faults => app.sim.setFaults(faults.crash === undefined ? {} : { crash: faults.crash }),
+    faults: async faults => {
+      app.sim.setFaults(faults.crash === undefined ? {} : { crash: faults.crash })
+      // A build move is Steam's to make and the watcher's to see (PRD-10 T2).
+      if (faults.gameBuild !== undefined) {
+        app.feeds.setBuild(faults.gameBuild)
+        await app.game.tick()
+      }
+    },
     advance: async ms => {
       await app.advance(ms)
       await drainReceived()

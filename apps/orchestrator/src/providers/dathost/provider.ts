@@ -115,6 +115,15 @@ export const DATHOST_RETRY_DELAYS_MS: readonly number[] = [1_000, 3_000, 9_000]
 /** The longest a `Retry-After` may push us; a header is a hint, not a hostage. */
 export const DATHOST_RETRY_AFTER_MAX_MS = 60_000
 
+/**
+ * Where a server's game states its build (PRD-10 T2): `PatchVersion`,
+ * `SourceRevision` and the rest, a default file on every Dathost server.
+ */
+export const DATHOST_STEAM_INF_PATH = 'steam.inf'
+
+/** The manifest `scripts/dathost-image.mjs` writes on the template (`IMAGE_MANIFEST_PATH` there). */
+export const DATHOST_IMAGE_MANIFEST_PATH = 'ezpug-image.json'
+
 /** How many console lines the backlog read asks for. */
 export const DATHOST_CONSOLE_LINES = 200
 
@@ -466,6 +475,17 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
       idempotent: true,
       file: { content },
     })
+  }
+
+  /** One file back through the files API, as text; `null` when it is not there. */
+  const download = async (serverId: string, path: string): Promise<string | null> => {
+    const route = path.split('/').map(encodeURIComponent).join('/')
+    const response = await send(
+      'GET',
+      `/game-servers/${encodeURIComponent(serverId)}/files/${route}`,
+      { idempotent: true, allowMissing: true },
+    )
+    return response === null ? null : await response.text()
   }
 
   const getServer = async (serverId: string): Promise<DathostServer | null> => {
@@ -823,6 +843,46 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
     },
 
     /** The backlog Dathost holds, for the fleet console route before the link is up. */
+    /**
+     * **The build a clone will run** (PRD-10 T2): the template's `steam.inf`
+     * through the files API — a default file Dathost keeps current on every
+     * server, the template included, because Dathost updates its servers'
+     * CS2 itself. One `GET`, no clone, no start. `null` when the file is not
+     * there, which is a template nobody built.
+     */
+    async gameBuild(): Promise<{ id: string; sourceRevision: string | null } | null> {
+      const text = await download(templateServerId, DATHOST_STEAM_INF_PATH)
+      if (text === null) return null
+      const field = (name: string): string | null =>
+        text.match(new RegExp(`^${name}=(\\S+)`, 'm'))?.[1] ?? null
+      const id = field('PatchVersion')
+      if (id === null)
+        throw new DathostError(
+          'GET',
+          `/game-servers/${templateServerId}/files/${DATHOST_STEAM_INF_PATH}`,
+          null,
+          `dathost: the template's steam.inf carries no PatchVersion`,
+        )
+      return { id, sourceRevision: field('SourceRevision') }
+    },
+
+    /**
+     * **The template's revision** (PRD-10 T2): the `revision` of the manifest
+     * `scripts/dathost-image.mjs` writes beside what it uploads — the one
+     * opaque name of the stack a clone runs. `null` on a template the script
+     * never built.
+     */
+    async stack(): Promise<string | null> {
+      const text = await download(templateServerId, DATHOST_IMAGE_MANIFEST_PATH)
+      if (text === null) return null
+      try {
+        const manifest = JSON.parse(text) as { revision?: unknown }
+        return typeof manifest.revision === 'string' ? manifest.revision : null
+      } catch {
+        return null
+      }
+    },
+
     async console(serverId: string): Promise<ProviderConsoleLine[] | null> {
       const path = `/game-servers/${encodeURIComponent(serverId)}/console`
       const response = await send('GET', path, {

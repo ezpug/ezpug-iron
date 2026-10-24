@@ -102,6 +102,10 @@ describe('the committed migrations', () => {
         'gslt_tokens',
         'backups',
         'player_tokens',
+        // The game's build, as facts (PRD-10 T2).
+        'game_facts',
+        'game_builds',
+        'game_provider_states',
       ].sort(),
     )
     const exported = Object.values(schema)

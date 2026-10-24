@@ -4,5 +4,5 @@
  * out of the table files so the schema module stays importable by
  * `drizzle-kit` without pulling the whole contract graph.
  */
-export type { FleetServerAddress, ServerTv } from '@ezpug/match-api'
+export type { FleetServerAddress, GameCanary, GameFact, ServerTv } from '@ezpug/match-api'
 export type { ServerVersions } from '@ezpug/protocol'

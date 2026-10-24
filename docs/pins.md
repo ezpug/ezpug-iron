@@ -244,7 +244,10 @@ and nothing else, and `pug` names 600. **0.34.0** is after the playtest (PRD-09,
 ## Bumping one
 
 1. Edit the **home** — `Directory.Build.props`, `global.json`, the catalog, the image
-   script. Never this file alone.
+   script. For a server-side pin (CounterStrikeSharp, Metamod, MultiAddonManager,
+   MatchZy-Enhanced) the orchestrator's own copy, `apps/orchestrator/src/game/pins.ts`
+   (`GAME_PINS`, what a `game.build_moved` fact says the stack was pinned to; PRD-10 T2),
+   moves in the same commit — `check-pins` holds it to the Dockerfile. Never this file alone.
 2. Edit the row here in the same commit; `pnpm lint` fails otherwise.
 3. `pnpm verify`. For a CounterStrikeSharp bump that is also `EZPug.Sdk.Tests` proving the
    restored assembly matches, and for a plugin bump it is the vendored source building

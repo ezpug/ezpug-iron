@@ -9,6 +9,12 @@ import type { SimPlan } from '@ezpug/sim'
 import { createApp } from '../app'
 import { type Budgets, createBudgets } from '../budget/service'
 import { createFleet, type Fleet } from '../fleet/service'
+import { createFakeFeeds, type FakeFeeds } from '../game/fake-feeds'
+import { feedUrls } from '../game/feeds'
+import { createGitHubIssues } from '../game/github'
+import { createMemoryGameStore } from '../game/memory-store'
+import { createGameReads } from '../game/reads'
+import { createGameWatcher, type GameWatcher } from '../game/watcher'
 import { createFakeSteam, type FakeSteam } from '../gslt/fake-steam'
 import { createGsltPool, type GsltPool } from '../gslt/pool'
 import { createSteamGameServers } from '../gslt/steam'
@@ -79,6 +85,10 @@ export interface TestApp {
   gslt: GsltPool
   /** The fake Steam behind it — a test reads its accounts and injects its faults. */
   steam: FakeSteam
+  /** The build watcher over the scripted feeds (PRD-10 T2), and the feeds a test moves. */
+  game: GameWatcher
+  gameStore: ReturnType<typeof createMemoryGameStore>
+  feeds: FakeFeeds
   /** Every webhook POST the worker made, in order, as the endpoint saw it. */
   posted: { url: string; headers: Record<string, string>; body: string }[]
   /** Every attempt's outcome. */
@@ -136,6 +146,8 @@ export interface TestAppOptions {
   disconnectNode?: (nodeId: string, code: number, reason: string) => boolean
   /** The GSLT pool's ceiling (T17). */
   gsltMax?: number
+  /** A GitHub token for the watcher's issue door (PRD-10 T2); none by default, so it files nothing. */
+  githubToken?: string
   gsltSweepIntervalMs?: number
   /** The widget bundles to serve and advertise (T25); none by default. */
   widgets?: WidgetBundles
@@ -251,7 +263,38 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   else if (!options.noProviders) providers.register(sim)
   const reaper = createReaper({ registry: providers, store, matches, clock, log })
   const probes = createProbes({ clock, log, registry: providers, store, matches })
-  const fleet = createFleet({ clock, store, registry: providers, matches, links })
+  // The build watcher over scripted feeds (PRD-10 T2): Valve, the mirror
+  // and GitHub all answer from `feeds`, on this clock; a test moves the build
+  // through `feeds.setBuild()` and drives `game.tick()` itself.
+  const gameStore = createMemoryGameStore()
+  const feeds = createFakeFeeds({ clock })
+  const gameUrls = feedUrls('http://fake-feeds.invalid')
+  const githubToken = options.githubToken ?? null
+  const game = createGameWatcher({
+    clock,
+    log,
+    store: gameStore,
+    registry: providers,
+    fetch: feeds.fetch,
+    urls: gameUrls,
+    issues: createGitHubIssues({
+      fetch: feeds.fetch,
+      clock,
+      log,
+      token: githubToken,
+      repo: 'ezpug/ezpug-iron',
+      apiUrl: gameUrls.githubApi,
+    }),
+    githubToken,
+  })
+  const fleet = createFleet({
+    clock,
+    store,
+    registry: providers,
+    matches,
+    links,
+    game: createGameReads({ store: gameStore, registry: providers }),
+  })
   const widgets = createWidgetService({ clock, log, store, matches, hub })
   // Every test world has a working pool: the fake Steam is in process, so
   // `GET /v1/fleet/gslt` answers real numbers and a Dathost-shaped provider
@@ -355,6 +398,9 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     probes,
     gslt,
     steam,
+    game,
+    gameStore,
+    feeds,
     posted,
     attempts,
     get respond() {

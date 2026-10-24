@@ -135,6 +135,22 @@ cmd_preflight() {
       || warn 'dathost is registered but no STEAM_WEB_API_KEY is set: a rented server with no GSLT accepts LAN connections only'
   fi
 
+  # The build watcher's issue door (PRD-10 T2). A build move files one GitHub
+  # issue, and it should from day one: when the env file carries no token and
+  # the box's `gh` is logged in, its token is written in — the value is never
+  # printed, and the owner's fine-grained PAT replaces the line when minted.
+  if [[ -z "$(env_value EZPUG_IRON_GITHUB_TOKEN)" ]]; then
+    local gh_token=''
+    if command -v gh >/dev/null 2>&1; then gh_token="$(gh auth token 2>/dev/null || true)"; fi
+    if [[ -n $gh_token ]]; then
+      printf '\n# Written by deploy.sh preflight from `gh auth token` (PRD-10 T2); replace with a fine-grained PAT.\nEZPUG_IRON_GITHUB_TOKEN=%s\n' "$gh_token" >>"$ENV_FILE"
+      log "wrote EZPUG_IRON_GITHUB_TOKEN into $ENV_FILE from the box's gh login (value not shown)"
+    else
+      warn 'no EZPUG_IRON_GITHUB_TOKEN and no gh login: a CS2 build move writes its fact and files no issue'
+    fi
+    unset gh_token
+  fi
+
   # The dumps are a bind mount, so the directory is the box's, not compose's.
   # Creating it here rather than letting docker do it keeps the failure ("that
   # path is a file", "that path is in the repo") in the step that changes

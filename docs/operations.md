@@ -182,6 +182,23 @@ A server with the HUD's addon has a drill of its own after an update, in order
 writes demos somewhere else (below, "Where the file lands"). After T11a brought it to
 1.41.8.2, the dev node wrote them where Dathost does.
 
+**The build, by its three names** (PRD-10 T2; read off the Dathost template's `steam.inf`
+and Valve's two feeds on 2026-10-24, the dev node's volume being gone that day). A CS2
+build goes by four numbers, and nothing had written down which is which:
+
+| Where | What it says (2026-10-24) | What it is |
+| ----- | ------------------------- | ---------- |
+| `steam.inf`, `PatchVersion` | `1.41.9.2` | **the build's id everywhere in this repo**: the version Valve's update check demands, the one every upstream fix names in its title, the one `pnpm cs2:status` prints |
+| `ISteamApps/UpToDateCheck/v1?appid=730&version=0` | `required_version: 14192`, `message: "Server version required: 1.41.9.2"` | the PatchVersion with its dots removed, and the PatchVersion itself; Valve's, keyless; what MatchZy's `cs2_update_required` is about |
+| `steam.inf`, `SourceRevision` | `11162119` | the engine's source revision — the number a server console prints, the owner's "server build" |
+| `appmanifest_730.acf`, `buildid` = the steamcmd mirror's `public.buildid` (`api.steamcmd.net`, `info/730`) | `26144732` | Steam's name for the same build, the one a volume's `cs2:install` lands on, the owner's "client build" |
+| `steam.inf`, `ServerVersion` / `ClientVersion` | `2000935` | the network protocol version, which a build may leave alone |
+
+A server can be asked for the PatchVersion wherever it runs — a file on Dathost through
+the files API, a file on a node's volume — so the watcher stores that as the build and
+carries the other two on the fact as labels. The volume's `appmanifest_730.acf` reading
+is T8's, when the node states its build in its hello.
+
 **When Steam will not serve a delta.** To update a depot, steamcmd first fetches the
 manifest of the build that is installed. An anonymous login only gets a manifest's request
 code while some branch still carries that build, and Valve prunes its versioned branches.
@@ -558,6 +575,61 @@ The envelope is unchanged — same `matchId`, same `seq`, same signature scheme 
 clears it and the facts go back to each match's own callback. A `secretId` the key never
 registered is refused: an endpoint whose envelopes carry a `kid` nothing can verify fails
 silently at three in the morning.
+
+### The build watcher (PRD-10 T2)
+
+Beside the probes, on the same clock, **the build watcher**
+(`apps/orchestrator/src/game/watcher.ts`) reads the world every
+`EZPUG_IRON_GAME_WATCH_INTERVAL_MS` (fifteen minutes; a build is hours apart and Valve's
+endpoints are not ours to hammer) and turns what moved into **facts with a time** — never
+an edit, never an alert that names a dead server. Why the orchestrator and not a cron: it
+is the one process that is always up, holds the store, the clock, the registry and the
+health route the platform polls every 30 s; a scheduled script on the box would be a second
+writer with no door and no fake (decision 37).
+
+What it reads, each bounded to twenty seconds and each on its own, so one silent feed never
+hides the other: **Steam's public CS2 build** from Valve's own
+`ISteamApps/UpToDateCheck/v1?appid=730&version=0` (no key) first and the steamcmd mirror
+(`api.steamcmd.net`, its `info/730` document) as the second reading; **a provider's own servers** where
+the provider can be asked (`provider.gameBuild()` — Dathost reads the template's
+`steam.inf` through the files API); and **the upstream releases** of every pinned plugin
+(GitHub's releases API for CounterStrikeSharp, MultiAddonManager and our MatchZy fork,
+Metamod's drop for Metamod; anonymous at 60/h with the refusal's own reset honoured, or
+`EZPUG_IRON_GITHUB_TOKEN` when set). The id of a build is the game's own `PatchVersion`;
+"The build, by its three names" under the CS2 image section says which number is which.
+
+What it writes, append-only into `game_facts`: **`game.build_moved {from, to, observedAt,
+steamBuildId, sourceRevision, pins}` once per build**, the moment Steam's build is not the
+one this deployment last saw — and every provider's picture then reads the new build with
+both canaries `unproven` (T3 and T6 write the verdicts) — and **`game.upstream_released
+{repo, version, publishedAt, pinned}` once per release** that is not the version the stack
+pins. A provider with its own reading follows it, not Steam: a template still on
+yesterday's build is on yesterday's build, whatever Valve shipped an hour ago. The first
+tick of a fresh deployment is a move from nothing, so production's own build gets its row
+and its issue too.
+
+**One GitHub issue per build**, titled `CS2 build <PatchVersion>` (with the source
+revision when a server was asked), filed through the REST API on `game.build_moved` and
+*commented* — never a second issue — on every verdict and every upstream release it is
+waiting for. Without `EZPUG_IRON_GITHUB_TOKEN` the fact and the health still move and the
+log says `no issue filed: no EZPUG_IRON_GITHUB_TOKEN`: a dev box files nothing. The deploy's
+preflight writes the box's `gh auth token` into `.env.production` when the line is absent
+(announced, never printed), so detection files its issue from the first deploy; the owner's
+fine-grained PAT (`issues: write` on `ezpug/ezpug-iron` only) replaces it when minted. The
+token is in no log, no fact and no health read.
+
+What a client reads: `GET /v1/fleet/providers` carries `game: { build: { id, since } |
+null, stack, canary, hud }` per provider — a build, one opaque stack revision, two
+verdicts, and no plugin's name — and `GET /v1/fleet/game` the world's build, the upstreams
+with the newest release seen, every provider's picture and the recent facts
+(`docs/match-api.md`, "Fleet"). The dev world reads a scripted world instead when
+`EZPUG_IRON_GAME_FEEDS_URL` names one (`game/fake-feeds.ts` serves all four feeds under one
+origin; refused in production), which is how a fictional build is rehearsed end to end
+without a rental.
+
+```sh
+curl -sS https://gs.ezpug.com/v1/fleet/game -H "authorization: Bearer $FLEET_KEY" | jq .build
+```
 
 ### When a provider dies on a Saturday
 

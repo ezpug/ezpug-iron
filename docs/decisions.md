@@ -77,6 +77,45 @@ it here.
 13. **Public repo, public npm, public ghcr.** Written as if strangers read it, which they
     can. Secrets live only in env, the token store and process memory.
 
+37. **The game's build is a fact the orchestrator keeps, read by a client and never parsed as
+    an envelope.** (PRD-10 T2, 2026-10-24; the owner's brief of the same day, "The game
+    moves", after CS2 1.41.9.2 killed every Dathost server on 2026-10-23 and nobody here
+    learned it before players did, [#13](https://github.com/ezpug/ezpug-iron/issues/13).)
+    **The watcher is a loop in the orchestrator**, beside the probes, on the injected clock,
+    and not a cron on the box: the orchestrator is the one process that is always up, holds
+    the store, the clock, the provider registry and the health route the platform already
+    polls every 30 s, and takes its `fetch` from outside the way the GSLT pool takes its
+    Steam, so the fake and the test play it without Valve. A scheduled script would be a
+    second writer with no door and no fake. Every fifteen minutes it reads Steam's public
+    build (Valve's own keyless update check first, the steamcmd mirror second) and the
+    upstream release of every pinned plugin, and writes **`game.build_moved` once per build**
+    and **`game.upstream_released` once per release**, append-only, with the stack's pins at
+    the moment; one GitHub issue per build is filed on the move and commented, never
+    duplicated, on everything after. **The id is the game's own `PatchVersion`** (`1.41.9.2`),
+    because it is the one name every side speaks — Valve's update check, every server's
+    `steam.inf`, every upstream fix's title — while Steam's `buildid` and the engine's
+    source revision ride the fact as labels and decide nothing (`docs/operations.md`, "The
+    build, by its three names"). A provider that can be asked for its servers' build follows
+    its own reading, not Steam's.
+
+    **The second paragraph: a game fact is state, not an envelope.** `orchestrationFactSchema`
+    is a discriminated union every strict client parses, and a new member there is **not
+    additive**: 0.16.0's `team: "unrostered"` broke every ≤ 0.15.0 client, and the platform's
+    highlights pipeline lost clips to the same skew in October. So the build and the verdicts
+    live on the health route the platform already renders — `ProviderHealth.game { build:
+    { id, since } | null, stack, canary, hud }`, each verdict `{ state: green | red |
+    unproven, build, since, reason }` — and the history on `GET /v1/fleet/game`, with
+    `gameFactSchema` its own small union a client reads and never has to parse to stay
+    whole. A client learns a build, a state, a time, a reason sentence and one opaque
+    revision; the vocabulary of Metamod, CounterStrikeSharp and MultiAddonManager stays in
+    `docs/pins.md`. `unproven` is the honest state of a build nobody has played on: a server
+    is still allocated on it (there is no safe alternative to a match; decision 38 says the
+    rest), and the reading says so. Not chosen: a cron on the box (above); a fact in the
+    webhook union (above); Steam's `buildid` as the id (a Dathost server cannot be asked for
+    it); detection by a server dying (the 180 s deadline is the symptom this round exists
+    to end); a per-provider build read on the request (the health route is a read of what
+    a timer keeps fresh, like the probes').
+
 ## Gamemodes
 
 14. **A gamemode is a manifest served by the orchestrator.** `gamemodes/<id>/manifest`

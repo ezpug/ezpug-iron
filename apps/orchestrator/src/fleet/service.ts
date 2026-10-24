@@ -3,11 +3,13 @@ import type { Clock } from '@ezpug/core'
 import type {
   Capacity,
   ConsoleLine,
+  FleetGame,
   FleetServer,
   LedgerFilter,
   ProviderHealth,
 } from '@ezpug/match-api'
 import { ApiError, CONSOLE_LINES_MAX, MATCH_API_ERROR_STATUS } from '@ezpug/match-api'
+import type { GameReads } from '../game/reads'
 import type { AuthenticatedKey } from '../keys/service'
 import type { ConsoleTail, LinkRegistry, ServerChannel } from '../link/channels'
 import type { Matches } from '../match/machine'
@@ -40,6 +42,8 @@ export interface Fleet {
   console: (serverId: string) => Promise<ConsoleLine[]>
   /** One RCON line and what came back, recorded in the row's audit column (T20). */
   rcon: (key: AuthenticatedKey, serverId: string, command: string) => Promise<string>
+  /** `GET /v1/fleet/game` (PRD-10 T2): the build, the upstreams, every provider's picture, the facts. */
+  game: () => Promise<FleetGame>
 }
 
 export interface FleetOptions {
@@ -49,6 +53,8 @@ export interface FleetOptions {
   matches: Matches
   /** The attached links, so the console route can read a plugin's own tail (T20). */
   links: LinkRegistry
+  /** The game's picture per provider and for the fleet (PRD-10 T2). */
+  game: GameReads
 }
 
 function offsetOf(cursor: string | undefined): number {
@@ -76,13 +82,16 @@ function rconFailure(error: unknown): string {
 }
 
 export function createFleet(options: FleetOptions): Fleet {
-  const { clock, store, registry, matches, links } = options
+  const { clock, store, registry, matches, links, game } = options
 
   const openCount = async (providerId: string): Promise<number> =>
     (await store.listOpenServers(providerId)).length
 
-  const health = async (id: string): Promise<ProviderHealth> =>
-    registry.health(id, await openCount(id))
+  /** The registry's health, with the game's picture beside it (PRD-10 T2). */
+  const health = async (id: string): Promise<ProviderHealth> => ({
+    ...registry.health(id, await openCount(id)),
+    game: await game.provider(id),
+  })
 
   const findRow = async (serverId: string): Promise<ServerRow> => {
     let row = UUID.test(serverId) ? await store.findServer(serverId) : undefined
@@ -138,6 +147,7 @@ export function createFleet(options: FleetOptions): Fleet {
       return fleetServerView(after ?? row, clock.date())
     },
     providers: () => Promise.all(registry.all().map(provider => health(provider.id))),
+    game: () => game.fleet(),
     provider: health,
     setDrained: (id, drained) => {
       registry.setDrained(id, drained)

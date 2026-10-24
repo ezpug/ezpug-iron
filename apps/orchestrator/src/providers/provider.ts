@@ -198,6 +198,23 @@ export interface GameServerProvider {
    * the sim answers in-process and always truthfully.
    */
   probe?: () => Promise<void>
+  /**
+   * **The build this provider's servers run** (PRD-10 T2), read off a
+   * server's `steam.inf`: the `PatchVersion` (the contract's build id) and
+   * the engine's `SourceRevision`. The build watcher asks on every tick, and
+   * a provider's picture follows its own reading rather than Steam's public
+   * build — a template still on yesterday's build is on yesterday's build.
+   * Absent on a provider that has no server to ask (the sim, a node pool
+   * until T8): its picture follows Steam's. Throwing is "did not answer",
+   * logged and asked again next tick.
+   */
+  gameBuild?: () => Promise<{ id: string; sourceRevision: string | null } | null>
+  /**
+   * **One opaque revision of the server stack** this provider's servers were
+   * built from (an image's `build.json` sha, a template's manifest revision)
+   * — the `stack` a client reads. Names no plugin. `null` when unknown.
+   */
+  stack?: () => Promise<string | null>
   /** One line in the server's chat. `false` = no server to say it on. */
   announce?: (serverId: string, line: string) => Promise<boolean>
   /** The operator fallback (decision 5): an RCON command through the control plane. `null` = no RCON here. */

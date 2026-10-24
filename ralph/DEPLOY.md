@@ -20,7 +20,7 @@ Postgres and its Redis.
 
 | step | what happens |
 | ---- | ------------ |
-| `preflight` | tooling, `.env.production`, no placeholders, no dev door, `NODE_ENV=production`, the host/port drift against the route file, the database and Redis naming compose services, the Dathost trio if `dathost` is a provider, a writable backup directory outside the checkout |
+| `preflight` | tooling, `.env.production`, no placeholders, no dev door, `NODE_ENV=production`, the host/port drift against the route file, the database and Redis naming compose services, the Dathost trio if `dathost` is a provider, a writable backup directory outside the checkout; and when `EZPUG_IRON_GITHUB_TOKEN` is absent it writes the box's `gh auth token` into the env file (announced, never printed) so a CS2 build move files its issue from the first deploy (PRD-10 T2) |
 | `build` | the orchestrator image from this checkout; the outgoing one becomes `:previous`. With `EZPUG_IRON_IMAGE` set it **pulls** that tag instead and builds nothing |
 | `migrate` | a dump first, then pending migrations, on their own, before any running container is replaced |
 | `up` | compose starts/replaces the stack and waits for healthy |

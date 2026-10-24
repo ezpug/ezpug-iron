@@ -52,6 +52,12 @@ export interface ConformanceFaults {
    * round backups survived it (a restore) or went with the box (a loss).
    */
   crash?: { afterRound: number; backup: boolean } | null
+  /**
+   * **Steam's public build moves to this id** (PRD-10 T2). The implementation
+   * lets its watcher see it before returning: the fake folds it at once, a
+   * real orchestrator points its scripted Steam at the id and runs one tick.
+   */
+  gameBuild?: string
 }
 
 /** A player-scoped command as a widget would send it, and the event it answered with. */

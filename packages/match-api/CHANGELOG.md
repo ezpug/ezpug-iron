@@ -4,7 +4,19 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
-_Nothing yet._
+**The game moves, and a client reads it** (PRD-10 T2, for the platform's PRD-24). Additive
+only; released as 0.35.0 by T7.
+
+- **`ProviderHealth.game`** (optional): `{ build: { id, since } | null, stack, canary, hud }`
+  — the build this provider's servers run (the game's own `PatchVersion`, e.g. `1.41.9.2`),
+  one opaque stack revision, and the two canaries' verdicts `{ state: green | red | unproven,
+  build, since, reason }`. A client that never asked reads what it always read.
+- **`GET /v1/fleet/game`** (`fleet` scope): `FleetGame` — Steam's public build, the upstreams
+  the stack pins with the newest release seen, every provider's picture, the recent facts.
+- **`gameFactSchema`**: `game.build_moved` and `game.upstream_released`, append-only, read
+  off the route above and **never a member of `orchestrationFactSchema`** (decision 37).
+- **The fake** answers both with a `gameBuild` fault knob beside `providerDown`; the
+  conformance suite gains `game-build-moves` and its golden.
 
 ## 0.34.0 — 2026-10-05
 

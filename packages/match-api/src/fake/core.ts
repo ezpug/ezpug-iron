@@ -39,8 +39,11 @@ import type {
   BudgetUsage,
   Capacity,
   ConsoleLine,
+  FleetGame,
   FleetServer,
   FleetWebhookRequest,
+  GameCanary,
+  GameFact,
   GamemodeManifest,
   Match,
   MatchCommand,
@@ -53,6 +56,7 @@ import type {
   NodeEnrolRequest,
   PlayerToken,
   PlayerTokenRequest,
+  ProviderGame,
   ProviderHealth,
   RosterEntry,
   ScopesPatchRequest,
@@ -65,6 +69,7 @@ import {
   applyScopesPatch,
   CONSOLE_LINES_MAX,
   demoUploadUrlFor,
+  GAME_FACTS_RECENT_MAX,
   gamemodeAllowsMap,
   halftimeVoiceOf,
   hasDemoUploadUrl,
@@ -170,7 +175,16 @@ const FAULT_DEFAULTS: FakeFaults = {
   webhookOutOfOrder: false,
   webhookFailures: 0,
   providerDown: false,
+  gameBuild: null,
 }
+
+/**
+ * The build the fake is born on, in the game's own `PatchVersion` grammar,
+ * and the stack revision it claims. Fiction, like every other number here:
+ * a golden must not move when Valve ships.
+ */
+export const FAKE_GAME_BUILD = '1.41.9.2'
+export const FAKE_GAME_STACK = 'fake-stack-0000000'
 
 // ---------------------------------------------------------------------------
 // Records
@@ -321,6 +335,28 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
   const attempts: FakeWebhookAttempt[] = []
   const inflight = new Set<Promise<unknown>>()
   const providerState = { drained: false, downSince: null as string | null }
+  /**
+   * The game's picture (PRD-10 T2): the build the fake's one provider runs,
+   * the two canaries' verdicts for it, and every fact in the order it was
+   * written. Born green on {@link FAKE_GAME_BUILD}: a fake that read
+   * `unproven` on a quiet day would paint every consumer's tile red.
+   */
+  const game = {
+    build: { id: FAKE_GAME_BUILD, since: clock.date().toISOString() },
+    canary: {
+      state: 'green',
+      build: FAKE_GAME_BUILD,
+      since: clock.date().toISOString(),
+      reason: null,
+    } as GameCanary,
+    hud: {
+      state: 'green',
+      build: FAKE_GAME_BUILD,
+      since: clock.date().toISOString(),
+      reason: null,
+    } as GameCanary,
+    facts: [] as GameFact[],
+  }
   let serverCounter = 0
   let providerDownTimer: Timer | undefined
 
@@ -1961,6 +1997,13 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
 
   // --- Fleet ---------------------------------------------------------------------------
 
+  const providerGame = (): ProviderGame => ({
+    build: { ...game.build },
+    stack: FAKE_GAME_STACK,
+    canary: { ...game.canary },
+    hud: { ...game.hud },
+  })
+
   const providerHealth = (): ProviderHealth => ({
     id: SIM_PROVIDER_ID,
     healthy: !faults.providerDown,
@@ -1968,7 +2011,40 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     lastCheckedAt: iso(),
     lastError: faults.providerDown ? 'sim: provider down (fault knob)' : null,
     servers: openRows().length,
+    game: providerGame(),
   })
+
+  /** `GET /v1/fleet/game`: the world's build, no upstreams (the fake pins nothing), the one provider, the facts newest first. */
+  const fleetGame = (): FleetGame => ({
+    build: { ...game.build, steamBuildId: null, sourceRevision: null },
+    upstream: [],
+    providers: [{ id: SIM_PROVIDER_ID, game: providerGame() }],
+    recent: [...game.facts].reverse().slice(0, GAME_FACTS_RECENT_MAX),
+  })
+
+  /**
+   * Steam's public build as the knob reports it, folded into the picture:
+   * a build the fake has not seen is one fact and two `unproven` verdicts;
+   * the build it already runs is nothing at all (the watcher's rule, PRD-10
+   * T2: once per build).
+   */
+  const observeGameBuild = (): void => {
+    const to = faults.gameBuild ?? FAKE_GAME_BUILD
+    if (to === game.build.id) return
+    const at = iso()
+    game.facts.push({
+      type: 'game.build_moved',
+      from: game.build.id,
+      to,
+      observedAt: at,
+      steamBuildId: null,
+      sourceRevision: null,
+      pins: {},
+    })
+    game.build = { id: to, since: at }
+    game.canary = { state: 'unproven', build: to, since: at, reason: null }
+    game.hud = { state: 'unproven', build: to, since: at, reason: null }
+  }
 
   const capacity = (): Capacity => ({
     providers: [
@@ -2076,6 +2152,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
       }
     }
     if (!faults.providerDown && wasDown) providerState.downSince = null
+    observeGameBuild()
   }
 
   const providerDownFor = (durationMs: number): void => {
@@ -2135,6 +2212,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     // fleet
     capacity,
     providerHealth,
+    fleetGame,
     requireProvider,
     setProviderDrained: (drained: boolean): void => {
       providerState.drained = drained

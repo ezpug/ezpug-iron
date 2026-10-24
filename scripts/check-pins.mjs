@@ -25,6 +25,7 @@ const cs2Image = read('docker/cs2/Dockerfile')
 const vendored = JSON.parse(read('plugins/vendor/vendored.json'))
 const hudImage = read('docker/hud/Dockerfile')
 const hudReadback = read('hud/src/readback.ts')
+const gamePins = read('apps/orchestrator/src/game/pins.ts')
 
 /** The value of an `ARG NAME=value` line in a Dockerfile, or undefined. */
 const dockerArg = (dockerfile, name) =>
@@ -152,6 +153,29 @@ if (compiledAgainst !== shippedInTheImage)
       `(plugins/Directory.Build.props) but the server image ships ${shippedInTheImage} ` +
       '(docker/cs2/Dockerfile COUNTER_STRIKE_SHARP_VERSION)',
   )
+
+// The copy the running orchestrator carries (PRD-10 T2): `GAME_PINS` in
+// `apps/orchestrator/src/game/pins.ts` is what a `game.build_moved` fact says
+// the stack was pinned to, and what the watcher holds a release against. Each
+// value must be its home's, or the fact lies about the stack.
+const gamePin = name => gamePins.match(new RegExp(`^\\s+${name}: '([^']+)',$`, 'm'))?.[1]
+for (const [name, home, value] of [
+  ['counterStrikeSharp', 'COUNTER_STRIKE_SHARP_VERSION', shippedInTheImage],
+  ['metamod', 'METAMOD_VERSION', dockerArg(cs2Image, 'METAMOD_VERSION')],
+  [
+    'multiAddonManager',
+    'MULTIADDONMANAGER_VERSION',
+    dockerArg(cs2Image, 'MULTIADDONMANAGER_VERSION'),
+  ],
+  ['matchzy', 'MATCHZY_VERSION', dockerArg(cs2Image, 'MATCHZY_VERSION')],
+]) {
+  const carried = gamePin(name)
+  if (carried !== value)
+    problems.push(
+      `apps/orchestrator/src/game/pins.ts carries ${name} ${carried ?? '(nothing)'} but ` +
+        `docker/cs2/Dockerfile ${home} is ${value}`,
+    )
+}
 
 // The images a release tag publishes (PRD-02 T34): the table a release reads is
 // `scripts/release-image.mjs`, and the section in the doc is the copy for

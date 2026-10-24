@@ -15,6 +15,7 @@ import WebSocket from 'ws'
 import { type OrchestratorConfig, readDatabaseConfig, readOrchestratorConfig } from './config'
 import { sweepTestNamespace, testNamespace } from './db/testing'
 import { loadRootEnv } from './env'
+import { createFakeFeeds, type FakeFeeds } from './game/fake-feeds'
 import { createMemoryLog } from './log'
 import { createOrchestrator, type Orchestrator } from './orchestrator'
 import type { SimProvider } from './providers/sim/provider'
@@ -81,6 +82,8 @@ const QUIESCE_TIMEOUT_MS = 15_000
 const stalls: string[] = []
 
 let orchestrator: Orchestrator | undefined
+/** The scripted Steam and GitHub the build watcher reads (PRD-10 T2); `game-build-moves` moves it. */
+let feeds: FakeFeeds | undefined
 let config: OrchestratorConfig | undefined
 let url = ''
 let unavailable: string | undefined
@@ -134,13 +137,20 @@ beforeAll(async () => {
         ...process.env,
         EZPUG_IRON_PROVIDERS: 'sim',
         EZPUG_IRON_DEPLOYMENT: namespace,
+        // The watcher reads a scripted world here, never Valve or GitHub
+        // (PRD-10 T2): the origin is a name nothing resolves, and the fetch
+        // below answers every path of it in process.
+        EZPUG_IRON_GAME_FEEDS_URL: 'http://fake-feeds.invalid',
+        EZPUG_IRON_GITHUB_TOKEN: '',
       }),
       database: readDatabaseConfig(process.env, { target: 'test' }),
     }
+    feeds = createFakeFeeds({ clock: systemClock })
     orchestrator = createOrchestrator({
       config,
       clock: systemClock,
       log,
+      gameFetch: feeds.fetch,
       // A tick shorter than a simulated smoke stands (18 s, `SIM_SMOKE_MS`),
       // so every smoke that blooms is seen standing: `live-utility` (PRD-05
       // T2c) asks for one, and at 60 s a smoke mostly fell between two ticks.
@@ -152,6 +162,9 @@ beforeAll(async () => {
     await runMigrations(orchestrator.database)
     await sweepNamespace()
     await orchestrator.start()
+    // The watcher's first reading, so the deployment has a build before any
+    // flow asks for one (PRD-10 T2); the loop itself ticks fifteen minutes out.
+    await orchestrator.game.tick()
     url = (await orchestrator.listen({ port: 0, host: '127.0.0.1' })).url
 
     // The consumer's door: read the bytes, verify, then act — the shape
@@ -397,10 +410,17 @@ async function target(flow: { id: string }): Promise<ConformanceTarget> {
     maxWaitMs: MAX_WAIT_MS,
     // The one sim provider serves every flow, so the knobs are armed for
     // this flow's match and cleared when it is done with the target.
-    faults: faults =>
-      (o.providers.get('sim') as SimProvider).setFaults(
+    faults: async faults => {
+      ;(o.providers.get('sim') as SimProvider).setFaults(
         faults.crash === undefined ? {} : { crash: faults.crash },
-      ),
+      )
+      // A build move is Steam's to make and the watcher's to see: the
+      // scripted Steam says the new build, and one tick reads it.
+      if (faults.gameBuild !== undefined) {
+        ;(feeds as FakeFeeds).setBuild(faults.gameBuild)
+        await o.game.tick()
+      }
+    },
     close: () => (o.providers.get('sim') as SimProvider).setFaults({}),
     advance: async ms => {
       // Real time is what a poll waits for here; the barrier after it is so

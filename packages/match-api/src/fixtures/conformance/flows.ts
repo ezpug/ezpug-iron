@@ -2000,6 +2000,116 @@ export const MATCH_API_CONFORMANCE_FLOWS: readonly ConformanceFlow[] = [
       }
     },
   },
+
+  {
+    id: 'game-build-moves',
+    title:
+      'a CS2 build move is one fact, and every provider reads unproven until a canary has seen it',
+    needs: ['faults', 'admin'],
+    async run(ctx) {
+      // **A build is a fact with a time, read and never parsed** (PRD-10 T2,
+      // decision 37). The flow moves Steam's public build through the fault
+      // knob and reads the two surfaces a client has: the health route the
+      // platform already polls, and `GET /v1/fleet/game` for the history —
+      // both `fleet` routes, so the operator's key reads them. A fictional
+      // id, in the game's own grammar, so the golden never meets a release.
+      const fleet = ctx.recorded((ctx.target.admin as NonNullable<typeof ctx.target.admin>).client)
+      const before = await fleet.fleet.game.get()
+      ctx.require(
+        'the game read names the build the servers run',
+        before.build !== null,
+        JSON.stringify(before.build),
+      )
+      const from = before.build?.id ?? ''
+      // A target that already walked this flow once (a standing orchestrator
+      // runs every flow twice) is on the first fiction; then it moves to the
+      // second. Counts below are relative to what the flow saw first, so a
+      // history is never a failure.
+      const to = from === '9.99.9.9' ? '9.99.9.8' : '9.99.9.9'
+      const movesTo = (facts: readonly { type: string; to?: string }[]) =>
+        facts.filter(fact => fact.type === 'game.build_moved' && fact.to === to).length
+      const movesBefore = movesTo(before.recent)
+
+      await ctx.target.faults?.({ gameBuild: to })
+      await ctx.settle()
+
+      const health = await fleet.fleet.providers.list()
+      ctx.require('there is at least one provider', health.providers.length > 0)
+      ctx.check(
+        'every provider carries the game block',
+        health.providers.every(provider => provider.game !== undefined),
+      )
+      ctx.check(
+        'every provider reads the new build',
+        health.providers.every(provider => provider.game?.build?.id === to),
+        health.providers.map(provider => provider.game?.build?.id ?? 'none').join(','),
+      )
+      ctx.check(
+        'every provider’s canary is unproven, with the build it is about',
+        health.providers.every(
+          provider =>
+            provider.game?.canary.state === 'unproven' && provider.game.canary.build === to,
+        ),
+        health.providers.map(provider => provider.game?.canary.state ?? 'none').join(','),
+      )
+      ctx.check(
+        'and so is the HUD’s',
+        health.providers.every(
+          provider => provider.game?.hud.state === 'unproven' && provider.game.hud.build === to,
+        ),
+      )
+      ctx.check(
+        'the provider is still healthy — an unproven build refuses no match',
+        health.providers.every(provider => provider.healthy),
+      )
+
+      const after = await fleet.fleet.game.get()
+      ctx.check('the game read names the new build', after.build?.id === to, after.build?.id)
+      ctx.check(
+        'the move is exactly one fact',
+        movesTo(after.recent) === movesBefore + 1,
+        `${movesTo(after.recent) - movesBefore} new`,
+      )
+      const move = after.recent[0]
+      ctx.check(
+        'and it is the newest fact',
+        move?.type === 'game.build_moved' && move.to === to,
+        move?.type,
+      )
+      ctx.check(
+        'the fact says where from',
+        move?.type === 'game.build_moved' && move.from === from,
+        move?.type === 'game.build_moved' ? String(move.from) : 'no fact',
+      )
+      ctx.check(
+        'the fact is stamped with when it was observed',
+        move?.observedAt !== undefined && !Number.isNaN(Date.parse(move.observedAt)),
+      )
+      ctx.check(
+        'every provider in the game read agrees with the health route',
+        after.providers.every(
+          entry =>
+            entry.game.build?.id === to &&
+            health.providers.some(provider => provider.id === entry.id),
+        ),
+      )
+
+      // The same build seen again is nothing: once per build, not once per tick.
+      await ctx.target.faults?.({ gameBuild: to })
+      await ctx.settle()
+      const again = await fleet.fleet.game.get()
+      ctx.check(
+        'the same build seen again is no second fact',
+        movesTo(again.recent) === movesBefore + 1,
+      )
+      ctx.check(
+        'the canary’s since did not move either',
+        again.providers.every(
+          (entry, index) => entry.game.canary.since === after.providers[index]?.game.canary.since,
+        ),
+      )
+    },
+  },
 ]
 
 /** Every flow id, in the order the suite runs them. */

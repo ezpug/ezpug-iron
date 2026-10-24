@@ -7,6 +7,12 @@ import { type Budgets, createBudgets } from './budget/service'
 import type { OrchestratorConfig } from './config'
 import { createDatabase, type DatabaseHandle } from './db/client'
 import { createFleet, type Fleet } from './fleet/service'
+import { feedUrls } from './game/feeds'
+import { createGitHubIssues } from './game/github'
+import { createPostgresGameStore } from './game/postgres-store'
+import { createGameReads } from './game/reads'
+import type { GameStore } from './game/store'
+import { createGameWatcher, type GameWatcher } from './game/watcher'
 import { createFakeSteam } from './gslt/fake-steam'
 import { createGsltPool, type GsltPool } from './gslt/pool'
 import { createSteamGameServers, type SteamGameServers } from './gslt/steam'
@@ -90,6 +96,9 @@ export interface Orchestrator {
   readonly probes: Probes
   /** The Steam login tokens rented servers need (T17). */
   readonly gslt: GsltPool
+  /** The build watcher (PRD-10 T2): Steam's public build and the upstream releases, as facts. */
+  readonly game: GameWatcher
+  readonly gameStore: GameStore
   readonly upgrades: UpgradeRouter
   readonly app: ReturnType<typeof createApp>
   readonly server: HttpServer
@@ -116,6 +125,12 @@ export interface CreateOrchestratorOptions {
    * (T15) hands its door here; nothing in production sets it.
    */
   dathostFetch?: Parameters<typeof createDathostProvider>[0]['fetch']
+  /**
+   * What the build watcher reads Steam and GitHub with (PRD-10 T2). Default:
+   * the global `fetch`, against `config.game.feedsUrl` when set. A suite
+   * hands the scripted feeds' door here (`game/fake-feeds.ts`).
+   */
+  gameFetch?: Parameters<typeof createGameWatcher>[0]['fetch']
 }
 
 /** The host of a URL, for a name a human reads — never the whole URL. */
@@ -201,6 +216,36 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
   // first fact of an outage does not wait for a match request to hit it.
   const probes = createProbes({ clock, log, registry: providers, store, matches })
 
+  // **The build watcher** (PRD-10 T2, decision 37): Steam's public build and
+  // the upstream releases, read on the clock and turned into facts in the
+  // store; what `ProviderHealth.game` and `GET /v1/fleet/game` serve. The
+  // GitHub token files one issue per build and is written nowhere else.
+  const gameStore = createPostgresGameStore(database.db, { deployment: config.deployment })
+  const gameUrls = feedUrls(config.game.feedsUrl)
+  const gameFetch = options.gameFetch ?? globalThis.fetch
+  const game = createGameWatcher({
+    clock,
+    log,
+    store: gameStore,
+    registry: providers,
+    fetch: gameFetch,
+    urls: gameUrls,
+    issues: createGitHubIssues({
+      fetch: gameFetch,
+      clock,
+      log,
+      token: config.game.githubToken,
+      repo: config.game.githubRepo,
+      apiUrl: gameUrls.githubApi,
+    }),
+    githubToken: config.game.githubToken,
+    intervalMs: config.game.intervalMs,
+  })
+  if (config.game.feedsUrl !== null)
+    log.warn(`game: reading Steam and GitHub from ${config.game.feedsUrl} — a scripted world`)
+  if (config.game.githubToken === null)
+    log.info('game: no EZPUG_IRON_GITHUB_TOKEN — a build move writes its fact and files no issue')
+
   // **The GSLT pool** (T17): the Steam accounts a rented server logs in
   // with. Always built — `GET /v1/fleet/gslt` is a route whether or not a
   // key exists, and a pool with no Steam door still leases the accounts the
@@ -231,7 +276,14 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     deployment: hostOf(config.baseUrl),
     ...(steam && { steam }),
   })
-  const fleet = createFleet({ clock, store, registry: providers, matches, links })
+  const fleet = createFleet({
+    clock,
+    store,
+    registry: providers,
+    matches,
+    links,
+    game: createGameReads({ store: gameStore, registry: providers }),
+  })
 
   // The node provider needs the server link (a claimed warm instance is
   // assigned down the socket it already holds) and the link needs the app's
@@ -418,6 +470,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       },
       reaper,
       probes,
+      game,
       budgets,
       gslt,
       webhooks,
@@ -448,6 +501,8 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     reaper,
     probes,
     gslt,
+    game,
+    gameStore,
     upgrades,
     app,
     server,
@@ -459,6 +514,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       webhooks.start()
       reaper.start()
       probes.start()
+      game.start()
       budgets.start()
       gslt.start()
     },

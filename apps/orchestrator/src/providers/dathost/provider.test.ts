@@ -680,3 +680,50 @@ describe('the badge', () => {
     expect(provider().id).toBe(DATHOST_PROVIDER_ID)
   })
 })
+
+describe('the build a clone will run (PRD-10 T2)', () => {
+  const STEAM_INF = [
+    'ClientVersion=2000935',
+    'ServerVersion=2000935',
+    'PatchVersion=1.41.9.2',
+    'ProductName=cs2',
+    'appID=730',
+    'ServerAppID=2347773',
+    'SourceRevision=11162119',
+    'VersionDate=Oct 22 2026',
+    'VersionTime=14:13:16',
+    '',
+  ].join('\r\n')
+
+  it('reads the template’s steam.inf — the game’s own file, one GET, no clone', async () => {
+    fake.setGameFiles({ 'steam.inf': STEAM_INF })
+    const adapter = provider()
+    const before = fake.calls.length
+    const reading = await drive(adapter.gameBuild?.() ?? Promise.resolve(null))
+    expect(reading).toEqual({ id: '1.41.9.2', sourceRevision: '11162119' })
+    expect(fake.calls.slice(before)).toEqual([
+      `GET /api/0.1/game-servers/${templateId}/files/steam.inf`,
+    ])
+  })
+
+  it('answers null for a template without the file, and refuses one without a PatchVersion', async () => {
+    const adapter = provider()
+    expect(await drive(adapter.gameBuild?.() ?? Promise.resolve(null))).toBeNull()
+    fake.setGameFiles({ 'steam.inf': 'ProductName=cs2\n' })
+    await expect(drive(adapter.gameBuild?.() ?? Promise.resolve(null))).rejects.toThrow(
+      /no PatchVersion/,
+    )
+  })
+
+  it('reads the template’s revision off the image manifest, and null where the script never wrote one', async () => {
+    const adapter = provider()
+    expect(await drive(adapter.stack?.() ?? Promise.resolve(null))).toBeNull()
+    await uploadToTemplate(
+      'ezpug-image.json',
+      JSON.stringify({ revision: 'a815c09', pins: { hidden: 'from-the-client' } }),
+    )
+    expect(await drive(adapter.stack?.() ?? Promise.resolve(null))).toBe('a815c09')
+    await uploadToTemplate('ezpug-image.json', 'not json')
+    expect(await drive(adapter.stack?.() ?? Promise.resolve(null))).toBeNull()
+  })
+})

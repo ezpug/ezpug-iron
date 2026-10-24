@@ -153,6 +153,23 @@ export interface GsltConfig {
   readonly poolMax: number
 }
 
+/**
+ * **The build watcher's doors** (PRD-10 T2). The interval is the one knob a
+ * deployment turns; the token is what lets a build move file its issue
+ * (shown nowhere, read from `EZPUG_IRON_GITHUB_TOKEN`); the feeds origin is
+ * the dev world's scripted Steam and GitHub, `null` for the real ones.
+ */
+export interface GameWatchConfig {
+  /** `EZPUG_IRON_GAME_WATCH_INTERVAL_MS`, default fifteen minutes. */
+  readonly intervalMs: number
+  /** `EZPUG_IRON_GITHUB_TOKEN`, or null: the facts and the health move, no issue is filed. */
+  readonly githubToken: string | null
+  /** `EZPUG_IRON_GITHUB_REPO`, `owner/repo`; default `ezpug/ezpug-iron`. */
+  readonly githubRepo: string
+  /** `EZPUG_IRON_GAME_FEEDS_URL`: one origin every feed is read from instead of the real ones. Dev only. */
+  readonly feedsUrl: string | null
+}
+
 export interface OrchestratorConfig {
   /** The orchestrator's own public origin — `baseUrl` for clients, webhook and token audience. */
   readonly baseUrl: string
@@ -208,6 +225,8 @@ export interface OrchestratorConfig {
   readonly gslt: GsltConfig
   /** The HUD's Workshop id for every server started here, or null ({@link HUD_ADDON_VAR}). */
   readonly hudAddon: string | null
+  /** The build watcher's interval, token and feeds (PRD-10 T2). */
+  readonly game: GameWatchConfig
 }
 
 function numberFromEnv(fallback: number) {
@@ -386,6 +405,45 @@ export function readGsltConfig(env: EnvRecord, production: boolean): GsltConfig 
   return { steamApiKey, ...parsed.data }
 }
 
+export const GITHUB_TOKEN_VAR = 'EZPUG_IRON_GITHUB_TOKEN'
+export const GAME_FEEDS_URL_VAR = 'EZPUG_IRON_GAME_FEEDS_URL'
+export const DEFAULT_GAME_WATCH_INTERVAL_MS = 15 * 60_000
+export const DEFAULT_GITHUB_REPO = 'ezpug/ezpug-iron'
+
+/**
+ * The watcher's doors. The feeds origin is a dev door like the fake Steam:
+ * refused under `NODE_ENV=production`, because a production watcher reading
+ * a scripted world would file issues about builds that never shipped.
+ */
+export function readGameWatchConfig(env: EnvRecord, production: boolean): GameWatchConfig {
+  const parsed = z
+    .object({
+      intervalMs: numberFromEnv(DEFAULT_GAME_WATCH_INTERVAL_MS),
+      githubRepo: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'must be `owner/repo`'),
+      feedsUrl: urlWithProtocol(['http:', 'https:'], 'http(s) URL').nullable(),
+    })
+    .safeParse({
+      intervalMs: env.EZPUG_IRON_GAME_WATCH_INTERVAL_MS,
+      githubRepo: env.EZPUG_IRON_GITHUB_REPO?.trim() || DEFAULT_GITHUB_REPO,
+      feedsUrl: env[GAME_FEEDS_URL_VAR]?.trim() || null,
+    })
+  if (!parsed.success)
+    fail(parsed.error.issues, {
+      intervalMs: 'EZPUG_IRON_GAME_WATCH_INTERVAL_MS',
+      githubRepo: 'EZPUG_IRON_GITHUB_REPO',
+      feedsUrl: GAME_FEEDS_URL_VAR,
+    })
+  if (production && parsed.data.feedsUrl !== null)
+    throw new Error(
+      `invalid orchestrator configuration (${GAME_FEEDS_URL_VAR}: refused under NODE_ENV=production — ` +
+        'a scripted Steam belongs to a developer’s box; production reads Valve and GitHub themselves)',
+    )
+  return {
+    ...parsed.data,
+    githubToken: env[GITHUB_TOKEN_VAR]?.trim() || null,
+  }
+}
+
 /** Read the whole configuration; throws with every problem named. */
 export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
   const parsed = z
@@ -487,6 +545,7 @@ export function readOrchestratorConfig(env: EnvRecord): OrchestratorConfig {
     rateLimit: { burst: rateLimitBurst, perSecond: rateLimitPerSecond },
     dathost: readDathostConfig(env),
     gslt: readGsltConfig(env, production),
+    game: readGameWatchConfig(env, production),
   }
 }
 

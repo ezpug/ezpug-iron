@@ -149,6 +149,9 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
         drain: ({ params }) => fleet.setDrained(params.providerId, true),
         undrain: ({ params }) => fleet.setDrained(params.providerId, false),
       },
+      game: {
+        get: () => fleet.game(),
+      },
       nodes: {
         list: async () => ({ nodes: await nodes.list() }),
         enrol: ({ body }, ctx) => nodes.enrol(body, ctx.key.key.id),

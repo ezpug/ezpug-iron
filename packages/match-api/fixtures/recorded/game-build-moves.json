@@ -1,0 +1,177 @@
+{
+  "flow": "game-build-moves",
+  "calls": [
+    {
+      "route": "fleet.game.get",
+      "ok": true,
+      "response": {
+        "build": {
+          "id": "1.41.9.2",
+          "since": "2026-09-05T18:00:00.000Z",
+          "steamBuildId": null,
+          "sourceRevision": null
+        },
+        "upstream": [],
+        "providers": [
+          {
+            "id": "sim",
+            "game": {
+              "build": {
+                "id": "1.41.9.2",
+                "since": "2026-09-05T18:00:00.000Z"
+              },
+              "stack": "fake-stack-0000000",
+              "canary": {
+                "state": "green",
+                "build": "1.41.9.2",
+                "since": "2026-09-05T18:00:00.000Z",
+                "reason": null
+              },
+              "hud": {
+                "state": "green",
+                "build": "1.41.9.2",
+                "since": "2026-09-05T18:00:00.000Z",
+                "reason": null
+              }
+            }
+          }
+        ],
+        "recent": []
+      }
+    },
+    {
+      "route": "fleet.providers.list",
+      "ok": true,
+      "response": {
+        "providers": [
+          {
+            "id": "sim",
+            "healthy": true,
+            "drained": false,
+            "lastCheckedAt": "2026-09-05T18:00:00.000Z",
+            "lastError": null,
+            "servers": 0,
+            "game": {
+              "build": {
+                "id": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z"
+              },
+              "stack": "fake-stack-0000000",
+              "canary": {
+                "state": "unproven",
+                "build": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z",
+                "reason": null
+              },
+              "hud": {
+                "state": "unproven",
+                "build": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z",
+                "reason": null
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "route": "fleet.game.get",
+      "ok": true,
+      "response": {
+        "build": {
+          "id": "9.99.9.9",
+          "since": "2026-09-05T18:00:00.000Z",
+          "steamBuildId": null,
+          "sourceRevision": null
+        },
+        "upstream": [],
+        "providers": [
+          {
+            "id": "sim",
+            "game": {
+              "build": {
+                "id": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z"
+              },
+              "stack": "fake-stack-0000000",
+              "canary": {
+                "state": "unproven",
+                "build": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z",
+                "reason": null
+              },
+              "hud": {
+                "state": "unproven",
+                "build": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z",
+                "reason": null
+              }
+            }
+          }
+        ],
+        "recent": [
+          {
+            "type": "game.build_moved",
+            "from": "1.41.9.2",
+            "to": "9.99.9.9",
+            "observedAt": "2026-09-05T18:00:00.000Z",
+            "steamBuildId": null,
+            "sourceRevision": null,
+            "pins": {}
+          }
+        ]
+      }
+    },
+    {
+      "route": "fleet.game.get",
+      "ok": true,
+      "response": {
+        "build": {
+          "id": "9.99.9.9",
+          "since": "2026-09-05T18:00:00.000Z",
+          "steamBuildId": null,
+          "sourceRevision": null
+        },
+        "upstream": [],
+        "providers": [
+          {
+            "id": "sim",
+            "game": {
+              "build": {
+                "id": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z"
+              },
+              "stack": "fake-stack-0000000",
+              "canary": {
+                "state": "unproven",
+                "build": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z",
+                "reason": null
+              },
+              "hud": {
+                "state": "unproven",
+                "build": "9.99.9.9",
+                "since": "2026-09-05T18:00:00.000Z",
+                "reason": null
+              }
+            }
+          }
+        ],
+        "recent": [
+          {
+            "type": "game.build_moved",
+            "from": "1.41.9.2",
+            "to": "9.99.9.9",
+            "observedAt": "2026-09-05T18:00:00.000Z",
+            "steamBuildId": null,
+            "sourceRevision": null,
+            "pins": {}
+          }
+        ]
+      }
+    }
+  ],
+  "envelopes": [],
+  "deliveries": [],
+  "frames": []
+}

@@ -109,6 +109,9 @@ export function createFakeHandlers(core: FakeCore): FakeHandlers {
           return core.providerHealth()
         },
       },
+      game: {
+        get: () => core.fleetGame(),
+      },
       nodes: {
         list: () => ({ nodes: core.listNodes() }),
         enrol: ({ body }) => core.enrolNode(body),

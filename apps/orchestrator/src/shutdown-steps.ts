@@ -45,6 +45,8 @@ export interface ShutdownStepsOptions {
   probes?: { stop: () => Promise<void> }
   /** The budget sweep (T5) — a timer, disarmed with the reaper's. */
   budgets?: { stop: () => Promise<void> }
+  /** The build watcher (PRD-10 T2) — a timer, disarmed with the probes'. */
+  game?: { stop: () => Promise<void> }
   /** The GSLT pool's sweep (T17) — disarmed here, and its lease chain awaited. */
   gslt?: { stop: () => Promise<void> }
   webhooks?: Closable
@@ -64,6 +66,7 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     reaper,
     probes,
     budgets,
+    game,
     gslt,
     webhooks,
     matches,
@@ -93,6 +96,7 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     //    they publish into.
     ...(reaper ? [{ name: 'reaper', run: () => reaper.stop() }] : []),
     ...(probes ? [{ name: 'probes', run: () => probes.stop() }] : []),
+    ...(game ? [{ name: 'game', run: () => game.stop() }] : []),
     ...(budgets ? [{ name: 'budgets', run: () => budgets.stop() }] : []),
     ...(gslt ? [{ name: 'gslt', run: () => gslt.stop() }] : []),
     ...(webhooks ? [{ name: 'webhooks', run: () => webhooks.close() }] : []),
