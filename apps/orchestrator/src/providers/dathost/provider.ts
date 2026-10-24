@@ -865,9 +865,7 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
       })
       if (!after) return null
       const lines = (await json<{ lines?: string[] }>(after, 'GET', consolePath)).lines ?? []
-      // The line we sent is echoed by the console; the answer is what follows it.
-      const fresh = lines.slice(backlog.length).filter(line => line !== command)
-      return fresh.join('\n')
+      return consoleAnswer(backlog, lines, command)
     },
 
     /** The backlog Dathost holds, for the fleet console route before the link is up. */
@@ -926,6 +924,40 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
       return lines.map(line => ({ at, line }))
     },
   }
+}
+
+/** The stamp Dathost puts before a console line: `Oct 24 21:40:02:  `. */
+const CONSOLE_STAMP = /^[A-Z][a-z]{2} [ \d]\d \d\d:\d\d:\d\d:\s+/
+
+/**
+ * **What a command printed**, out of two console reads taken before and
+ * after it was sent (PRD-10 T6a). Both reads are the last
+ * `DATHOST_CONSOLE_LINES` lines, so on a live match's full console they are
+ * the same length and an index into one says nothing about the other: the
+ * reads are aligned on their overlap instead (the longest tail of the first
+ * that opens the second), and what follows it is new. The answer is what
+ * follows the last echo of the command among the new lines, or every new
+ * line but an echo when the echo has not shown up. Best effort, like the
+ * console it reads: a window that repeats one line can hide a new line in
+ * the overlap.
+ */
+export function consoleAnswer(
+  backlog: readonly string[],
+  after: readonly string[],
+  command: string,
+): string {
+  let overlap = Math.min(backlog.length, after.length)
+  while (overlap > 0 && !opens(after, backlog.slice(backlog.length - overlap))) overlap--
+  const fresh = after.slice(overlap)
+  const echoes = (line: string) => line.replace(CONSOLE_STAMP, '').trim() === command.trim()
+  const echo = fresh.findLastIndex(echoes)
+  const answer = echo === -1 ? fresh.filter(line => !echoes(line)) : fresh.slice(echo + 1)
+  return answer.join('\n')
+}
+
+/** Whether `lines` begins with `prefix`, line for line. */
+function opens(lines: readonly string[], prefix: readonly string[]): boolean {
+  return prefix.every((line, n) => lines[n] === line)
 }
 
 /** The message of anything thrown, without dragging a stack into a log line. */

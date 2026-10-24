@@ -130,6 +130,12 @@ export interface FakeDathost {
   /** Write a line into a server's console backlog, as the game would. */
   say: (id: string, line: string) => void
   /**
+   * **The game's answer to a console line**: every later `POST …/console`
+   * of exactly `command`, on any server, is followed in the backlog by
+   * `lines`, the way a command's output lands right after its echo.
+   */
+  answer: (command: string, lines: readonly string[]) => void
+  /**
    * **The game's own files**, the same on every server and replaced by a game
    * update on the vendor's side (`gameinfo.gi`). A server shows them wherever
    * a user's file of the same path does not stand in front, a listing hides
@@ -311,6 +317,7 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
 
   /** The game's own files (`setGameFiles`): every server's, under whatever a user uploaded. */
   let gameFiles = new Map<string, FakeFile>()
+  const answers = new Map<string, readonly string[]>()
 
   const copyFiles = (from: Map<string, FakeFile>): Map<string, FakeFile> =>
     new Map(Array.from(from, ([path, file]) => [path, { content: file.content.slice() }]))
@@ -515,7 +522,7 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     if (!record) return bare(404)
     const line = (await formOf(c.req.raw)).get('line')
     if (line === undefined) return bare(400)
-    record.console.push(line)
+    record.console.push(line, ...(answers.get(line) ?? []))
     return bare(200)
   })
 
@@ -639,6 +646,9 @@ export function createFakeDathost(options: FakeDathostOptions): FakeDathost {
     },
     say(id, line) {
       servers.get(id)?.console.push(line)
+    },
+    answer(command, lines) {
+      answers.set(command, [...lines])
     },
     setGameFiles(files) {
       gameFiles = new Map(

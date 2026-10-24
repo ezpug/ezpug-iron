@@ -9,7 +9,9 @@ import type { AllocationRequest, GameServerProvider, ServerConfiguration } from 
 import type { FakeDathost } from './fake'
 import { createFakeDathost } from './fake'
 import {
+  consoleAnswer,
   createDathostProvider,
+  DATHOST_CONSOLE_LINES,
   DATHOST_PROVIDER_ID,
   DATHOST_REQUEST_TIMEOUT_MS,
   DathostError,
@@ -600,12 +602,27 @@ describe('the console door, before the link is up', () => {
     expect(backlog?.map(line => line.line)).toEqual(['say gl hf'])
     expect(backlog?.[0]?.at).toBe(clock.date().toISOString())
 
-    // The game answers on the console's own log, a beat after the command.
+    // The game answers on the console's own log, right after the command's echo.
+    fake.answer('status', ['hostname: EZPug'])
     const answer = drive(
       (adapter.rcon?.(serverId, 'status') ?? Promise.resolve(null)) as Promise<string | null>,
     )
-    fake.say(serverId, 'hostname: EZPug')
-    expect(await answer).toContain('hostname: EZPug')
+    expect(await answer).toBe('hostname: EZPug')
+  })
+
+  it('answers a command on a console that already holds a full window', async () => {
+    const adapter = provider()
+    const { serverId } = await provision(adapter)
+    // A live match: MatchZy has long filled the window both reads are capped at.
+    for (let n = 0; n < DATHOST_CONSOLE_LINES + 50; n++) fake.say(serverId, `L round line ${n}`)
+    fake.answer('mm_client_extra_addons', ['3811574606'])
+
+    const answer = await drive(
+      (adapter.rcon?.(serverId, 'mm_client_extra_addons') ?? Promise.resolve(null)) as Promise<
+        string | null
+      >,
+    )
+    expect(answer).toBe('3811574606')
   })
 
   it('answers nothing for a server that is gone', async () => {
@@ -616,6 +633,44 @@ describe('the console door, before the link is up', () => {
     expect(await drive(adapter.announce?.(serverId, 'anyone?') ?? Promise.resolve(true))).toBe(
       false,
     )
+  })
+})
+
+describe('consoleAnswer, two capped reads aligned on their overlap', () => {
+  const window = (from: number, to: number) =>
+    Array.from({ length: to - from }, (_, n) => `Oct 24 21:40:01:  L line ${from + n}`)
+
+  it('answers what follows the echo, the echo stamped the way Dathost keeps it', () => {
+    const backlog = window(0, 200)
+    const after = [
+      ...window(3, 200),
+      'Oct 24 21:40:02:  mm_client_extra_addons',
+      'Oct 24 21:40:02:  3811574606',
+      'Oct 24 21:40:02:  L line 200',
+    ]
+    expect(consoleAnswer(backlog, after, 'mm_client_extra_addons')).toBe(
+      'Oct 24 21:40:02:  3811574606\nOct 24 21:40:02:  L line 200',
+    )
+  })
+
+  it('does not answer an earlier run of the same command', () => {
+    const backlog = [...window(0, 198), 'status', 'hostname: old']
+    const after = [...window(2, 198), 'status', 'hostname: old', 'status', 'hostname: new']
+    expect(consoleAnswer(backlog, after, 'status')).toBe('hostname: new')
+  })
+
+  it('answers the new lines when the echo is not among them yet', () => {
+    expect(consoleAnswer(window(0, 200), [...window(1, 200), 'late'], 'status')).toBe('late')
+  })
+
+  it('answers every line when the second read shares nothing with the first', () => {
+    expect(consoleAnswer(window(0, 200), ['status', 'hostname: EZPug'], 'status')).toBe(
+      'hostname: EZPug',
+    )
+  })
+
+  it('answers nothing when nothing moved', () => {
+    expect(consoleAnswer(window(0, 200), window(0, 200), 'status')).toBe('')
   })
 })
 
