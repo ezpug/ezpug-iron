@@ -70,6 +70,14 @@ import type { GameStore } from './store'
  * it runs — {@link GameCanaries.hudAllowed}, the gate `configure` asks. A
  * canary with `hud: true` is the one match that carries the loader before
  * that, because it is the one that finds out.
+ *
+ * **The `hud` canary** (PRD-10 T6, decision 40) is the same match with the
+ * loader on. It is green only when the plain verdict's three things came
+ * *and* the server's `hello` said `hud` (the id and the loader file reached
+ * it) *and*, where the provider has a console door, MultiAddonManager's own
+ * `Steam API Activated` was read before the server lived on — the line the
+ * 2026-10-23 servers died one second after. On a build move it follows a
+ * green plain canary unattended, when an addon id is configured at all.
  */
 export interface GameCanaries {
   /** Mint or adopt the canary key, and pick up runs a restart interrupted. */
@@ -166,6 +174,23 @@ function progressOf(saw: { ready: boolean; live: boolean; round: boolean }): str
   return 'it went live but no round was played'
 }
 
+/** MultiAddonManager's own word that it woke the Steam API — what killed the 2026-10-23 servers a second later. */
+export const CANARY_LOADER_LINE = /\[MultiAddonManager\] Steam API Activated/
+
+/** Why a `hud` run that played its round is still not green, or null when it is. */
+export function hudShortfall(input: {
+  hello: boolean
+  loader: boolean
+  /** The provider has a console door, so the loader's line could have been read. */
+  console: boolean
+}): string | null {
+  if (!input.hello)
+    return "the server played a round but its hello did not say hud: the addon id or MultiAddonManager's loader file did not reach it"
+  if (input.console && !input.loader)
+    return 'the server played a round but MultiAddonManager never said "Steam API Activated": the loader did not load'
+  return null
+}
+
 /** The request a canary plays: composed here, the shape of the hand-run one, never copied from a client. */
 export function canaryRequest(input: {
   provider: string
@@ -255,6 +280,13 @@ export interface GameCanariesOptions {
   rcon: (key: AuthenticatedKey, serverId: string, command: string) => Promise<string>
   issues: GitHubIssues
   gamemodes: readonly GamemodeManifest[]
+  /**
+   * `EZPUG_IRON_HUD_ADDON` is set. Without an id there is no loader to prove:
+   * a `hud` canary is refused, and none follows a green plain one.
+   */
+  hudAddon?: boolean
+  /** What the server's `hello` said it can do (the link's session), while it is connected. */
+  capabilities?: (server: { provider: string; serverId: string }) => readonly string[] | undefined
   /** Serialises writes to a provider's picture with the watcher's (`game/exclusive.ts`). */
   exclusive: <T>(work: () => Promise<T>) => Promise<T>
   /** `EZPUG_IRON_CANARY_MONTHLY_CENTS`. Default {@link DEFAULT_CANARY_MONTHLY_CENTS}. */
@@ -275,6 +307,8 @@ interface Run {
   /** The match's log, read up to here. */
   afterSeq: number
   saw: { ready: boolean; live: boolean; round: boolean }
+  /** What only a `hud` run asks: the hello said `hud`; MultiAddonManager said it woke. */
+  hudSaw: { hello: boolean; loader: boolean }
   /** The start, one step a poll: emptied, started, filled, warmup ended. */
   steps: { emptied: boolean; started: boolean; filled: boolean; warmupEnded: boolean }
   /** The match's last word on a pause: a `match_paused` with no `match_unpaused` after it. */
@@ -303,6 +337,8 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
   const running = new Map<string, Run>()
   /** A play in flight for a (provider, build, hud), so two triggers at once make one match. */
   const starting = new Map<string, Promise<GameCanaryRun>>()
+  /** `hud` canaries a green plain one on a build move asked for, waiting for the key's slot. */
+  const hudDue = new Map<string, { provider: string; build: string }>()
   let key: AuthenticatedKey | undefined
   let keyPending: Promise<AuthenticatedKey> | undefined
   let timer: Timer | undefined
@@ -430,9 +466,18 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
     await commentOnBuild(
       run.build,
       state === 'green'
-        ? `**Canary green** — ${label(run)}: the server booted, the match went live and a round was played (match \`${run.matchId}\`).`
+        ? `**Canary green** — ${label(run)}: the server booted${run.hud ? ' with the HUD addon loader, said `hud` and MultiAddonManager woke' : ''}, the match went live and a round was played (match \`${run.matchId}\`).`
         : `**Canary red** — ${label(run)} (match \`${run.matchId}\`): ${reason ?? 'no reason given'}\n\nThe orchestrator keeps serving matches on this build${run.hud ? ' and serves them without the HUD addon loader' : ''}; \`POST /v1/fleet/game/canary\` runs it again.`,
     )
+    // Decision 40: on a build move the loader is proven after the build is,
+    // never before — a build that cannot boot plain says nothing about the HUD.
+    // Queued, not played here: the plain canary's server still holds the
+    // key's one slot until it is given back, and the poll starts it then.
+    if (state === 'green' && !run.hud && run.cause === 'build_moved' && options.hudAddon)
+      hudDue.set(runKey(run.provider, run.build, true), {
+        provider: run.provider,
+        build: run.build,
+      })
   }
 
   /** End the canary's match: it said what it had to, and every minute of it is money. */
@@ -485,8 +530,13 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
     if (!provider?.console) return
     try {
       const lines = await provider.console(match.serverId)
-      if (lines !== null && lines.length > 0)
+      if (lines !== null && lines.length > 0) {
         run.console = lines.slice(-CONSOLE_KEEP).map(line => line.line)
+        // Read on every pass, from the whole backlog: the line is a boot's,
+        // and by the round it may have scrolled out of what a reason keeps.
+        if (run.hud && lines.some(line => CANARY_LOADER_LINE.test(line.line)))
+          run.hudSaw.loader = true
+      }
     } catch (error) {
       log.warn(`game: reading the canary's console on ${match.serverId}: ${failureText(error)}`)
     }
@@ -562,10 +612,24 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
     if (match.state === 'live') run.saw.live = true
     const terminal = isTerminalMatchState(match.state)
     if (!terminal) await readConsole(run, match)
+    if (run.hud && match.serverId !== null && match.provider !== null)
+      if (
+        options
+          .capabilities?.({ provider: match.provider, serverId: match.serverId })
+          ?.includes('hud')
+      )
+        run.hudSaw.hello = true
 
     if (run.saw.ready && run.saw.live && run.saw.round) {
-      await decide(run, 'green', null)
-      await endMatch(run, match, 'the canary saw a round')
+      const short = run.hud
+        ? hudShortfall({
+            ...run.hudSaw,
+            console: registry.get(run.provider)?.console !== undefined,
+          })
+        : null
+      if (short === null) await decide(run, 'green', null)
+      else await decide(run, 'red', `${short} (${run.provider}, build ${run.build})`)
+      await endMatch(run, match, short === null ? 'the canary saw a round' : 'the canary is red')
       return
     }
     const fatal = run.console.find(line =>
@@ -594,6 +658,28 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
     await startStep(run, match, as)
   }
 
+  /** Start the queued `hud` canaries whose plain one has given its server back. */
+  const startDue = async (): Promise<void> => {
+    for (const [slot, due] of [...hudDue]) {
+      try {
+        const state = await stateOf(due.provider)
+        if (state?.build !== due.build) {
+          hudDue.delete(slot)
+          continue
+        }
+        await play({ provider: due.provider, hud: true, cause: 'build_moved' })
+        hudDue.delete(slot)
+      } catch (error) {
+        // The key's one slot still held is the wait this queue is for.
+        if (error instanceof ApiError && error.code === 'budget_exceeded') continue
+        hudDue.delete(slot)
+        log.warn(
+          `game: the hud canary for ${due.provider} on build ${due.build} did not start: ${failureText(error)}`,
+        )
+      }
+    }
+  }
+
   const pass = async (): Promise<void> => {
     for (const run of [...running.values()]) {
       try {
@@ -602,10 +688,11 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
         log.warn(`game: looking at the canary ${run.matchId}: ${failureText(error)}`)
       }
     }
+    await startDue()
   }
 
   const arm = (): void => {
-    if (armed || stopped || running.size === 0) return
+    if (armed || stopped || (running.size === 0 && hudDue.size === 0)) return
     armed = true
     timer = clock.after(pollMs, () => {
       armed = false
@@ -618,6 +705,12 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
 
   const play: GameCanaries['play'] = async ({ provider, hud, cause }) => {
     registry.require(provider)
+    if (hud && !options.hudAddon)
+      throw new ApiError(
+        MATCH_API_ERROR_STATUS.invalid_state,
+        'invalid_state',
+        'no HUD addon is configured (EZPUG_IRON_HUD_ADDON), so there is no loader for a hud canary to prove',
+      )
     const state = await stateOf(provider)
     if (!state?.build)
       throw new ApiError(
@@ -663,6 +756,7 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
         },
         afterSeq: 0,
         saw: { ready: false, live: false, round: false },
+        hudSaw: { hello: false, loader: false },
         steps: { emptied: false, started: false, filled: false, warmupEnded: false },
         paused: false,
         unpauses: { count: 0, lastAt: null },
@@ -741,6 +835,7 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
           verdict: { state: 'unproven', build: fact.build, since: fact.observedAt, reason: null },
           afterSeq: 0,
           saw: { ready: false, live: false, round: false },
+          hudSaw: { hello: false, loader: false },
           steps: { emptied: false, started: false, filled: false, warmupEnded: false },
           paused: false,
           unpauses: { count: 0, lastAt: null },

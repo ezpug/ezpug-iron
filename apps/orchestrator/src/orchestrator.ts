@@ -347,7 +347,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
             tag: config.deployment,
             gslt,
             ...(config.hudAddon !== null && { hudAddon: config.hudAddon }),
-            // Decision 38: no loader on a build the hud canary has not passed.
+            // Decisions 38 and 40: no loader on a build the hud canary has not passed.
             hudGate: matchId =>
               canaries?.hudAllowed(DATHOST_PROVIDER_ID, matchId) ?? Promise.resolve(false),
             ...(options.dathostFetch && { fetch: options.dathostFetch }),
@@ -376,6 +376,9 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     gamemodes: SHIPPED_GAMEMODES,
     exclusive: gameWrites,
     monthlyCents: config.game.canaryMonthlyCents,
+    hudAddon: config.hudAddon !== null,
+    // The link is attached below; a canary asks it only once its server said hello.
+    capabilities: server => link?.get(server)?.capabilities,
   })
   const gameCanaries = canaries
 

@@ -53,10 +53,18 @@ interface Rig {
   say: (matchId: string, serverId: string, event: Record<string, unknown>) => Promise<void>
   /** Let the canary's poll run once. */
   poll: () => Promise<void>
+  /** The servers whose `hello` said `hud`, as the link would have heard it. */
+  saidHud: Set<string>
 }
 
-async function createRig(): Promise<Rig> {
-  const app = createTestApp({ noProviders: true, githubToken: TOKEN })
+async function createRig(options: { hudAddon?: boolean } = {}): Promise<Rig> {
+  const saidHud = new Set<string>()
+  const app = createTestApp({
+    noProviders: true,
+    githubToken: TOKEN,
+    hudAddon: options.hudAddon ?? true,
+    capabilities: server => (saidHud.has(server.serverId) ? ['hud'] : []),
+  })
   const fake = createFakeDathost({ clock: app.clock, email: EMAIL, password: PASSWORD })
   const form = new FormData()
   for (const [name, value] of Object.entries({
@@ -123,8 +131,65 @@ async function createRig(): Promise<Rig> {
       await app.settle()
     },
     poll: () => app.advance(CANARY_POLL_MS),
+    saidHud,
   }
   return rig
+}
+
+/** Play a booted canary match through: ready, the bots-only start, live, one round. */
+async function playRound(rig: Rig, matchId: string, serverId: string): Promise<void> {
+  await rig.say(matchId, serverId, { type: 'server_ready', map: 'de_dust2' })
+  await rig.poll()
+  await rig.poll()
+  await rig.say(matchId, serverId, { type: 'going_live', mapNumber: 1, map: 'de_dust2' })
+  await rig.poll()
+  await rig.poll()
+  await rig.say(matchId, serverId, {
+    type: 'round_end',
+    mapNumber: 1,
+    roundNumber: 1,
+    winner: { team: 'team_a', side: 'ct' },
+    winCondition: 'elimination',
+    score: { teamA: 1, teamB: 0 },
+  })
+  await rig.poll()
+}
+
+/** The open `hud` canary run, with its Dathost server. */
+async function hudRun(rig: Rig): Promise<{ matchId: string; serverId: string }> {
+  const run = rig.app.canaries.runs().find(candidate => candidate.hud && !candidate.finishedAt)
+  if (!run) throw new Error('no hud canary is playing')
+  const serverId = (await rig.app.store.findMatch(run.matchId))?.serverId
+  if (!serverId) throw new Error('the hud canary has no server yet')
+  return { matchId: run.matchId, serverId }
+}
+
+/** A match a player would sit in, on Dathost, through the operator's key. */
+async function realMatch(rig: Rig, clientMatchId: string): Promise<string> {
+  const operator = (await rig.app.keys.list()).find(key => key.name === 'operator')
+  const key = await rig.app.keys.get(operator?.id ?? '')
+  if (!key) throw new Error('no operator key')
+  const { match } = await rig.app.matches.create(key, {
+    clientMatchId,
+    game: 'cs2',
+    gamemode: 'pug',
+    teams: { teamA: { name: 'A', players: [] }, teamB: { name: 'B', players: [] } },
+    maps: [{ map: 'de_dust2', sides: 'ct' }],
+    requirements: { provider: DATHOST_PROVIDER_ID },
+    callbacks: { webhookUrl: 'https://webhooks.invalid/platform', webhookSecretId: 'whsec' },
+    ttlMinutes: 60,
+  } as never)
+  await rig.app.settle()
+  return (await rig.app.store.findMatch(match.id))?.serverId ?? ''
+}
+
+/** What `configure` put on a server: the loader file, and the id in `ezpug.json`. */
+function hudOn(rig: Rig, serverId: string): { loader: boolean; id: unknown } {
+  const server = rig.fake.server(serverId)
+  return {
+    loader: server?.files.has(HUD_ADDON_LOADER_PATH) ?? false,
+    id: JSON.parse(server?.files.get('ezpug.json') ?? '{}').hudAddon,
+  }
 }
 
 /** Boot the clone: the fake vendor's thirty seconds of `booting`. */
@@ -133,6 +198,13 @@ const boot = (rig: Rig) => rig.app.advance(30_000)
 const canaryOf = (providers: Record<string, unknown>[]) =>
   (providers.find(p => p.id === DATHOST_PROVIDER_ID) as { game: { canary: unknown } }).game
     .canary as { state: string; build: string | null; reason: string | null }
+
+const hudOf = (providers: Record<string, unknown>[]) =>
+  (providers.find(p => p.id === DATHOST_PROVIDER_ID) as { game: { hud: unknown } }).game.hud as {
+    state: string
+    build: string | null
+    reason: string | null
+  }
 
 describe('the canary', () => {
   it('plays a build move on Dathost to green: one match on its own key, started, a round, ended', async () => {
@@ -415,5 +487,124 @@ describe('the canary’s reason', () => {
     ).toBe(
       'the match failed: provider_error — no server_ready on de_dust2 within 180 s; it never got ready (dathost, build 1.41.9.2): "two" … "three"',
     )
+  })
+})
+
+describe('the HUD gate (PRD-10 T6, decision 40)', () => {
+  it('runs the hud canary after a green plain one, and only its green lets the loader reach a player', async () => {
+    const rig = await createRig()
+    const { app } = rig
+    await app.game.tick()
+    await app.settle()
+    const plain = await rig.canaryMatch()
+    await boot(rig)
+    await playRound(rig, plain.matchId, plain.serverId)
+    // The next poll after the plain server is given back starts the hud one.
+    await rig.poll()
+    await app.settle()
+    expect(canaryOf(await rig.providers()).state).toBe('green')
+
+    // The plain canary's green is the hud canary's start, unattended.
+    const hudStarted = app.gameStore.rows.facts.filter(
+      f => f.fact.type === 'game.canary_started' && f.fact.hud,
+    )
+    expect(hudStarted.map(f => f.fact)).toEqual([
+      expect.objectContaining({ build: BUILD, attempt: 1, cause: 'build_moved' }),
+    ])
+    expect(hudOf(await rig.providers())).toMatchObject({ state: 'unproven', build: BUILD })
+    // While it plays, a player's server is still served without the loader.
+    expect(hudOn(rig, await realMatch(rig, 'before-the-hud-canary'))).toEqual({
+      loader: false,
+      id: undefined,
+    })
+
+    const hud = await hudRun(rig)
+    expect(hudOn(rig, hud.serverId)).toEqual({ loader: true, id: HUD_ADDON })
+    await boot(rig)
+    rig.fake.say(hud.serverId, '[MultiAddonManager] Steam API Activated')
+    rig.saidHud.add(hud.serverId)
+    await playRound(rig, hud.matchId, hud.serverId)
+
+    const providers = await rig.providers()
+    expect(hudOf(providers)).toMatchObject({ state: 'green', build: BUILD, reason: null })
+    expect(providers.find(p => p.id === DATHOST_PROVIDER_ID)).toMatchObject({ healthy: true })
+    expect(app.feeds.comments.map(c => c.body)).toEqual([
+      expect.stringContaining('**Canary green** — canary on dathost'),
+      expect.stringContaining('**Canary green** — hud canary on dathost'),
+    ])
+    // Green: a player's server carries both, so its hello will say `hud`.
+    expect(hudOn(rig, await realMatch(rig, 'after-the-hud-canary'))).toEqual({
+      loader: true,
+      id: HUD_ADDON,
+    })
+  })
+
+  it('is red when the hello lacks hud or MultiAddonManager never woke, and the loader stays off', async () => {
+    const rig = await createRig()
+    const { app } = rig
+    await app.game.tick()
+    await app.settle()
+    const plain = await rig.canaryMatch()
+    await boot(rig)
+    await playRound(rig, plain.matchId, plain.serverId)
+    // The next poll after the plain server is given back starts the hud one.
+    await rig.poll()
+    await app.settle()
+
+    // Attempt 1: the server played, but its hello never said `hud`.
+    const first = await hudRun(rig)
+    await boot(rig)
+    rig.fake.say(first.serverId, '[MultiAddonManager] Steam API Activated')
+    await playRound(rig, first.matchId, first.serverId)
+    let hud = hudOf(await rig.providers())
+    expect(hud.state).toBe('red')
+    expect(hud.reason).toMatch(/^the server played a round but its hello did not say hud/)
+    expect(hud.reason).toContain('(dathost, build 1.41.9.2)')
+    expect((await app.store.findMatch(first.matchId))?.state).not.toBe('live')
+
+    // Attempt 2, on demand: `hud` said, but no word from MultiAddonManager.
+    const asked = await app.canaries.play({
+      provider: DATHOST_PROVIDER_ID,
+      hud: true,
+      cause: 'demand',
+    })
+    expect(asked).toMatchObject({ attempt: 2 })
+    await app.settle()
+    const second = await hudRun(rig)
+    rig.saidHud.add(second.serverId)
+    await boot(rig)
+    await playRound(rig, second.matchId, second.serverId)
+    hud = hudOf(await rig.providers())
+    expect(hud.state).toBe('red')
+    expect(hud.reason).toMatch(/MultiAddonManager never said "Steam API Activated"/)
+
+    // The build is served — the plain canary is green — and without the loader.
+    expect(canaryOf(await rig.providers()).state).toBe('green')
+    expect(hudOn(rig, await realMatch(rig, 'on-a-red-hud'))).toEqual({
+      loader: false,
+      id: undefined,
+    })
+  })
+
+  it('has nothing to prove without an addon id: no hud canary follows, and one asked for is refused', async () => {
+    const rig = await createRig({ hudAddon: false })
+    const { app } = rig
+    await app.game.tick()
+    await app.settle()
+    const plain = await rig.canaryMatch()
+    await boot(rig)
+    await playRound(rig, plain.matchId, plain.serverId)
+    // The next poll after the plain server is given back starts the hud one.
+    await rig.poll()
+    await app.settle()
+    expect(canaryOf(await rig.providers()).state).toBe('green')
+    expect(app.canaries.runs().filter(run => run.hud)).toEqual([])
+    const asked = await app.request('/v1/fleet/game/canary', {
+      method: 'POST',
+      key: rig.operator,
+      json: { provider: DATHOST_PROVIDER_ID, hud: true },
+    })
+    expect(asked.body.error).toMatchObject({ code: 'invalid_state' })
+    expect(asked.body.error.message).toMatch(/EZPUG_IRON_HUD_ADDON/)
   })
 })

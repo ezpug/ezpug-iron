@@ -33,7 +33,7 @@ Ports and every setting are decided in `.env.example` and nowhere else. Every na
 | `EZPUG_IRON_PUBLIC_URL` | — | the same value under the name the dev contract below uses; it wins over `EZPUG_IRON_BASE_URL` when both are set |
 | `EZPUG_IRON_HOST` / `EZPUG_IRON_PORT` | `127.0.0.1` / `3430` | where the process binds; the container sets `0.0.0.0` and compose publishes |
 | `EZPUG_IRON_PROVIDERS` | `sim` | the providers to register, comma-separated (`sim`, `dathost`, `nodes`; T3/T4/T12/T16) |
-| `EZPUG_IRON_HUD_ADDON` | — | the HUD's Workshop id, handed to every server started afterwards (`docs/hud.md`, "The three switches"). **Unset in production** until the owner has walked the HUD's look list; anything but digits stops the boot |
+| `EZPUG_IRON_HUD_ADDON` | — | the HUD's Workshop id, handed to every server started afterwards (`docs/hud.md`, "The four switches"). A Dathost clone gets it, and MultiAddonManager's loader, only while the provider's `hud` canary is green on the build it runs (decision 40); a node gets it always, until PRD-10 T8. Anything but digits stops the boot |
 | `EZPUG_IRON_DEPLOYMENT` | `ezpug` | which deployment this process is: the stamp on every ledger row and the Dathost `user_data` tag (below) |
 | `EZPUG_IRON_DATABASE_URL` | — | `postgres://…`; `EZPUG_IRON_TEST_DATABASE_URL` is the Vitest database beside it |
 | `EZPUG_IRON_DATABASE_POOL_MAX`, `…_IDLE_TIMEOUT`, `…_CONNECT_TIMEOUT`, `…_STATEMENT_TIMEOUT`, `…_LOG` | `10`, `30`, `10`, `15000`, `false` | pool tuning; the statement timeout is what keeps a runaway query from wedging the pool. Against the **test** database the pool and connect defaults are `5` and `5` instead — a dozen Vitest workers share one `max_connections` (T37c, T39a) — and either target takes an explicit setting |
@@ -1408,7 +1408,7 @@ answer, so it applies the line and answers with nothing. A simulated server refu
 One preset an operator should know: on a server with the HUD's addon,
 `mm_client_extra_addons ""` stops handing the addon to anybody who connects from then on,
 which is how a player stuck in a loading screen gets in. It answers nothing; read
-`mm_client_extra_addons` after it (`docs/hud.md`, "The three switches").
+`mm_client_extra_addons` after it (`docs/hud.md`, "The four switches").
 
 The whole point of RCON here is that it is the *fallback* (decision 5). A server's real
 relationship with this process is its link; RCON is for a human and for the moment before

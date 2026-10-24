@@ -6,7 +6,7 @@ server sets. The layout reaches a client as a **Workshop addon**, so the HUD has
 client half, and this repo builds and publishes it. `ralph/PRD-07-hud.md` is the round
 that made it; its Findings are the reading list.
 
-This page starts with what an operator needs on an evening: the three switches that turn
+This page starts with what an operator needs on an evening: the four switches that turn
 the HUD off, and the drill after a CS2 update. Then it covers the client half (where the
 sources are, how they become the addon, and how the addon reaches Steam) and the server
 half: MultiAddonManager, which hands the addon to a client, and the SDK's `Hud`, which
@@ -19,15 +19,17 @@ person with a real client.
 no server it starts loads MultiAddonManager, and the platform sends no `branding.hud`. It
 stays that way until the owner has walked the look list.
 
-## The three switches
+## The four switches
 
-Any one of them is enough to keep the HUD off. Each is a different person's hand:
+Any one of them is enough to keep the HUD off. Three are a person's hand; the fourth is
+nobody's:
 
 | Switch | Whose | What it stops | How fast | What it leaves |
 | ------ | ----- | ------------- | -------- | -------------- |
 | `branding.hud` on the request (`false` unless said) | the platform | the HUD for that match: no `mm_add_client_addon`, no layout, no card, no toast | the next match created without it | a match already running keeps what its request said until it is released. Its moments are still said in chat |
 | `EZPUG_IRON_HUD_ADDON` on the orchestrator (unset in production) | an operator | MultiAddonManager on every server started afterwards: not loaded, nothing handed to anybody, the `hello` as before the HUD | the orchestrator's restart (`./scripts/deploy.sh up`, seconds), then each new server | servers already running keep the id they booted with until they are released. That includes **warm containers on a node**, which a later match would claim with the id still set (below) |
 | `mm_client_extra_addons ""` on one live server | an admin, from the platform's RCON panel | handing the addon to anybody who connects to that server from now on | at once: the list is empty in the same RCON call | everybody who already has the addon keeps drawing it until the match is released. The plugin still draws for them |
+| the provider's `hud` canary (`game.hud` in `GET /v1/fleet/providers`) not green on the build it runs | nobody: the orchestrator (decision 40) | MultiAddonManager's loader and the id on every Dathost clone configured while it is not green: no `.vdf`, no `hudAddon` in `ezpug.json`, so the `hello` lacks `hud` and the plugin hands nothing out | the moment the build moves (the watcher's tick, within 15 minutes): the build is new, so no canary has seen it | servers already running keep what they booted with. Nodes are not under it yet (below) |
 
 **The first switch** is the platform's own (`docs/match-api.md`, "The HUD, from a client's
 side"). It is the normal way to turn the HUD off for an evening, because it needs nobody on
@@ -46,6 +48,32 @@ as they were:
   The pool then warms a new one with the orchestrator's value of now.
 
 A Dathost clone is made per match, so the next one has no `.vdf` and no `hudAddon`.
+
+**The fourth switch** is the one nobody's hand is on (PRD-10 T6, decision 40). With
+`EZPUG_IRON_HUD_ADDON` set, a Dathost clone gets the loader only while the provider's `hud`
+canary is green **on the build that clone runs**. A new build has no verdict, so the
+moment the watcher sees the build move, every clone is configured without the loader and
+the orchestrator says so in its log (`… is configured without the HUD addon loader: no hud
+canary has passed the build it runs`). Then, unattended:
+
+1. The plain canary plays the new build (decision 38). If it is red, nothing else happens.
+   A build that cannot boot plain says nothing about the HUD.
+2. If it is green, the `hud` canary follows: the same match, and the one match that carries
+   the loader before anything has proven it. It is green only when the round was played,
+   the server's `hello` said `hud`, **and** MultiAddonManager's own `[MultiAddonManager]
+   Steam API Activated` was read off the console door, with no breakpad after it. That is
+   the line the 2026-10-23 servers died one second after.
+3. Green: from the next clone on, players get the loader again. Red: they keep playing
+   without it. The build's issue says which, and `POST /v1/fleet/game/canary
+   {"provider":"dathost","hud":true}` (scope `fleet`) runs it again, by hand, for about a
+   cent.
+
+A hud canary is refused (`invalid_state`) when no id is configured: there is no loader to
+prove. **Nodes are not under the fourth switch yet.** A node's game moves only when somebody
+runs `cs2:install` on it, and the proof for the image is the dev-node canary's `hud-on`
+row (`pnpm cs2:canary --rows hud-on`, which `pnpm game:follow` runs). The nodes provider
+still hands `EZPUG_HUD_ADDON` to every container. PRD-10 T8 carries a node's build into
+the orchestrator; the gate covers nodes from then on.
 
 **The third switch** is for one server, while a match is on it. The usual reason is somebody
 stuck in their loading screen because the addon will not download ("When the download
@@ -117,6 +145,8 @@ an evening that uses the HUD, in this order:
    person's to see: the look list's first two steps, on one server, before the evening.
 6. **If anything above is red or nobody could look:** leave the HUD off for the evening
    (the platform's switch, or the second switch). A match without it loses nothing it needs.
+   On Dathost the fourth switch has already decided: `game.hud` in
+   `GET /v1/fleet/providers` says whether a clone gets the loader tonight.
 
 The addon itself does not have to be rebuilt after an update unless step 5 shows it broken.
 Then: `pnpm hud:build --tools` (new depots), `pnpm hud:build`, commit, `pnpm hud:publish`,

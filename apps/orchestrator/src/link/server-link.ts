@@ -2,6 +2,7 @@ import type { Clock, Timer } from '@ezpug/core'
 import type { WidgetPushFrame } from '@ezpug/match-api'
 import { WIDGET_PUSH_DATA_MAX } from '@ezpug/match-api'
 import type {
+  HelloCapability,
   LinkAckStatus,
   OrchestratorFrame,
   OrchestratorFrameOf,
@@ -126,6 +127,8 @@ export interface LinkSessionView {
   matchId: string | null
   ackedSeq: number
   consoleTail: ConsoleTail | undefined
+  /** What the `hello` said the server can do — `hud` among them only when it booted able to draw one. */
+  capabilities: readonly HelloCapability[]
 }
 
 export interface ServerLink {
@@ -218,6 +221,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
     ref: ServerRef,
     ackedAtHello: number,
     installed: readonly string[],
+    capabilities: readonly HelloCapability[],
   ): Session => {
     const key = serverKey(ref)
     let fleetServerId = row.id
@@ -529,7 +533,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
         ws.close(LINK_CLOSE_CODES.replaced, 'replaced by a newer socket')
       },
       closed,
-      view: () => ({ server: ref, fleetServerId, matchId, ackedSeq, consoleTail }),
+      view: () => ({ server: ref, fleetServerId, matchId, ackedSeq, consoleTail, capabilities }),
     }
     armSilence()
     return session
@@ -591,6 +595,7 @@ export function attachServerLink(options: ServerLinkOptions): ServerLink {
       ref,
       ackedSeq,
       hello.plugins,
+      hello.capabilities,
     )
     sessions.set(key, session)
     links.attach(session.channel)

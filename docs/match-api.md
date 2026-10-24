@@ -565,7 +565,7 @@ loading screen while the addon will not download. It needs no Workshop id, answe
 `output: ""`, and is harmless to repeat; `mm_client_extra_addons` read after it answers
 `mm_client_extra_addons = ` with nothing after the sign. A server that never had the addon
 answers `Unknown command`. Players who already have the addon go on seeing the HUD until
-the match is released. `docs/hud.md`, "The three switches", has the other two.
+the match is released. `docs/hud.md`, "The four switches", has the other three.
 
 **Keys.** A picture in a HUD was compiled into the addon before the match, so a client
 names one by key. `HUD_BANNER_KEYS` and `HUD_ART_KEYS` are every key the addon ships,
@@ -905,7 +905,10 @@ whose game its vendor updates (Dathost) moves. `not_found` for an unknown provid
 `invalid_state` while no build is known for it, and the canary key's own budget refusals
 as they are. **`hud: true`** is the same match with the HUD's addon loader on the server.
 That match is the only one to carry the loader before the provider's `game.hud` reads
-`green`. Until then every other match on the provider is served without it.
+`green`. Until then every other match on the provider is served without it. It is green
+only when, on top of the round, the server said it can draw the HUD and the loader was
+seen to wake; it follows a green plain canary on a build move by itself (PRD-10 T6), and
+is `invalid_state` on an orchestrator configured without a HUD.
 
 ### `POST /v1/fleet/providers/:providerId/drain`
 

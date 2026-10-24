@@ -192,6 +192,35 @@ it here.
     - Trusting the download's sha alone. GitHub publishes the asset's digest; the two must
       agree, or the verb stops.
 
+40. **The HUD's loader reaches a player only on a build a canary has seen with it.** (PRD-10
+    T6, 2026-10-24; the owner's brief "The game moves".) `EZPUG_IRON_HUD_ADDON` is the
+    operator's switch, and it is honoured only while the provider's **`hud` canary** is
+    green on the build its servers run. The `hud` canary is decision 38's match with the
+    loader on: the one match that carries it before anything has proven it, because it is
+    the one that finds out. It is green when the plain verdict's three things came **and**
+    the server's `hello` said `hud` (the id and the loader file reached it) **and**, where
+    the provider has a console door, MultiAddonManager's own `Steam API Activated` was read
+    and nothing fatal after it. A round played without those is red, with the missing one
+    named. On a build move it follows a green plain canary unattended, queued until the
+    plain one has given the canary key's one server back. It never runs before the plain
+    one, because a build that cannot boot plain says nothing about the HUD. It runs on
+    demand through `POST /v1/fleet/game/canary {hud: true}`, and is refused when no id is
+    configured, since there is no loader to prove. While the `hud` canary is unproven or
+    red, every Dathost clone is configured without the loader and without the id, so its
+    `hello` truthfully lacks `hud` and the match plays without the HUD. That is the fourth
+    switch in `docs/hud.md`, the one nobody's hand is on. **Nodes are not gated yet.** A
+    node's game moves only by `cs2:install`, and the image's proof with the loader is the
+    dev-node canary's `hud-on` row, which `pnpm game:follow` plays. A node's `hud` verdict
+    is that row for the node's build and image, carried into the orchestrator by T8. Until
+    then the nodes provider honours the operator's switch alone. Not chosen:
+    - Trusting the `hello` alone. The plugin says `hud` when the id and the file are there,
+      which is before MultiAddonManager has woken the Steam API, and waking it is what killed
+      the servers.
+    - Running the `hud` canary first, or alone. A red one would not say whether the loader
+      or the build is to blame.
+    - Refusing a match on a red `hud` canary. The match loses nothing it needs without the
+      HUD (decision 38).
+
 ## Gamemodes
 
 14. **A gamemode is a manifest served by the orchestrator.** `gamemodes/<id>/manifest`

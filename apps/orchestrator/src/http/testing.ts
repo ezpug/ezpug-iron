@@ -152,6 +152,10 @@ export interface TestAppOptions {
   gsltMax?: number
   /** A GitHub token for the watcher's issue door (PRD-10 T2); none by default, so it files nothing. */
   githubToken?: string
+  /** `EZPUG_IRON_HUD_ADDON` is set, as the canary sees it (PRD-10 T6); off by default. */
+  hudAddon?: boolean
+  /** What a server's `hello` said it can do — the link's word, for a test that dials none. */
+  capabilities?: (server: { provider: string; serverId: string }) => readonly string[] | undefined
   gsltSweepIntervalMs?: number
   /** The widget bundles to serve and advertise (T25); none by default. */
   widgets?: WidgetBundles
@@ -316,6 +320,8 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     issues: gameIssues,
     gamemodes: options.gamemodes ?? SHIPPED_GAMEMODES,
     exclusive: gameWrites,
+    ...(options.hudAddon && { hudAddon: true }),
+    ...(options.capabilities && { capabilities: options.capabilities }),
   })
   holder.canaries = canaries
   const widgets = createWidgetService({ clock, log, store, matches, hub })
