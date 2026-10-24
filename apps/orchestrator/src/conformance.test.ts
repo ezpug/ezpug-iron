@@ -255,7 +255,11 @@ describe('the widget door of the orchestrator over memory', () => {
 })
 
 describe('the suite against the orchestrator', () => {
-  it('passes every flow and skips none — the widget’s tap included since T24', async () => {
+  // The whole suite in one test: 14 s alone, past the config's 20 s at load ~88 (PRD-10 T8a).
+  // Its work is every flow, so the timeout is sized to it rather than the suite cut down.
+  it('passes every flow and skips none — the widget’s tap included since T24', {
+    timeout: 90_000,
+  }, async () => {
     const report = await runMatchApiConformance({ target })
     expect(formatConformanceReport(report)).toContain('0 failed')
     expect(report.ok).toBe(true)
