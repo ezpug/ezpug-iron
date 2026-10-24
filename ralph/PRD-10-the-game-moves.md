@@ -242,7 +242,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   issue call, and flips `game.canary.state` to `unproven` for every provider that runs CS2;
   a second that the same build seen again writes nothing. `docs/match-api.md` gets the block
   and the route; `docs/operations.md` → Health gets the loop beside the probes.
-- [ ] **T3 (effort: high): The Dathost canary.** On `game.build_moved` for a provider whose
+- [x] **T3 (effort: high): The Dathost canary.** On `game.build_moved` for a provider whose
   servers Dathost updates itself, and on demand through `POST /v1/fleet/game/canary
   { provider, hud?: boolean }` (`fleet` scope, Unreleased in the contract until T7), the
   orchestrator plays **the match the owner ran by hand**: `pug`, `de_dust2`, 4 bots as rules
@@ -338,6 +338,10 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   `hud-on` row green on the dev node inside a hold, and one Dathost match's hello carrying
   `hud`. Close #13 with the commit shas. A client's picture stays the owner's look
   (`docs/hud.md`, the look list).
+  > from T3: the gate is `GameCanaries.hudAllowed`, asked by Dathost's `configure` only
+  > (`hudGate`). The nodes provider still hands `EZPUG_HUD_ADDON` to every container, so
+  > the dev node's `hud-on` row keeps working while a node's build has no canary (T4/T8).
+  > Making the gate whole means deciding what a node's `hud` verdict is.
 - [ ] **T7 (effort: medium): `@ezpug/match-api` 0.35.0, and what the platform takes.** One
   additive release: `providerHealth.game`, `GET /v1/fleet/game`, `POST /v1/fleet/game/canary`,
   `gameFactSchema`, the fake's knob, the conformance flow (`game-build-moves`), the JSON
