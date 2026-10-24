@@ -176,6 +176,24 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   rental, ≤ 10 ¢, named). Comment on #13 with the three shas and tick its first two boxes;
   the issue closes in T6. The progress line records the boot count, each boot's seconds,
   and the diff of what `dathost:image` moved.
+  > blocked (2026-10-24, on the owner): (a) `bf02096` and (b) `a815c09` are committed and
+  > `ghcr.io/ezpug/ezpug-iron/cs2:dev` is built from `a815c09`. **(c) cannot boot anything on
+  > the dev node: the `ezpug-iron-cs2_cs2-data` volume no longer exists.** On 2026-10-19 the owner
+  > approved deleting it in a box-wide disk cleanup (a `/root/signotec-prepare` session), along
+  > with the old `cs2:dev` image. Putting the game back is a ~67 GB `pnpm cs2:install` that
+  > reverses that decision. 132 GB are free after today's tidy, but that same disk hit 0 bytes
+  > this afternoon when this build and the platform's deploy build ran at once. So the owner
+  > picks one: **(1)** `pnpm cs2:install` (lane held, no container), then (c) as written; or
+  > **(2)** (c) proven on Dathost alone (`dathost:image`, then several `dathost:smoke` boots at
+  > ≤ 2 ¢ each instead of the eight dev-node boots). Under (2) the image stays unproven for LAN
+  > nodes until the dev node returns, and T4 and T8 need the volume anyway. Nothing was written
+  > to the template. A read-only probe (dry run plus a hash of each candidate file downloaded
+  > from the template) found the hand-patched files byte-equal to the image. Those are the 5
+  > CounterStrikeSharp `api/bin/gamedata` files that changed and Metamod's
+  > `linuxsteamrt64/{libserver,metamod.2.cs2}.so`; the other hand-patched files are already
+  > unchanged against the manifest. The 40 files that really differ are our plugins at
+  > `a815c09` (including PRD-09 T8's `104ed0e`, which the template, still at `ded8c12`, does not
+  > carry yet), Metamod's binaries for other games, and MultiAddonManager 1.7's `.so`, asleep.
 - [ ] **T2 (fable, effort: high): The build watcher, and what a client reads of it.** One more
   loop in the orchestrator, on the clock, beside the probes: **why the orchestrator and not
   a cron** — it is the one process that is always up, holds the store, the clock, the
