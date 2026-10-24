@@ -521,7 +521,8 @@ describe('the HUD gate (PRD-10 T6, decision 40)', () => {
     const hud = await hudRun(rig)
     expect(hudOn(rig, hud.serverId)).toEqual({ loader: true, id: HUD_ADDON })
     await boot(rig)
-    rig.fake.say(hud.serverId, '[MultiAddonManager] Steam API Activated')
+    // MultiAddonManager 1.7's word for it; 1.6.2 said "Steam API Activated".
+    rig.fake.say(hud.serverId, '[MultiAddonManager] Logged on to Steam')
     rig.saidHud.add(hud.serverId)
     await playRound(rig, hud.matchId, hud.serverId)
 
@@ -576,7 +577,7 @@ describe('the HUD gate (PRD-10 T6, decision 40)', () => {
     await playRound(rig, second.matchId, second.serverId)
     hud = hudOf(await rig.providers())
     expect(hud.state).toBe('red')
-    expect(hud.reason).toMatch(/MultiAddonManager never said "Steam API Activated"/)
+    expect(hud.reason).toMatch(/MultiAddonManager never said it reached Steam/)
 
     // The build is served — the plain canary is green — and without the loader.
     expect(canaryOf(await rig.providers()).state).toBe('green')

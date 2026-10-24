@@ -75,8 +75,8 @@ import type { GameStore } from './store'
  * loader on. It is green only when the plain verdict's three things came
  * *and* the server's `hello` said `hud` (the id and the loader file reached
  * it) *and*, where the provider has a console door, MultiAddonManager's own
- * `Steam API Activated` was read before the server lived on — the line the
- * 2026-10-23 servers died one second after. On a build move it follows a
+ * word that it reached Steam ({@link CANARY_LOADER_LINE}) was read before the
+ * server lived on — the line the 2026-10-23 servers died one second after. On a build move it follows a
  * green plain canary unattended, when an addon id is configured at all.
  */
 export interface GameCanaries {
@@ -161,7 +161,11 @@ export const CANARY_CONSOLE_PATTERNS: readonly {
     fatal: true,
   },
   { pattern: /SIGNONSTATE_SPAWN/, name: 'a client reached SIGNONSTATE_SPAWN', fatal: false },
-  { pattern: /Steam API Activated/, name: 'the addon loader woke the Steam API', fatal: false },
+  {
+    pattern: /Steam API Activated|\[MultiAddonManager\] Logged on to Steam/,
+    name: 'the addon loader woke the Steam API',
+    fatal: false,
+  },
 ]
 
 /** A control plane asking the server how it is (`rcon from "…": command "status_json"`): never a reason. */
@@ -174,8 +178,13 @@ function progressOf(saw: { ready: boolean; live: boolean; round: boolean }): str
   return 'it went live but no round was played'
 }
 
-/** MultiAddonManager's own word that it woke the Steam API — what killed the 2026-10-23 servers a second later. */
-export const CANARY_LOADER_LINE = /\[MultiAddonManager\] Steam API Activated/
+/**
+ * MultiAddonManager's own word that it reached Steam — what killed the
+ * 2026-10-23 servers a second later. 1.6.2 says `Steam API Activated`; 1.7
+ * and 1.7.1 say `Logged on to Steam` at the same point of the boot (every
+ * dev-node boot of 2026-10-24, `.cache/cs2-canary`), so either is the line.
+ */
+export const CANARY_LOADER_LINE = /\[MultiAddonManager\] (?:Steam API Activated|Logged on to Steam)/
 
 /** Why a `hud` run that played its round is still not green, or null when it is. */
 export function hudShortfall(input: {
@@ -187,7 +196,7 @@ export function hudShortfall(input: {
   if (!input.hello)
     return "the server played a round but its hello did not say hud: the addon id or MultiAddonManager's loader file did not reach it"
   if (input.console && !input.loader)
-    return 'the server played a round but MultiAddonManager never said "Steam API Activated": the loader did not load'
+    return 'the server played a round but MultiAddonManager never said it reached Steam ("Steam API Activated" or "Logged on to Steam"): the loader did not load'
   return null
 }
 
