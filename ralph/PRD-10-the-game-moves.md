@@ -194,7 +194,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   > unchanged against the manifest. The 40 files that really differ are our plugins at
   > `a815c09` (including PRD-09 T8's `104ed0e`, which the template, still at `ded8c12`, does not
   > carry yet), Metamod's binaries for other games, and MultiAddonManager 1.7's `.so`, asleep.
-- [ ] **T2 (fable, effort: high): The build watcher, and what a client reads of it.** One more
+- [ ] **T2 (fable) (effort: high): The build watcher, and what a client reads of it.** One more
   loop in the orchestrator, on the clock, beside the probes: **why the orchestrator and not
   a cron** — it is the one process that is always up, holds the store, the clock, the
   registry and the health route the platform polls every 30 s, and a scheduled script on the
@@ -275,7 +275,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   behaviour exists to test (the verdict file's shape, the refusal while a container runs,
   the lock inheritance) on the fake; the real run is T1(c)'s eight boots done again by the
   verb, named in the progress line with its seconds.
-- [ ] **T5 (fable, effort: high): `pnpm game:follow`, and the policy of a patch.**
+- [ ] **T5 (fable) (effort: high): `pnpm game:follow`, and the policy of a patch.**
   `scripts/game-follow.mjs`: `pnpm game:follow css@1.0.378 metamod@1483 [mam@1.7]` is one
   idempotent verb — bump the homes (Dockerfile `ARG`s and shas fetched and verified,
   `Directory.Build.props`, the `docs/pins.md` rows rewritten from a template with the
