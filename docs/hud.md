@@ -15,9 +15,13 @@ draws. What the HUD is for and what it may never do is decision 34 in
 server half. **The look list**, at the end, is what no test has seen: the steps for one
 person with a real client.
 
-**Today it is off everywhere.** Production's orchestrator has no `EZPUG_IRON_HUD_ADDON`, so
-no server it starts loads MultiAddonManager, and the platform sends no `branding.hud`. It
-stays that way until the owner has walked the look list.
+**Today (2026-10-24) the servers can draw it, and the platform decides.** Production's
+orchestrator has `EZPUG_IRON_HUD_ADDON` again. It was taken out on 2026-10-23 when CS2
+1.41.9.2 crashed every server that loaded MultiAddonManager (issue #13), and it was put back
+by PRD-10 T6 once the `hud` canary was green on 1.41.9.2 with MultiAddonManager 1.7.1. From
+then on a Dathost clone gets the loader only while that canary is green on the build it runs
+(the fourth switch, below). Whether a player sees the HUD is still the request's
+`branding.hud`, which the platform sends only after the owner has walked the look list.
 
 ## The four switches
 
