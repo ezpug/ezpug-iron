@@ -8,6 +8,9 @@ import { HUD_ADDON_LOADER_PATH } from '../providers/hud-addon'
 import {
   CANARY_KEY_NAME,
   CANARY_LIFETIME_MINUTES,
+  CANARY_LOADER_ASKS,
+  CANARY_LOADER_LINE,
+  CANARY_LOADER_QUESTION,
   CANARY_POLL_MS,
   canaryReason,
   createGameCanaries,
@@ -451,6 +454,14 @@ describe('the canary', () => {
   })
 })
 
+describe('the loader’s own words', () => {
+  it('are 1.6.2’s and 1.7’s at the same point of the boot', () => {
+    expect(CANARY_LOADER_LINE.test('[MultiAddonManager] Steam API Activated')).toBe(true)
+    expect(CANARY_LOADER_LINE.test('[MultiAddonManager] Logged on to Steam')).toBe(true)
+    expect(CANARY_LOADER_LINE.test('[MultiAddonManager] Plugin loaded successfully!')).toBe(false)
+  })
+})
+
 describe('the canary’s reason', () => {
   it('names the first fatal pattern, quotes the lines that showed it and stays one sentence', () => {
     const reason = canaryReason({
@@ -521,9 +532,14 @@ describe('the HUD gate (PRD-10 T6, decision 40)', () => {
     const hud = await hudRun(rig)
     expect(hudOn(rig, hud.serverId)).toEqual({ loader: true, id: HUD_ADDON })
     await boot(rig)
-    // MultiAddonManager 1.7's word for it; 1.6.2 said "Steam API Activated".
-    rig.fake.say(hud.serverId, '[MultiAddonManager] Logged on to Steam')
+    // Its boot line has long scrolled out of a Dathost console by now; the
+    // canary asks MultiAddonManager instead, and the loader answers.
     rig.saidHud.add(hud.serverId)
+    await rig.say(hud.matchId, hud.serverId, { type: 'server_ready', map: 'de_dust2' })
+    await rig.poll()
+    const console = () => rig.fake.server(hud.serverId)?.console ?? []
+    expect(console()).toContain(CANARY_LOADER_QUESTION)
+    rig.fake.say(hud.serverId, `mm_client_extra_addons = ${HUD_ADDON}`)
     await playRound(rig, hud.matchId, hud.serverId)
 
     const providers = await rig.providers()
@@ -575,9 +591,21 @@ describe('the HUD gate (PRD-10 T6, decision 40)', () => {
     rig.saidHud.add(second.serverId)
     await boot(rig)
     await playRound(rig, second.matchId, second.serverId)
+    // The round came before the asks ran out; the verdict waits for them.
+    const asks = () =>
+      (rig.fake.server(second.serverId)?.console ?? []).filter(
+        line => line === CANARY_LOADER_QUESTION,
+      ).length
+    while (asks() < CANARY_LOADER_ASKS) await rig.poll()
+    await rig.poll()
     hud = hudOf(await rig.providers())
     expect(hud.state).toBe('red')
-    expect(hud.reason).toMatch(/MultiAddonManager never said it reached Steam/)
+    expect(hud.reason).toMatch(
+      /MultiAddonManager never answered: .*`mm_client_extra_addons` named no addon 6 times/,
+    )
+    expect(app.canaries.runs().find(run => run.matchId === second.matchId)?.finishedAt).not.toBe(
+      null,
+    )
 
     // The build is served — the plain canary is green — and without the loader.
     expect(canaryOf(await rig.providers()).state).toBe('green')

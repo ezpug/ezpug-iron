@@ -199,9 +199,11 @@ it here.
     loader on: the one match that carries it before anything has proven it, because it is
     the one that finds out. It is green when the plain verdict's three things came **and**
     the server's `hello` said `hud` (the id and the loader file reached it) **and**, where
-    the provider has a console door, MultiAddonManager's own word that it reached Steam was
-    read and nothing fatal after it (`Steam API Activated` on 1.6.2, `Logged on to Steam`
-    from 1.7). A round played without those is red, with the missing one
+    the provider has a console or RCON door, MultiAddonManager answered for itself and
+    nothing fatal came after it: its boot line that it reached Steam (`Steam API Activated`
+    on 1.6.2, `Logged on to Steam` from 1.7), or an addon id in its answer to
+    `mm_client_extra_addons`, which the canary asks through its own RCON door because a
+    Dathost console has rolled the boot out of its window within seconds. A round played without those is red, with the missing one
     named. On a build move it follows a green plain canary unattended, queued until the
     plain one has given the canary key's one server back. It never runs before the plain
     one, because a build that cannot boot plain says nothing about the HUD. It runs on
@@ -217,6 +219,8 @@ it here.
     - Trusting the `hello` alone. The plugin says `hud` when the id and the file are there,
       which is before MultiAddonManager has woken the Steam API, and waking it is what killed
       the servers.
+    - Reading the boot line alone. On Dathost it is gone from the console before the
+      canary's first poll more often than not.
     - Running the `hud` canary first, or alone. A red one would not say whether the loader
       or the build is to blame.
     - Refusing a match on a red `hud` canary. The match loses nothing it needs without the

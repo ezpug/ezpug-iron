@@ -60,11 +60,16 @@ canary has passed the build it runs`). Then, unattended:
    A build that cannot boot plain says nothing about the HUD.
 2. If it is green, the `hud` canary follows: the same match, and the one match that carries
    the loader before anything has proven it. It is green only when the round was played,
-   the server's `hello` said `hud`, **and** MultiAddonManager's own word that it reached
-   Steam was read off the console door, with no breakpad after it: `[MultiAddonManager]
-   Steam API Activated` on 1.6.2, `[MultiAddonManager] Logged on to Steam` on 1.7 and later.
-   That is the line the 2026-10-23 servers died one second after. Production's first hud
-   canary (2026-10-24) was red only because the check knew the 1.6.2 wording alone.
+   the server's `hello` said `hud`, **and** MultiAddonManager answered for itself with no
+   breakpad after it. It answers either with its boot line that it reached Steam, read off
+   the console door (`[MultiAddonManager] Steam API Activated` on 1.6.2, `[MultiAddonManager]
+   Logged on to Steam` on 1.7 and later; the 2026-10-23 servers died one second after it),
+   or with an addon id when the canary asks `mm_client_extra_addons` through its own RCON
+   door once the server is ready (up to six times, one a poll). The ask is what a Dathost
+   clone can be trusted for: its console holds the last few hundred lines, and MatchZy rolls
+   the boot out of them within seconds. Production's first three hud canaries
+   (2026-10-24) were red for that reason alone, and the first also because the check knew
+   only the 1.6.2 wording.
 3. Green: from the next clone on, players get the loader again. Red: they keep playing
    without it. The build's issue says which, and `POST /v1/fleet/game/canary
    {"provider":"dathost","hud":true}` (scope `fleet`) runs it again, by hand, for about a

@@ -74,10 +74,16 @@ import type { GameStore } from './store'
  * **The `hud` canary** (PRD-10 T6, decision 40) is the same match with the
  * loader on. It is green only when the plain verdict's three things came
  * *and* the server's `hello` said `hud` (the id and the loader file reached
- * it) *and*, where the provider has a console door, MultiAddonManager's own
- * word that it reached Steam ({@link CANARY_LOADER_LINE}) was read before the
- * server lived on — the line the 2026-10-23 servers died one second after. On a build move it follows a
- * green plain canary unattended, when an addon id is configured at all.
+ * it) *and*, where the provider has a console or an RCON door,
+ * MultiAddonManager answered for itself: its boot line that it reached Steam
+ * ({@link CANARY_LOADER_LINE}, the line the 2026-10-23 servers died one
+ * second after) read off the console, or `mm_client_extra_addons` asked
+ * through the canary key's RCON door and answered with an addon id
+ * ({@link CANARY_LOADER_ANSWER}). The ask is what a Dathost clone can be
+ * trusted for: its console holds the last few hundred lines, and MatchZy
+ * rolls a boot out of them within seconds (production's first hud canaries,
+ * 2026-10-24). On a build move it follows a green plain canary unattended,
+ * when an addon id is configured at all.
  */
 export interface GameCanaries {
   /** Mint or adopt the canary key, and pick up runs a restart interrupted. */
@@ -186,17 +192,23 @@ function progressOf(saw: { ready: boolean; live: boolean; round: boolean }): str
  */
 export const CANARY_LOADER_LINE = /\[MultiAddonManager\] (?:Steam API Activated|Logged on to Steam)/
 
+/** What a `hud` canary asks MultiAddonManager once the server is ready, at most {@link CANARY_LOADER_ASKS} times. */
+export const CANARY_LOADER_QUESTION = 'mm_client_extra_addons'
+/** MultiAddonManager's answer when it is loaded and holds an addon: `mm_client_extra_addons = 3811574606`. */
+export const CANARY_LOADER_ANSWER = /mm_client_extra_addons\s*=\s*"?\d/
+export const CANARY_LOADER_ASKS = 6
+
 /** Why a `hud` run that played its round is still not green, or null when it is. */
 export function hudShortfall(input: {
   hello: boolean
   loader: boolean
-  /** The provider has a console door, so the loader's line could have been read. */
-  console: boolean
+  /** The provider has a console or an RCON door, so the loader could have been heard. */
+  askable: boolean
 }): string | null {
   if (!input.hello)
     return "the server played a round but its hello did not say hud: the addon id or MultiAddonManager's loader file did not reach it"
-  if (input.console && !input.loader)
-    return 'the server played a round but MultiAddonManager never said it reached Steam ("Steam API Activated" or "Logged on to Steam"): the loader did not load'
+  if (input.askable && !input.loader)
+    return `the server played a round but MultiAddonManager never answered: no "Logged on to Steam" or "Steam API Activated" was read, and \`${CANARY_LOADER_QUESTION}\` named no addon ${CANARY_LOADER_ASKS} times: the loader did not load`
   return null
 }
 
@@ -317,7 +329,7 @@ interface Run {
   afterSeq: number
   saw: { ready: boolean; live: boolean; round: boolean }
   /** What only a `hud` run asks: the hello said `hud`; MultiAddonManager said it woke. */
-  hudSaw: { hello: boolean; loader: boolean }
+  hudSaw: { hello: boolean; loader: boolean; asks: number }
   /** The start, one step a poll: emptied, started, filled, warmup ended. */
   steps: { emptied: boolean; started: boolean; filled: boolean; warmupEnded: boolean }
   /** The match's last word on a pause: a `match_paused` with no `match_unpaused` after it. */
@@ -543,7 +555,12 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
         run.console = lines.slice(-CONSOLE_KEEP).map(line => line.line)
         // Read on every pass, from the whole backlog: the line is a boot's,
         // and by the round it may have scrolled out of what a reason keeps.
-        if (run.hud && lines.some(line => CANARY_LOADER_LINE.test(line.line)))
+        if (
+          run.hud &&
+          lines.some(
+            line => CANARY_LOADER_LINE.test(line.line) || CANARY_LOADER_ANSWER.test(line.line),
+          )
+        )
           run.hudSaw.loader = true
       }
     } catch (error) {
@@ -580,6 +597,23 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
       log.info(`game: canary ${run.matchId}: the unpause was not taken: ${failureText(error)}`)
     }
     return true
+  }
+
+  /** Ask MultiAddonManager for the addons it hands out; an id in the answer is the loader, heard. */
+  const askLoader = async (run: Run, match: Match, as: AuthenticatedKey): Promise<void> => {
+    if (match.serverId === null) return
+    run.hudSaw.asks += 1
+    try {
+      const answer = await options.rcon(as, match.serverId, CANARY_LOADER_QUESTION)
+      if (CANARY_LOADER_ANSWER.test(answer)) run.hudSaw.loader = true
+      log.info(
+        `game: canary ${run.matchId}: asked \`${CANARY_LOADER_QUESTION}\` (${run.hudSaw.asks}): ${run.hudSaw.loader ? 'the loader answered' : 'no addon in the answer'}`,
+      )
+    } catch (error) {
+      log.info(
+        `game: canary ${run.matchId}: \`${CANARY_LOADER_QUESTION}\` was not taken: ${failureText(error)}`,
+      )
+    }
   }
 
   /** One step of the bots-only start (module note), at most one a poll. */
@@ -629,11 +663,23 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
       )
         run.hudSaw.hello = true
 
-    if (run.saw.ready && run.saw.live && run.saw.round) {
+    // A `hud` run asks the loader for itself while it has not been heard;
+    // a round that came first waits for the asks that are left.
+    const asking =
+      run.hud &&
+      run.saw.ready &&
+      !terminal &&
+      !run.hudSaw.loader &&
+      run.hudSaw.asks < CANARY_LOADER_ASKS &&
+      match.serverId !== null
+    if (asking) await askLoader(run, match, as)
+    if (run.saw.ready && run.saw.live && run.saw.round && !(asking && !run.hudSaw.loader)) {
+      const door = registry.get(run.provider)
       const short = run.hud
         ? hudShortfall({
-            ...run.hudSaw,
-            console: registry.get(run.provider)?.console !== undefined,
+            hello: run.hudSaw.hello,
+            loader: run.hudSaw.loader,
+            askable: door?.console !== undefined || door?.rcon !== undefined,
           })
         : null
       if (short === null) await decide(run, 'green', null)
@@ -765,7 +811,7 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
         },
         afterSeq: 0,
         saw: { ready: false, live: false, round: false },
-        hudSaw: { hello: false, loader: false },
+        hudSaw: { hello: false, loader: false, asks: 0 },
         steps: { emptied: false, started: false, filled: false, warmupEnded: false },
         paused: false,
         unpauses: { count: 0, lastAt: null },
@@ -844,7 +890,7 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
           verdict: { state: 'unproven', build: fact.build, since: fact.observedAt, reason: null },
           afterSeq: 0,
           saw: { ready: false, live: false, round: false },
-          hudSaw: { hello: false, loader: false },
+          hudSaw: { hello: false, loader: false, asks: 0 },
           steps: { emptied: false, started: false, filled: false, warmupEnded: false },
           paused: false,
           unpauses: { count: 0, lastAt: null },
