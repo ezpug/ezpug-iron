@@ -185,6 +185,18 @@ describe('the canary', () => {
     await rig.poll()
     await rig.poll()
     expect(console()).toEqual(expect.arrayContaining(['bot_quota 4', 'mp_warmup_end']))
+    // The bots joined an emptied live map: the engine restarted the game and
+    // the plugin's restore left round 1 paused for sides that never unpause.
+    await rig.say(matchId, serverId, { type: 'match_paused', mapNumber: 1, kind: 'technical' })
+    await rig.poll()
+    const asked = await app.store.findCommand(matchId, `canary-unpause-${matchId}-1`)
+    expect(asked?.commandJson).toMatchObject({ type: 'unpause' })
+    // Not asked again within the gap, nor once the plugin says it is lifted.
+    await rig.poll()
+    expect(await app.store.findCommand(matchId, `canary-unpause-${matchId}-2`)).toBeUndefined()
+    await rig.say(matchId, serverId, { type: 'match_unpaused', mapNumber: 1 })
+    await app.advance(30_000)
+    expect(await app.store.findCommand(matchId, `canary-unpause-${matchId}-2`)).toBeUndefined()
     await rig.say(matchId, serverId, {
       type: 'round_end',
       mapNumber: 1,
@@ -299,7 +311,9 @@ describe('the canary', () => {
     await rig.say(matchId, serverId, { type: 'server_ready', map: 'de_dust2' })
     // …and nothing ever goes live. The wall is the request's ttl, which the
     // canary key will not let be more than ten minutes.
-    await app.advance(CANARY_LIFETIME_MINUTES * 60_000)
+    // Walked in steps, as the time passes: one ten-minute jump of the fake
+    // clock outruns the teardown it sets off.
+    for (let at = 0; at < CANARY_LIFETIME_MINUTES * 60_000; at += 20_000) await app.advance(20_000)
     await rig.poll()
     const canary = canaryOf(await rig.providers())
     expect(canary.state).toBe('red')

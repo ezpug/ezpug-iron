@@ -138,7 +138,8 @@ it here.
     `matchzy` match is started by the iron in its own words**: `bot_kick; bot_quota 0`,
     `css_start`, the quota, `mp_warmup_end`, through the fleet's RCON door under the canary
     key. That is the escape hatch `iron-match.mjs --force-start` names, never a client's
-    to type. Not chosen:
+    to type. The pause the plugin's game-restart restore leaves behind, which no bot lifts,
+    is answered with the Match API's own `unpause`. Not chosen:
     - Puppets. A canary is bots and rules, so the `simulation` scope is not what guards it.
     - A refusal of red builds (above).
     - Waiting for both rounds. The verdict is in at the first round, and every minute after

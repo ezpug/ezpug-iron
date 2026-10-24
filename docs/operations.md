@@ -669,8 +669,14 @@ canary key):
 2. `css_start`.
 3. `bot_quota 4` once the match is `live`.
 4. `mp_warmup_end`.
+5. The Match API's own `unpause` (the front door, the key's `matches` scope), when the
+   match then reads a `match_paused` nobody lifts. Bots joining a live map that had
+   emptied make the engine restart the game. The core plugin restores round 1 from
+   MatchZy's backup, and that restore is paused until the sides type `.unpause`, which a
+   bot never does. Production's first canary stood paused for its whole ten minutes
+   (2026-10-24). The canary asks at most three times, 30 s apart.
 
-These are the iron's own stack's words, never a client's.
+Steps 1 to 4 are the iron's own stack's words, never a client's.
 
 **The verdict, per build and per `hud`.** Every five seconds the canary reads the match's
 log, and the server's console through the provider's console door:

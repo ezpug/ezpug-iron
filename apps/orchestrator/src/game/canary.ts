@@ -117,6 +117,9 @@ export const CANARY_POLL_MS = 5_000
 export const CANARY_GAMEMODE = 'pug'
 export const CANARY_MAP = 'de_dust2'
 export const CANARY_BOTS = 4
+/** How many times a canary asks for an unpause nobody else will give, and how far apart. */
+export const CANARY_UNPAUSES = 3
+export const CANARY_UNPAUSE_GAP_MS = 30_000
 /** How many console lines a run keeps for its reason. */
 const CONSOLE_KEEP = 60
 /** How many lines a reason quotes, each cut to {@link REASON_LINE_MAX}. */
@@ -274,6 +277,10 @@ interface Run {
   saw: { ready: boolean; live: boolean; round: boolean }
   /** The start, one step a poll: emptied, started, filled, warmup ended. */
   steps: { emptied: boolean; started: boolean; filled: boolean; warmupEnded: boolean }
+  /** The match's last word on a pause: a `match_paused` with no `match_unpaused` after it. */
+  paused: boolean
+  /** The unpauses asked for, and when the last one was. */
+  unpauses: { count: number; lastAt: number | null }
   /** The console as last read, oldest first, at most {@link CONSOLE_KEEP} lines. */
   console: string[]
 }
@@ -454,6 +461,8 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
       for (const envelope of items) {
         run.afterSeq = Math.max(run.afterSeq, envelope.seq)
         const type = envelope.payload.type
+        if (type === 'match_paused') run.paused = true
+        else if (type === 'match_unpaused') run.paused = false
         const milestone =
           type === 'match.server_ready' || type === 'server_ready'
             ? 'ready'
@@ -481,6 +490,37 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
     } catch (error) {
       log.warn(`game: reading the canary's console on ${match.serverId}: ${failureText(error)}`)
     }
+  }
+
+  /**
+   * **A pause nobody will lift.** Bots joining a live map that had emptied
+   * make the engine restart the game, and the core plugin restores round 1
+   * from MatchZy's backup — paused, waiting for the sides to type
+   * `.unpause`, which a bot never does (seen on production's first canary,
+   * 2026-10-24: ten minutes standing). So a live canary that reads a
+   * `match_paused` with no `match_unpaused` after it asks the Match API's own
+   * `unpause` — the front door, the canary key's `matches` scope — at most
+   * {@link CANARY_UNPAUSES} times, {@link CANARY_UNPAUSE_GAP_MS} apart.
+   */
+  const unpause = async (run: Run, match: Match, as: AuthenticatedKey): Promise<boolean> => {
+    if (match.state !== 'live' || !run.paused || run.unpauses.count >= CANARY_UNPAUSES) return false
+    const now = clock.now()
+    if (run.unpauses.lastAt !== null && now - run.unpauses.lastAt < CANARY_UNPAUSE_GAP_MS)
+      return false
+    run.unpauses.count += 1
+    run.unpauses.lastAt = now
+    try {
+      const result = await matches.command(as, run.matchId, {
+        correlationId: `canary-unpause-${run.matchId}-${run.unpauses.count}`,
+        type: 'unpause',
+      })
+      log.info(
+        `game: canary ${run.matchId}: asked for an unpause (${run.unpauses.count}): ${result.status}`,
+      )
+    } catch (error) {
+      log.info(`game: canary ${run.matchId}: the unpause was not taken: ${failureText(error)}`)
+    }
+    return true
   }
 
   /** One step of the bots-only start (module note), at most one a poll. */
@@ -550,6 +590,7 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
       await endMatch(run, match, 'the canary is red')
       return
     }
+    if (await unpause(run, match, as)) return
     await startStep(run, match, as)
   }
 
@@ -623,6 +664,8 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
         afterSeq: 0,
         saw: { ready: false, live: false, round: false },
         steps: { emptied: false, started: false, filled: false, warmupEnded: false },
+        paused: false,
+        unpauses: { count: 0, lastAt: null },
         console: [],
       }
       runs.set(run.matchId, run)
@@ -699,6 +742,8 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
           afterSeq: 0,
           saw: { ready: false, live: false, round: false },
           steps: { emptied: false, started: false, filled: false, warmupEnded: false },
+          paused: false,
+          unpauses: { count: 0, lastAt: null },
           console: [],
         }
         runs.set(run.matchId, run)
