@@ -31,9 +31,12 @@ export const WORKSHOP_ID_PATTERN = /^[1-9][0-9]{0,19}$/
 export const HUD_ADDON_LOADER_PATH = 'addons/metamod/multiaddonmanager.vdf'
 
 /**
- * The loader file as MultiAddonManager 1.6.2's release ships it, byte for
+ * The loader file as MultiAddonManager 1.7's release ships it, byte for
  * byte (`/opt/ezpug/asleep/metamod/multiaddonmanager.vdf` in the CS2 image).
- * It names the binary the template already carries.
+ * It names the binary the template already carries. `docker/cs2/multiaddonmanager.vdf`
+ * is the same bytes: the image build `cmp`s it against the release, and
+ * `image-script.test.ts` holds this constant to it, so a release that ships
+ * another loader cannot leave Dathost clones with the old one.
  */
 export const HUD_ADDON_LOADER =
-  '"Metamod Plugin"\n{\n\t"alias"\t"multiaddonmanager"\n\t"file"\t"addons/multiaddonmanager/bin/multiaddonmanager"\n}\n'
+  '"Metamod Plugin"\n{\n\t"alias"\t"MultiAddonManager"\n\t"file"\t"addons/multiaddonmanager/bin/multiaddonmanager"\n}\n'

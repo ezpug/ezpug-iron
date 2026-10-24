@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createFakeClock } from '@ezpug/core'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { HUD_ADDON_LOADER_PATH } from '../hud-addon'
+import { HUD_ADDON_LOADER, HUD_ADDON_LOADER_PATH } from '../hud-addon'
 import type { FakeDathost } from './fake'
 import { createFakeDathost } from './fake'
 import { DATHOST_DEFAULT_TAG, decodeTag } from './provider'
@@ -245,6 +245,18 @@ describe('the artifact tree', () => {
     // PRD-07 T2a: one path, two ends. A rename on either side would let the
     // template carry the loader, or put it where Metamod never looks.
     expect(script.ASLEEP_PLUGIN_LOADER).toBe(HUD_ADDON_LOADER_PATH)
+  })
+
+  it('plants the loader the pinned MultiAddonManager release ships, byte for byte', () => {
+    // PRD-10 T1(b): 1.7 renamed the alias. The image build `cmp`s the release's
+    // `.vdf` against this copy, so the copy is the release's; the provider
+    // uploads the constant to a clone that has the HUD, so the constant must be
+    // the copy, or a clone loads a loader the image never had.
+    const copy = readFileSync(join(repo, 'docker/cs2/multiaddonmanager.vdf'), 'utf8')
+    expect(HUD_ADDON_LOADER).toBe(copy)
+    expect(readFileSync(join(repo, 'docker/cs2/Dockerfile'), 'utf8')).toContain(
+      'cmp multiaddonmanager.vdf mam/addons/metamod/multiaddonmanager.vdf',
+    )
   })
 
   it('wears the tag the orchestrator claims a server by', () => {

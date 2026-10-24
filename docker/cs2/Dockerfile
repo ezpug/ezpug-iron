@@ -86,8 +86,8 @@ ARG MATCHZY_VERSION=1.4.32-ezpug.1
 ARG MATCHZY_SHA256=508199c0e8fd8e0cbc7be34f448eacdfaf6c79eee1933003818d4545eed2a717
 ARG RETAKES_ALLOCATOR_VERSION=3.2.5
 ARG RETAKES_ALLOCATOR_SHA256=68e6e8ecfe999e7a09898b17bc33250efb0aa47ff35fb82e4040e9fa871ef24d
-ARG MULTIADDONMANAGER_VERSION=1.6.2
-ARG MULTIADDONMANAGER_SHA256=21176ec47b45b1c7b480ad17cd765ac2d9ab7f8626f9959b1c49b0f8a74a1412
+ARG MULTIADDONMANAGER_VERSION=1.7
+ARG MULTIADDONMANAGER_SHA256=eade247041c48c502a1c2c12db817ceb2a2310f88c2164ff82d90dfe7714a461
 
 # `/out` is overlaid onto `game/csgo` at boot, so it is laid out exactly like it.
 RUN mkdir -p /out/addons /out/cfg
@@ -186,19 +186,24 @@ RUN curl -fsSL -o allocator.zip \
 # inside the map reload the plugin asks for when Steam comes up. The `steamrt3`
 # build, because the base below is sniper (Steam Linux Runtime 3). Its cfg is
 # ours: the release's sets every value to its default, and two of ours differ.
-COPY docker/cs2/cfg/multiaddonmanager/multiaddonmanager.cfg ./
+# The loader is upstream's, and `docker/cs2/multiaddonmanager.vdf` is a copy of
+# it, byte for byte: a Dathost clone has no entrypoint, so the orchestrator
+# uploads that file itself (`HUD_ADDON_LOADER`, held to the copy by a test), and
+# the `cmp` makes a release that ships a different one a red build (1.7 renamed
+# its alias).
+COPY docker/cs2/cfg/multiaddonmanager/multiaddonmanager.cfg docker/cs2/multiaddonmanager.vdf ./
 RUN curl -fsSL -o mam.tar.gz \
       "https://github.com/Source2ZE/MultiAddonManager/releases/download/v${MULTIADDONMANAGER_VERSION}/MultiAddonManager-v${MULTIADDONMANAGER_VERSION}-steamrt3.tar.gz" \
     && echo "${MULTIADDONMANAGER_SHA256}  mam.tar.gz" | sha256sum -c - \
     && mkdir mam \
     && tar -xzf mam.tar.gz -C mam \
-    && grep -q '"addons/multiaddonmanager/bin/multiaddonmanager"' mam/addons/metamod/multiaddonmanager.vdf \
+    && cmp multiaddonmanager.vdf mam/addons/metamod/multiaddonmanager.vdf \
     && test -f mam/addons/multiaddonmanager/bin/multiaddonmanager.so \
     && mkdir -p /out/asleep/metamod /out/cfg/multiaddonmanager \
     && mv mam/addons/metamod/multiaddonmanager.vdf /out/asleep/metamod/ \
     && mv mam/addons/multiaddonmanager /out/addons/multiaddonmanager \
     && mv multiaddonmanager.cfg /out/cfg/multiaddonmanager/multiaddonmanager.cfg \
-    && rm -rf mam mam.tar.gz \
+    && rm -rf mam mam.tar.gz multiaddonmanager.vdf \
     && ! ls /out/addons/metamod/ | grep -qi multiaddonmanager
 
 # cs2-retakes with its shared contract, and the WeaponPaints fork with its
