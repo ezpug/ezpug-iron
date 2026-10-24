@@ -148,6 +148,50 @@ it here.
     - A canary per match request. That spends cents on every match instead of once per
       build.
 
+39. **A patch follows by itself; everything else waits for a human.** (PRD-10 T5, 2026-10-24;
+    the owner's brief "The game moves" and the three questions answered the same day.) **A pin
+    bump is one verb**, `pnpm game:follow css@1.0.378 metamod@1483 [mam@1.7]`
+    (`scripts/game-follow.mjs`). It writes the homes together — the Dockerfile `ARG`s with
+    shas fetched and held to the release page's digest, `Directory.Build.props`, the
+    orchestrator's `GAME_PINS`, the `docs/pins.md` rows from a template with the release's
+    title and date, the row's history kept — then runs `check-pins`, `pnpm verify`,
+    `pnpm cs2:build`, the dev-node canary (`pnpm cs2:canary`, the image), the template
+    (`pnpm dathost:image` and `--check`) and the orchestrator's own canary, waited for, and
+    only then commits `chore(pins): …`, never pushes, and comments on the build's issue.
+    Every phase is printed as it runs and every stop is by name, leaving the tree at the
+    last green commit: a dirty tree, a lane held past the wait, a sha that is not the
+    release page's, a red verify, a red canary, a template whose `--check` was red before
+    the push (somebody's hand on it, like #13). **Metamod is never followed alone**:
+    `metamod@NNNN` must be the build the named CounterStrikeSharp release's
+    `libraries/metamod-source` submodule points at, and the drop's own binary says which
+    commit and build it is, so the pair is checked against two sources neither of which is
+    this repo. **"Patch" is decided exactly so.** For CounterStrikeSharp: the first two
+    numbers unchanged and the third moved, and release notes that name the CS2 version
+    fixed or say "fix", with no "breaking", no "migration" and no API removal in them —
+    every CounterStrikeSharp release moves the third number, which is why the rule has a
+    second clause. For MultiAddonManager: the third number alone (`1.6.1 → 1.6.2`;
+    `1.6.2 → 1.7` is a minor and waits). Metamod only as the build CounterStrikeSharp
+    names. MatchZy-Enhanced never: a fork rebase is PRD-09 T6's kind of work. **The policy
+    is a switch**, `EZPUG_IRON_GAME_FOLLOW=off|patch`, `off` until T9's rehearsal is green:
+    under `patch`, `pnpm game:follow --auto` under the box's timer (every 30 minutes,
+    `docs/operations.md`) reads the watcher's picture off the orchestrator and follows what
+    the rule allows; a minor, a major, a MatchZy release or any refusal above leaves the
+    build's issue commented "waiting for a human: <why>", once, and the health unchanged.
+    **Two gates, one per target** (open question 2): a follow is committed unattended only
+    when both canaries are green, the dev node's and Dathost's; when the dev node cannot be
+    brought to the build within the wait — the lane, "no delta", no dev orchestrator — the
+    follow goes onto the **template** alone, because that is what players sit on tonight,
+    says so in the row and the issue, and the image waits for the dev-node canary and a
+    human. Not chosen:
+    - Following a minor by rules. A minor changes an API, and a human reads what.
+    - A bump that edits one home. `check-pins` already refuses it; the verb makes the
+      question moot.
+    - Pushing from the verb. The loop or a human pushes, after reading the commit.
+    - A timer that edits the Dockerfile without a canary. That is the Saturday this round
+      exists to end.
+    - Trusting the download's sha alone. GitHub publishes the asset's digest; the two must
+      agree, or the verb stops.
+
 ## Gamemodes
 
 14. **A gamemode is a manifest served by the orchestrator.** `gamemodes/<id>/manifest`

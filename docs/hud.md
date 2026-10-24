@@ -109,8 +109,10 @@ an evening that uses the HUD, in this order:
    MultiAddonManager loaded and holds the id. With a hold already open, `pnpm cs2:canary
    --lock-token <token> --rows hud-off,hud-on` plays both inside it.
 4. **MultiAddonManager upstream.** Read its releases and open issues for the build. A new
-   release is a pin bump (`docs/pins.md`: version and sha-256 in `docker/cs2/Dockerfile`,
-   `node scripts/check-pins.mjs`, part of `pnpm lint`), a rebuilt image, and step 1 again.
+   release is a pin bump — `pnpm game:follow mam@<version>` (PRD-10 T5), which rebuilds the
+   image, runs steps 1 and 2 itself and commits; by hand it is `docs/pins.md`'s "Bumping
+   one" (version and sha-256 in `docker/cs2/Dockerfile`, `node scripts/check-pins.mjs`),
+   a rebuilt image, and step 1 again.
 5. **The addon on a client.** Whether a client still downloads and draws the addon is a
    person's to see: the look list's first two steps, on one server, before the evening.
 6. **If anything above is red or nobody could look:** leave the HUD off for the evening

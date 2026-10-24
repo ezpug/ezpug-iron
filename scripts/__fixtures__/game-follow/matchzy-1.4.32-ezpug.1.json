@@ -1,0 +1,19 @@
+{
+  "assets": [
+    {
+      "digest": "sha256:508199c0e8fd8e0cbc7be34f448eacdfaf6c79eee1933003818d4545eed2a717",
+      "name": "MatchZy-1.4.32-ezpug.1.zip",
+      "size": 14029618
+    },
+    {
+      "digest": "sha256:69494c15be37e2cd74f216aaccb3d57a69360f63b7ffd0566d505c519246a474",
+      "name": "MatchZy-1.4.32-ezpug.1.zip.sha256",
+      "size": 93
+    }
+  ],
+  "body": "# The ezpug patch series\n\nThis is [EZPug](https://github.com/ezpug/ezpug-iron)'s fork of\n[MatchZy-Enhanced](https://github.com/Auto-Tournament/cs2-plugin) (MIT, see `LICENSE`).\nThe `ezpug` branch is one upstream release tag with a short series of commits on top,\neach titled `ezpug: …`, and nothing else. Releases are tagged `v<upstream>-ezpug.<n>`\nand built by `.github/workflows/ezpug-release.yml`.\n\n## What the series changes\n\n**A simulated match can leave seats to people.** Upstream's simulation mode spawns one\nbot for every configured player, readies both teams on everybody's behalf and, after two\nwatchdog passes, starts the match whoever is there. The series lets a roster entry in a\nteam's `players` map say that a person, not a bot, takes the seat:\n\n```json\n\"players\": {\n  \"76561198000000001\": \"puppet-1\",\n  \"76561198000000002\": { \"name\": \"tk\", \"simulated\": false }\n}\n```\n\n- `ezpug: a per-player simulated flag in the players map` — a seat with\n  `\"simulated\": false` (a JSON boolean) gets no bot and no simulated identity. Any other\n  entry, including every plain name, is a bot's seat as before. The other readers of a\n  player's name accept both forms.\n- `ezpug: a person's seat goes through the ordinary ready gate` — with such a seat,\n  nothing marks a team ready on anybody's behalf. The bots are readied by the simulation,\n  the person readies (or is auto-readied when the match enables it), and `IsTeamReady`\n  decides, which needs `players_per_team` bodies on the side first.\n- `ezpug: the watchdog never force-starts a match a person has a seat in` — it keeps\n  reconciling the bots, and the match waits. `css_start` still starts it.\n\nA match file with no `\"simulated\": false` entry takes none of the new branches.\n\n## Rebasing onto a new upstream release\n\nEZPug Iron's `docs/operations.md` (\"MatchZy-Enhanced, our fork\") has the procedure.\nIn short: fetch upstream's tags, rebase `ezpug` onto the new tag, set `ModuleVersion` to\n`<upstream>-ezpug.1`, run `dotnet test tests/MatchZy.Tests`, push the branch with\n`--force-with-lease` and push the new tag.\n",
+  "html_url": "https://github.com/ezpug/MatchZy-Enhanced/releases/tag/v1.4.32-ezpug.1",
+  "name": "MatchZy-Enhanced 1.4.32-ezpug.1",
+  "published_at": "2026-09-23T13:01:40Z",
+  "tag_name": "v1.4.32-ezpug.1"
+}

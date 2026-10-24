@@ -1,0 +1,24 @@
+{
+  "assets": [
+    {
+      "digest": "sha256:d40dc64a78c8278a5b00ee44ab2bcbc078ffa52f61661a009d12e0d44fe182d4",
+      "name": "MultiAddonManager-v1.7.1-steamrt3.tar.gz",
+      "size": 1184860
+    },
+    {
+      "digest": "sha256:bb1b45034e8e563057ce2129279d4c9866484ec500b3f89c261c48cc09ee37df",
+      "name": "MultiAddonManager-v1.7.1-steamrt4.tar.gz",
+      "size": 1187824
+    },
+    {
+      "digest": "sha256:da83d0ddbe85220d21843fe65c5c96011012a3762c105302be629ef965b1f163",
+      "name": "MultiAddonManager-v1.7.1-windows.zip",
+      "size": 740763
+    }
+  ],
+  "body": "# Changelog\r\n- Fixed regression where the plugin wouldn't mount addons in some cases.\r\n- Don't parse config on every map load.",
+  "html_url": "https://github.com/Source2ZE/MultiAddonManager/releases/tag/v1.7.1",
+  "name": "v1.7.1",
+  "published_at": "2026-10-23T23:12:21Z",
+  "tag_name": "v1.7.1"
+}

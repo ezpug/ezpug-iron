@@ -243,6 +243,10 @@ and nothing else, and `pug` names 600. **0.34.0** is after the playtest (PRD-09,
 
 ## Bumping one
 
+For a server-side pin, `pnpm game:follow css@<version> metamod@<build> [mam@<version>]` is
+all of the below in one verb, proven on the dev node and the template before it commits
+(PRD-10 T5, decision 39; `docs/operations.md`, "`pnpm game:follow`"). By hand, in order:
+
 1. Edit the **home** — `Directory.Build.props`, `global.json`, the catalog, the image
    script. For a server-side pin (CounterStrikeSharp, Metamod, MultiAddonManager,
    MatchZy-Enhanced) the orchestrator's own copy, `apps/orchestrator/src/game/pins.ts`

@@ -1,0 +1,29 @@
+{
+  "assets": [
+    {
+      "digest": "sha256:16931878fcafbb2766aa8f9d74d4553bb874d87248df57838e8d10915397a5a5",
+      "name": "counterstrikesharp-linux-1.0.375.zip",
+      "size": 4129308
+    },
+    {
+      "digest": "sha256:a4174fd57bf90426bc7852dbe264e82b235970804142c150a5338fb258f7616d",
+      "name": "counterstrikesharp-windows-1.0.375.zip",
+      "size": 3172652
+    },
+    {
+      "digest": "sha256:26f9259ec7b584cb0afb464652423e88f9841ed3a675ba6db4871af07406947f",
+      "name": "counterstrikesharp-with-runtime-linux-1.0.375.zip",
+      "size": 52624880
+    },
+    {
+      "digest": "sha256:1e21a4d0ea8abf27b6dabdcc66b1bbaeafab37b7b593da752489c1becd0c41e5",
+      "name": "counterstrikesharp-with-runtime-windows-1.0.375.zip",
+      "size": 51968606
+    }
+  ],
+  "body": "## What's Changed in v1.0.375\n* fix: for update 1.41.8.2 in [#1433](https://github.com/roflmuffin/CounterStrikeSharp/pull/1433) ([2f98498](https://github.com/roflmuffin/CounterStrikeSharp/commit/2f984988bbf89aff817b4d736534faa41306c086))\n* fix: update Windows PostThink signature by [@unicbm](https://github.com/unicbm) in [#1438](https://github.com/roflmuffin/CounterStrikeSharp/pull/1438) ([bd1d936](https://github.com/roflmuffin/CounterStrikeSharp/commit/bd1d9365cb41d50d6c5d6048fbe123e1ac663110))\n* chore: Update Schema Definitions to 1.41.8.2 in [#1404](https://github.com/roflmuffin/CounterStrikeSharp/pull/1404) ([505e466](https://github.com/roflmuffin/CounterStrikeSharp/commit/505e466a08dbf0d252c493afde594cf2c15acf2d))\n* feat: implement KHook in [#1418](https://github.com/roflmuffin/CounterStrikeSharp/pull/1418) ([a55cb8b](https://github.com/roflmuffin/CounterStrikeSharp/commit/a55cb8bca4e27dbbda9cab6909c61e3251d8d11f))\n\n## New Contributors\n* [@unicbm](https://github.com/unicbm) made their first contribution in [#1438](https://github.com/roflmuffin/CounterStrikeSharp/pull/1438)\n\n\nPlease refer to [CHANGELOG.md](https://github.com/roflmuffin/CounterStrikeSharp/blob/v1.0.375/CHANGELOG.md) for details.\n",
+  "html_url": "https://github.com/roflmuffin/CounterStrikeSharp/releases/tag/v1.0.375",
+  "name": "v1.0.375",
+  "published_at": "2026-09-24T11:53:26Z",
+  "tag_name": "v1.0.375"
+}

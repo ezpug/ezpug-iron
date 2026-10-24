@@ -1,0 +1,29 @@
+{
+  "assets": [
+    {
+      "digest": "sha256:ca3647cbd1ef3a70e074d8fcfeed6ebcc359b1a63cdb3358622ec312cbf4085a",
+      "name": "counterstrikesharp-linux-1.0.376.zip",
+      "size": 4131732
+    },
+    {
+      "digest": "sha256:3df0bd6d4531de27c81d7fa9293312faa256b760a0f419839b77804e64fd4f7e",
+      "name": "counterstrikesharp-windows-1.0.376.zip",
+      "size": 3174860
+    },
+    {
+      "digest": "sha256:8d50a25a467fe9c7ebbbc7032028d402cd428e118308f1c4d627a0a5ddf36783",
+      "name": "counterstrikesharp-with-runtime-linux-1.0.376.zip",
+      "size": 52627304
+    },
+    {
+      "digest": "sha256:4f2777545a0940351450440288e7487509d539f770e66cf1c30cc2419084c5f8",
+      "name": "counterstrikesharp-with-runtime-windows-1.0.376.zip",
+      "size": 51970814
+    }
+  ],
+  "body": "## What's Changed in v1.0.376\n* fix: set m_bIsSet when updating a custom hud dialog variable by [@dvernoff](https://github.com/dvernoff) in [#1434](https://github.com/roflmuffin/CounterStrikeSharp/pull/1434) ([ffe84cf](https://github.com/roflmuffin/CounterStrikeSharp/commit/ffe84cfc1db478cb53fb83c17252c51a30bb6ed1))\n* fix: correct Windows IsPlayerPawn offset by [@unicbm](https://github.com/unicbm) in [#1445](https://github.com/roflmuffin/CounterStrikeSharp/pull/1445) ([6d22cb5](https://github.com/roflmuffin/CounterStrikeSharp/commit/6d22cb54dc27f7cad1c5137474e5e9cdde73efbe))\n* fix: share one writer for the combined logger by [@Mesharsky](https://github.com/Mesharsky) in [#1444](https://github.com/roflmuffin/CounterStrikeSharp/pull/1444) ([3aad8fc](https://github.com/roflmuffin/CounterStrikeSharp/commit/3aad8fc17503932da7bf9b43063b6303b8718db8))\n* fix: pass all four flags to CBasePlayerController::SetPawn by [@adammyllykoski](https://github.com/adammyllykoski) in [#1443](https://github.com/roflmuffin/CounterStrikeSharp/pull/1443) ([bc1efad](https://github.com/roflmuffin/CounterStrikeSharp/commit/bc1efad5e3212aad9999f9ce97baa469550e94d3))\n* chore: Update Schema Definitions to 1.41.8.4 in [#1437](https://github.com/roflmuffin/CounterStrikeSharp/pull/1437) ([d90b041](https://github.com/roflmuffin/CounterStrikeSharp/commit/d90b04173334989393037c2bc4cd3a788cfae9b3))\n\n## New Contributors\n* [@dvernoff](https://github.com/dvernoff) made their first contribution in [#1434](https://github.com/roflmuffin/CounterStrikeSharp/pull/1434)\n* [@adammyllykoski](https://github.com/adammyllykoski) made their first contribution in [#1443](https://github.com/roflmuffin/CounterStrikeSharp/pull/1443)\n\n\nPlease refer to [CHANGELOG.md](https://github.com/roflmuffin/CounterStrikeSharp/blob/v1.0.376/CHANGELOG.md) for details.\n",
+  "html_url": "https://github.com/roflmuffin/CounterStrikeSharp/releases/tag/v1.0.376",
+  "name": "v1.0.376",
+  "published_at": "2026-09-27T04:14:18Z",
+  "tag_name": "v1.0.376"
+}

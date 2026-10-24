@@ -1,0 +1,24 @@
+{
+  "assets": [
+    {
+      "digest": "sha256:e39d7e3ef09596e557ba64b29d377b21a5696837159482b04a03a1c247b47bd6",
+      "name": "MultiAddonManager-v1.6.1-steamrt3.tar.gz",
+      "size": 2182491
+    },
+    {
+      "digest": "sha256:a0dbbf4778e62f6e011729da7be8a9faf77e385956452044366267fe79b965b1",
+      "name": "MultiAddonManager-v1.6.1-steamrt4.tar.gz",
+      "size": 2199418
+    },
+    {
+      "digest": "sha256:54c0bffa002fc8901c7010a9df27cf643c7ec2d3b8c6270042f5ef2137d67b1e",
+      "name": "MultiAddonManager-v1.6.1-windows.zip",
+      "size": 639092
+    }
+  ],
+  "body": "# Changelog\r\n- Recompiled for the CS2 Rush update.",
+  "html_url": "https://github.com/Source2ZE/MultiAddonManager/releases/tag/v1.6.1",
+  "name": "v1.6.1",
+  "published_at": "2026-09-23T05:11:04Z",
+  "tag_name": "v1.6.1"
+}

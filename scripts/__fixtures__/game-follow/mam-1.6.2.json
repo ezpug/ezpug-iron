@@ -1,0 +1,24 @@
+{
+  "assets": [
+    {
+      "digest": "sha256:21176ec47b45b1c7b480ad17cd765ac2d9ab7f8626f9959b1c49b0f8a74a1412",
+      "name": "MultiAddonManager-v1.6.2-steamrt3.tar.gz",
+      "size": 1019586
+    },
+    {
+      "digest": "sha256:fe273abfb949521d6ff4f0cd4da1bbd2b59e64ef38f4ee2353163fbe86205fcc",
+      "name": "MultiAddonManager-v1.6.2-steamrt4.tar.gz",
+      "size": 1024646
+    },
+    {
+      "digest": "sha256:d6bd19687788dd8ba20dbf7ee390ed234c4ffba459c70d43cf2a4e876556af68",
+      "name": "MultiAddonManager-v1.6.2-windows.zip",
+      "size": 640790
+    }
+  ],
+  "body": "# Changelog\r\n- Fixed a crash with `mm_block_disconnect_messages`.\r\n- Reduced Linux binary file size.",
+  "html_url": "https://github.com/Source2ZE/MultiAddonManager/releases/tag/v1.6.2",
+  "name": "v1.6.2",
+  "published_at": "2026-09-28T15:51:27Z",
+  "tag_name": "v1.6.2"
+}

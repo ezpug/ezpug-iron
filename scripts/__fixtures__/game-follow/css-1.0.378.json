@@ -1,0 +1,29 @@
+{
+  "assets": [
+    {
+      "digest": "sha256:26cf779ec3c87c55f4e23496839c7cc1e2977952ae9795403c4a52253d76fc82",
+      "name": "counterstrikesharp-linux-1.0.378.zip",
+      "size": 4137186
+    },
+    {
+      "digest": "sha256:59ce83d3a35cb682407320d8c349a29192463a9ada78f50c714f78ee3aa4c29d",
+      "name": "counterstrikesharp-windows-1.0.378.zip",
+      "size": 3180524
+    },
+    {
+      "digest": "sha256:b7fcbd99619ab17e32b07a6af2bd5179d83e2c7a4c045e33cbd11e5492c87b7d",
+      "name": "counterstrikesharp-with-runtime-linux-1.0.378.zip",
+      "size": 52632758
+    },
+    {
+      "digest": "sha256:6784cc463e8a85e5e70d41c4190601ac4d93295ae7ebdd1e12b6bb92f861ae02",
+      "name": "counterstrikesharp-with-runtime-windows-1.0.378.zip",
+      "size": 51976478
+    }
+  ],
+  "body": "## What's Changed in v1.0.378\n* chore: Update Schema Definitions to 1.41.9.2 in [#1447](https://github.com/roflmuffin/CounterStrikeSharp/pull/1447) ([86d3f07](https://github.com/roflmuffin/CounterStrikeSharp/commit/86d3f07a22c312b6462facf22f252769041e8812))\n* fix: Game Update 1.41.9.2 in [#1470](https://github.com/roflmuffin/CounterStrikeSharp/pull/1470) ([5465e2a](https://github.com/roflmuffin/CounterStrikeSharp/commit/5465e2aad8bb288e4214167b8fb664a35a841bd2))\n\n\nPlease refer to [CHANGELOG.md](https://github.com/roflmuffin/CounterStrikeSharp/blob/v1.0.378/CHANGELOG.md) for details.\n",
+  "html_url": "https://github.com/roflmuffin/CounterStrikeSharp/releases/tag/v1.0.378",
+  "name": "v1.0.378",
+  "published_at": "2026-10-23T14:22:56Z",
+  "tag_name": "v1.0.378"
+}

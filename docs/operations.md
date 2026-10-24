@@ -756,6 +756,79 @@ configured without it, and the log says so per server. Its `hello` then truthful
 canary in the orchestrator. T4's `pnpm cs2:canary` judges the image on the dev node from
 outside it, T8 carries that verdict to a node, and T6 makes the gate whole.
 
+### `pnpm game:follow`, and the policy of a patch (PRD-10 T5)
+
+A pin bump used to be a Dockerfile edited by hand, a row in `docs/pins.md` remembered or
+not, a rebuild and a hope (#13). It is one verb now (`scripts/game-follow.mjs`, decision 39):
+
+```sh
+pnpm game:follow css@1.0.378 metamod@1483 mam@1.7     # bump, prove, commit
+pnpm game:follow mam@1.7.1 --dry-run                   # the plan and the diff; touches nothing
+pnpm game:follow --auto --env-file .env.production     # the timer's line (below)
+```
+
+**The phases, in order**, each printed as it runs: `preflight` (a clean tree), `resolve`
+(the release JSON, the artifact downloaded and its sha held to the release page's digest,
+the Metamod pair), `template-check` (`pnpm dathost:image --check` **before** anything
+moves: a red check now is somebody's hand on the template, like #13, not this bump's
+work), `homes` (the Dockerfile `ARG`s with their shas, `Directory.Build.props`,
+`GAME_PINS`, the `docs/pins.md` rows rewritten from a template with the release's title
+and date, the row's history kept), `check-pins`, `verify`, `lane` (the lock, like every
+row; `--lock-token` inside somebody's hold), `cs2:build`, `cs2:canary` (the image on the
+dev node, inside the same hold; `--rows`, `--boots`), `dathost:image` and `--check` (the
+template), `canary` (`POST /v1/fleet/game/canary` on the orchestrator it is pointed at,
+the verdict waited for; `--hud` plays the hud canary too), `commit` (`chore(pins): …`, the
+four homes alone, never pushed; `--trailer` adds a line) and `issue` (a comment on the
+build's issue, `CS2 build <id>`). `--target template|image|both` picks what is proven;
+the image is always built, because the template is read out of it.
+
+**What stops it, by name**, leaving the tree at the last green commit: a dirty tree, a
+lane held past `--lock-wait`, a sha that is not the release page's, a Metamod that is not
+the build the CounterStrikeSharp release builds against (its `libraries/metamod-source`
+submodule, read off the tag; the drop's binary names its commit and build, and the pair is
+checked even when the Metamod build does not move), a red `check-pins` or `verify`, a red
+dev-node canary, a red Dathost canary, a template whose `--check` was red before the push.
+When the template was refreshed and a later phase stopped, the verb says so: the template
+then carries pins the tree does not, and `pnpm cs2:build && pnpm dathost:image` from the
+tree puts the committed ones back. The verb never pushes: the loop or a human does, after
+reading the commit.
+
+**The policy.** `EZPUG_IRON_GAME_FOLLOW=off|patch`, default `off` (`.env.production` is
+where production's value lives; T9's rehearsal flips it to `patch`). Under `patch`,
+`--auto` reads `GET /v1/fleet/game` off the orchestrator the env file names
+(`EZPUG_IRON_PUBLIC_URL`, with `EZPUG_IRON_API_KEY`) and follows every upstream whose
+newest release is a **patch exactly as decision 39 says**: CounterStrikeSharp with the
+first two numbers unchanged, the third moved, and notes that name the CS2 version fixed
+or say "fix" with no "breaking", "migration" or API removal; MultiAddonManager by the
+third number alone; Metamod as the build CounterStrikeSharp names, never alone;
+MatchZy-Enhanced never. Anything else is a comment on the build's issue — **Waiting for a
+human:** the upstream, the version, the why — written once (a marker in the comment keeps
+a second run quiet). An unattended follow is committed only when both canaries are green;
+when the dev node cannot be brought to the build (the lane, "no delta", no dev
+orchestrator), the follow goes onto the **template alone**, the row and the issue say
+"Dathost-proven, unproven for LAN nodes", and the image waits for a human (open question
+2). The env file is read for those names only; nothing of it reaches the subprocesses,
+which read the checkout's `.env` themselves, so a production database URL never meets
+`pnpm verify`.
+
+**The timer.** A root cron line on this box, idempotent: a run that finds nothing to do
+says so, a second run while one is in flight exits on `.cache/game-follow.pid`, and a
+dirty tree is a named stop the next tick tries again after.
+
+```cron
+*/30 * * * * cd /root/ezpug-iron && PATH=/root/.local/bin:/root/.nvm/versions/node/v22.23.4/bin:/usr/local/bin:/usr/bin:/bin pnpm game:follow --auto --env-file .env.production >> /var/log/ezpug-iron/game-follow.log 2>&1
+```
+
+`/root/.local/bin` first, for the box's `docker` shim. The dev-node canary inside an
+unattended run needs the dev world up (`pnpm dev`, `pnpm dev:node up`); on a box where it
+is down the run names that and proves the template alone.
+
+**The real run of 2026-10-24.** `pnpm game:follow css@1.0.378 metamod@1483 mam@1.7
+--dry-run` on the T1 tree said "nothing to do" for every home and printed the plan it
+would have run. MultiAddonManager 1.7.1 had shipped the night before, a patch by the
+rule, and one assisted run followed it (`docs/pins.md`'s row and PRD-10's progress line
+name the proof and the cents).
+
 ### When a provider dies on a Saturday
 
 Dathost is down, or the venue's uplink is, and there are people waiting. In order, and none

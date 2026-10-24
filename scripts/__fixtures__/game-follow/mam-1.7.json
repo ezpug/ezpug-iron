@@ -1,0 +1,24 @@
+{
+  "assets": [
+    {
+      "digest": "sha256:eade247041c48c502a1c2c12db817ceb2a2310f88c2164ff82d90dfe7714a461",
+      "name": "MultiAddonManager-v1.7-steamrt3.tar.gz",
+      "size": 1185008
+    },
+    {
+      "digest": "sha256:d0d72b4ed27414389ddfb18c79bd669e76e3a2c67560c5c1c0253c3abbb50f5e",
+      "name": "MultiAddonManager-v1.7-steamrt4.tar.gz",
+      "size": 1187776
+    },
+    {
+      "digest": "sha256:cd327741f1401d07fe0af41b5f8c7b1de2df8aac8adee287ff98149433dc4ff0",
+      "name": "MultiAddonManager-v1.7-windows.zip",
+      "size": 740879
+    }
+  ],
+  "body": "# Changelog\r\n- Rebuilt for the 22/10/2026 CS2 update.\r\n- Retry any addon download that started (and failed) before the server logged on Steam. (#78)\r\n- Parse the plugin config on every map load.\r\n- Fix faulty logic in AddClientAddon",
+  "html_url": "https://github.com/Source2ZE/MultiAddonManager/releases/tag/v1.7",
+  "name": "v1.7",
+  "published_at": "2026-10-23T10:55:49Z",
+  "tag_name": "v1.7"
+}
