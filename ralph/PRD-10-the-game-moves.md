@@ -342,7 +342,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   > (`hudGate`). The nodes provider still hands `EZPUG_HUD_ADDON` to every container, so
   > the dev node's `hud-on` row keeps working while a node's build has no canary (T4/T8).
   > Making the gate whole means deciding what a node's `hud` verdict is.
-- [ ] **T6a (effort: medium): Dathost's RCON answer on a busy server.** Found in T6:
+- [x] **T6a (effort: medium): Dathost's RCON answer on a busy server.** Found in T6:
   `providers/dathost/provider.ts` `rcon()` takes the answer as
   `lines.slice(backlog.length)` of two console reads that are both capped at
   `DATHOST_CONSOLE_LINES` (200). On a server whose console already holds 200 lines, which
