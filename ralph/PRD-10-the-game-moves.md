@@ -351,7 +351,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   Align the two reads on their overlap (the backlog's last lines found in the second read,
   then what follows the echoed command), with a fake whose console is full. Red first: a
   200-line console, one command, the answer returned.
-- [ ] **T7 (effort: medium): `@ezpug/match-api` 0.35.0, and what the platform takes.** One
+- [x] **T7 (effort: medium): `@ezpug/match-api` 0.35.0, and what the platform takes.** One
   additive release: `providerHealth.game`, `GET /v1/fleet/game`, `POST /v1/fleet/game/canary`,
   `gameFactSchema`, the fake's knob, the conformance flow (`game-build-moves`), the JSON
   schemas and fixtures. `node scripts/release.mjs version 0.35.0`, `publish` to the box's
