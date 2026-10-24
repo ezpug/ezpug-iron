@@ -396,19 +396,24 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
 
 ## Open questions (the owner's)
 
-1. **A token for the container.** Filing and updating the per-build issue from the
-   orchestrator needs a fine-grained PAT (`issues: write` on `ezpug/ezpug-iron`) as
-   `EZPUG_IRON_GITHUB_TOKEN` in `.env.production`. Without it, detection and health still
-   work and only `game:follow` on the box (which has `gh`) can write the issue. Mint one, or
-   leave issues to the box?
-2. **Unattended at night with one canary.** T5 requires both canaries green before an
-   unattended patch follow. The dev node's needs the lane and sometimes a 67 GB volume
-   update that Steam may refuse ("no delta"). If the dev node cannot be brought to the
-   build within an hour, should a Dathost-green patch follow anyway (the LAN image waits for
-   a human), or stop? The PRD says stop; say if the other answer is the one you want.
-3. **`EZPUG_IRON_GAME_FOLLOW=patch` from the first deploy**, or `off` until you have watched
-   one assisted `game:follow` run? The PRD ships `off` and T5 turns it to `patch` only after
-   its own real or rehearsed run is green.
+Answered 2026-10-24 by the orchestrating session, as the owner asked ("use your own judgement,
+be ambitious"); each is a decision for T9's decisions log, not a question for the loop.
+
+1. **A token for the container: yes, a fine-grained PAT, and the box's `gh` until it exists.**
+   `EZPUG_IRON_GITHUB_TOKEN` is read by the orchestrator; T2 ships with the box's `gh auth token`
+   written into `.env.production` by the deploy's preflight when the variable is unset (announced,
+   never printed), so detection files its issue from day one. The owner mints a fine-grained PAT
+   (`issues: write` on `ezpug/ezpug-iron` only) when convenient and replaces the line; the token
+   is in no log, no fact and no health read.
+2. **One canary is enough for the template, never for the image.** A Dathost-green patch may
+   follow unattended onto the **template** when the dev node cannot reach the build within an
+   hour (lane busy, "no delta"): that is what players sit on tonight. The CS2 **image** (LAN
+   nodes) waits for the dev-node canary and a human, and the issue says so. T5 encodes the two
+   gates separately (`--target template|image|both`); `--auto` is `template` alone when the dev
+   node is unreachable, and says so in the issue.
+3. **`off` until the rehearsal is green, then `patch`.** T5 ships `EZPUG_IRON_GAME_FOLLOW=off`;
+   T9's rehearsal (a fictional release walked end to end) is the watched run, and flipping the
+   production value to `patch` is part of T9's definition of done, recorded in its progress line.
 
 ## When the PRD is complete
 
@@ -419,4 +424,4 @@ the watcher ticks every 15 minutes with an issue it would file; `pnpm game:follo
 says "nothing to do"; the dev node's hello states its build; `pnpm game:rehearse` walks a
 fictional build move end to end on the fake clock inside `verify:extended`. The closing note
 names the cents the round spent, what the platform's PRD-24 takes by field name, the three
-open questions and their state, and what no canary can see (OPEN-POINTS §14).
+answered questions as decisions, and what no canary can see (OPEN-POINTS §14).
