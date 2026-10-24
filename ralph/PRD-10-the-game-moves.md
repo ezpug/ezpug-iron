@@ -149,7 +149,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
 
 ## Tasks
 
-- [ ] **T1 (effort: high): The pin bump #13 owes.** Three commits, in this order, nothing else
+- [x] **T1 (effort: high): The pin bump #13 owes.** Three commits, in this order, nothing else
   in them. **(a)** `chore(pins): CounterStrikeSharp 1.0.378, Metamod 2.0.0-git1483` —
   `docker/cs2/Dockerfile` (`COUNTER_STRIKE_SHARP_VERSION`/`_SHA256`, `METAMOD_VERSION`/`_SHA256`,
   each sha from `curl -fsSL <url> | sha256sum`), `plugins/Directory.Build.props`
