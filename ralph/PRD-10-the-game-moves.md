@@ -176,7 +176,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   rental, ≤ 10 ¢, named). Comment on #13 with the three shas and tick its first two boxes;
   the issue closes in T6. The progress line records the boot count, each boot's seconds,
   and the diff of what `dathost:image` moved.
-  > blocked: (2026-10-24, on the owner) (a) `bf02096` and (b) `a815c09` are committed and
+  > was blocked: (2026-10-24, on the owner; answered below) (a) `bf02096` and (b) `a815c09` are committed and
   > `ghcr.io/ezpug/ezpug-iron/cs2:dev` is built from `a815c09`. **(c) cannot boot anything on
   > the dev node: the `ezpug-iron-cs2_cs2-data` volume no longer exists.** On 2026-10-19 the owner
   > approved deleting it in a box-wide disk cleanup (a `/root/signotec-prepare` session), along
@@ -194,6 +194,15 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   > unchanged against the manifest. The 40 files that really differ are our plugins at
   > `a815c09` (including PRD-09 T8's `104ed0e`, which the template, still at `ded8c12`, does not
   > carry yet), Metamod's binaries for other games, and MultiAddonManager 1.7's `.so`, asleep.
+  > decided (2026-10-24 14:55, the orchestrating session for the owner): **(2) now, (1) at T4.**
+  > Prove (c) on Dathost alone: `dathost:image`, then several `dathost:smoke` boots (≤ 2 ¢ each)
+  > and one bots test match through the platform's fleet door; the template is what players sit
+  > on tonight and the hand-patched files are already byte-equal to the image, so the push is a
+  > no-op the repo now owns. The image stays **unproven for LAN nodes** and the pins.md row says
+  > so. The volume comes back as **T4's first step**: `pnpm cs2:install` with the lane held,
+  > `nice`, only while no deploy build runs on this box (check `pgrep -fa deploy.sh` first; 67 GB
+  > against 132 GB free), because T4 and T8 need it anyway. Not a reversal of the 2026-10-19
+  > cleanup: the volume is a build artefact and comes back when a round needs it.
 - [ ] **T2 (fable) (effort: high): The build watcher, and what a client reads of it.** One more
   loop in the orchestrator, on the clock, beside the probes: **why the orchestrator and not
   a cron** — it is the one process that is always up, holds the store, the clock, the
