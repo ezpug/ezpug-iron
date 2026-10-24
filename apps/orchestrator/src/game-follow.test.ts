@@ -136,16 +136,36 @@ const fictional = (tag: string, body: string, name = tag): Release => ({
   assets: [],
 })
 
-/** The tree as it is, read once: the homes a bump writes. */
-const TREE: Tree = {
-  dockerfile: readFileSync(`${REPO}docker/cs2/Dockerfile`, 'utf8'),
-  props: readFileSync(`${REPO}plugins/Directory.Build.props`, 'utf8'),
-  pinsTs: readFileSync(`${REPO}apps/orchestrator/src/game/pins.ts`, 'utf8'),
-  pinsMd: readFileSync(`${REPO}docs/pins.md`, 'utf8'),
-}
 const home = (homes: Home[], path: string): Home => homes.find(h => h.path === path) as Home
 const arg = (dockerfile: string, name: string): string | undefined =>
   dockerfile.match(new RegExp(`^ARG ${name}=(\\S+)$`, 'm'))?.[1]
+/** The sha of MultiAddonManager 1.7's steamrt3 artifact, as the Dockerfile carried it. */
+const MAM_17_SHA = 'eade247041c48c502a1c2c12db817ceb2a2310f88c2164ff82d90dfe7714a461'
+
+/**
+ * The tree as it is, read once, with MultiAddonManager held at 1.7 whatever
+ * the tree pins today: the homes a bump writes, in the shape they had before
+ * the verb's first real run moved them (2026-10-24). So these tests mean the
+ * same thing before and after any later bump of that row.
+ */
+const TREE: Tree = (() => {
+  const dockerfile = readFileSync(`${REPO}docker/cs2/Dockerfile`, 'utf8')
+  const mam = arg(dockerfile, 'MULTIADDONMANAGER_VERSION') as string
+  return {
+    dockerfile: dockerfile
+      .replace(/^ARG MULTIADDONMANAGER_VERSION=\S+$/m, 'ARG MULTIADDONMANAGER_VERSION=1.7')
+      .replace(/^ARG MULTIADDONMANAGER_SHA256=\S+$/m, `ARG MULTIADDONMANAGER_SHA256=${MAM_17_SHA}`),
+    props: readFileSync(`${REPO}plugins/Directory.Build.props`, 'utf8'),
+    pinsTs: readFileSync(`${REPO}apps/orchestrator/src/game/pins.ts`, 'utf8').replace(
+      /^(\s+multiAddonManager: )'[^']+',$/m,
+      "$1'1.7',",
+    ),
+    pinsMd: readFileSync(`${REPO}docs/pins.md`, 'utf8').replace(
+      `| MultiAddonManager | \`${mam}\`, \`steamrt3\` |`,
+      '| MultiAddonManager | `1.7`, `steamrt3` |',
+    ),
+  }
+})()
 const PINNED = {
   css: arg(TREE.dockerfile, 'COUNTER_STRIKE_SHARP_VERSION') as string,
   metamod: arg(TREE.dockerfile, 'METAMOD_VERSION') as string,

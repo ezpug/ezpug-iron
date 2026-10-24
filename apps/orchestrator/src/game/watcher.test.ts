@@ -6,6 +6,16 @@ import { GAME_PINS } from './pins'
 import { GAME_WATCH_INTERVAL_MS } from './watcher'
 
 /**
+ * A MultiAddonManager release one patch past the pin, whatever the pin is
+ * today: `pnpm game:follow` moves that pin (PRD-10 T5), and a bump must not
+ * turn this file red.
+ */
+const NEWER_MAM = (() => {
+  const [major, minor, patch = '0'] = GAME_PINS.multiAddonManager.split('.')
+  return `${major}.${minor}.${Number(patch) + 1}`
+})()
+
+/**
  * **The build watcher** (PRD-10 T2). What is proved here is the shape of
  * the round's promise — a CS2 update is a version fact with a time, seen
  * before a player does:
@@ -177,17 +187,17 @@ describe('the build watcher', () => {
       publishedAt: '2026-10-23T14:22:56Z',
     })
     app.feeds.setRelease('Source2ZE/MultiAddonManager', {
-      tag: 'v1.7.1',
-      name: 'v1.7.1',
+      tag: `v${NEWER_MAM}`,
+      name: `v${NEWER_MAM}`,
       publishedAt: '2026-10-23T23:12:21Z',
     })
     const first = await app.game.tick()
     expect(first.released.map(r => `${r.repo}@${r.version}`)).toEqual([
-      'Source2ZE/MultiAddonManager@1.7.1',
+      `Source2ZE/MultiAddonManager@${NEWER_MAM}`,
     ])
     expect(app.feeds.comments).toHaveLength(1)
     expect(app.feeds.comments[0]).toMatchObject({ number: 1 })
-    expect(app.feeds.comments[0]?.body).toContain('Source2ZE/MultiAddonManager `1.7.1`')
+    expect(app.feeds.comments[0]?.body).toContain(`Source2ZE/MultiAddonManager \`${NEWER_MAM}\``)
     expect(app.feeds.comments[0]?.body).toContain(`pins \`${GAME_PINS.multiAddonManager}\``)
 
     const game = await rig.game()
@@ -196,7 +206,7 @@ describe('the build watcher', () => {
         expect.objectContaining({
           type: 'game.upstream_released',
           repo: 'Source2ZE/MultiAddonManager',
-          version: '1.7.1',
+          version: NEWER_MAM,
           pinned: GAME_PINS.multiAddonManager,
           publishedAt: '2026-10-23T23:12:21Z',
         }),
@@ -207,7 +217,7 @@ describe('the build watcher', () => {
         {
           repo: 'Source2ZE/MultiAddonManager',
           pinned: GAME_PINS.multiAddonManager,
-          latest: '1.7.1',
+          latest: NEWER_MAM,
           publishedAt: '2026-10-23T23:12:21Z',
         },
         {
@@ -334,7 +344,7 @@ describe('the build watcher', () => {
     const { app } = rig
     const reset = app.clock.now() + 30 * 60_000
     app.feeds.rateLimitUntil(reset)
-    app.feeds.setRelease('Source2ZE/MultiAddonManager', { tag: 'v1.7.1' })
+    app.feeds.setRelease('Source2ZE/MultiAddonManager', { tag: `v${NEWER_MAM}` })
     const refused = await app.game.tick()
     expect(refused.released).toEqual([])
     expect(refused.problems.join('\n')).toContain("GitHub's rate limit (403)")
@@ -350,7 +360,7 @@ describe('the build watcher', () => {
     app.feeds.rateLimitUntil(null)
     const resumed = await app.game.tick()
     expect(asks()).toBeGreaterThan(before)
-    expect(resumed.released.map(r => r.version)).toEqual(['1.7.1'])
+    expect(resumed.released.map(r => r.version)).toEqual([NEWER_MAM])
   })
 
   it('ticks on the clock once started, and not before', async () => {
