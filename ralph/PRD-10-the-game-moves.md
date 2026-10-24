@@ -392,7 +392,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   > the node's build and image. Fold it into the `nodes` provider's `game.hud` here, and have
   > the nodes provider hand `EZPUG_HUD_ADDON` to a container only while that verdict is green
   > (today it hands it to every container: `providers/nodes/provider.ts`, `hudAddon`).
-- [ ] **T8a (effort: low): conformance's "passes every flow and skips none" outruns its 20 s.**
+- [x] **T8a (effort: low): conformance's "passes every flow and skips none" outruns its 20 s.**
   Found in T8 (2026-10-24): `apps/orchestrator/src/conformance.test.ts:258` runs the whole
   suite against the in-process orchestrator under Vitest's default 20 s and took 14 s alone.
   In T8's first `pnpm verify` the box was at load ~88 (a `cs2:build`, a lane row and other
