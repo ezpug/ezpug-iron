@@ -284,7 +284,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   behaviour exists to test (the verdict file's shape, the refusal while a container runs,
   the lock inheritance) on the fake; the real run is T1(c)'s eight boots done again by the
   verb, named in the progress line with its seconds.
-- [ ] **T5 (fable) (effort: high): `pnpm game:follow`, and the policy of a patch.**
+- [x] **T5 (fable) (effort: high): `pnpm game:follow`, and the policy of a patch.**
   `scripts/game-follow.mjs`: `pnpm game:follow css@1.0.378 metamod@1483 [mam@1.7]` is one
   idempotent verb — bump the homes (Dockerfile `ARG`s and shas fetched and verified,
   `Directory.Build.props`, the `docs/pins.md` rows rewritten from a template with the
