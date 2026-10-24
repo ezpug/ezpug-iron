@@ -14,7 +14,7 @@
 export const GAME_PINS = {
   counterStrikeSharp: '1.0.378',
   metamod: '2.0.0-git1483',
-  multiAddonManager: '1.7',
+  multiAddonManager: '1.7.1',
   matchzy: '1.4.32-ezpug.1',
 } as const
 
