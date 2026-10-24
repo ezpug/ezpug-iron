@@ -399,7 +399,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   projects' loops), and it timed out at 20.1 s; alone it passed 25/25. A flaky test is a P1
   against the spine (CLAUDE.md). Give it a timeout sized to the work it does, or make the
   work smaller, and say which in the test.
-- [ ] **T9 (effort: medium): The books, and the move rehearsed end to end.** `docs/pins.md`:
+- [x] **T9 (effort: medium): The books, and the move rehearsed end to end.** `docs/pins.md`:
   the rows T1 wrote re-read once more, "Bumping one" rewritten as `pnpm game:follow` with the
   hand steps kept as what the verb does; `docs/operations.md`: a new section **"CS2 update
   day"** — what is now automatic (detection within 15 min, the issue, the two canaries, the
