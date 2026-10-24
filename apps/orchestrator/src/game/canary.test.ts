@@ -303,7 +303,9 @@ describe('the canary', () => {
     await rig.poll()
     const canary = canaryOf(await rig.providers())
     expect(canary.state).toBe('red')
-    expect(canary.reason).toMatch(/^the match ended: ttl_expired/)
+    expect(canary.reason).toMatch(
+      /^the match ended: ttl_expired — .*; it was ready but never went live \(dathost, build 1\.41\.9\.2\)/,
+    )
     expect(app.store.rows.servers.filter(row => row.releasedAt === null)).toEqual([])
 
     // A red may be run again on demand, and the fact says which attempt.
@@ -387,11 +389,17 @@ describe('the canary’s reason', () => {
       canaryReason({
         build: BUILD,
         provider: 'dathost',
-        console: ['one', 'two', 'three'],
+        console: [
+          'one',
+          'two',
+          'three',
+          'L 10/24/2026 - 15:37:57: rcon from "152.233.60.3:53946": command "status_json"',
+        ],
+        progress: 'it never got ready',
         ended: 'the match failed: provider_error — no server_ready on de_dust2 within 180 s',
       }),
     ).toBe(
-      'the match failed: provider_error — no server_ready on de_dust2 within 180 s (dathost, build 1.41.9.2): "two" … "three"',
+      'the match failed: provider_error — no server_ready on de_dust2 within 180 s; it never got ready (dathost, build 1.41.9.2): "two" … "three"',
     )
   })
 })

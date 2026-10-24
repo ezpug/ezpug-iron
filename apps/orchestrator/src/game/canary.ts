@@ -153,6 +153,16 @@ export const CANARY_CONSOLE_PATTERNS: readonly {
   { pattern: /Steam API Activated/, name: 'the addon loader woke the Steam API', fatal: false },
 ]
 
+/** A control plane asking the server how it is (`rcon from "…": command "status_json"`): never a reason. */
+const CONSOLE_NOISE = /rcon from "[^"]*": command "/
+
+/** How far a run got, in the words a reason uses. */
+function progressOf(saw: { ready: boolean; live: boolean; round: boolean }): string {
+  if (!saw.ready) return 'it never got ready'
+  if (!saw.live) return 'it was ready but never went live'
+  return 'it went live but no round was played'
+}
+
 /** The request a canary plays: composed here, the shape of the hand-run one, never copied from a client. */
 export function canaryRequest(input: {
   provider: string
@@ -204,8 +214,10 @@ export function canaryReason(input: {
   provider: string
   console: readonly string[]
   ended?: string | null
+  /** How far the match got, when it ended without a fatal line: "it went live but no round was played". */
+  progress?: string | null
 }): string {
-  const { build, provider, console: lines, ended } = input
+  const { build, provider, console: lines, ended, progress } = input
   const hits = lines
     .map(line => ({
       line,
@@ -217,10 +229,13 @@ export function canaryReason(input: {
   const fatal = hits.find(entry => entry.hit.fatal)
   const head = fatal
     ? `${fatal.hit.name} on ${provider}, build ${build}`
-    : `${ended ?? 'the canary ended without a round'} (${provider}, build ${build})`
-  // The fatal line, what led to it, and otherwise the last lines the server printed.
+    : `${ended ?? 'the canary ended without a round'}${progress ? `; ${progress}` : ''} (${provider}, build ${build})`
+  // The fatal line, what led to it, and otherwise the last lines the server
+  // printed — not counting the vendor's own RCON polling, which is most of a
+  // quiet console and says nothing about the game.
+  const said = lines.filter(line => !CONSOLE_NOISE.test(line))
   const quoted = (
-    hits.length > 0 ? hits.slice(-REASON_LINES).map(entry => entry.line) : lines.slice(-2)
+    hits.length > 0 ? hits.slice(-REASON_LINES).map(entry => entry.line) : said.slice(-2)
   ).map(line => `"${redactConsoleLine(line.trim()).slice(0, REASON_LINE_MAX)}"`)
   const text = quoted.length > 0 ? `${head}: ${quoted.join(' … ')}` : head
   return text.length > REASON_MAX ? `${text.slice(0, REASON_MAX - 1)}…` : text
@@ -439,9 +454,17 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
       for (const envelope of items) {
         run.afterSeq = Math.max(run.afterSeq, envelope.seq)
         const type = envelope.payload.type
-        if (type === 'match.server_ready' || type === 'server_ready') run.saw.ready = true
-        else if (type === 'going_live') run.saw.live = true
-        else if (type === 'round_end') run.saw.round = true
+        const milestone =
+          type === 'match.server_ready' || type === 'server_ready'
+            ? 'ready'
+            : type === 'going_live'
+              ? 'live'
+              : type === 'round_end'
+                ? 'round'
+                : null
+        if (milestone === null || run.saw[milestone]) continue
+        run.saw[milestone] = true
+        log.info(`game: canary ${run.matchId}: saw ${type} (seq ${envelope.seq})`)
       }
     }
   }
@@ -486,6 +509,7 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
     if (command === null) return
     try {
       await options.rcon(as, match.serverId, command)
+      log.info(`game: canary ${run.matchId}: sent \`${command}\` (match ${match.state})`)
     } catch (error) {
       log.info(`game: canary ${run.matchId}: \`${command}\` was not taken: ${failureText(error)}`)
     }
@@ -515,7 +539,13 @@ export function createGameCanaries(options: GameCanariesOptions): GameCanaries {
       await decide(
         run,
         'red',
-        canaryReason({ build: run.build, provider: run.provider, console: run.console, ended }),
+        canaryReason({
+          build: run.build,
+          provider: run.provider,
+          console: run.console,
+          ended,
+          progress: fatal === undefined ? progressOf(run.saw) : null,
+        }),
       )
       await endMatch(run, match, 'the canary is red')
       return
