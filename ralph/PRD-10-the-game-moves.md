@@ -321,7 +321,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   home and prints the plan it would have run; if upstream has shipped anything newer by
   then, one assisted run follows it for real (≤ 30 ¢, named) and that is the proof;
   otherwise the proof is the dry run plus the fake-release test, written plainly.
-- [ ] **T6 (effort: medium): The HUD addon gate, and the switch back on.**
+- [x] **T6 (effort: medium): The HUD addon gate, and the switch back on.**
   `EZPUG_IRON_HUD_ADDON` is honoured only while the current build's **`hud` canary** is green
   — a second canary row per build, the same match with `hud: true`, which means the loader
   file *is* uploaded for that one match and the verdict reads MultiAddonManager's own lines
@@ -342,6 +342,15 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   > (`hudGate`). The nodes provider still hands `EZPUG_HUD_ADDON` to every container, so
   > the dev node's `hud-on` row keeps working while a node's build has no canary (T4/T8).
   > Making the gate whole means deciding what a node's `hud` verdict is.
+- [ ] **T6a (effort: medium): Dathost's RCON answer on a busy server.** Found in T6:
+  `providers/dathost/provider.ts` `rcon()` takes the answer as
+  `lines.slice(backlog.length)` of two console reads that are both capped at
+  `DATHOST_CONSOLE_LINES` (200). On a server whose console already holds 200 lines, which
+  is every live match, the slice is empty, so `POST /v1/fleet/servers/:id/rcon` answers `""`
+  and the hud canary's `mm_client_extra_addons` ask has to fall back to the console read.
+  Align the two reads on their overlap (the backlog's last lines found in the second read,
+  then what follows the echoed command), with a fake whose console is full. Red first: a
+  200-line console, one command, the answer returned.
 - [ ] **T7 (effort: medium): `@ezpug/match-api` 0.35.0, and what the platform takes.** One
   additive release: `providerHealth.game`, `GET /v1/fleet/game`, `POST /v1/fleet/game/canary`,
   `gameFactSchema`, the fake's knob, the conformance flow (`game-build-moves`), the JSON
@@ -379,6 +388,10 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   first on the fake node and the fake server: a hello with a newer build than the pins'
   proof → `unproven` with the reason; a matching one → green. The dev node on this box is
   the real one: its hello in the progress line.
+  > from T6 (decision 40): a node's `hud` verdict is the dev-node canary's `hud-on` row for
+  > the node's build and image. Fold it into the `nodes` provider's `game.hud` here, and have
+  > the nodes provider hand `EZPUG_HUD_ADDON` to a container only while that verdict is green
+  > (today it hands it to every container: `providers/nodes/provider.ts`, `hudAddon`).
 - [ ] **T9 (effort: medium): The books, and the move rehearsed end to end.** `docs/pins.md`:
   the rows T1 wrote re-read once more, "Bumping one" rewritten as `pnpm game:follow` with the
   hand steps kept as what the verb does; `docs/operations.md`: a new section **"CS2 update
