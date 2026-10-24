@@ -176,7 +176,7 @@ Traced 2026-10-24 at `8dd8d82`. Trust the file over this note.
   rental, ≤ 10 ¢, named). Comment on #13 with the three shas and tick its first two boxes;
   the issue closes in T6. The progress line records the boot count, each boot's seconds,
   and the diff of what `dathost:image` moved.
-  > blocked (2026-10-24, on the owner): (a) `bf02096` and (b) `a815c09` are committed and
+  > blocked: (2026-10-24, on the owner) (a) `bf02096` and (b) `a815c09` are committed and
   > `ghcr.io/ezpug/ezpug-iron/cs2:dev` is built from `a815c09`. **(c) cannot boot anything on
   > the dev node: the `ezpug-iron-cs2_cs2-data` volume no longer exists.** On 2026-10-19 the owner
   > approved deleting it in a box-wide disk cleanup (a `/root/signotec-prepare` session), along
