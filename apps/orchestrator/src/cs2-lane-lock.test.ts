@@ -56,6 +56,11 @@ type LaneLockModule = {
   readLaneLock: (path?: string) => LaneLockEntry | null
   describeLaneLock: (entry: LaneLockEntry | null) => string
   releaseLaneLock: (path: string, token?: string | null) => boolean
+  refreshLaneLock: (
+    path: string,
+    token: string | null,
+    options?: { clock?: { now: () => number } },
+  ) => boolean
   laneLockHolderLives: (
     entry: LaneLockEntry | null,
     options?: { ttlMs?: number; clock?: { now: () => number } },
@@ -240,6 +245,35 @@ describe('the CS2 lane lock', () => {
 
     const taken = await lock.takeLaneLock({ path, clock })
     expect(taken.broke?.token).toBe(theirs.token)
+  })
+
+  it('keeps a long hold alive by refreshing its stamp, and only its own (PRD-10 T4)', async () => {
+    // A 67 GB install and eight boots outlast the TTL. The holder is alive the
+    // whole time, so it says so: same token, a fresh `sinceMs`, and a waiter
+    // past the original ninety minutes still finds a living lock.
+    const clock = testClock()
+    const mine = await lock.takeLaneLock({ path, clock, holder: 'ezpug-iron', what: 'cs2:canary' })
+    clock.jump(lock.LANE_LOCK_TTL_MS - 60_000)
+    expect(lock.refreshLaneLock(path, mine.entry.token, { clock })).toBe(true)
+    clock.jump(2 * 60_000)
+
+    const after = lock.readLaneLock(path)
+    expect(after?.token).toBe(mine.entry.token)
+    expect(after?.what).toBe('cs2:canary')
+    expect(after?.sinceMs).toBe(clock.now() - 2 * 60_000)
+    expect(lock.laneLockHolderLives(after, { clock }), 'a refreshed hold read as a corpse').toBe(
+      true,
+    )
+    expect(readdirSync(dir), 'the refresh left its temporary file').toEqual(['lane.lock'])
+
+    // Somebody else's lock, a corpse, or no lock at all is never ours to stamp.
+    expect(lock.refreshLaneLock(path, 'not-my-token', { clock })).toBe(false)
+    const theirs = held({ token: 'a-newer-token' })
+    expect(lock.refreshLaneLock(path, mine.entry.token, { clock })).toBe(false)
+    expect(lock.readLaneLock(path)?.sinceMs).toBe(theirs.sinceMs)
+    rmSync(path)
+    expect(lock.refreshLaneLock(path, mine.entry.token, { clock })).toBe(false)
+    expect(existsSync(path)).toBe(false)
   })
 
   it('judges a lock from another host by its age alone', () => {

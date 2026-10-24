@@ -147,6 +147,7 @@ pnpm cs2:status    # image built? game installed? container running, and what it
 pnpm cs2:logs      # follow it
 pnpm cs2:console   # attach to the server console — detach with Ctrl-P Ctrl-Q
 pnpm cs2:down      # stop it; the game install stays in the volume
+pnpm cs2:canary    # the dev-node canary: the volume at Steam's build, N boots, lane rows, one verdict
 ```
 
 **What is in the image, and what is not.** In: Metamod, CounterStrikeSharp (the release
@@ -170,7 +171,8 @@ else in this repo downloads anything at runtime (decision 16).
 when Valve ships one. The `cs2-data` volume moves only when `pnpm cs2:install` runs, so the
 dev node falls behind without anybody noticing, and the lane stops seeing what production
 plays. T11's demo bug lived in exactly that gap. So the rule is: **when Valve ships a CS2
-update, run `pnpm cs2:install` on this box**, with the lane free
+update, run `pnpm cs2:canary` on this box** (below; it runs `cs2:install` itself when the
+volume trails), or `pnpm cs2:install` by hand with the lane free
 (`node scripts/cs2-lane-lock.mjs status`) and no `ezpug-iron-cs2` container running,
 because steamcmd writes into the files a running server has open. You can tell Valve
 has shipped from either of two signs: a Dathost server boots a newer version than the dev
@@ -198,6 +200,48 @@ A server can be asked for the PatchVersion wherever it runs — a file on Dathos
 the files API, a file on a node's volume — so the watcher stores that as the build and
 carries the other two on the fact as labels. The volume's `appmanifest_730.acf` reading
 is T8's, when the node states its build in its hello.
+
+**The dev-node canary, for the image (`pnpm cs2:canary`, PRD-10 T4).** "Boot a bump
+several times before you trust it" (`docs/pins.md`, the git1468 lesson) is a verb:
+
+```sh
+pnpm cs2:canary                               # 8 boots, then the retakes and pug-2v1 rows
+pnpm cs2:canary --boots 3 --rows retakes      # fewer of each; --rows none plays no row
+pnpm cs2:canary --lock-token "$(cat token)"   # inside a hold of the lane somebody else has
+```
+
+In order: it takes the lane lock like any row (or checks the hold it was handed, and then
+takes, refreshes and releases nothing); refuses while any CS2 container runs; refuses an
+image whose `build.json` names another CounterStrikeSharp than the tree pins (`pnpm
+cs2:build` first); reads Steam's public build (Valve's `UpToDateCheck`) and the volume's
+`steam.inf`, and runs `cs2:install` when the volume trails or is empty. "No delta" (below)
+fails with its cause named and is not retried, since `install-game.sh` already revalidated
+once. Then it boots the image N times through the dev orchestrator's `nodes` provider. A
+boot is one match with nobody on it, cancelled the moment it is `ready`. Each boot is
+timed from the request to CounterStrikeSharp's first console line (`CSSharp:
+Initializing`) and to `server_ready`. Its console is kept in
+`.cache/cs2-canary/<run>/boot-<n>.log`. Then it plays the named rows through the lane's
+own test (`EZPUG_CS2_CASES=<row>`, `EZPUG_CS2_LANE_TOKEN` = its hold), one at a time.
+
+It is **red** on a boot with no `server_ready` 60 s after its request (a hang), on a
+`Failed to find signature`, a breakpad, `SERVER EXITED` or a segfault in the console, on a
+boot that fails, or on a red row. A red boot skips the rows. The verdict is one file,
+`.verify/cs2-canary-<build>.json`:
+
+```json
+{ "build": "1.41.9.2", "sourceRevision": "11162119", "steamBuildId": "26144732",
+  "image": "<build.json's commit>", "imageRef": "ghcr.io/ezpug/ezpug-iron/cs2:dev",
+  "pins": { "metamod": "…", "counterstrikesharp": "…", "matchzy": "…", "multiaddonmanager": "…" },
+  "boots": [{ "cssMs": 4100, "readyMs": 7300 }], "rows": { "retakes": "green", "pug-2v1": "green" },
+  "state": "green", "reason": null, "at": "…" }
+```
+
+Alongside the file it prints one line on stdout. It exits 0 when green and 1 when red. A
+**refusal** (the lane, a running container, a stale image, a volume it could not bring to
+the build, no dev orchestrator or no healthy `nodes` provider) judges nothing. It writes
+no file, exits 2 and names what stopped it. It needs the dev world: `pnpm dev` with
+`EZPUG_IRON_PROVIDERS` naming `nodes`, and `pnpm dev:node up`. `pnpm game:follow` (T5)
+calls it, and `docs/hud.md`'s drill after an update starts with it.
 
 **When Steam will not serve a delta.** To update a depot, steamcmd first fetches the
 manifest of the build that is installed. An anonymous login only gets a manifest's request
@@ -709,7 +753,8 @@ green on the build the clone runs, or when the match is itself the `hud` canary
 (`{ "hud": true }`). That is the one match allowed to find out. Every other server is
 configured without it, and the log says so per server. Its `hello` then truthfully lacks
 `hud`. The nodes provider still hands the id to every container: a node's build has no
-canary until T4 and T8, and T6 makes the gate whole.
+canary in the orchestrator. T4's `pnpm cs2:canary` judges the image on the dev node from
+outside it, T8 carries that verdict to a node, and T6 makes the gate whole.
 
 ### When a provider dies on a Saturday
 
@@ -2305,6 +2350,11 @@ checkout and never imports this repo — forty lines on either side):
 - **Backward compatible, in one direction.** The lock file is unchanged, so a side that
   knows no queue still waits for a held lock and is still waited for. It just gets no
   fairness: it can take a free lane over somebody's ticket. Both sides implement the queue.
+- **A long hold refreshes its stamp** (PRD-10 T4). A hold that knows it will outlast the
+  90 minutes (`pnpm cs2:canary` with a 67 GB install in it) rewrites its own `since` and
+  `sinceMs` every 20 minutes, with the same token and JSON, written aside and renamed over
+  the file (`refreshLaneLock`). A living holder is then never judged by an age it did not
+  have. The other side needs no change: it reads the stamp as it always has.
 - A lock may be **broken** only when its holder is provably gone: `pid` on this `host`
   answering no signal, an age above **90 minutes** (longer than any budget on the ladder
   and longer than the platform's golden path), or contents that are not this JSON. The

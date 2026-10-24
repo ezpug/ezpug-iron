@@ -246,6 +246,28 @@ export function releaseLaneLock(path = LANE_LOCK_PATH, token = null) {
 }
 
 /**
+ * **Say the holder is still here** (PRD-10 T4). A lock older than the TTL is a
+ * corpse to anyone who reads it, whatever its pid says, so a hold that knows it
+ * will run longer — a 67 GB `cs2:install`, eight boots and two rows — rewrites
+ * its own `since`/`sinceMs` now and then. Same token, same JSON, written aside
+ * and renamed over the file so no reader ever sees half of it; nothing changes
+ * for the other side, which reads the stamp as it always has. Refuses (false)
+ * when the lock is no longer ours.
+ */
+export function refreshLaneLock(path = LANE_LOCK_PATH, token = null, { clock = wallClock } = {}) {
+  const held = readLaneLock(path)
+  if (held === null || held.corrupt === true || token === null || held.token !== token) return false
+  const at = clock.now()
+  const fresh = `${path}.refresh-${token}`
+  writeFileSync(
+    fresh,
+    `${JSON.stringify({ ...held, since: new Date(at).toISOString(), sinceMs: at }, null, 2)}\n`,
+  )
+  renameSync(fresh, path)
+  return true
+}
+
+/**
  * **Take the lane, waiting for whoever has it.**
  *
  * Resolves with the lock held and a `release()` that gives it back; rejects

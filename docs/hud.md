@@ -98,13 +98,16 @@ an evening that uses the HUD, in this order:
    `pnpm dathost:image` before anything else: a template whose clones cannot boot fails
    every Dathost match after a three-minute deadline, with or without the HUD, and nothing
    in the orchestrator's health notices.
-2. **The dev node is on the same game.** `pnpm cs2:status` names the installed build. If it
-   trails what Dathost boots, run `pnpm cs2:install` with the lane free. Until then the lane
-   proves the plugins on a game production no longer runs.
-3. **The plugins load.** The lane's `retakes` row first: it is the canary for a CS2 update
-   that outran CounterStrikeSharp (exit 139 is a segfault). Then `hud-off` from the matrix,
-   then `hud-on` inside a hold of the lane ("The lane, both ways", below). `hud-on` is the
-   one that says MultiAddonManager loaded and holds the id.
+2. **The dev node is on the same game, and the image boots on it.** `pnpm cs2:canary`
+   (`docs/operations.md`, "The dev-node canary"). It brings the volume to Steam's public
+   build when it trails, boots the image eight times, and plays the lane's `retakes` row
+   (the canary for a CS2 update that outran CounterStrikeSharp; exit 139 is a segfault)
+   and `pug-2v1`, all inside one hold of the lane. Red or refused: read its one line, then
+   the verdict in `.verify/cs2-canary-<build>.json`.
+3. **The HUD's plugin loads.** `hud-off` from the matrix, then `hud-on` inside a hold of
+   the lane ("The lane, both ways", below). `hud-on` is the one that says
+   MultiAddonManager loaded and holds the id. With a hold already open, `pnpm cs2:canary
+   --lock-token <token> --rows hud-off,hud-on` plays both inside it.
 4. **MultiAddonManager upstream.** Read its releases and open issues for the build. A new
    release is a pin bump (`docs/pins.md`: version and sha-256 in `docker/cs2/Dockerfile`,
    `node scripts/check-pins.mjs`, part of `pnpm lint`), a rebuilt image, and step 1 again.

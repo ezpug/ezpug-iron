@@ -26,6 +26,7 @@
     "cs2:status": "./scripts/cs2-env.sh status",
     "cs2:logs": "./scripts/cs2-env.sh logs",
     "cs2:console": "./scripts/cs2-env.sh console",
+    "cs2:canary": "node scripts/cs2-canary.mjs",
     "iron": "pnpm --filter @ezpug/cli start",
     "node": "pnpm --filter @ezpug/node start",
     "node:build": "docker build -f docker/node/Dockerfile --build-arg EZPUG_GIT_SHA=$(git rev-parse --short HEAD) -t ghcr.io/ezpug/ezpug-iron/node:dev .",
