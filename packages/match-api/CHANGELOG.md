@@ -4,8 +4,22 @@ A change to a schema is a release with a line here (decisions 3, 24).
 
 ## Unreleased
 
-**The game moves, and a client reads it** (PRD-10 T2, for the platform's PRD-24). Additive
-only; released as 0.35.0 by T7.
+_Nothing yet._
+
+## 0.35.0 — 2026-10-24
+
+**The game moves, and a client reads it** (PRD-10, for the platform's PRD-24, which takes
+`game.build`, `game.canary`, `game.hud` and their `state`, `since`, `reason`, plus `stack`,
+and nothing else). Additive only.
+
+**What a 0.34.0 client sees against a 0.35.0 server**: everything it saw before, plus a
+`game` block on each `ProviderHealth` that it ignores, and two routes it never calls. The
+one change it can feel is on purpose: a red canary sets the provider's `healthy: false`
+with `lastError` naming the build and the reason, so a tile that only ever read `healthy`
+goes red without a bump. No new member joins `OrchestrationFact`, the gameserver event
+union or any webhook body, so a strict 0.34.0 verifier parses every envelope a 0.35.0
+server sends. A 0.35.0 client against a 0.34.0 server finds no `game` block and a 404
+on both routes.
 
 - **`ProviderHealth.game`** (optional): `{ build: { id, since } | null, stack, canary, hud }`
   — the build this provider's servers run (the game's own `PatchVersion`, e.g. `1.41.9.2`),
@@ -25,6 +39,11 @@ only; released as 0.35.0 by T7.
 - **`gameFactSchema`** gains `game.canary_started` and `game.canary_verdict` (its own
   union, still never the orchestration one). The fake plays a canary green at once and
   writes both facts.
+- **`hud: true`** on the canary (PRD-10 T6) is the same match with the HUD's addon loader
+  on the server, and `ProviderHealth.game.hud` is its verdict. Until it reads `green`, every
+  other match on the provider is served without the loader.
+- **JSON Schemas** for `GameFact`, `FleetGame`, `GameCanaryRequest` and `GameCanaryRun`
+  join `matchApiJsonSchemas`; `ProviderHealth`'s gains the optional `game`.
 
 ## 0.34.0 — 2026-10-05
 

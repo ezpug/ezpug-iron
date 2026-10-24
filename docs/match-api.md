@@ -724,8 +724,14 @@ asOf }`. `available` is null where a provider cannot count.
   `{ state: green | red | unproven, build, since, reason }` — the plain canary match and the
   one with the HUD's addon loader on the server. `unproven` is the honest state of a build
   nobody has played on yet: a server is still allocated on it, and the reading says so. A
-  client takes `build`, `state`, `since`, `reason` and `stack`, and learns no plugin's name.
-- **GameFact** (`gameFactSchema`, PRD-10 T2): what the build watcher writes, once each,
+  client takes `build`, `canary`, `state`, `since`, `reason` and `stack`, and learns no
+  plugin's name: those are the words a client may put in front of a person ("game build
+  1.41.9.2, canary red since 21:47, because the server crashed on boot"). The platform's
+  PRD-24 reads exactly these: its fleet and console tiles go red on `game.canary.state !==
+  'green'` with the build id and the reason, it tells the owner on a red verdict and on an
+  `unproven` older than its own setting, and it shows `GET /v1/fleet/game` behind its admin
+  door as the history. Nothing there speaks to Steam or GitHub.
+- **GameFact** (`gameFactSchema`, since 0.35.0, PRD-10 T2): what the build watcher writes, once each,
   append-only — `game.build_moved { from, to, observedAt, steamBuildId, sourceRevision,
   pins }` and `game.upstream_released { repo, version, publishedAt, pinned, observedAt }`;
   and what the canary writes (PRD-10 T3) — `game.canary_started { provider, build, hud,
@@ -734,10 +740,10 @@ asOf }`. `available` is null where a provider cannot count.
   **Never a member of `OrchestrationFact`**: a game fact is state a client *reads* off
   `GET /v1/fleet/game`, not an envelope it must parse (0.16.0's `team: "unrostered"` broke
   every strict client; decision 37).
-- **FleetGame**: `{ build: { id, since, steamBuildId, sourceRevision } | null, upstream:
+- **FleetGame** (since 0.35.0): `{ build: { id, since, steamBuildId, sourceRevision } | null, upstream:
   [{ repo, pinned, latest, publishedAt }], providers: [{ id, game }], recent: GameFact[] }`,
   `recent` newest first and at most 50.
-- **GameCanaryRun** (PRD-10 T3): `{ provider, build, hud, attempt, matchId, cause,
+- **GameCanaryRun** (since 0.35.0, PRD-10 T3): `{ provider, build, hud, attempt, matchId, cause,
   startedAt, finishedAt, verdict }` — one canary match for one build; `finishedAt` is null
   and `verdict.state` is `unproven` while it plays.
 - **Node**: `{ id, labels, region, version, connected, lastSeenAt, drained, capacity:
@@ -884,14 +890,14 @@ so a tile that only ever read `healthy` goes red without learning a word of it.
 
 ### `GET /v1/fleet/game`
 
-Scope `fleet`. `FleetGame`: Steam's public build as the watcher last read it, the upstreams
+Since 0.35.0. Scope `fleet`. `FleetGame`: Steam's public build as the watcher last read it, the upstreams
 the server stack pins with the newest release seen of each, every provider's `game`
 picture, and the recent facts newest first. A read of what a timer keeps fresh — nothing
 here calls Steam or GitHub on the request.
 
 ### `POST /v1/fleet/game/canary`
 
-Scope `fleet`. Body `{ provider, hud? }` (`hud` defaults to `false`), answers
+Since 0.35.0. Scope `fleet`. Body `{ provider, hud? }` (`hud` defaults to `false`), answers
 `GameCanaryRun` at once. Plays **the canary** for the provider's current build: the pug a
 person would run by hand to see whether a build works, with bots instead of players, two rounds, on
 a key the orchestrator mints for itself (`canary`: one server, ten minutes, a monthly

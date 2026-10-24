@@ -142,9 +142,9 @@ The other two release tags are `match-api@x.y.z` (npm, with provenance —
 `.github/workflows/release.yml`, decision 24) and `plugins@x.y.z` (the plugin zip attached
 to a GitHub release, `.github/workflows/plugins.yml`, whose version has to be the one
 `plugins/EZPug.Core/EZPug.Core.csproj` carries). Where those two stand today: the package
-is **`0.34.0`** in this tree and on the box's Verdaccio (`http://172.17.0.1:4873/`, `latest`;
+is **`0.35.0`** in this tree and on the box's Verdaccio (`http://172.17.0.1:4873/`, `latest`;
 `0.20.0` and `0.21.0` each published from the commit that cut it, PRD-04 T9, `0.23.0`
-from PRD-05 T1's, `0.24.0` from PRD-05 T2's, `0.25.0` from PRD-05 T2b's, `0.26.0` from PRD-05 T2c's, `0.27.0` from PRD-05 T2d's, `0.28.0` from PRD-06 T1's, `0.30.0` from PRD-06 T2's, `0.31.0` from PRD-07 T4's, `0.31.1` from PRD-07 T12's, `0.32.0` from PRD-08 T1a's, `0.33.0` from `e067a28` (the tag; cut in `de80b3c` the same day), and `0.34.0` from PRD-09 T7's; `0.29.0` was cut in PRD-06 T1a's commit but never published or tagged, because that run stopped first, and everything in it ships in `0.30.0`) — and waiting
+from PRD-05 T1's, `0.24.0` from PRD-05 T2's, `0.25.0` from PRD-05 T2b's, `0.26.0` from PRD-05 T2c's, `0.27.0` from PRD-05 T2d's, `0.28.0` from PRD-06 T1's, `0.30.0` from PRD-06 T2's, `0.31.0` from PRD-07 T4's, `0.31.1` from PRD-07 T12's, `0.32.0` from PRD-08 T1a's, `0.33.0` from `e067a28` (the tag; cut in `de80b3c` the same day), `0.34.0` from PRD-09 T7's, and `0.35.0` from PRD-10 T7's; `0.29.0` was cut in PRD-06 T1a's commit but never published or tagged, because that run stopped first, and everything in it ships in `0.30.0`) — and waiting
 on an `npm login` for npmjs, so its tag is cut and held rather than pushed — pushing it would
 only run `release.yml` into a registry nobody here can write to; the plugin zip is
 **`plugins@0.1.0`**, `EZPug.Core`'s own `<Version>`, on the tag's GitHub release with its
@@ -240,6 +240,10 @@ from a client's side (PRD-08 T1, released as T1a for the platform's PRD-18 T5b):
 and nothing else, and `pug` names 600. **0.34.0** is after the playtest (PRD-09, for the platform's PRD-20 T17):
 `position_tick`'s `positions[].side`, the request's `voice.halftime`, the manifest's
 `capabilities.halftimeVoice` and the `halftime_started` fact.
+**0.35.0** is the game moving (PRD-10, for the platform's PRD-24): `ProviderHealth.game`
+(the build, one opaque `stack` revision, the plain and the `hud` canary's verdict),
+`GET /v1/fleet/game`, `POST /v1/fleet/game/canary` and `gameFactSchema`, which is never a
+member of the orchestration union.
 
 ## Bumping one
 
