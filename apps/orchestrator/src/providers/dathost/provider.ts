@@ -185,6 +185,15 @@ export interface DathostProviderOptions {
    * id in `ezpug.json`. Absent, `configure` writes what it always has.
    */
   hudAddon?: string
+  /**
+   * **The HUD gate** (PRD-10 T3, decision 38): asked in `configure` for every
+   * match while `hudAddon` is set — may this match's server carry the loader?
+   * No while the provider's `hud` canary has not passed the build it runs, so
+   * a build that kills servers with the loader never reaches a player with
+   * it. Absent, the loader goes wherever an id is set (a test, the scripts).
+   * A gate that throws is a no.
+   */
+  hudGate?: (matchId: string) => Promise<boolean>
   offeringsTtlMs?: number
   templateSyncTtlMs?: number
   requestTimeoutMs?: number
@@ -317,6 +326,22 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
   let cachedOffering: { at: number; offering: ServerOffering } | undefined
   let templateSyncedAt: number | undefined
   let warnedAboutGslt = false
+
+  /** The gate's answer for one match; a refusal is said once per server, a broken gate is a no. */
+  const hudAllowed = async (matchId: string, serverId: string): Promise<boolean> => {
+    if (!options.hudGate) return true
+    let allowed = false
+    try {
+      allowed = await options.hudGate(matchId)
+    } catch (error) {
+      log?.warn(`dathost: the HUD gate did not answer for ${serverId} (${errorText(error)})`)
+    }
+    if (!allowed)
+      log?.info(
+        `dathost: ${serverId} is configured without the HUD addon loader: no hud canary has passed the build it runs`,
+      )
+    return allowed
+  }
 
   /** The one thing this adapter must never do to the template. */
   const assertNotTemplate = (serverId: string, verb: string): void => {
@@ -568,6 +593,8 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
 
   return {
     id: DATHOST_PROVIDER_ID,
+    // Dathost moves its servers' CS2 itself (PRD-10 T3): a move here is a canary.
+    updatesItself: true,
 
     /**
      * **The health probe** (T31): `GET /account`, the cheapest authenticated
@@ -679,7 +706,8 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
       // The HUD (PRD-07 T2a): what the CS2 entrypoint does on a node, done
       // here, before the first boot, because Metamod reads its loader files
       // once. The template never carries this file (`dathost-image.mjs`).
-      if (hudAddon !== undefined) await upload(serverId, HUD_ADDON_LOADER_PATH, HUD_ADDON_LOADER)
+      const hud = hudAddon !== undefined && (await hudAllowed(configuration.matchId, serverId))
+      if (hud) await upload(serverId, HUD_ADDON_LOADER_PATH, HUD_ADDON_LOADER)
       // Where home is (`EZPug.Sdk.Sidecar`): the link URL and this server's
       // token, and the HUD's id when there is one. The assignment itself
       // comes down the link.
@@ -690,7 +718,7 @@ export function createDathostProvider(options: DathostProviderOptions): GameServ
           {
             url: configuration.link.url,
             token: configuration.link.serverToken,
-            ...(hudAddon !== undefined && { hudAddon }),
+            ...(hud && { hudAddon }),
           },
           null,
           2,

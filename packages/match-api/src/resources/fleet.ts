@@ -246,9 +246,50 @@ export const gameUpstreamReleasedFactSchema = z.object({
 })
 export type GameUpstreamReleasedFact = z.infer<typeof gameUpstreamReleasedFactSchema>
 
+/** Why a canary was played: the watcher saw a provider's build move, or somebody asked (PRD-10 T3). */
+export const GAME_CANARY_CAUSES = ['build_moved', 'demand'] as const
+export const gameCanaryCauseSchema = z.enum(GAME_CANARY_CAUSES)
+export type GameCanaryCause = z.infer<typeof gameCanaryCauseSchema>
+
+/**
+ * A canary match was put on a provider for a build (PRD-10 T3): the match a
+ * person would run by hand to see whether the build boots, goes live and
+ * plays a round. `attempt` counts per (provider, build, hud) from 1, so a red
+ * that was run again says which run this is.
+ */
+export const gameCanaryStartedFactSchema = z.object({
+  type: z.literal('game.canary_started'),
+  provider: kebabNameSchema,
+  build: gameBuildIdSchema,
+  /** True for the canary that carries the HUD's addon loader. */
+  hud: z.boolean(),
+  attempt: z.number().int().positive(),
+  matchId: matchIdSchema,
+  cause: gameCanaryCauseSchema,
+  observedAt: timestampSchema,
+})
+export type GameCanaryStartedFact = z.infer<typeof gameCanaryStartedFactSchema>
+
+/** What one canary match said about its build: a pass, or a failure in one sentence. */
+export const gameCanaryVerdictFactSchema = z.object({
+  type: z.literal('game.canary_verdict'),
+  provider: kebabNameSchema,
+  build: gameBuildIdSchema,
+  hud: z.boolean(),
+  attempt: z.number().int().positive(),
+  matchId: matchIdSchema,
+  state: z.enum(['green', 'red']),
+  /** Why red: the failure named, with the console lines that showed it. Null on green. */
+  reason: z.string().max(512).nullable(),
+  observedAt: timestampSchema,
+})
+export type GameCanaryVerdictFact = z.infer<typeof gameCanaryVerdictFactSchema>
+
 export const gameFactSchema = z.discriminatedUnion('type', [
   gameBuildMovedFactSchema,
   gameUpstreamReleasedFactSchema,
+  gameCanaryStartedFactSchema,
+  gameCanaryVerdictFactSchema,
 ])
 export type GameFact = z.infer<typeof gameFactSchema>
 export type GameFactType = GameFact['type']
@@ -283,6 +324,33 @@ export const fleetGameSchema = z.object({
   recent: z.array(gameFactSchema).max(GAME_FACTS_RECENT_MAX),
 })
 export type FleetGame = z.infer<typeof fleetGameSchema>
+
+/** Body of `POST /v1/fleet/game/canary` (PRD-10 T3): which provider, and whether the HUD's loader rides along. */
+export const gameCanaryRequestSchema = z.object({
+  provider: kebabNameSchema,
+  hud: z.boolean().default(false),
+})
+export type GameCanaryRequest = z.infer<typeof gameCanaryRequestSchema>
+export type GameCanaryRequestInput = z.input<typeof gameCanaryRequestSchema>
+
+/**
+ * **One canary run** — the answer of `POST /v1/fleet/game/canary`. A run that
+ * is still playing has no `finishedAt` and its verdict reads `unproven`; a
+ * second request for the same (provider, build, hud) while it plays is
+ * answered with this same run rather than a second match.
+ */
+export const gameCanaryRunSchema = z.object({
+  provider: kebabNameSchema,
+  build: gameBuildIdSchema,
+  hud: z.boolean(),
+  attempt: z.number().int().positive(),
+  matchId: matchIdSchema,
+  cause: gameCanaryCauseSchema,
+  startedAt: timestampSchema,
+  finishedAt: timestampSchema.nullable(),
+  verdict: gameCanarySchema,
+})
+export type GameCanaryRun = z.infer<typeof gameCanaryRunSchema>
 
 // ---------------------------------------------------------------------------
 // Nodes

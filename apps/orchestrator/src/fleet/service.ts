@@ -87,11 +87,27 @@ export function createFleet(options: FleetOptions): Fleet {
   const openCount = async (providerId: string): Promise<number> =>
     (await store.listOpenServers(providerId)).length
 
-  /** The registry's health, with the game's picture beside it (PRD-10 T2). */
-  const health = async (id: string): Promise<ProviderHealth> => ({
-    ...registry.health(id, await openCount(id)),
-    game: await game.provider(id),
-  })
+  /**
+   * The registry's health, with the game's picture beside it (PRD-10 T2).
+   * **A red canary is an unhealthy provider** (PRD-10 T3): the tile a client
+   * already renders goes red, with the build and the reason as its error,
+   * and nobody has to learn a new field to see it. Allocation is untouched
+   * — a red build is still served (decision 38) — and a probe's own failure,
+   * the more urgent of the two, keeps its line.
+   */
+  const health = async (id: string): Promise<ProviderHealth> => {
+    const base = registry.health(id, await openCount(id))
+    const picture = await game.provider(id)
+    if (picture.canary.state !== 'red') return { ...base, game: picture }
+    return {
+      ...base,
+      healthy: false,
+      lastError:
+        base.lastError ??
+        `canary red on build ${picture.canary.build ?? 'unknown'}: ${picture.canary.reason ?? 'no reason given'}`,
+      game: picture,
+    }
+  }
 
   const findRow = async (serverId: string): Promise<ServerRow> => {
     let row = UUID.test(serverId) ? await store.findServer(serverId) : undefined

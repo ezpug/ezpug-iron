@@ -111,6 +111,7 @@ export function createFakeHandlers(core: FakeCore): FakeHandlers {
       },
       game: {
         get: () => core.fleetGame(),
+        canary: ({ body }) => core.playCanary(body),
       },
       nodes: {
         list: () => ({ nodes: core.listNodes() }),

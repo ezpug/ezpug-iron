@@ -9,6 +9,8 @@ import type { SimPlan } from '@ezpug/sim'
 import { createApp } from '../app'
 import { type Budgets, createBudgets } from '../budget/service'
 import { createFleet, type Fleet } from '../fleet/service'
+import { createGameCanaries, type GameCanaries } from '../game/canary'
+import { createExclusive } from '../game/exclusive'
 import { createFakeFeeds, type FakeFeeds } from '../game/fake-feeds'
 import { feedUrls } from '../game/feeds'
 import { createGitHubIssues } from '../game/github'
@@ -87,6 +89,8 @@ export interface TestApp {
   steam: FakeSteam
   /** The build watcher over the scripted feeds (PRD-10 T2), and the feeds a test moves. */
   game: GameWatcher
+  /** The canary (PRD-10 T3), over this world's machine, keys and fleet. */
+  canaries: GameCanaries
   gameStore: ReturnType<typeof createMemoryGameStore>
   feeds: FakeFeeds
   /** Every webhook POST the worker made, in order, as the endpoint saw it. */
@@ -270,6 +274,16 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
   const feeds = createFakeFeeds({ clock })
   const gameUrls = feedUrls('http://fake-feeds.invalid')
   const githubToken = options.githubToken ?? null
+  const gameIssues = createGitHubIssues({
+    fetch: feeds.fetch,
+    clock,
+    log,
+    token: githubToken,
+    repo: 'ezpug/ezpug-iron',
+    apiUrl: gameUrls.githubApi,
+  })
+  const gameWrites = createExclusive()
+  const holder: { canaries?: GameCanaries } = {}
   const game = createGameWatcher({
     clock,
     log,
@@ -277,15 +291,10 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     registry: providers,
     fetch: feeds.fetch,
     urls: gameUrls,
-    issues: createGitHubIssues({
-      fetch: feeds.fetch,
-      clock,
-      log,
-      token: githubToken,
-      repo: 'ezpug/ezpug-iron',
-      apiUrl: gameUrls.githubApi,
-    }),
+    issues: gameIssues,
     githubToken,
+    exclusive: gameWrites,
+    onProviderBuild: (provider, build) => holder.canaries?.providerMoved(provider, build),
   })
   const fleet = createFleet({
     clock,
@@ -295,6 +304,20 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     links,
     game: createGameReads({ store: gameStore, registry: providers }),
   })
+  // The canary (PRD-10 T3) over the same doors the composition root gives it.
+  const canaries = createGameCanaries({
+    clock,
+    log,
+    store: gameStore,
+    registry: providers,
+    matches,
+    keys,
+    rcon: (key, serverId, command) => fleet.rcon(key, serverId, command),
+    issues: gameIssues,
+    gamemodes: options.gamemodes ?? SHIPPED_GAMEMODES,
+    exclusive: gameWrites,
+  })
+  holder.canaries = canaries
   const widgets = createWidgetService({ clock, log, store, matches, hub })
   // Every test world has a working pool: the fake Steam is in process, so
   // `GET /v1/fleet/gslt` answers real numbers and a Dathost-shaped provider
@@ -336,7 +359,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, budgets, gamemodes: catalog, matches, fleet, nodes, gslt }),
+      createHandlers({ keys, budgets, gamemodes: catalog, matches, fleet, nodes, gslt, canaries }),
     ),
     rateLimiter: createRateLimiter({
       clock,
@@ -399,6 +422,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
     gslt,
     steam,
     game,
+    canaries,
     gameStore,
     feeds,
     posted,
@@ -460,6 +484,7 @@ export function createTestApp(options: TestAppOptions = {}): TestApp {
       await webhooks.close()
       await reaper.stop()
       await probes.stop()
+      await canaries.stop()
       await budgets.stop()
       await gslt.stop()
       await hub.close()

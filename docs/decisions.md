@@ -116,6 +116,37 @@ it here.
     to end); a per-provider build read on the request (the health route is a read of what
     a timer keeps fresh, like the probes').
 
+38. **A build is played before a player plays it, and a red build is still served.**
+    (PRD-10 T3, 2026-10-24; the owner's brief "The game moves".) **The canary** is the
+    match the owner ran by hand on 2026-10-23, played by the orchestrator. It is `pug` on
+    `de_dust2` with four of the engine's bots by rules, two rounds, pinned to one provider.
+    It is played unattended when the build of a provider whose vendor updates its game
+    (Dathost) moves, and on demand through `POST /v1/fleet/game/canary`. It runs on a key
+    the orchestrator mints for itself: `matches` only, one server, ten minutes, a monthly
+    ceiling. So the money has a wall that is not the code's good behaviour. **The verdict is
+    a fact per build**. It is `green` once the server was ready, went live and played a
+    round. It is `red` with one sentence when it crashed, never got ready, was lost or ended
+    otherwise; the sentence names the crash pattern off the provider's console door and
+    quotes its lines, never the whole log. Until then it is `unproven`. A red canary makes
+    the provider `healthy: false`, so the platform's tile goes red without a new word.
+    **A red or unproven build is still served.** There is no safe alternative to a match:
+    refusing one would stop a match on a build that may well work, and a LAN with no
+    internet has only the server it has. The orchestrator refuses **one thing on its own**:
+    the HUD's addon loader. That loader killed every server twice, and a match without it
+    loses nothing, so a Dathost clone gets it only when the provider's `hud` canary is
+    green on the build the clone runs, or when the match is that canary. **A bots-only
+    `matchzy` match is started by the iron in its own words**: `bot_kick; bot_quota 0`,
+    `css_start`, the quota, `mp_warmup_end`, through the fleet's RCON door under the canary
+    key. That is the escape hatch `iron-match.mjs --force-start` names, never a client's
+    to type. Not chosen:
+    - Puppets. A canary is bots and rules, so the `simulation` scope is not what guards it.
+    - A refusal of red builds (above).
+    - Waiting for both rounds. The verdict is in at the first round, and every minute after
+      it is money.
+    - A cron or a script on the box (decision 37).
+    - A canary per match request. That spends cents on every match instead of once per
+      build.
+
 ## Gamemodes
 
 14. **A gamemode is a manifest served by the orchestrator.** `gamemodes/<id>/manifest`

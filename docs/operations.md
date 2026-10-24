@@ -631,6 +631,80 @@ without a rental.
 curl -sS https://gs.ezpug.com/v1/fleet/game -H "authorization: Bearer $FLEET_KEY" | jq .build
 ```
 
+### The canary (PRD-10 T3)
+
+A build move is a question, and **the canary** (`apps/orchestrator/src/game/canary.ts`)
+is how it gets answered before a player asks it: the match the owner ran by hand on
+2026-10-23, played by the orchestrator itself. `pug` on `de_dust2`, nobody rostered, four
+of the engine's own bots by rules (`bot_quota` and friends in `rules.cvars`, a warmup
+nobody readies for), two rounds, `requirements.provider` pinned. **No puppets**: a canary
+is bots and rules, so `simulation` and its scope are not part of it.
+
+**When.** Unattended when the watcher sees the build of a provider whose game its vendor
+updates move (`provider.updatesItself`; Dathost, because Dathost moves its servers' CS2
+the hour Valve ships). On demand for any provider through `POST /v1/fleet/game/canary
+{ provider, hud? }`:
+
+```sh
+curl -sS -X POST https://gs.ezpug.com/v1/fleet/game/canary \
+  -H "authorization: Bearer $FLEET_KEY" -H 'content-type: application/json' \
+  -d '{"provider":"dathost"}' | jq .
+```
+
+**The money has a wall of its own.** The match runs on the `canary` key, which the
+orchestrator mints at its first boot and adopts at every boot after. The key has the
+`matches` scope only, one server at a time, ten minutes a server, and a monthly ceiling
+from `EZPUG_IRON_CANARY_MONTHLY_CENTS` (default 200; a boot moves the key's ceiling to
+it). A canary that hangs is cut by the key's lifetime, not by this module's good
+behaviour. Its secret is drawn at the mint and shown nowhere: the orchestrator acts as the
+key in process. Its webhooks go to `webhooks.invalid`, because the orchestrator reads its
+own canary off the match's log.
+
+**How a bots-only pug starts.** MatchZy waits for its roster to ready up, and an anonymous
+bot never types `.ready`. So the canary does what `iron-match.mjs --force-start` does, one
+step a poll, through the fleet's RCON door (recorded in the row's RCON audit under the
+canary key):
+
+1. `bot_kick; bot_quota 0` when the match is `ready`.
+2. `css_start`.
+3. `bot_quota 4` once the match is `live`.
+4. `mp_warmup_end`.
+
+These are the iron's own stack's words, never a client's.
+
+**The verdict, per build and per `hud`.** Every five seconds the canary reads the match's
+log, and the server's console through the provider's console door:
+
+- **`green`** once `server_ready` came, the match went live and a `round_end` was heard.
+  The match is force-ended there: two rounds are the ceiling, not the goal.
+- **`red`** at the first fatal console line. These are `Engine2PreBreakpadDumpFunction`,
+  `SERVER EXITED`, `Failed to find signature` and `cs2_update_required`. A run is also red
+  when the match ends any other way: the 180 s boot deadline, a lost server or the ttl.
+  The reason is one sentence. It names the pattern and quotes the lines that showed it,
+  with `SIGNONSTATE_SPAWN` and MultiAddonManager's `Steam API Activated` quoted for
+  context. It is redacted, at most 512 characters, and never the whole log. A crash
+  cancels the match at once, so the server is not billed until the boot deadline.
+- **`unproven`** until one of those. While a run plays, the reason reads "a canary is
+  playing (attempt n, since t)".
+
+Each verdict is a `game.canary_verdict` fact, a comment on the build's issue, and the
+provider's `game.canary` (or `game.hud`). **A red canary makes the provider `healthy:
+false`**, with `lastError` reading `canary red on build <id>: <reason>`, so the platform's
+tile goes red without learning a word of this. One run per (provider, build, hud) plays at
+a time: a second trigger is answered with the running one. A finished run may be played
+again on demand, and `attempt` counts. A restart picks up every run that was started and
+never decided, from the facts, and decides it off the match's log.
+
+**What it refuses: the HUD's addon loader, and nothing else** (decision 38). A red or
+unproven build keeps being served, because there is no safe alternative to a match.
+Dathost's `configure` asks the canary's gate for every match while `EZPUG_IRON_HUD_ADDON`
+is set. The loader and the id go onto a clone only when the provider's `hud` canary is
+green on the build the clone runs, or when the match is itself the `hud` canary
+(`{ "hud": true }`). That is the one match allowed to find out. Every other server is
+configured without it, and the log says so per server. Its `hello` then truthfully lacks
+`hud`. The nodes provider still hands the id to every container: a node's build has no
+canary until T4 and T8, and T6 makes the gate whole.
+
 ### When a provider dies on a Saturday
 
 Dathost is down, or the venue's uplink is, and there are people waiting. In order, and none

@@ -14,6 +14,7 @@ import {
 import { DEFAULT_SCENARIO, listScenarios } from '@ezpug/sim'
 import type { Budgets } from '../budget/service'
 import type { Fleet } from '../fleet/service'
+import type { GameCanaries } from '../game/canary'
 import type { GsltPool } from '../gslt/pool'
 import type { AuthenticatedKey, Keys } from '../keys/service'
 import type { Matches } from '../match/machine'
@@ -61,6 +62,8 @@ export interface HandlerDependencies {
   nodes: Nodes
   /** The GSLT pool (T17) — two integers, never a token. */
   gslt: GsltPool
+  /** The canary (PRD-10 T3): `POST /v1/fleet/game/canary`. */
+  canaries: Pick<GameCanaries, 'play'>
 }
 
 /** A handler for a route a later task serves; names the task so the answer is honest. */
@@ -88,7 +91,7 @@ function upgradeRequired(path = '/v1/matches/:matchId/stream'): ApiError {
 }
 
 export function createHandlers(deps: HandlerDependencies): RouteHandlers {
-  const { keys, budgets, gamemodes, matches, fleet, nodes, gslt } = deps
+  const { keys, budgets, gamemodes, matches, fleet, nodes, gslt, canaries } = deps
   return {
     gamemodes: {
       list: () => ({ gamemodes: [...gamemodes] }),
@@ -151,6 +154,7 @@ export function createHandlers(deps: HandlerDependencies): RouteHandlers {
       },
       game: {
         get: () => fleet.game(),
+        canary: ({ body }) => canaries.play({ ...body, cause: 'demand' }),
       },
       nodes: {
         list: async () => ({ nodes: await nodes.list() }),

@@ -7,6 +7,8 @@ import {
   consoleResponseSchema,
   fleetGameSchema,
   fleetServerSchema,
+  gameCanaryRequestSchema,
+  gameCanaryRunSchema,
   gsltPoolSchema,
   ledgerFilterSchema,
   nodeEnrolmentSchema,
@@ -271,6 +273,20 @@ export const matchApiRoutes = {
         path: '/v1/fleet/game',
         scope: 'fleet',
         response: fleetGameSchema,
+      }),
+      /**
+       * Play the canary for a provider's current build now (PRD-10 T3): the
+       * pug a person would run by hand, bots by rules, two rounds, on the
+       * orchestrator's own `canary` key. Answers the run at once — a running
+       * one for the same (provider, build, hud) rather than a second match —
+       * and the verdict lands on `ProviderHealth.game` when it is known.
+       */
+      canary: defineRoute({
+        method: 'post',
+        path: '/v1/fleet/game/canary',
+        scope: 'fleet',
+        body: gameCanaryRequestSchema,
+        response: gameCanaryRunSchema,
       }),
     },
     nodes: {

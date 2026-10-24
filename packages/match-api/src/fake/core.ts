@@ -43,6 +43,8 @@ import type {
   FleetServer,
   FleetWebhookRequest,
   GameCanary,
+  GameCanaryRequest,
+  GameCanaryRun,
   GameFact,
   GamemodeManifest,
   Match,
@@ -2046,6 +2048,64 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     game.hud = { state: 'unproven', build: to, since: at, reason: null }
   }
 
+  /**
+   * `POST /v1/fleet/game/canary` (PRD-10 T3) in a world with no game to
+   * break: the fake's one provider is the simulator, so the canary plays at
+   * once and is green on whatever build the knob says it runs. Both facts
+   * are written as the orchestrator writes them, the attempt counted per
+   * (build, hud). No match row: the canary's match is the orchestrator's own
+   * key's, and the fake's client never sees it in `GET /v1/matches`.
+   */
+  const playCanary = (request: GameCanaryRequest): GameCanaryRun => {
+    requireProvider(request.provider)
+    observeGameBuild()
+    const build = game.build.id
+    const attempt =
+      game.facts.filter(
+        fact =>
+          fact.type === 'game.canary_started' && fact.build === build && fact.hud === request.hud,
+      ).length + 1
+    const matchId = id()
+    const at = iso()
+    game.facts.push(
+      {
+        type: 'game.canary_started',
+        provider: request.provider,
+        build,
+        hud: request.hud,
+        attempt,
+        matchId,
+        cause: 'demand',
+        observedAt: at,
+      },
+      {
+        type: 'game.canary_verdict',
+        provider: request.provider,
+        build,
+        hud: request.hud,
+        attempt,
+        matchId,
+        state: 'green',
+        reason: null,
+        observedAt: at,
+      },
+    )
+    const verdict: GameCanary = { state: 'green', build, since: at, reason: null }
+    if (request.hud) game.hud = verdict
+    else game.canary = verdict
+    return {
+      provider: request.provider,
+      build,
+      hud: request.hud,
+      attempt,
+      matchId,
+      cause: 'demand',
+      startedAt: at,
+      finishedAt: at,
+      verdict: { ...verdict },
+    }
+  }
+
   const capacity = (): Capacity => ({
     providers: [
       {
@@ -2213,6 +2273,7 @@ export function createFakeCore(options: FakeOrchestratorOptions) {
     capacity,
     providerHealth,
     fleetGame,
+    playCanary,
     requireProvider,
     setProviderDrained: (drained: boolean): void => {
       providerState.drained = drained

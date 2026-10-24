@@ -727,13 +727,19 @@ asOf }`. `available` is null where a provider cannot count.
   client takes `build`, `state`, `since`, `reason` and `stack`, and learns no plugin's name.
 - **GameFact** (`gameFactSchema`, PRD-10 T2): what the build watcher writes, once each,
   append-only — `game.build_moved { from, to, observedAt, steamBuildId, sourceRevision,
-  pins }` and `game.upstream_released { repo, version, publishedAt, pinned, observedAt }`.
+  pins }` and `game.upstream_released { repo, version, publishedAt, pinned, observedAt }`;
+  and what the canary writes (PRD-10 T3) — `game.canary_started { provider, build, hud,
+  attempt, matchId, cause: build_moved | demand, observedAt }` and `game.canary_verdict
+  { provider, build, hud, attempt, matchId, state: green | red, reason, observedAt }`.
   **Never a member of `OrchestrationFact`**: a game fact is state a client *reads* off
   `GET /v1/fleet/game`, not an envelope it must parse (0.16.0's `team: "unrostered"` broke
   every strict client; decision 37).
 - **FleetGame**: `{ build: { id, since, steamBuildId, sourceRevision } | null, upstream:
   [{ repo, pinned, latest, publishedAt }], providers: [{ id, game }], recent: GameFact[] }`,
   `recent` newest first and at most 50.
+- **GameCanaryRun** (PRD-10 T3): `{ provider, build, hud, attempt, matchId, cause,
+  startedAt, finishedAt, verdict }` — one canary match for one build; `finishedAt` is null
+  and `verdict.state` is `unproven` while it plays.
 - **Node**: `{ id, labels, region, version, connected, lastSeenAt, drained, capacity:
   { total, inUse, warm }, currentMatches, enrolledAt }`. **NodeEnrolment**: `{ node,
   token }`, the token shown once.
@@ -882,6 +888,24 @@ Scope `fleet`. `FleetGame`: Steam's public build as the watcher last read it, th
 the server stack pins with the newest release seen of each, every provider's `game`
 picture, and the recent facts newest first. A read of what a timer keeps fresh — nothing
 here calls Steam or GitHub on the request.
+
+### `POST /v1/fleet/game/canary`
+
+Scope `fleet`. Body `{ provider, hud? }` (`hud` defaults to `false`), answers
+`GameCanaryRun` at once. Plays **the canary** for the provider's current build: the pug a
+person would run by hand to see whether a build works, with bots instead of players, two rounds, on
+a key the orchestrator mints for itself (`canary`: one server, ten minutes, a monthly
+ceiling of its own). The verdict lands on the provider's `game.canary` (or `game.hud`)
+when it is known: `green` once the server was ready, the match went live and a round was
+played; `red` with one sentence of reason when the server crashed, never got ready, was
+lost or the match ended otherwise. A second request for the same provider, build and
+`hud` while one plays answers the running one; a finished one may be run again, and
+`attempt` counts. The orchestrator plays it unattended too, when the build of a provider
+whose game its vendor updates (Dathost) moves. `not_found` for an unknown provider,
+`invalid_state` while no build is known for it, and the canary key's own budget refusals
+as they are. **`hud: true`** is the same match with the HUD's addon loader on the server.
+That match is the only one to carry the loader before the provider's `game.hud` reads
+`green`. Until then every other match on the provider is served without it.
 
 ### `POST /v1/fleet/providers/:providerId/drain`
 

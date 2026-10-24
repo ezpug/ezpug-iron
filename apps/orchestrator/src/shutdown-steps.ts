@@ -47,6 +47,8 @@ export interface ShutdownStepsOptions {
   budgets?: { stop: () => Promise<void> }
   /** The build watcher (PRD-10 T2) — a timer, disarmed with the probes'. */
   game?: { stop: () => Promise<void> }
+  /** The canary's poll (PRD-10 T3) — disarmed with the watcher's; its matches drain with the machine. */
+  canaries?: { stop: () => Promise<void> }
   /** The GSLT pool's sweep (T17) — disarmed here, and its lease chain awaited. */
   gslt?: { stop: () => Promise<void> }
   webhooks?: Closable
@@ -67,6 +69,7 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     probes,
     budgets,
     game,
+    canaries,
     gslt,
     webhooks,
     matches,
@@ -97,6 +100,7 @@ export function shutdownSteps(options: ShutdownStepsOptions): DrainStep[] {
     ...(reaper ? [{ name: 'reaper', run: () => reaper.stop() }] : []),
     ...(probes ? [{ name: 'probes', run: () => probes.stop() }] : []),
     ...(game ? [{ name: 'game', run: () => game.stop() }] : []),
+    ...(canaries ? [{ name: 'canaries', run: () => canaries.stop() }] : []),
     ...(budgets ? [{ name: 'budgets', run: () => budgets.stop() }] : []),
     ...(gslt ? [{ name: 'gslt', run: () => gslt.stop() }] : []),
     ...(webhooks ? [{ name: 'webhooks', run: () => webhooks.close() }] : []),

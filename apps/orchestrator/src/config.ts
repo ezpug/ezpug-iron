@@ -168,6 +168,8 @@ export interface GameWatchConfig {
   readonly githubRepo: string
   /** `EZPUG_IRON_GAME_FEEDS_URL`: one origin every feed is read from instead of the real ones. Dev only. */
   readonly feedsUrl: string | null
+  /** `EZPUG_IRON_CANARY_MONTHLY_CENTS`: the canary key's monthly ceiling (PRD-10 T3), default 200. */
+  readonly canaryMonthlyCents: number
 }
 
 export interface OrchestratorConfig {
@@ -409,6 +411,8 @@ export const GITHUB_TOKEN_VAR = 'EZPUG_IRON_GITHUB_TOKEN'
 export const GAME_FEEDS_URL_VAR = 'EZPUG_IRON_GAME_FEEDS_URL'
 export const DEFAULT_GAME_WATCH_INTERVAL_MS = 15 * 60_000
 export const DEFAULT_GITHUB_REPO = 'ezpug/ezpug-iron'
+/** `EZPUG_IRON_CANARY_MONTHLY_CENTS` unset: two euros a month, twenty canaries at the ceiling. */
+export const DEFAULT_CANARY_MONTHLY_CENTS = 200
 
 /**
  * The watcher's doors. The feeds origin is a dev door like the fake Steam:
@@ -421,17 +425,20 @@ export function readGameWatchConfig(env: EnvRecord, production: boolean): GameWa
       intervalMs: numberFromEnv(DEFAULT_GAME_WATCH_INTERVAL_MS),
       githubRepo: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'must be `owner/repo`'),
       feedsUrl: urlWithProtocol(['http:', 'https:'], 'http(s) URL').nullable(),
+      canaryMonthlyCents: numberFromEnv(DEFAULT_CANARY_MONTHLY_CENTS),
     })
     .safeParse({
       intervalMs: env.EZPUG_IRON_GAME_WATCH_INTERVAL_MS,
       githubRepo: env.EZPUG_IRON_GITHUB_REPO?.trim() || DEFAULT_GITHUB_REPO,
       feedsUrl: env[GAME_FEEDS_URL_VAR]?.trim() || null,
+      canaryMonthlyCents: env.EZPUG_IRON_CANARY_MONTHLY_CENTS,
     })
   if (!parsed.success)
     fail(parsed.error.issues, {
       intervalMs: 'EZPUG_IRON_GAME_WATCH_INTERVAL_MS',
       githubRepo: 'EZPUG_IRON_GITHUB_REPO',
       feedsUrl: GAME_FEEDS_URL_VAR,
+      canaryMonthlyCents: 'EZPUG_IRON_CANARY_MONTHLY_CENTS',
     })
   if (production && parsed.data.feedsUrl !== null)
     throw new Error(

@@ -7,6 +7,8 @@ import { type Budgets, createBudgets } from './budget/service'
 import type { OrchestratorConfig } from './config'
 import { createDatabase, type DatabaseHandle } from './db/client'
 import { createFleet, type Fleet } from './fleet/service'
+import { createGameCanaries, type GameCanaries } from './game/canary'
+import { createExclusive } from './game/exclusive'
 import { feedUrls } from './game/feeds'
 import { createGitHubIssues } from './game/github'
 import { createPostgresGameStore } from './game/postgres-store'
@@ -98,6 +100,8 @@ export interface Orchestrator {
   readonly gslt: GsltPool
   /** The build watcher (PRD-10 T2): Steam's public build and the upstream releases, as facts. */
   readonly game: GameWatcher
+  /** The canary (PRD-10 T3): a build's verdict, played on the orchestrator's own key. */
+  readonly canaries: GameCanaries
   readonly gameStore: GameStore
   readonly upgrades: UpgradeRouter
   readonly app: ReturnType<typeof createApp>
@@ -223,6 +227,19 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
   const gameStore = createPostgresGameStore(database.db, { deployment: config.deployment })
   const gameUrls = feedUrls(config.game.feedsUrl)
   const gameFetch = options.gameFetch ?? globalThis.fetch
+  const gameIssues = createGitHubIssues({
+    fetch: gameFetch,
+    clock,
+    log,
+    token: config.game.githubToken,
+    repo: config.game.githubRepo,
+    apiUrl: gameUrls.githubApi,
+  })
+  // The watcher and the canary both write a provider's picture: one at a time.
+  const gameWrites = createExclusive()
+  // The canary (PRD-10 T3) is built below, over the fleet's RCON door; the
+  // watcher's move and the Dathost provider's HUD gate reach it lazily.
+  let canaries: GameCanaries | undefined
   const game = createGameWatcher({
     clock,
     log,
@@ -230,16 +247,11 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     registry: providers,
     fetch: gameFetch,
     urls: gameUrls,
-    issues: createGitHubIssues({
-      fetch: gameFetch,
-      clock,
-      log,
-      token: config.game.githubToken,
-      repo: config.game.githubRepo,
-      apiUrl: gameUrls.githubApi,
-    }),
+    issues: gameIssues,
     githubToken: config.game.githubToken,
     intervalMs: config.game.intervalMs,
+    exclusive: gameWrites,
+    onProviderBuild: (provider, build) => canaries?.providerMoved(provider, build),
   })
   if (config.game.feedsUrl !== null)
     log.warn(`game: reading Steam and GitHub from ${config.game.feedsUrl} — a scripted world`)
@@ -335,6 +347,9 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
             tag: config.deployment,
             gslt,
             ...(config.hudAddon !== null && { hudAddon: config.hudAddon }),
+            // Decision 38: no loader on a build the hud canary has not passed.
+            hudGate: matchId =>
+              canaries?.hudAllowed(DATHOST_PROVIDER_ID, matchId) ?? Promise.resolve(false),
             ...(options.dathostFetch && { fetch: options.dathostFetch }),
           }),
         )
@@ -348,6 +363,21 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       throw new Error(`EZPUG_IRON_PROVIDERS names "${id}", which this build does not provide`)
     }
   }
+
+  canaries = createGameCanaries({
+    clock,
+    log,
+    store: gameStore,
+    registry: providers,
+    matches,
+    keys,
+    rcon: (key, serverId, command) => fleet.rcon(key, serverId, command),
+    issues: gameIssues,
+    gamemodes: SHIPPED_GAMEMODES,
+    exclusive: gameWrites,
+    monthlyCents: config.game.canaryMonthlyCents,
+  })
+  const gameCanaries = canaries
 
   const health = createHealth({
     clock,
@@ -399,7 +429,16 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     log,
     dispatch: createDispatch(
       keys,
-      createHandlers({ keys, budgets, gamemodes: catalog, matches, fleet, nodes, gslt }),
+      createHandlers({
+        keys,
+        budgets,
+        gamemodes: catalog,
+        matches,
+        fleet,
+        nodes,
+        gslt,
+        canaries: gameCanaries,
+      }),
     ),
     rateLimiter: createRateLimiter({ clock, ...config.rateLimit }),
     health,
@@ -471,6 +510,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       reaper,
       probes,
       game,
+      canaries: gameCanaries,
       budgets,
       gslt,
       webhooks,
@@ -502,6 +542,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
     probes,
     gslt,
     game,
+    canaries: gameCanaries,
     gameStore,
     upgrades,
     app,
@@ -514,6 +555,7 @@ export function createOrchestrator(options: CreateOrchestratorOptions): Orchestr
       webhooks.start()
       reaper.start()
       probes.start()
+      await gameCanaries.start()
       game.start()
       budgets.start()
       gslt.start()

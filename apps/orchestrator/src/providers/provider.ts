@@ -215,6 +215,13 @@ export interface GameServerProvider {
    * — the `stack` a client reads. Names no plugin. `null` when unknown.
    */
   stack?: () => Promise<string | null>
+  /**
+   * **The vendor updates this provider's game, not us** (PRD-10 T3): Dathost
+   * moves its servers' CS2 the hour Valve ships, so a build move there is a
+   * build its next match boots on. The canary plays unattended on such a
+   * provider when its build moves; on any other it waits to be asked.
+   */
+  readonly updatesItself?: boolean
   /** One line in the server's chat. `false` = no server to say it on. */
   announce?: (serverId: string, line: string) => Promise<boolean>
   /** The operator fallback (decision 5): an RCON command through the control plane. `null` = no RCON here. */

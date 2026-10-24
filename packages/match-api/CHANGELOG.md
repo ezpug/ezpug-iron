@@ -17,6 +17,14 @@ only; released as 0.35.0 by T7.
   off the route above and **never a member of `orchestrationFactSchema`** (decision 37).
 - **The fake** answers both with a `gameBuild` fault knob beside `providerDown`; the
   conformance suite gains `game-build-moves` and its golden.
+- **`POST /v1/fleet/game/canary`** (`fleet` scope, PRD-10 T3): body `GameCanaryRequest
+  { provider, hud? }`, answers `GameCanaryRun { provider, build, hud, attempt, matchId,
+  cause, startedAt, finishedAt, verdict }`. It plays the canary for the provider's current
+  build, or answers the run already playing. The verdict lands on `ProviderHealth.game`.
+  A red one also sets `healthy: false` with `lastError` naming the build and the reason.
+- **`gameFactSchema`** gains `game.canary_started` and `game.canary_verdict` (its own
+  union, still never the orchestration one). The fake plays a canary green at once and
+  writes both facts.
 
 ## 0.34.0 — 2026-10-05
 

@@ -3,6 +3,7 @@ import type { Clock, Timer } from '@ezpug/core'
 import type { GameBuildMovedFact, GameCanary, GameUpstreamReleasedFact } from '@ezpug/match-api'
 import type { Log } from '../log'
 import type { ProviderRegistry } from '../providers/registry'
+import type { Exclusive } from './exclusive'
 import {
   type FetchLike,
   GAME_FEED_TIMEOUT_MS,
@@ -80,6 +81,16 @@ export interface GameWatcherOptions {
   upstreams?: readonly GameUpstreamSource[]
   intervalMs?: number
   timeoutMs?: number
+  /**
+   * Serialises writes to a provider's picture with the canary's (PRD-10 T3).
+   * Default: none, for a watcher that is the only writer.
+   */
+  exclusive?: Exclusive
+  /**
+   * A provider's picture moved to a build it did not run before (PRD-10 T3):
+   * what plays the canary. Called after the picture is written.
+   */
+  onProviderBuild?: (provider: string, build: string) => void
 }
 
 /**
@@ -108,6 +119,7 @@ export function createGameWatcher(options: GameWatcherOptions): GameWatcher {
   const upstreams = options.upstreams ?? GAME_UPSTREAMS
   const intervalMs = options.intervalMs ?? GAME_WATCH_INTERVAL_MS
   const timeoutMs = options.timeoutMs ?? GAME_FEED_TIMEOUT_MS
+  const exclusive: Exclusive = options.exclusive ?? (work => work())
 
   let timer: Timer | undefined
   let running = false
@@ -305,16 +317,23 @@ export function createGameWatcher(options: GameWatcherOptions): GameWatcher {
 
     // 2. Every provider's picture: its own reading where it has one, the world's otherwise.
     const latest = moveTo?.id ?? current?.build ?? null
-    const states = await store.listProviderStates()
     for (const provider of registry.all()) {
       const reading = own.get(provider.id) ?? null
       const stack = await askStack(provider.id, report.problems)
-      const prev = states.find(state => state.provider === provider.id)
-      // A provider that can be asked and did not answer keeps what it last
-      // said rather than borrowing the world's build for one tick.
-      const build = reading?.id ?? (provider.gameBuild ? (prev?.build ?? latest) : latest)
-      const next = fold(prev, provider.id, build, stack, at)
-      if (!sameState(prev, next)) await store.upsertProviderState(next)
+      // Read, fold and write as one turn: the canary writes verdicts here too.
+      const { prev, next } = await exclusive(async () => {
+        const prev = (await store.listProviderStates()).find(
+          state => state.provider === provider.id,
+        )
+        // A provider that can be asked and did not answer keeps what it last
+        // said rather than borrowing the world's build for one tick.
+        const build = reading?.id ?? (provider.gameBuild ? (prev?.build ?? latest) : latest)
+        const next = fold(prev, provider.id, build, stack, at)
+        if (!sameState(prev, next)) await store.upsertProviderState(next)
+        return { prev, next }
+      })
+      if (next.build !== null && next.build !== (prev?.build ?? null))
+        options.onProviderBuild?.(provider.id, next.build)
       // A server that caught up with the world names the engine's revision
       // the move itself could not: fill it in once.
       if (reading !== null && reading.id === latest && reading.sourceRevision !== null) {
