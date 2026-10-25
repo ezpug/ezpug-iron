@@ -821,7 +821,7 @@ says so, a second run while one is in flight exits on `.cache/game-follow.pid`, 
 dirty tree is a named stop the next tick tries again after.
 
 ```cron
-*/30 * * * * cd /root/ezpug-iron && PATH=/root/.local/bin:/root/.nvm/versions/node/v22.23.4/bin:/usr/local/bin:/usr/bin:/bin pnpm game:follow --auto --env-file .env.production >> /var/log/ezpug-iron/game-follow.log 2>&1
+*/30 * * * * cd /root/ezpug-iron && DOTNET_ROOT=/root/.dotnet PATH=/root/.local/bin:/root/.nvm/versions/node/v22.23.4/bin:/root/.dotnet:/usr/local/bin:/usr/bin:/bin pnpm game:follow --auto --env-file .env.production >> /var/log/ezpug-iron/game-follow.log 2>&1
 ```
 
 `/root/.local/bin` first, for the box's `docker` shim. The dev-node canary inside an
